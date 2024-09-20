@@ -46,14 +46,6 @@ const DrawerScreen = ({ navigation }) => {
 
             <TouchableOpacity
                 style={styles.drawerItem}
-                onPress={() => navigation.navigate("AddCustomer")}
-            >
-                <IconFeather name="user-plus" size={20} color={customColors.black} />
-                <Text style={styles.drawerText}>Add Retailers</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-                style={styles.drawerItem}
                 onPress={logout}
             >
                 <Icon name="logout" size={20} color="red" />

@@ -8,9 +8,10 @@ import { API } from '../../Config/Endpoint';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Accordion from '../../Components/Accordion';
 import assetImages from '../../Config/Image';
+import { useNavigation } from '@react-navigation/native';
 
 const AttendanceReport = () => {
-    const scheme = useColorScheme();
+    const navigation = useNavigation();
     const colors = customColors;
     const [attendanceData, setAttendanceData] = useState(null)
 

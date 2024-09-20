@@ -100,6 +100,14 @@ const HomeScreen = () => {
                             <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>Stock List</Text>
                         </TouchableOpacity>
 
+                        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("Sales")}>
+                            <Image
+                                source={assetImages.inventoryStore}
+                                style={styles.tinyLogo}
+                            />
+                            <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>Sales</Text>
+                        </TouchableOpacity>
+
                     </View>
                 </ScrollView>
             </ImageBackground>

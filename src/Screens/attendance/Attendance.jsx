@@ -25,7 +25,12 @@ const Attendance = (locationData) => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem('UserId');
-                setFormValues({ ...formValues, UserId: userId });
+                if (userId) {
+                    setFormValues(prevValues => ({
+                        ...prevValues,
+                        UserId: userId
+                    }));
+                }
             } catch (err) {
                 console.log(err);
             }
@@ -41,16 +46,26 @@ const Attendance = (locationData) => {
     };
 
     const handleInputChange = value => {
-        setFormValues({ ...formValues, Start_KM: value });
+        setFormValues(prevState => ({
+            ...prevState,
+            Start_KM: value
+        }));
     };
 
     const handlePhotoCapture = async (photoPath) => {
         setCapturedPhotoPath(photoPath);
-        setFormValues({ ...formValues, Start_KM_Pic: photoPath });
+        setFormValues(prevState => ({
+            ...prevState,
+            Start_KM_Pic: photoPath
+        }));
     };
 
     const clearPhoto = () => {
         setCapturedPhotoPath(null);
+        setFormValues(prevState => ({
+            ...prevState,
+            Start_KM_Pic: ""
+        }));
     };
 
     const handleSubmit = async () => {

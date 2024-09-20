@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, Image, ToastAndroid, Modal, ImageBackground } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, Image, ToastAndroid, Modal, ImageBackground, Alert } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/AntDesign";
@@ -25,7 +25,8 @@ const EndDay = () => {
                 getAttendanceInfo(userId)
                 setFormValues({ ...formValues, Id: userId });
             } catch (err) {
-                console.log(err);
+                console.error("Error fetching user ID:", err);
+                Alert.alert("Error", "Unable to fetch user ID");
             }
         })();
     }, [])
@@ -39,19 +40,28 @@ const EndDay = () => {
             });
             const attendanceStatus = await response.json();
 
-            setFormValues({ ...formValues, Id: attendanceStatus.data[0].Id });
+            if (response.ok && attendanceStatus?.data?.length > 0) {
+                setFormValues(prevState => ({ ...prevState, Id: attendanceStatus.data[0].Id }));
+            } else {
+                throw new Error('Failed to fetch attendance data');
+            }
+
+            // setFormValues({ ...formValues, Id: attendanceStatus.data[0].Id });
         } catch (error) {
-            console.log("Error fetching attendance data:", error);
+            console.error("Error fetching attendance data:", error);
+            Alert.alert("Error", "Failed to fetch attendance data");
         }
     };
 
     const handleInputChange = value => {
-        setFormValues({ ...formValues, End_KM: value });
+        setFormValues(prevState => ({ ...prevState, End_KM: value }));
+        // setFormValues({ ...formValues, End_KM: value });
     };
 
     const handlePhotoCapture = (photoPath) => {
         setCapturedPhotoPath(photoPath);
-        setFormValues({ ...formValues, End_KM_Pic: photoPath });
+        setFormValues(prevState => ({ ...prevState, End_KM_Pic: photoPath }));
+        // setFormValues({ ...formValues, End_KM_Pic: photoPath });
     };
 
     const clearPhoto = () => {
@@ -61,6 +71,7 @@ const EndDay = () => {
     const handleSubmit = async () => {
         try {
             const formData = new FormData();
+            console.log(formData);
             formData.append("Id", formValues.Id);
             formData.append("End_KM", formValues.End_KM);
             formData.append("End_KM_Pic", {
@@ -77,11 +88,12 @@ const EndDay = () => {
                 body: formData
             });
 
+            const responseData = await response.json();
+
             if (!response.ok) {
                 throw new Error("Failed to post data to server");
             }
 
-            const responseData = await response.json();
             ToastAndroid.show("Your attendance update successfully", ToastAndroid.LONG);
             navigation.navigate("HomeScreen")
             console.log("Response from server: ", responseData);

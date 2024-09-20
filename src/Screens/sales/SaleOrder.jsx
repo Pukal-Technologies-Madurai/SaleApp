@@ -1,14 +1,13 @@
-import { Alert, Image, ImageBackground, KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from 'react-native'
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import PagerView from 'react-native-pager-view';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Dropdown } from 'react-native-element-dropdown';
-import { API } from '../../Config/Endpoint';
-import { customColors, typography } from '../../Config/helper';
-import CustomButton from '../../Components/CustomButton';
-import Icon from 'react-native-vector-icons/AntDesign';
-import assetImages from '../../Config/Image';
+import { Alert, Image, ImageBackground, Modal, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native"
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import PagerView from "react-native-pager-view";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Dropdown } from "react-native-element-dropdown";
+import Icon from "react-native-vector-icons/AntDesign";
+import { API } from "../../Config/Endpoint";
+import { customColors, typography } from "../../Config/helper";
+import assetImages from "../../Config/Image";
 
 const SaleOrder = ({ route }) => {
     const navigation = useNavigation();
@@ -290,7 +289,7 @@ const SaleOrder = ({ route }) => {
                     <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Sale Order</Text>
                     <TouchableOpacity onPress={handlePreview}>
                         <Text style={{
-                            textAlign: "center",
+                            textAlign: "cente                           r",
                             ...typography.body1(),
                             color: customColors.white
                         }}>

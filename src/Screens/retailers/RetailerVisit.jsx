@@ -13,6 +13,7 @@ import assetImages from "../../Config/Image";
 
 const RetailerVisit = () => {
     const navigation = useNavigation();
+    const [selectedRetail, setSelectedRetail] = useState(null);
     const [formValues, setFormValues] = useState({
         Retailer_Id: selectedRetail,
         Retailer_Name: "",
@@ -25,20 +26,19 @@ const RetailerVisit = () => {
     });
     const [errors, setErrors] = useState({});
     const [retailerData, setRetailerData] = useState([])
-    const [selectedRetail, setSelectedRetail] = useState(null);
     const [selectedValue, setSelectedValue] = useState("new");
     const [capturedPhotoPath, setCapturedPhotoPath] = useState(null);
     const [showCameraModal, setShowCameraModal] = useState(false);
     const [location, setLocation] = useState({ latitude: null, longitude: null });
-    const [id, setId] = useState()
+    const [userId, setUserId] = useState()
 
     useEffect(() => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
                 const companyId = await AsyncStorage.getItem("Company_Id");
+                setUserId(userId)
                 fetchCustomersData(companyId)
-                setId(userId)
             } catch (err) {
                 console.log(err);
             }
@@ -59,7 +59,7 @@ const RetailerVisit = () => {
     };
 
     const handleInputChange = (fieldName, value) => {
-        setFormValues(prevState => ({
+        setFormValues((prevState) => ({
             ...prevState,
             [fieldName]: value
         }));
@@ -67,73 +67,84 @@ const RetailerVisit = () => {
 
     const handlePhotoCapture = async (photoPath) => {
         setCapturedPhotoPath(photoPath);
-        setFormValues(prevState => ({
-            ...prevState,
-            Location_Image: photoPath
-        }));
+        handleInputChange("Location_Image", photoPath);
+        // setFormValues(prevState => ({
+        //     ...prevState,
+        //     Location_Image: photoPath
+        // }));
     };
 
     const clearPhoto = () => {
         setCapturedPhotoPath(null);
     };
 
-    const handleSubmit = async () => {
-        const formData = new FormData();
+    const validateInputs = () => {
+        if (selectedValue === "new") {
+            if (formValues.Retailer_Name.trim() === "") {
+                ToastAndroid.show("Please enter the Shop Name", ToastAndroid.LONG);
+                return false;
+            }
+            if (formValues.Contact_Person.trim() === "") {
+                ToastAndroid.show("Please enter the Shop Owner Name", ToastAndroid.LONG);
+                return false;
+            }
+            if (formValues.Mobile_No.trim().length !== 10) {
+                ToastAndroid.show("Please enter a valid 10-digit Mobile Number", ToastAndroid.LONG);
+                return false;
+            }
+        }
+        return true;
+    };
 
+    const handleSubmit = async () => {
+        if (!validateInputs()) return;
+
+        const formData = new FormData();
         formData.append("Mode", selectedValue === "exist" ? 1 : 2);
 
         if (selectedValue === "exist") {
             formData.append("Retailer_Id", selectedRetail);
-            if (location.latitude && location.longitude) {
-                formData.append("Latitude", location.latitude);
-                formData.append("Longitude", location.longitude);
-            }
-            formData.append("Narration", formValues.Narration);
-            formData.append("EntryBy", id);
         } else {
             formData.append("Reatailer_Name", formValues.Retailer_Name);
             formData.append("Contact_Person", formValues.Contact_Person);
             formData.append("Contact_Mobile", formValues.Mobile_No);
             formData.append("Location_Address", formValues.Location_Address);
-
-            if (formValues.Mobile_No.trim() === "") {
-                ToastAndroid.show("Please Enter Name, Mobile Number", ToastAndroid.LONG);
-                return;
-            }
-
-            if (location.latitude && location.longitude) {
-                formData.append("Latitude", location.latitude);
-                formData.append("Longitude", location.longitude);
-            }
-            formData.append("Narration", formValues.Narration);
-            formData.append("EntryBy", id);
         }
+        if (location.latitude && location.longitude) {
+            formData.append("Latitude", location.latitude);
+            formData.append("Longitude", location.longitude);
+        }
+        formData.append("Narration", formValues.Narration);
+        formData.append("EntryBy", userId);
+
+        console.log(formData)
 
         if (capturedPhotoPath) {
             const photo = {
                 uri: `file://${formValues.Location_Image}`,
                 type: "image/jpeg",
-                name: capturedPhotoPath
+                name: capturedPhotoPath.split('/').pop()
             };
             formData.append("Location_Image", photo);
         }
 
-        fetch(API.visitedLog, {
-            method: "POST",
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-            body: formData,
-        }).then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    ToastAndroid.show(data.message, ToastAndroid.LONG);
-                    navigation.navigate("HomeScreen")
-                }
-            }).catch(error => {
-                ToastAndroid.show(error, ToastAndroid.LONG);
-                console.error("Error submitting form: ", error);
+        try {
+            const response = await fetch(API.visitedLog, {
+                method: "POST",
+                headers: { "Content-Type": "multipart/form-data" },
+                body: formData,
             });
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                navigation.navigate("HomeScreen")
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
+            console.error("Error submitting form:", err);
+        }
     };
 
     return (
@@ -181,10 +192,11 @@ const RetailerVisit = () => {
                                 value={selectedRetail}
                                 onChange={item => {
                                     setSelectedRetail(item.Retailer_Id);
-                                    setFormValues(prevState => ({
-                                        ...prevState,
-                                        Retailer_Id: item.Retailer_Id
-                                    }));
+                                    handleInputChange("Retailer_Id", item.Retailer_Id);
+                                    // setFormValues(prevState => ({
+                                    //     ...prevState,
+                                    //     Retailer_Id: item.Retailer_Id
+                                    // }));
                                 }}
                                 maxHeight={300}
                                 search
@@ -264,7 +276,7 @@ const RetailerVisit = () => {
                                     style={styles.inputBox}
                                     value={formValues.Retailer_Name}
                                     keyboardType="default"
-                                    autoCapitalize="characters"
+                                    autoCapitalize="words"
                                     placeholder="Retailer Name"
                                     placeholderTextColor={customColors.accent}
                                     onChangeText={(text) => handleInputChange("Retailer_Name", text)}
@@ -275,7 +287,7 @@ const RetailerVisit = () => {
                                     style={styles.inputBox}
                                     value={formValues.Contact_Person}
                                     keyboardType="default"
-                                    autoCapitalize="characters"
+                                    autoCapitalize="words"
                                     placeholder="Contact Person"
                                     placeholderTextColor={customColors.accent}
                                     onChangeText={(text) => handleInputChange('Contact_Person', text)}

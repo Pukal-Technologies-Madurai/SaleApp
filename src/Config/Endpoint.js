@@ -1,13 +1,10 @@
-const baseURL = "http://shrifoodsapi.erpsmt.in/"        // live api
-// const baseURL = "https://smttask.in/"                // test api
-// const baseURL = "http://192.168.1.3:9001/"
+const baseURL = "http://shrifoodsapi.erpsmt.in/"     // live api
+// const baseURL = "https://smttask.in/"                   // test api
 
 export const API = {
-    login: "http://shrifoodsapi.erpsmt.in/api/login",     // Sale App endpoint
-    // login: "https://erpsmt.in/api/authorization/login",     // SMTERP endpoint
-    // login: "https://api.smttask.in/user/api/login",      // test endpoint
-    // login: "http://192.168.1.3:7001/user/api/login",
-    changePassword: "https://erpsmt.in/api/masters/users/changePassword",
+    login: "http://shrifoodsapi.erpsmt.in/api/login",           // Sale App endpoint
+    // login: "https://smttask.in/api/authorization/login",     // test endpoint
+    changePassword: baseURL + "api/masters/users/changePassword",
     delete: baseURL + "api/deleteMyAccount",
 
     attendance: baseURL + "api/attendance",
@@ -26,6 +23,7 @@ export const API = {
     state: baseURL + "api/masters/state",
     distributors: baseURL + "api/masters/distributors",
 
+    products: baseURL + "api/masters/products?Company_Id=",
     groupedProducts: baseURL + "api/masters/products/grouped?Company_Id=",
     productClosingStock: baseURL + "api/masters/retailers/productClosingStock?Retailer_Id=",
     closingStock: baseURL + "api/masters/retailers/closingStock",

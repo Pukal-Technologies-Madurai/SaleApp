@@ -23,6 +23,7 @@ import ProfileScreen from '../Screens/ProfileScreen';
 import RetailerMapView from '../Screens/RetailerMapView';
 import SaleReturn from '../Screens/sales/SaleReturn';
 import Delivery from '../Screens/delivery/Delivery';
+import Sales from "../Screens/sales/Sales";
 
 const Stack = createStackNavigator();
 
@@ -62,6 +63,7 @@ const AppStack = () => {
 
             <Stack.Screen name="RetailerMapView" component={RetailerMapView} options={{ title: "Retailers" }} />
             <Stack.Screen name="SaleReturn" component={SaleReturn} options={{ title: "Sales Return" }} />
+            <Stack.Screen name="Sales" component={Sales} options={{ title: "Sales Return" }} />
 
             <Stack.Screen name="Delivery" component={Delivery} options={{ title: "Delivery" }} />
 
