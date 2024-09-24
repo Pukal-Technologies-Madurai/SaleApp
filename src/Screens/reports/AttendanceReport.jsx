@@ -27,8 +27,8 @@ const AttendanceReport = () => {
     useEffect(() => {
         (async () => {
             try {
-                const userId = await AsyncStorage.getItem('UserId');
-                fetchAttendance(selectedFromDate.toISOString(), selectedToDate.toISOString(), userId);
+                const userTypeId = await AsyncStorage.getItem("userTypeId");
+                fetchAttendance(selectedFromDate.toISOString(), selectedToDate.toISOString(), userTypeId);
             } catch (err) {
                 console.log(err);
             }
@@ -58,8 +58,9 @@ const AttendanceReport = () => {
     };
 
     const fetchAttendance = async (fromDay, toDay, id) => {
+        // console.log(`${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}`)
         try {
-            const response = await fetch(`${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserId=${id}`, {
+            const response = await fetch(`${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

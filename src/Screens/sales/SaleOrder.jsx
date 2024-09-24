@@ -223,7 +223,42 @@ const SaleOrder = ({ route }) => {
         setModalVisible(true);
     };
 
+    const handleVisitLog = async () => {
+        const formData = new FormData();
+        formData.append("Mode", 1);
+        formData.append("Retailer_Id", stockInputValue.Retailer_Id);
+        formData.append("Latitude", "0.0");
+        formData.append("Longitude", "0.0");
+        formData.append("Narration", "Sale Order Entry");
+        formData.append("EntryBy", stockInputValue.Created_by);
+
+        try {
+            const response = await fetch(API.visitedLog, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Network response was not ok: ${errorText}`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                navigation.navigate("HomeScreen")
+            } else {
+                throw new Error(data.message);
+            }
+
+        } catch (err) {
+            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
+            console.error("Error submitting form:", err);
+        }
+    };
+
     const handleSubmit = async () => {
+        handleVisitLog()
         if (quantities.length <= 0 || !selectedRetail) {
             Alert.alert('Error', 'Please select a retailer and enter product quantities.');
             return;
@@ -289,7 +324,7 @@ const SaleOrder = ({ route }) => {
                     <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Sale Order</Text>
                     <TouchableOpacity onPress={handlePreview}>
                         <Text style={{
-                            textAlign: "cente                           r",
+                            textAlign: "center",
                             ...typography.body1(),
                             color: customColors.white
                         }}>
@@ -365,7 +400,7 @@ const SaleOrder = ({ route }) => {
                         </ScrollView>
                         <ScrollView>
                             <PagerView
-                                style={{ marginTop: 15 }}
+                                style={{ marginTop: 15, height: 1500 }}
                                 initialPage={selectedTab}
                                 ref={pagerRef}
                                 onPageSelected={onPageSelected}

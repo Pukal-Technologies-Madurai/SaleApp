@@ -21,8 +21,6 @@ import SaleOrder from '../Screens/sales/SaleOrder';
 import OrderPreview from '../Screens/reports/OrderPreview';
 import ProfileScreen from '../Screens/ProfileScreen';
 import RetailerMapView from '../Screens/RetailerMapView';
-import SaleReturn from '../Screens/sales/SaleReturn';
-import Delivery from '../Screens/delivery/Delivery';
 import Sales from "../Screens/sales/Sales";
 
 const Stack = createStackNavigator();
@@ -39,33 +37,31 @@ const AppStack = () => {
             <Stack.Screen name="LoginScreen" component={LoginScreen} />
 
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
-            <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: "Profile Details", }} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
 
-            <Stack.Screen name="Customers" component={Customers} options={{ title: "Retailers", }} />
-            <Stack.Screen name="CustomersDetails" component={CustomersDetails} options={{ title: "Retailer Details" }} />
-            <Stack.Screen name="AddCustomer" component={AddCustomer} options={{ title: "Retailer Visit" }} />
-            <Stack.Screen name="EditCustomer" component={EditCustomer} />
-            <Stack.Screen name="RetailerVisit" component={RetailerVisit} options={{ title: "Retailer Visit" }} />
+            <Stack.Screen name="Customers" component={Customers} />
+            <Stack.Screen name="CustomersDetails" component={CustomersDetails} />
+            <Stack.Screen name="RetailerVisit" component={RetailerVisit} />
 
-            <Stack.Screen name="RetailerLog" component={RetailerVisitLog} options={{ title: "Retailer Visit Log" }} />
-            <Stack.Screen name="StockInfo" component={StockInfo} options={{ title: "Stock List" }} />
-            <Stack.Screen name="AttendanceReport" component={AttendanceReport} options={{ title: "Attendance Report" }} />
+            <Stack.Screen name="RetailerLog" component={RetailerVisitLog} />
+            <Stack.Screen name="StockInfo" component={StockInfo} />
+            <Stack.Screen name="AttendanceReport" component={AttendanceReport} />
 
             <Stack.Screen name="AttendanceInfo" component={AttendanceInfo} />
             <Stack.Screen name="Attendance" component={Attendance} />
-            <Stack.Screen name="EndDay" component={EndDay} options={{ title: "Close Attendance" }} />
+            <Stack.Screen name="EndDay" component={EndDay} />
 
             <Stack.Screen name="OpenCamera" component={OpenCamera} />
             <Stack.Screen name="StockClosing" component={StockClosing} />
 
             <Stack.Screen name="Orders" component={SaleOrder} />
-            <Stack.Screen name="OrderPreview" component={OrderPreview} options={{ title: "My Sales" }} />
+            <Stack.Screen name="OrderPreview" component={OrderPreview} />
+            <Stack.Screen name="Sales" component={Sales} options={{ title: "Temp Sales" }} />
 
+            {/* Not Used */}
+            <Stack.Screen name="AddCustomer" component={AddCustomer} options={{ title: "Retailer Visit" }} />
+            <Stack.Screen name="EditCustomer" component={EditCustomer} />
             <Stack.Screen name="RetailerMapView" component={RetailerMapView} options={{ title: "Retailers" }} />
-            <Stack.Screen name="SaleReturn" component={SaleReturn} options={{ title: "Sales Return" }} />
-            <Stack.Screen name="Sales" component={Sales} options={{ title: "Sales Return" }} />
-
-            <Stack.Screen name="Delivery" component={Delivery} options={{ title: "Delivery" }} />
 
         </Stack.Navigator>
     );

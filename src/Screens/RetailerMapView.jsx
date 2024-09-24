@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, useColorScheme, View } from 'react-native'
+import { StyleSheet, useColorScheme, View } from 'react-native'
 import React, { useState, useEffect } from 'react'
 // import MapView, { Marker, Callout } from 'react-native-maps';
 
@@ -9,7 +9,6 @@ import { WebView } from 'react-native-webview';
 import { Dropdown } from 'react-native-element-dropdown';
 
 const RetailerMapView = () => {
-    const scheme = useColorScheme();
     const colors = customColors;
 
     const [data, setData] = useState([]);

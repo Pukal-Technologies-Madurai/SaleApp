@@ -24,7 +24,6 @@ const RetailerVisit = () => {
         Narration: "",
         Location_Image: ""
     });
-    const [errors, setErrors] = useState({});
     const [retailerData, setRetailerData] = useState([])
     const [selectedValue, setSelectedValue] = useState("new");
     const [capturedPhotoPath, setCapturedPhotoPath] = useState(null);
@@ -68,10 +67,6 @@ const RetailerVisit = () => {
     const handlePhotoCapture = async (photoPath) => {
         setCapturedPhotoPath(photoPath);
         handleInputChange("Location_Image", photoPath);
-        // setFormValues(prevState => ({
-        //     ...prevState,
-        //     Location_Image: photoPath
-        // }));
     };
 
     const clearPhoto = () => {
@@ -454,7 +449,7 @@ const styles = StyleSheet.create({
     selectedTextStyle: {
         ...typography.body1(),
         color: customColors.black,
-        numberOfLines: 1,
+        // numberOfLines: 1,
     },
     inputSearchStyle: {
         ...typography.body1(),

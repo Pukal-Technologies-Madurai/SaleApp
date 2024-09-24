@@ -62,9 +62,9 @@ const OrderPreview = () => {
         // console.log(`${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`)
         try {
             const response = await fetch(`${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`, {
-                method: 'GET',
+                method: "GET",
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                 }
             });
             const data = await response.json();
@@ -78,6 +78,25 @@ const OrderPreview = () => {
             console.log("Error fetching logs:", error);
         }
     }
+
+    useEffect(() => {
+        if (logData && logData.length > 0 && logData[0].Retailer_Id) {
+            fetchRetailerInfo(logData[0].Retailer_Id);
+        }
+    }, [logData]);
+
+    const fetchRetailerInfo = async (retailerId) => {
+        console.log(`${API.retailerInfo}${retailerId}`)
+        try {
+            const response = await fetch(`${API.retailerInfo}${retailerId}`);
+            const data = await response.json();
+            if (data.success) {
+                setRetailerInfo(data.data[0]);
+            }
+        } catch (error) {
+            console.error('Error fetching retailer data:', error);
+        }
+    };
 
     const renderHeader = (item) => {
         return (
@@ -147,23 +166,7 @@ const OrderPreview = () => {
         navigation.navigate('Orders', { item, isEdit: true })
     }
 
-    useEffect(() => {
-        if (logData && logData.length > 0 && logData[0].Retailer_Id) {
-            fetchRetailerInfo(logData[0].Retailer_Id);
-        }
-    }, [logData]);
 
-    const fetchRetailerInfo = async (retailerId) => {
-        try {
-            const response = await fetch(`${API.retailerInfo}${retailerId}`);
-            const data = await response.json();
-            if (data.success) {
-                setRetailerInfo(data.data[0]);
-            }
-        } catch (error) {
-            console.error('Error fetching retailer data:', error);
-        }
-    };
 
     function numberToWords(num) {
         const under20 = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];

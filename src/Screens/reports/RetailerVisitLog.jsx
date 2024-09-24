@@ -73,6 +73,11 @@ const RetailerVisitLog = () => {
     }
 
     const renderContent = (item) => {
+        const latitude = item.Latitude;
+        const longitude = item.Longitude;
+
+        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+
         return (
             <View style={styles.card}>
                 <View style={styles.textContainer}>
@@ -101,6 +106,29 @@ const RetailerVisitLog = () => {
                         Narration:
                         <Text style={styles.boldText}> {item.Narration}</Text>
                     </Text>
+                    {/* <TouchableOpacity
+                        style={{
+                            borderColor: customColors.primary,
+                            borderWidth: 1
+                        }}
+                        onPress={() => {
+                            const { Contact_Mobile, Reatailer_Name, Contact_Person } = item;
+                            navigation.navigate("Sales", {
+                                Contact_Mobile,
+                                Reatailer_Name,
+                                Contact_Person
+                            });
+                        }}>
+                        <Text style={styles.boldText} maxFontSizeMultiplier={1.2}>Sales Order</Text>
+                    </TouchableOpacity> */}
+
+                    {latitude && longitude && (
+                        <TouchableOpacity onPress={() => Linking.openURL(googleMapsUrl)}>
+                            <Text style={[styles.boldText, { color: "blue" }]}>
+                                View Location on Map
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
                 {item.imageUrl && (
                     <TouchableOpacity

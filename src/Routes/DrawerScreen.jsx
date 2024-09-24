@@ -3,7 +3,7 @@ import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import IconFont from "react-native-vector-icons/FontAwesome6";
-import IconFeather from "react-native-vector-icons/Feather";
+import IconAntDesign from "react-native-vector-icons/AntDesign";
 
 import { customColors, typography } from "../Config/helper";
 
@@ -42,6 +42,14 @@ const DrawerScreen = ({ navigation }) => {
             >
                 <IconFont name="circle-user" size={20} color={customColors.black} />
                 <Text style={styles.drawerText}>Account</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.drawerItem}
+                onPress={() => navigation.navigate("AddCustomer")}
+            >
+                <IconAntDesign name="adduser" size={20} color={customColors.black} />
+                <Text style={styles.drawerText}>Add Customer</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

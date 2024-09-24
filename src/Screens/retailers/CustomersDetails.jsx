@@ -71,8 +71,8 @@ const CustomersDetails = ({ route }) => {
         console.log('location', location)
         try {
             const response = await fetch(API.retailerLocation, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     EntryBy: userId,
                     Latitude: location.latitude.toString(),
@@ -224,14 +224,6 @@ const CustomersDetails = ({ route }) => {
                             source={require('../../../assets/images/pin.png')}
                         />
                         <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Add Location</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.button} onPress={() => { navigation.navigate('SaleReturn', { item }) }} >
-                        <Image
-                            style={styles.tinyLogo}
-                            source={require('../../../assets/images/bag.png')}
-                        />
-                        <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Sales Return</Text>
                     </TouchableOpacity>
 
                 </View>

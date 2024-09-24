@@ -71,7 +71,7 @@ const EndDay = () => {
     const handleSubmit = async () => {
         try {
             const formData = new FormData();
-            console.log(formData);
+            // console.log(formData);
             formData.append("Id", formValues.Id);
             formData.append("End_KM", formValues.End_KM);
             formData.append("End_KM_Pic", {
@@ -81,10 +81,8 @@ const EndDay = () => {
             })
 
             const response = await fetch(API.attendance, {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
+                method: "PUT",
+                headers: { "Content-Type": "multipart/form-data" },
                 body: formData
             });
 

@@ -1,20 +1,18 @@
-import { Image, ImageBackground, Modal, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View, useColorScheme } from 'react-native'
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import PagerView from 'react-native-pager-view';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API } from '../Config/Endpoint';
-import { customColors, typography } from '../Config/helper';
-import CustomButton from '../Components/CustomButton';
-import { Dropdown } from 'react-native-element-dropdown';
-import Icon from 'react-native-vector-icons/AntDesign';
-import assetImages from '../Config/Image';
+import { Image, ImageBackground, Modal, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import PagerView from "react-native-pager-view";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Dropdown } from "react-native-element-dropdown";
+import Icon from "react-native-vector-icons/AntDesign";
+import CustomButton from "../Components/CustomButton";
+import { customColors, typography } from "../Config/helper";
+import { API } from "../Config/Endpoint";
+import assetImages from "../Config/Image";
 
 const StockClosing = ({ route }) => {
     const navigation = useNavigation();
     const { item, isEdit } = route.params;
-    const scheme = useColorScheme();
-    const colors = customColors;
     const pagerRef = useRef(null);
     const [selectedTab, setSelectedTab] = useState(0);
     const [productData, setProductData] = useState([])
@@ -25,10 +23,10 @@ const StockClosing = ({ route }) => {
         ST_Date: new Date().toISOString().split('T')[0],
         Retailer_Id: item.Retailer_Id,
         Retailer_Name: item.Retailer_Name,
-        Narration: '',
-        Created_by: '',
+        Narration: "",
+        Created_by: "",
         Product_Stock_List: [],
-        ST_Id: ''
+        ST_Id: ""
     }
 
     const [stockInputValue, setStockInputValue] = useState(initialStockValue)
@@ -47,8 +45,8 @@ const StockClosing = ({ route }) => {
     useEffect(() => {
         (async () => {
             try {
-                const userId = await AsyncStorage.getItem('UserId');
-                const companyId = await AsyncStorage.getItem('Company_Id');
+                const userId = await AsyncStorage.getItem("UserId");
+                const companyId = await AsyncStorage.getItem("Company_Id");
                 fetchproductPacks(companyId)
 
                 setStockInputValue(prev => ({
@@ -85,6 +83,7 @@ const StockClosing = ({ route }) => {
     }, [isEdit, item]);
 
     const fetchGroupedproducts = async (company) => {
+        console.log(`${API.groupedProducts}${company}`)
         fetch(`${API.groupedProducts}${company}`)
             .then(res => res.json())
             .then(data => {
@@ -200,16 +199,50 @@ const StockClosing = ({ route }) => {
     };
 
     const onPageSelected = (e) => {
-        setSelectedTab(e.nativeEvent.position); // Update the selectedTab state when page is selected
+        setSelectedTab(e.nativeEvent.position);
+    };
+
+    const handleSubmit = async () => {
+        const formData = new FormData();
+        formData.append("Mode", 1);
+        formData.append("Retailer_Id", stockInputValue.Retailer_Id);
+        formData.append("Latitude", "0.0");
+        formData.append("Longitude", "0.0");
+        formData.append("Narration", "Stock Entry");
+        formData.append("EntryBy", stockInputValue.Created_by);
+
+        try {
+            const response = await fetch(API.visitedLog, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Network response was not ok: ${errorText}`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                navigation.navigate("HomeScreen")
+            } else {
+                throw new Error(data.message);
+            }
+
+        } catch (err) {
+            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
+            console.error("Error submitting form:", err);
+        }
     };
 
     const postClosingStock = async () => {
         if (closingStockValues.length > 0 && stockInputValue.Retailer_Id) {
             try {
                 const response = await fetch(API.closingStock, {
-                    method: isEdit ? 'PUT' : 'POST',
+                    method: isEdit ? "PUT" : "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         ...stockInputValue,
@@ -221,7 +254,7 @@ const StockClosing = ({ route }) => {
                     const data = await response.json();
                     if (data.success) {
                         ToastAndroid.show(data.message, ToastAndroid.LONG);
-                        navigation.navigate('HomeScreen')
+                        navigation.navigate("HomeScreen")
                     } else {
                         ToastAndroid.show(data.message, ToastAndroid.LONG);
                     }
@@ -242,7 +275,9 @@ const StockClosing = ({ route }) => {
     };
 
     const handleModalSubmit = () => {
+        // console.log("handleModalSubmit called");
         setModalVisible(false);
+        handleSubmit()
         postClosingStock();
     };
 

@@ -25,17 +25,18 @@ const LoginScreen = () => {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        UserName: loginId,
-                        Password: passHash
+                        username: loginId,
+                        password: passHash
                     })
                 });
 
                 const data = await response.json();
+                console.log(data)
 
                 if (data.success) {
-                    await AsyncStorage.setItem("userToken", data.data[0].Autheticate_Id);
-                    await setData(data.data[0]);
-                    setAuthInfo(data.data[0]);
+                    await AsyncStorage.setItem("userToken", data.user.Autheticate_Id);
+                    await setData(data.user);
+                    setAuthInfo(data.user);
                     navigation.replace("HomeScreen");
                 } else {
                     Alert.alert(data.message);
