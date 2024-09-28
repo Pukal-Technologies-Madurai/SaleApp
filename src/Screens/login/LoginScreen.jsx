@@ -5,10 +5,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CryptoJS from "react-native-crypto-js";
 import Icon from "react-native-vector-icons/Fontisto";
 
-import { API } from '../Config/Endpoint';
-import { storeInfo } from '../Config/AuthContext';
-import { customColors, typography } from '../Config/helper';
-import assetImages from "../Config/Image";
+import { API } from '../../Config/Endpoint';
+import { storeInfo } from '../../Config/AuthContext';
+import { customColors, typography } from '../../Config/helper';
+import assetImages from "../../Config/Image";
 
 const LoginScreen = () => {
     const { setAuthInfo } = storeInfo();
@@ -31,7 +31,7 @@ const LoginScreen = () => {
                 });
 
                 const data = await response.json();
-                console.log(data)
+                // console.log(data)
 
                 if (data.success) {
                     await AsyncStorage.setItem("userToken", data.user.Autheticate_Id);

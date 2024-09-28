@@ -227,8 +227,8 @@ const SaleOrder = ({ route }) => {
         const formData = new FormData();
         formData.append("Mode", 1);
         formData.append("Retailer_Id", stockInputValue.Retailer_Id);
-        formData.append("Latitude", "0.0");
-        formData.append("Longitude", "0.0");
+        formData.append("Latitude", 0);
+        formData.append("Longitude", 0);
         formData.append("Narration", "Sale Order Entry");
         formData.append("EntryBy", stockInputValue.Created_by);
 
@@ -260,14 +260,14 @@ const SaleOrder = ({ route }) => {
     const handleSubmit = async () => {
         handleVisitLog()
         if (quantities.length <= 0 || !selectedRetail) {
-            Alert.alert('Error', 'Please select a retailer and enter product quantities.');
+            Alert.alert("Error", "Please select a retailer and enter product quantities.");
             return;
         }
 
         const orderProducts = quantities.filter(q => parseFloat(q.Bill_Qty) > 0);
 
         if (orderProducts.length <= 0) {
-            Alert.alert('Error', 'Enter at least one product quantity.');
+            Alert.alert("Error", "Enter at least one product quantity.");
             return;
         }
 
@@ -279,11 +279,11 @@ const SaleOrder = ({ route }) => {
         // console.log("Final order details:", orderDetails);
 
         try {
-            const method = isEdit ? 'PUT' : 'POST';
+            const method = isEdit ? "PUT" : "POST";
             const response = await fetch(`${API.saleOrder}`, {
                 method: method,
                 headers: {
-                    'Content-Type': 'application/json'
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(orderDetails)
             });
@@ -292,18 +292,18 @@ const SaleOrder = ({ route }) => {
             // console.log('post data', data)
 
             if (data.success) {
-                Alert.alert('Success', data.message);
-                // Reset state after successful submission
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                // Alert.alert("Success", data.message);
                 setStockInputValue(initialStockValue);
                 setQuantities([]);
                 setSelectedRetail(null);
                 setModalVisible(false);
             } else {
-                Alert.alert('Error', data.message);
+                Alert.alert("Error", data.message);
             }
         } catch (err) {
             console.log(err)
-            Alert.alert('Error', err);
+            Alert.alert("Error", err);
         }
     }
 

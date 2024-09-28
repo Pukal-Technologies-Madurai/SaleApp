@@ -76,6 +76,7 @@ const RetailerVisitLog = () => {
         const latitude = item.Latitude;
         const longitude = item.Longitude;
 
+        const isValidCoordinates = latitude !== 0 && longitude !== 0;
         const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
         return (
@@ -122,7 +123,7 @@ const RetailerVisitLog = () => {
                         <Text style={styles.boldText} maxFontSizeMultiplier={1.2}>Sales Order</Text>
                     </TouchableOpacity> */}
 
-                    {latitude && longitude && (
+                    {isValidCoordinates && (
                         <TouchableOpacity onPress={() => Linking.openURL(googleMapsUrl)}>
                             <Text style={[styles.boldText, { color: "blue" }]}>
                                 View Location on Map
@@ -172,6 +173,17 @@ const RetailerVisitLog = () => {
                             />
                             <Icon name="calendar" color={customColors.white} size={20} />
                         </TouchableOpacity>
+                        <View style={styles.countContainer}>
+                            <Text style={styles.countText}>
+                                {logData ? (
+                                    <Text style={styles.countText}>
+                                        Total: {logData.length}
+                                    </Text>
+                                ) : (
+                                    <Text style={styles.countText}>No logs available</Text>
+                                )}
+                            </Text>
+                        </View>
                     </View>
 
                     {showDatePicker && (
@@ -246,6 +258,21 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 15,
     },
+    countContainer: {
+        width: "50%",
+        padding: 10,
+        marginHorizontal: 10,
+        backgroundColor: customColors.secondary,
+        borderRadius: 5,
+        elevation: 2,
+    },
+    countText: {
+        textAlign: "center",
+        flexWrap: "wrap",
+        ...typography.h6(),
+        fontWeight: "bold",
+        color: customColors.primary,
+    },
     datePickerContainer: {
         flexDirection: "row",
         alignItems: "center",
@@ -253,10 +280,12 @@ const styles = StyleSheet.create({
     },
     datePickerWrapper: {
         flex: 1,
+        flexDirection: "row",
         marginRight: 10,
         marginVertical: 15,
     },
     datePicker: {
+        width: "50%",
         flexDirection: "row",
         alignItems: "center",
         borderWidth: 1,

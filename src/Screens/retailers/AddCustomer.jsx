@@ -272,20 +272,6 @@ const AddCustomer = () => {
                             <Text style={styles.buttonText}>Take Photo</Text>
                         </TouchableOpacity>
 
-                        <FormField label="Area" required />
-                        <Dropdown
-                            data={areas}
-                            labelField="Area_Name"
-                            valueField="Area_Id"
-                            style={styles.dropdown}
-                            search
-                            searchPlaceholder="Search..."
-                            placeholder={!isFocus ? "Select Area" : "..."}
-                            onChange={(value) => {
-                                setFormValues({ ...formValues, Area_Id: value.Area_Id })
-                            }}
-                        />
-
                         <View style={styles.geoContainer}>
                             <TextInput
                                 style={styles.geoInput}
@@ -307,6 +293,48 @@ const AddCustomer = () => {
                                 <Text style={styles.geoButtonText}>GeoData</Text>
                             </TouchableOpacity>
                         </View>
+
+                        <FormField label="Route" required />
+                        <Dropdown
+                            style={styles.dropdown}
+                            data={routes}
+                            labelField="Route_Name"
+                            valueField="Route_Id"
+                            search
+                            searchPlaceholder="Search..."
+                            placeholder={!isFocus ? "Select Route" : "..."}
+                            onChange={(value) => {
+                                setFormValues({ ...formValues, Route_Id: value.Route_Id })
+                            }}
+                        />
+
+                        <FormField label="Area" required />
+                        <Dropdown
+                            data={areas}
+                            labelField="Area_Name"
+                            valueField="Area_Id"
+                            style={styles.dropdown}
+                            search
+                            searchPlaceholder="Search..."
+                            placeholder={!isFocus ? "Select Area" : "..."}
+                            onChange={(value) => {
+                                setFormValues({ ...formValues, Area_Id: value.Area_Id })
+                            }}
+                        />
+
+                        <FormField label="State" required />
+                        <Dropdown
+                            data={state}
+                            style={styles.dropdown}
+                            labelField="State_Name"
+                            valueField="State_Id"
+                            search
+                            searchPlaceholder="Search..."
+                            placeholder={!isFocus ? "Select State" : "..."}
+                            onChange={(value) => {
+                                setFormValues({ ...formValues, State_Id: value.State_Id })
+                            }}
+                        />
 
                         <FormField label="Retailer Address" required />
                         <TextInput
@@ -332,36 +360,12 @@ const AddCustomer = () => {
                             value={formValues.PinCode}
                             keyboardType="number-pad"
                             placeholder="Pin Code"
-                            onChangeText={(text) => handleInputChange('PinCode', text)}
+                            onChangeText={(text) => handleInputChange("PinCode", text)}
                         />
 
-                        <FormField label="State" required />
-                        <Dropdown
-                            data={state}
-                            style={styles.dropdown}
-                            labelField="State_Name"
-                            valueField="State_Id"
-                            search
-                            searchPlaceholder="Search..."
-                            placeholder={!isFocus ? "Select State" : "..."}
-                            onChange={(value) => {
-                                setFormValues({ ...formValues, State_Id: value.State_Id })
-                            }}
-                        />
 
-                        <FormField label="Route" required />
-                        <Dropdown
-                            style={styles.dropdown}
-                            data={routes}
-                            labelField="Route_Name"
-                            valueField="Route_Id"
-                            search
-                            searchPlaceholder="Search..."
-                            placeholder={!isFocus ? "Select Route" : "..."}
-                            onChange={(value) => {
-                                setFormValues({ ...formValues, Route_Id: value.Route_Id })
-                            }}
-                        />
+
+
 
                         <FormField label="Mobile Number" required />
                         <TextInput

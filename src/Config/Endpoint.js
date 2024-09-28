@@ -4,8 +4,10 @@ const baseURL = "http://192.168.1.10:9001/"             // localhost endpoint
 
 export const API = {
     login: baseURL + "api/authorization/login",
+
+    userPortal: baseURL + "api/authorization/userPortal/accounts?username=",
+    userPortalLogin: baseURL + "api/authorization/userPortal/login",
     changePassword: baseURL + "api/masters/users/changePassword",
-    delete: baseURL + "api/deleteMyAccount",
 
     routes: baseURL + "api/masters/routes",
     areas: baseURL + "api/masters/areas",

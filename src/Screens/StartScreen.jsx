@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, StatusBar, ImageBackground, Image } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { customColors, typography } from '../Config/helper';
-import assetImages from '../Config/Image';
+import { View, StyleSheet, StatusBar, ImageBackground, Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { customColors } from "../Config/helper";
+import assetImages from "../Config/Image";
 
 const StartScreen = () => {
     const navigation = useNavigation();
@@ -37,7 +37,7 @@ const StartScreen = () => {
             if (loggedIn) {
                 navigation.replace("HomeScreen");
             } else {
-                navigation.replace("LoginScreen");
+                navigation.replace("LoginPortal");
             }
         }
     }, [loggedIn, loading, navigation]);

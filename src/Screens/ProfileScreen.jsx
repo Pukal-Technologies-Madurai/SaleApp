@@ -13,15 +13,15 @@ const ProfileScreen = () => {
     const [userId, setUserId] = useState()
 
     const [modalVisible, setModalVisible] = useState(false);
-    const [oldPassword, setOldPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
+    const [oldPassword, setOldPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
 
     useEffect(() => {
         (async () => {
             try {
-                const storedName = await AsyncStorage.getItem('Name');
-                const storedBranchName = await AsyncStorage.getItem('branchName');
-                const storedUserId = await AsyncStorage.getItem('UserId');
+                const storedName = await AsyncStorage.getItem("Name");
+                const storedBranchName = await AsyncStorage.getItem("branchName");
+                const storedUserId = await AsyncStorage.getItem("UserId");
                 if (storedName !== null) setName(storedName);
                 if (storedBranchName !== null) setBranchName(storedBranchName)
                 if (setUserId !== null) setUserId(storedUserId)
@@ -63,25 +63,6 @@ const ProfileScreen = () => {
         }
     }
 
-    const handleDelete = async () => {
-        try {
-            const response = await fetch(`${API.delete}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                ToastAndroid.show(data.message, ToastAndroid.LONG);
-            }
-        } catch (err) {
-            console.error(err);
-            ToastAndroid.show(err, ToastAndroid.LONG);
-        }
-    }
-
     return (
         <View style={styles.container}>
             <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
@@ -114,10 +95,6 @@ const ProfileScreen = () => {
                     <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.button} >
                         <Text style={styles.buttonText}>Change Password</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={handleDelete} style={[styles.button, { backgroundColor: "red" }]} >
-                        <Text style={styles.buttonText}>Delete Account</Text>
-                    </TouchableOpacity>
-
 
                     <Modal
                         animationType="slide"
@@ -186,9 +163,9 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         width: "100%",
-        height: "85%",
+        height: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 7.5
+        borderRadius: 15
     },
     formGroup: {
         margin: 20,
@@ -196,40 +173,26 @@ const styles = StyleSheet.create({
     label: {
         ...typography.h3(),
         color: customColors.black,
-        marginBottom: 5,
+        marginBottom: 10,
     },
     input: {
         borderWidth: 1,
         borderColor: customColors.white,
-        borderRadius: 10,
+        borderRadius: 8,
         padding: 15,
-        backgroundColor: customColors.secondary,
-        color: customColors.black,
-        shadowColor: customColors.black,
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
         ...typography.body1(),
+        backgroundColor: "#a0a0a0",
+        color: customColors.black,
     },
     button: {
         marginTop: 20,
         marginHorizontal: 20,
-        padding: 15,
+        paddingVertical: 15,
+        // padding: 15,
         borderRadius: 10,
+        alignItems: "center",
         backgroundColor: customColors.primary,
         shadowColor: customColors.black,
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-        alignItems: "center",
     },
     buttonText: {
         ...typography.button(),
@@ -242,23 +205,23 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContainer: {
-        width: '80%',
-        backgroundColor: customColors.background,
-        borderRadius: 10,
+        width: "90%",
+        backgroundColor: customColors.white,
+        borderRadius: 15,
         padding: 20,
-        alignItems: 'center',
+        alignItems: "center",
     },
     modalTitle: {
         ...typography.h5(),
-        fontWeight: 'bold',
+        fontWeight: "bold",
+        color: customColors.black,
         marginBottom: 20,
-        color: customColors.text,
     },
     modalInput: {
-        width: '100%',
+        width: "100%",
         borderWidth: 1,
-        borderColor: customColors.accent,
-        borderRadius: 5,
+        borderColor: "#a0a0a0",
+        borderRadius: 10,
         padding: 10,
         marginBottom: 20,
     },
@@ -268,11 +231,11 @@ const styles = StyleSheet.create({
         width: "100%",
     },
     modalButton: {
-        backgroundColor: customColors.primary,
-        padding: 10,
-        borderRadius: 5,
-        alignItems: "center",
         flex: 1,
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: customColors.primary,
+        alignItems: "center",
         marginHorizontal: 5,
     },
     modalButtonText: {

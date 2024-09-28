@@ -2,7 +2,7 @@ import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 
 import StartScreen from '../Screens/StartScreen';
-import LoginScreen from '../Screens/LoginScreen';
+import LoginScreen from '../Screens/login/LoginScreen';
 import HomeScreen from '../Screens/HomeScreen';
 import Customers from '../Screens/retailers/Customers';
 import CustomersDetails from '../Screens/retailers/CustomersDetails';
@@ -15,13 +15,14 @@ import StockClosing from '../Screens/StockClosing';
 import AttendanceInfo from '../Screens/attendance/AttendanceInfo';
 import RetailerVisit from '../Screens/retailers/RetailerVisit';
 import RetailerVisitLog from '../Screens/reports/RetailerVisitLog';
-import AttendanceReport from '../Screens/reports/AttendanceReport';
+import AttendanceReport from '../Screens/attendance/AttendanceReport';
 import StockInfo from '../Screens/reports/StockInfo';
 import SaleOrder from '../Screens/sales/SaleOrder';
 import OrderPreview from '../Screens/reports/OrderPreview';
 import ProfileScreen from '../Screens/ProfileScreen';
 import RetailerMapView from '../Screens/RetailerMapView';
 import Sales from "../Screens/sales/Sales";
+import LoginPortal from "../Screens/login/LoginPortal";
 
 const Stack = createStackNavigator();
 
@@ -34,7 +35,7 @@ const AppStack = () => {
                 header: () => null
             }}>
             <Stack.Screen name="StartScreen" component={StartScreen} />
-            <Stack.Screen name="LoginScreen" component={LoginScreen} />
+            <Stack.Screen name="LoginPortal" component={LoginPortal} />
 
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
@@ -59,6 +60,7 @@ const AppStack = () => {
             <Stack.Screen name="Sales" component={Sales} options={{ title: "Temp Sales" }} />
 
             {/* Not Used */}
+            <Stack.Screen name="LoginScreen" component={LoginScreen} />
             <Stack.Screen name="AddCustomer" component={AddCustomer} options={{ title: "Retailer Visit" }} />
             <Stack.Screen name="EditCustomer" component={EditCustomer} />
             <Stack.Screen name="RetailerMapView" component={RetailerMapView} options={{ title: "Retailers" }} />

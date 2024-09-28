@@ -206,8 +206,8 @@ const StockClosing = ({ route }) => {
         const formData = new FormData();
         formData.append("Mode", 1);
         formData.append("Retailer_Id", stockInputValue.Retailer_Id);
-        formData.append("Latitude", "0.0");
-        formData.append("Longitude", "0.0");
+        formData.append("Latitude", 0);
+        formData.append("Longitude", 0);
         formData.append("Narration", "Stock Entry");
         formData.append("EntryBy", stockInputValue.Created_by);
 
@@ -259,14 +259,14 @@ const StockClosing = ({ route }) => {
                         ToastAndroid.show(data.message, ToastAndroid.LONG);
                     }
                 } else {
-                    throw new Error('Network response was not ok.');
+                    throw new Error("Network response was not ok.");
                 }
             } catch (e) {
                 console.error(e);
-                ToastAndroid.show('Failed to post stock data: ' + e.message, ToastAndroid.LONG);
+                ToastAndroid.show("Failed to post stock data: " + e.message, ToastAndroid.LONG);
             }
         } else {
-            ToastAndroid.show('Please enter at least one valid stock value', ToastAndroid.LONG);
+            ToastAndroid.show("Please enter at least one valid stock value", ToastAndroid.LONG);
         }
     }
 

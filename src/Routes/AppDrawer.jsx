@@ -2,6 +2,7 @@ import React from "react"
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import DrawerScreen from "./DrawerScreen";
 import AppStack from "./AppStack";
+import { customColors } from "../Config/helper";
 
 const Drawer = createDrawerNavigator();
 
@@ -11,7 +12,7 @@ const AppDrawer = () => {
             drawerContent={(props) => <DrawerScreen {...props} />}
             screenOptions={{
                 drawerStyle: {
-                    backgroundColor: "#c6cbef",
+                    backgroundColor: customColors.background,
                     width: "65%",
                 },
                 // overlayColor: "transparent",

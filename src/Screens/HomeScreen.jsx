@@ -1,7 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, ImageBackground } from "react-native"
-import React, { useEffect, useState } from "react"
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, ImageBackground } from "react-native";
+import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from "@react-navigation/native";
 import AntDesignIcons from "react-native-vector-icons/AntDesign";
 import Icon from "react-native-vector-icons/FontAwesome6";
 import { customColors, typography } from "../Config/helper";
@@ -11,7 +11,13 @@ import assetImages from "../Config/Image";
 
 const HomeScreen = () => {
     const navigation = useNavigation();
-    const [name, setName] = useState('');
+    const [name, setName] = useState("");
+    const buttons = [
+        { title: "Retailers", icon: assetImages.retailer, navigate: "Customers" },
+        { title: "Visit Log", icon: assetImages.visitLog, navigate: "RetailerLog" },
+        { title: "Sale Order", icon: assetImages.salesOrder, navigate: "OrderPreview" },
+        { title: "Stock List", icon: assetImages.inventoryStore, navigate: "StockInfo" },
+    ];
 
     useEffect(() => {
         (async () => {
@@ -31,9 +37,9 @@ const HomeScreen = () => {
             const url = `${API.MyLastAttendance}${userId}`;
 
             const response = await fetch(url, {
-                method: 'GET',
+                method: "GET",
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                 }
             });
 
@@ -68,38 +74,21 @@ const HomeScreen = () => {
                     <AttendanceInfo />
 
                     <View style={styles.buttonContainer}>
-                        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("Customers")}>
-                            <Image
-                                source={assetImages.retailer}
-                                style={styles.tinyLogo}
-                            />
-                            <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>Retailers</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("RetailerLog")}>
-                            <Image
-                                source={assetImages.visitLog}
-                                style={styles.tinyLogo}
-                            />
-                            <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>Visit Log</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("OrderPreview")}>
-                            <Image
-                                source={assetImages.salesOrder}
-                                style={styles.tinyLogo}
-                            />
-                            <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>Sale Order</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("StockInfo")}>
-                            <Image
-                                source={assetImages.inventoryStore}
-                                style={styles.tinyLogo}
-                            />
-                            <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>Stock List</Text>
-                        </TouchableOpacity>
-
+                        {
+                            buttons.map((button, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.button}
+                                    onPress={() => navigation.navigate(button.navigate)}
+                                >
+                                    <View style={styles.iconContainer}>
+                                        <Image source={button.icon} style={styles.icon} />
+                                    </View>
+                                    < Text style={styles.buttonText} maxFontSizeMultiplier={1.2} >
+                                        {button.title}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
                     </View>
                 </ScrollView>
             </ImageBackground>
@@ -135,29 +124,50 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         flexDirection: "row",
-        justifyContent: "space-around",
-        alignItems: "center",
-        flexWrap: 'wrap',
+        flexWrap: "wrap",
+        justifyContent: "space-between",
         backgroundColor: customColors.white,
-        borderRadius: 10,
-
-        paddingVertical: 20,
+        borderRadius: 15,
+        padding: 15,
         marginHorizontal: 20,
+        marginVertical: 10,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     button: {
-        width: "30%",
+        width: "48%",
+        aspectRatio: 1,
+        justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 15,
-        marginBottom: 20,
+        marginBottom: 15,
+        borderRadius: 12,
+        backgroundColor: "#ccc",
     },
     buttonText: {
         textAlign: "center",
         ...typography.h6,
         fontWeight: "bold",
-        marginTop: 10,
+        color: customColors.black,
     },
-    tinyLogo: {
-        width: 45,
-        height: 45,
-    }
+    icon: {
+        width: 40,
+        height: 40,
+    },
+    iconContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: customColors.white,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 2,
+    },
 });
