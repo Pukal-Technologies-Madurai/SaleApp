@@ -1,34 +1,69 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View, ScrollView, SafeAreaView, TextInput, Modal, Alert } from "react-native";
-import React, { useState, useEffect, useMemo } from "react";
+import { Image, StyleSheet, Text, TouchableOpacity, View, ScrollView, SafeAreaView, TextInput, Modal, Alert, ImageBackground, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Dropdown } from "react-native-element-dropdown";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/Feather";
+import AntDesign from "react-native-vector-icons/AntDesign";
+
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
+import assetImages from "../../Config/Image";
 
-const Sales = ({ route, navigation }) => {
-    const { Contact_Mobile, Reatailer_Name, Contact_Person } = route.params;
+const Sales = ({ route }) => {
+    const navigation = useNavigation();
+    const { item } = route.params;
+
+    const [initialValue, setInitialValue] = useState({
+        Company_Id: "",
+        So_Date: new Date().toISOString().split("T")[0],
+        Retailer_Id: item.Retailer_Id,
+        Retailer_Name: item.Retailer_Name,
+        Sales_Person_Id: "",
+        Sales_Person_Name: "",
+        Branch_Id: "",
+        Narration: "",
+        Created_by: "",
+        So_Id: "",
+        TaxType: 0,
+        Product_Array: [],
+    });
 
     const [productData, setProductData] = useState([]);
-    const [allPacksData, setAllPacksData] = useState([]);
     const [brandData, setBrandData] = useState([]);
-    const [packData, setPackData] = useState([]);
-    const [proGroupData, setProGroupData] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
-    const [selectedPack, setSelectedPack] = useState(null);
-    const [orderQuantities, setOrderQuantities] = useState({});
-    const [selectedGroup, setSelectedGroup] = useState(null);
 
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [orderSummary, setOrderSummary] = useState([]);
-    const [totalOrderValue, setTotalOrderValue] = useState(0);
+    const [proGroupData, setProGroupData] = useState([]);
+    const [selectedGroup, setSelectedGroup] = useState(null);
+    const [uomData, setUOMData] = useState([]);
+    const [selectedUOMs, setSelectedUOMs] = useState({});
+
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [orderQuantities, setOrderQuantities] = useState({});
+    const [editedPrices, setEditedPrices] = useState({});
+    const [priceInputValues, setPriceInputValues] = useState({});
+
+    const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         (async () => {
             try {
                 const companyId = await AsyncStorage.getItem("Company_Id");
-                if (companyId) {
+                const userId = await AsyncStorage.getItem("UserId");
+                const userName = await AsyncStorage.getItem("userName");
+                const branchId = await AsyncStorage.getItem("branchId");
+                if (companyId && userId) {
+                    setInitialValue(prev => ({
+                        ...prev,
+                        Company_Id: companyId,
+                        Sales_Person_Id: userId,
+                        Created_by: userId,
+                        Sales_Person_Name: userName,
+                        Branch_Id: branchId
+                    }));
                     await fetchProducts(companyId);
-                    await fetchAllPacks(companyId);
+                    await fetchUOMData();
                 }
             } catch (err) {
                 console.log("Error fetching data:", err);
@@ -38,16 +73,21 @@ const Sales = ({ route, navigation }) => {
 
     const fetchProducts = async (id) => {
         try {
-            console.log(products)
-            console.log(`${API.products}${id}`)
             const response = await fetch(`${API.products}${id}`);
             const jsonData = await response.json();
 
             if (jsonData.success) {
                 setProductData(jsonData.data);
-                // Extract unique brands
-                const brands = Array.from(new Set(jsonData.data.map(item => item.Brand_Name)))
-                    .map(brand => ({ label: brand, value: brand }));
+
+                const brands = Array.from(
+                    new Set(jsonData.data.map(item => item.Brand_Name))
+                )
+                    .filter(brand => brand)
+                    .sort()
+                    .map(brand => ({
+                        label: brand,
+                        value: brand
+                    }));
 
                 setBrandData(brands);
             }
@@ -56,307 +96,512 @@ const Sales = ({ route, navigation }) => {
         }
     };
 
-    const fetchAllPacks = async (id) => {
+    const fetchUOMData = async () => {
         try {
-            const response = await fetch(`${API.productPacks}${id}`);
+            const response = await fetch(API.uom);
             const jsonData = await response.json();
-
-            if (jsonData.success) {
-                setAllPacksData(jsonData.data); // Store all packs for filtering later
+            if (jsonData.data) {
+                setUOMData(jsonData.data);
             }
         } catch (err) {
-            console.error("Error fetching product packs:", err);
+            console.error("Error fetching UOM data:", err);
         }
     };
 
-    useEffect(() => {
-        if (selectedBrand) {
-            const filteredProducts = productData.filter(product => product.Brand_Name === selectedBrand);
-            const uniquePackIds = Array.from(new Set(filteredProducts.map(product => product.Pack_Id)));
-            const filteredPacks = allPacksData
-                .filter(pack => uniquePackIds.includes(pack.Pack_Id))
-                .map(pack => ({ label: pack.Pack, value: pack.Pack_Id }));
+    const handleBrandChange = (item) => {
+        setSelectedBrand(item.value);
+        setSelectedGroup(null); // Reset product group when brand changes
+        setFilteredProducts([]); // Clear products when brand changes
 
-            setPackData(filteredPacks);
-            setSelectedPack(null);
-            setSelectedGroup(null);
-            setProGroupData([]);
-        } else {
-            setPackData([]);
-            setSelectedPack(null);
-            setSelectedGroup(null);
-            setProGroupData([]);
-        }
-    }, [selectedBrand, allPacksData, productData]);
+        // Update product groups for selected brand
+        const filteredByBrand = productData.filter(
+            product => product.Brand_Name === item.value
+        );
 
-    useEffect(() => {
-        if (selectedBrand && selectedPack) {
-            const filteredProducts = productData.filter(
-                product => product.Brand_Name === selectedBrand && product.Pack_Id === selectedPack
-            );
-            const uniqueGroups = Array.from(new Set(filteredProducts.map(product => product.Pro_Group)));
-            const groupOptions = uniqueGroups.map(group => ({ label: group, value: group }));
+        // Extract unique product groups for the selected brand
+        const groups = Array.from(
+            new Set(filteredByBrand.map(item => item.Pro_Group))
+        )
+            .filter(group => group) // Remove empty or null values
+            .sort() // Sort alphabetically
+            .map(group => ({
+                label: group,
+                value: group
+            }));
 
-            setProGroupData(groupOptions);
-            setSelectedGroup(null);
-        } else {
-            setProGroupData([]);
-            setSelectedGroup(null);
-        }
-    }, [selectedBrand, selectedPack, productData]);
+        setProGroupData(groups);
+    };
 
-    const filteredProductData = useMemo(() => {
-        return productData.filter((product) => {
-            const matchesBrand = selectedBrand ? product.Brand_Name === selectedBrand : true;
-            const matchesPack = selectedPack ? product.Pack_Id === selectedPack : true;
-            const matchesGroup = selectedGroup ? product.Pro_Group === selectedGroup : true;
-            return matchesBrand && matchesPack && matchesGroup;
-        });
-    }, [productData, selectedBrand, selectedPack, selectedGroup]);
+    // Handle product group selection
+    const handleGroupChange = (item) => {
+        setSelectedGroup(item.value);
 
-    const handleQuantityChange = (productId, quantity) => {
+        // Filter products only when both brand and group are selected
+        const filtered = productData.filter(product =>
+            product.Brand_Name === selectedBrand &&
+            product.Pro_Group === item.value
+        );
+
+        setFilteredProducts(filtered);
+    };
+
+    const handleQuantityChange = useCallback((productId, quantity, rate, product) => {
         const newQuantity = Math.max(0, parseInt(quantity) || 0);
+        const selectedUOM = selectedUOMs[productId] || product.UOM_Id;
+
+        setInitialValue(prev => {
+            const updatedProductArray = [...(prev.Product_Array || [])];
+            const existingIndex = updatedProductArray.findIndex(
+                item => item.Item_Id === productId
+            );
+
+            if (newQuantity > 0) {
+                const productEntry = {
+                    Item_Id: productId,
+                    Bill_Qty: newQuantity,
+                    Item_Rate: rate,
+                    UOM: selectedUOM, // Changed from UOM to UOM_Id
+                    Product_Id: productId // Added Product_Id explicitly
+                };
+
+                if (existingIndex !== -1) {
+                    updatedProductArray[existingIndex] = productEntry;
+                } else {
+                    updatedProductArray.push(productEntry);
+                }
+            } else if (existingIndex !== -1) {
+                updatedProductArray.splice(existingIndex, 1);
+            }
+
+            return {
+                ...prev,
+                Product_Array: updatedProductArray,
+            };
+        });
+
         setOrderQuantities(prev => ({
             ...prev,
-            [productId]: newQuantity.toString()
+            [productId]: newQuantity > 0 ? newQuantity.toString() : ''
         }));
-    };
+    }, [selectedUOMs]);
 
-    const handleIncrementQuantity = (productId) => {
-        const currentQuantity = parseInt(orderQuantities[productId] || "0");
-        handleQuantityChange(productId, (currentQuantity + 1).toString());
-    };
+    const handleUOMChange = useCallback((productId, uomId) => {
+        // Update local state for UOM selection
+        setSelectedUOMs(prev => ({
+            ...prev,
+            [productId]: uomId
+        }));
 
-    const handleDecrementQuantity = (productId) => {
-        const currentQuantity = parseInt(orderQuantities[productId] || "0");
-        handleQuantityChange(productId, (Math.max(0, currentQuantity - 1)).toString());
-    };
+        // Update Product_Array with new UOM
+        setInitialValue(prev => {
+            const updatedProductArray = [...prev.Product_Array];
+            const existingIndex = updatedProductArray.findIndex(
+                item => item.Item_Id === productId
+            );
 
-    const calculateOrderSummary = () => {
-        const summary = filteredProductData
-            .filter(product => orderQuantities[product.Product_Id] && orderQuantities[product.Product_Id] !== "0")
-            .map(product => ({
-                Product_Id: product.Product_Id,
-                productName: product.Product_Name.trim(),
-                quantity: parseInt(orderQuantities[product.Product_Id]),
-                price: product.Item_Rate,
-                total: parseInt(orderQuantities[product.Product_Id]) * product.Item_Rate
-            }));
+            if (existingIndex !== -1) {
+                // Update existing product entry
+                updatedProductArray[existingIndex] = {
+                    ...updatedProductArray[existingIndex],
+                    UOM: uomId  // Make sure to use UOM_Id instead of UOM
+                };
+            } else {
+                // If product doesn't exist in array but has quantity, add it
+                const product = filteredProducts.find(p => p.Product_Id === productId);
+                if (product && orderQuantities[productId]) {
+                    updatedProductArray.push({
+                        Item_Id: productId,
+                        Product_Id: productId,
+                        Bill_Qty: parseInt(orderQuantities[productId] || 0),
+                        Item_Rate: editedPrices[productId] || product.Item_Rate,
+                        UOM: uomId
+                    });
+                }
+            }
 
-        const total = summary.reduce((acc, item) => acc + item.total, 0);
-
-        setOrderSummary(summary);
-        setTotalOrderValue(total);
-        setIsModalVisible(true);
-    };
-
-    const saveOrderToDatabase = async () => {
-        try {
-            const userId = await AsyncStorage.getItem("UserId");
-            const Sales_Person_Id = userId;
-            const Created_by = userId;
-            const Retailer_Id = 0;
-
-            const Product_Array = orderSummary.map(item => ({
-                Item_Id: item.Product_Id,
-                Bill_Qty: item.quantity,
-                Item_Rate: item.price,
-            }));
-
-            const orderData = {
-                Retailer_Id,
-                Sales_Person_Id,
-                Created_by,
-                Product_Array,
-                Customer_Name: Reatailer_Name,
-                Cust_Mobile: Contact_Mobile,
-                Delivery_Address1: Contact_Person,
-                Delivery_Address2: Contact_Person,
-                Delivery_Address3: Contact_Person,
-                City: "MDU",
-                D_State: "TN",
-                D_Pincode: 632001,
-                D_Country: "IN",
-                withoutRetailerID: true
+            return {
+                ...prev,
+                Product_Array: updatedProductArray
             };
+        });
+    }, [orderQuantities, filteredProducts, editedPrices]);
 
-            console.log("Sending order data:", JSON.stringify(orderData, null, 2));
+    const handlePriceChange = useCallback((productId, price) => {
+        // Update the display value immediately
+        setPriceInputValues(prev => ({
+            ...prev,
+            [productId]: price
+        }));
 
-            const response = await fetch(`${API.saleOrder}`, {
+        // Only update the actual price if it's a valid number
+        const numericPrice = price === '' ? 0 : parseFloat(price);
+        if (!isNaN(numericPrice)) {
+            setEditedPrices(prev => ({
+                ...prev,
+                [productId]: numericPrice
+            }));
+
+            // Update Product_Array with new price
+            setInitialValue(prev => {
+                const updatedProductArray = [...prev.Product_Array];
+                const existingIndex = updatedProductArray.findIndex(
+                    item => item.Item_Id === productId
+                );
+
+                if (existingIndex !== -1) {
+                    updatedProductArray[existingIndex] = {
+                        ...updatedProductArray[existingIndex],
+                        Item_Rate: numericPrice
+                    };
+                } else if (orderQuantities[productId]) {
+                    const product = filteredProducts.find(p => p.Product_Id === productId);
+                    updatedProductArray.push({
+                        Item_Id: productId,
+                        Product_Id: productId,
+                        Bill_Qty: parseInt(orderQuantities[productId]),
+                        Item_Rate: numericPrice,
+                        UOM: selectedUOMs[productId] || product.UOM_Id
+                    });
+                }
+
+                return {
+                    ...prev,
+                    Product_Array: updatedProductArray
+                };
+            });
+        }
+    }, [orderQuantities, filteredProducts, selectedUOMs]);
+
+    // Add a handler for input focus
+    const handlePriceFocus = useCallback((productId, originalPrice) => {
+        // When focusing, if there's no input value, set it to the current price
+        setPriceInputValues(prev => ({
+            ...prev,
+            [productId]: prev[productId] || String(originalPrice)
+        }));
+    }, []);
+
+    // Add a handler for input blur
+    const handlePriceBlur = useCallback((productId) => {
+        const inputValue = priceInputValues[productId];
+        if (inputValue === '' || isNaN(parseFloat(inputValue))) {
+            // Reset to the original price if empty or invalid
+            const product = filteredProducts.find(p => p.Product_Id === productId);
+            handlePriceChange(productId, String(product.Item_Rate));
+        }
+    }, [priceInputValues, filteredProducts]);
+
+    const handleDeleteItem = useCallback((productId) => {
+        // Remove item from Product_Array
+        setInitialValue(prev => ({
+            ...prev,
+            Product_Array: prev.Product_Array.filter(item => item.Item_Id !== productId)
+        }));
+
+        // Clear the quantity
+        setOrderQuantities(prev => {
+            const newQuantities = { ...prev };
+            delete newQuantities[productId];
+            return newQuantities;
+        });
+
+        // Clear the edited price
+        setEditedPrices(prev => {
+            const newPrices = { ...prev };
+            delete newPrices[productId];
+            return newPrices;
+        });
+
+        // Clear the selected UOM
+        setSelectedUOMs(prev => {
+            const newUOMs = { ...prev };
+            delete newUOMs[productId];
+            return newUOMs;
+        });
+    }, []);
+
+    // Optimized total calculations using edited prices
+    const calculateOrderTotal = useCallback(() => {
+        return initialValue.Product_Array.reduce((sum, item) => {
+            // Use edited price if available, otherwise use the original item rate
+            const price = editedPrices[item.Item_Id] || item.Item_Rate;
+            return sum + (item.Bill_Qty * price);
+        }, 0);
+    }, [initialValue.Product_Array, editedPrices]);
+
+    // Calculate total items in cart
+    const totalItems = useMemo(() =>
+        initialValue.Product_Array.reduce((sum, item) => sum + Number(item.Bill_Qty), 0),
+        [initialValue.Product_Array]
+    );
+
+    // Memoize the order total calculation
+    const orderTotal = useMemo(() => calculateOrderTotal(),
+        [calculateOrderTotal]
+    );
+
+    // Handle order submission
+    const handleSubmitOrder = async () => {
+        if (initialValue.Product_Array.length === 0) {
+            Alert.alert("Error", "Please add at least one product to the order");
+            return;
+        }
+
+        setIsSubmitting(true);
+        // console.log(initialValue)
+        try {
+
+            const response = await fetch(API.saleOrder, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(orderData),
+                body: JSON.stringify(initialValue),
             });
 
-            const result = await response.json();
-
-            if (result.success) {
-                Alert.alert("Success", "Order saved successfully!");
-                setIsModalVisible(false);
-                setOrderQuantities({});
+            const data = await response.json();
+            // console.log(data)
+            if (data.success) {
+                Alert.alert(
+                    "Success",
+                    data.message,
+                    [
+                        {
+                            text: "Okay",
+                            onPress: () => navigation.goBack()
+                        }
+                    ]
+                );
             } else {
-                Alert.alert("Error", `Failed to save order: ${result.message}`);
+                throw new Error(data.message || "Failed to submit order");
             }
         } catch (error) {
-            console.error("Error saving order:", error);
-            Alert.alert("Error", "An error occurred while saving the order.");
+            Alert.alert("Error", error.message || "Failed to submit order");
+        } finally {
+            setIsSubmitting(false);
+            setIsSummaryModalVisible(false);
         }
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.heading}>Sales Dashboard</Text>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.label}>
-                    Retailer Name: <Text style={styles.value}>{Reatailer_Name}</Text>
-                </Text>
-
-                <Text style={styles.label}>
-                    Contact Person: <Text style={styles.value}>{Contact_Person || "N/A"}</Text>
-                </Text>
-
-                <Text style={styles.label}>
-                    Contact Mobile: <Text style={styles.value}>{Contact_Mobile || "N/A"}</Text>
-                </Text>
-
-                <View style={styles.filterSection}>
-                    <Text style={styles.label}>Select Brand</Text>
-                    <Dropdown
-                        style={styles.dropdown}
-                        data={brandData}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Choose a brand"
-                        value={selectedBrand}
-                        search
-                        onChange={(item) => setSelectedBrand(item.value)}
-                        containerStyle={styles.dropdownContainer}
-                        placeholderStyle={styles.placeholderStyle}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        iconStyle={styles.iconStyle}
-                    />
-
-                    <Text style={styles.label}>Select Pack</Text>
-                    <Dropdown
-                        style={styles.dropdown}
-                        data={packData}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Choose a pack"
-                        value={selectedPack}
-                        search
-                        onChange={(item) => setSelectedPack(item.value)}
-                        containerStyle={styles.dropdownContainer}
-                        placeholderStyle={styles.placeholderStyle}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        iconStyle={styles.iconStyle}
-                        disabled={!selectedBrand}
-                    />
-
-                    <Text style={styles.label}>Select Product Group</Text>
-                    <Dropdown
-                        style={styles.dropdown}
-                        data={proGroupData}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Choose a product group"
-                        value={selectedGroup}
-                        search
-                        onChange={(item) => setSelectedGroup(item.value)}
-                        containerStyle={styles.dropdownContainer}
-                        placeholderStyle={styles.placeholderStyle}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        iconStyle={styles.iconStyle}
-                        disabled={!selectedPack}
-                    />
+            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+                <View style={styles.headerContainer}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <Image source={assetImages.backArrow} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Sales Dashboard</Text>
+                    <TouchableOpacity
+                        style={styles.cartButton}
+                        onPress={() => setIsSummaryModalVisible(true)}
+                    >
+                        <Icon name="shopping-bag" color="white" size={25} />
+                        {totalItems > 0 && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>
+                                    {totalItems}
+                                </Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
                 </View>
 
-                {selectedBrand && selectedPack && selectedGroup && (
-                    <View style={styles.productSection}>
-                        <View style={styles.productGrid}>
-                            {filteredProductData.map((product, idx) => (
-                                <View key={idx} style={styles.productCard}>
-                                    <Image
-                                        source={{ uri: product.productImageUrl || "https://via.placeholder.com/100" }}
-                                        style={styles.productImage}
-                                    />
-                                    <Text style={styles.productName}>{product.Product_Name.trim()}</Text>
-                                    <Text style={styles.itemRate}>₹ {product.Item_Rate}</Text>
-                                    <View style={styles.orderSection}>
-                                        <TouchableOpacity
-                                            style={styles.quantityButton}
-                                            onPress={() => handleDecrementQuantity(product.Product_Id)}
-                                        >
-                                            <Text style={styles.quantityButtonText}>-</Text>
-                                        </TouchableOpacity>
-                                        <TextInput
-                                            style={styles.quantityInput}
-                                            keyboardType="numeric"
-                                            value={orderQuantities[product.Product_Id] || "0"}
-                                            onChangeText={(text) => handleQuantityChange(product.Product_Id, text)}
-                                        />
-                                        <TouchableOpacity
-                                            style={styles.quantityButton}
-                                            onPress={() => handleIncrementQuantity(product.Product_Id)}
-                                        >
-                                            <Text style={styles.quantityButtonText}>+</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            ))}
+                <View style={styles.contentContainer}>
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+
+                        <View style={styles.filterSection}>
+                            <Text style={styles.label}>Retailer Name:
+                                <Text style={{ color: "#FF0000", fontWeight: "bold" }}> {item.Retailer_Name}</Text>
+                            </Text>
+
+                            <Dropdown
+                                style={styles.dropdown}
+                                data={brandData}
+                                labelField="label"
+                                valueField="value"
+                                placeholder="Select Brand"
+                                value={selectedBrand}
+                                search
+                                searchPlaceholder="Search brand..."
+                                onChange={handleBrandChange}
+                                containerStyle={styles.dropdownContainer}
+                                placeholderStyle={styles.placeholderStyle}
+                                selectedTextStyle={styles.selectedTextStyle}
+                                iconStyle={styles.iconStyle}
+                            />
+
+                            <Dropdown
+                                style={[
+                                    styles.dropdown,
+                                    !selectedBrand && styles.disabledDropdown
+                                ]}
+                                data={proGroupData}
+                                labelField="label"
+                                valueField="value"
+                                placeholder={selectedBrand
+                                    ? "Select Product Group"
+                                    : "Select Brand First"}
+                                value={selectedGroup}
+                                search
+                                searchPlaceholder="Search product group..."
+                                onChange={handleGroupChange}
+                                containerStyle={styles.dropdownContainer}
+                                placeholderStyle={styles.placeholderStyle}
+                                selectedTextStyle={styles.selectedTextStyle}
+                                iconStyle={styles.iconStyle}
+                                disabled={!selectedBrand}
+                            />
                         </View>
 
-                        <TouchableOpacity
-                            style={styles.summaryButton}
-                            onPress={calculateOrderSummary}
-                        >
-                            <Text style={styles.summaryButtonText}>View Order Summary</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </ScrollView>
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isModalVisible}
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Order Summary</Text>
-                        <ScrollView>
-                            {orderSummary.map((item, index) => (
-                                <View key={index} style={styles.summaryItem}>
-                                    <Text style={styles.summaryItemName}>{item.productName}</Text>
-                                    <Text style={styles.summaryItemDetails}>
-                                        Qty: {item.quantity} x ₹{item.price} = ₹{item.total}
+                        {selectedBrand && selectedGroup && (
+                            <View style={styles.productsContainer}>
+                                <Text style={styles.sectionTitle}>
+                                    Products ({filteredProducts.length})
+                                </Text>
+                                {filteredProducts.map((product) => (
+                                    <View key={product.Product_Id} style={styles.productItem}>
+                                        <Text style={styles.productName}>
+                                            {product.Product_Name}
+                                        </Text>
+                                        <View style={styles.quantityContainer}>
+                                            <TextInput
+                                                style={styles.quantityInput}
+                                                keyboardType="numeric"
+                                                value={orderQuantities[product.Product_Id] || ''}
+                                                onChangeText={(quantity) =>
+                                                    handleQuantityChange(
+                                                        product.Product_Id,
+                                                        quantity,
+                                                        product.Item_Rate,
+                                                        product
+                                                    )
+                                                }
+                                                placeholder="0"
+                                            />
+
+                                            <Dropdown
+                                                style={styles.uomDropdown}
+                                                data={uomData.map(uom => ({
+                                                    label: uom.Units,
+                                                    value: uom.Unit_Id
+                                                }))}
+                                                labelField="label"
+                                                valueField="value"
+                                                placeholder="UOM"
+                                                value={selectedUOMs[product.Product_Id] || product.UOM_Id}
+                                                onChange={(item) => handleUOMChange(product.Product_Id, item.value)}
+                                                containerStyle={styles.uomDropdownContainer}
+                                            />
+                                            <View style={styles.priceContainer}>
+                                                <Text style={styles.currencySymbol}>₹</Text>
+                                                <TextInput
+                                                    style={styles.priceInput}
+                                                    keyboardType="numeric"
+                                                    value={priceInputValues[product.Product_Id] !== undefined
+                                                        ? priceInputValues[product.Product_Id]
+                                                        : String(editedPrices[product.Product_Id] || product.Item_Rate)}
+                                                    onChangeText={(price) => handlePriceChange(product.Product_Id, price)}
+                                                    onFocus={() => handlePriceFocus(
+                                                        product.Product_Id,
+                                                        editedPrices[product.Product_Id] || product.Item_Rate
+                                                    )}
+                                                    onBlur={() => handlePriceBlur(product.Product_Id)}
+                                                    placeholder="0.00"
+                                                    selectTextOnFocus={true}  // This will select all text when focused
+                                                />
+                                            </View>
+
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </ScrollView>
+                </View>
+
+                <Modal
+                    visible={isSummaryModalVisible}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setIsSummaryModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Order Summary</Text>
+                                <TouchableOpacity
+                                    onPress={() => setIsSummaryModalVisible(false)}
+                                    style={styles.closeButton}
+                                >
+                                    <AntDesign name="closesquareo" color="red" size={25} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={styles.summaryList}>
+                                {initialValue.Product_Array.map((item) => {
+                                    const product = productData.find(
+                                        p => p.Product_Id === item.Item_Id
+                                    );
+                                    const uom = uomData.find(
+                                        u => u.Unit_Id === item.UOM_Id
+                                    );
+
+                                    return (
+                                        <View
+                                            key={item.Item_Id}
+                                            style={styles.summaryItem}
+                                        >
+                                            <View style={styles.summaryItemDetails}>
+                                                <Text style={styles.summaryItemName}>
+                                                    {product?.Product_Name}
+                                                </Text>
+                                                <Text style={styles.summaryItemQty}>
+                                                    {item.Bill_Qty} {uom?.Units}
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.summaryItemPrice}>
+                                                ₹{(item.Bill_Qty * item.Item_Rate).toFixed(2)}
+                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.deleteButton}
+                                                onPress={() => handleDeleteItem(item.Item_Id)}
+                                            >
+                                                <Icon name="delete" size={24} color="red" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })}
+                            </ScrollView>
+
+                            <View style={styles.summaryFooter}>
+                                <View style={styles.totalRow}>
+                                    <Text style={styles.totalLabel}>Total Amount:</Text>
+                                    <Text style={styles.totalAmount}>
+                                        ₹{orderTotal.toFixed(2)}
                                     </Text>
                                 </View>
-                            ))}
-                        </ScrollView>
-                        <Text style={styles.totalOrderValue}>Total Order Value: ₹{totalOrderValue}</Text>
-                        <View style={styles.modalButtonsContainer}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setIsModalVisible(false)}
-                            >
-                                <Text style={styles.modalButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.confirmButton]}
-                                onPress={saveOrderToDatabase}
-                            >
-                                <Text style={styles.modalButtonText}>Confirm Order</Text>
-                            </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.submitButton,
+                                        isSubmitting && styles.submitButtonDisabled
+                                    ]}
+                                    onPress={handleSubmitOrder}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text style={styles.submitButtonText}>
+                                            Submit Order
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            </ImageBackground>
         </SafeAreaView>
     );
 };
@@ -366,239 +611,275 @@ export default Sales;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        // backgroundColor: customColors.background,
-    },
-    header: {
         backgroundColor: customColors.primary,
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        elevation: 4,
     },
-    heading: {
-        fontSize: 24,
-        fontWeight: 'bold',
+    backgroundImage: {
+        flex: 1,
+        width: "100%",
+        backgroundColor: customColors.background,
+    },
+    headerContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 16,
+    },
+    headerText: {
+        flex: 1,
+        ...typography.h4(),
         color: customColors.white,
-        textAlign: 'center',
+        marginHorizontal: 10,
+    },
+    cartButton: {
+        position: "relative",
+        padding: 8,
+    },
+    badge: {
+        position: "absolute",
+        top: 0,
+        right: 0,
+        backgroundColor: '#FF4444',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    badgeText: {
+        ...typography.caption(),
+        color: "white",
+        fontWeight: "bold",
+    },
+    contentContainer: {
+        flex: 1,
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: 10,
+        borderTopRightRadius: 10,
     },
     scrollContent: {
         flexGrow: 1,
-        padding: 16,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 16,
-    },
-    label: {
-        fontSize: 18,
-        marginBottom: 8,
-    },
-    value: {
-        fontWeight: 'bold',
+        padding: 20,
     },
     filterSection: {
         marginBottom: 20,
     },
     label: {
-        ...typography.caption(),
-        color: customColors.text,
-        marginBottom: 8,
+        ...typography.h6(),
+        color: customColors.black,
+        textAlign: "center",
+        marginBottom: 10
     },
     dropdown: {
         height: 50,
-        borderColor: customColors.border,
+        backgroundColor: customColors.white,
+        borderColor: customColors.lightGrey,
         borderWidth: 1,
         borderRadius: 8,
         paddingHorizontal: 12,
         marginBottom: 16,
-        backgroundColor: customColors.white,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    disabledDropdown: {
+        opacity: 0.5,
     },
     dropdownContainer: {
         borderRadius: 8,
-        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: "#ccc",
     },
     placeholderStyle: {
         ...typography.body1(),
-        color: customColors.textSecondary,
+        color: "#666",
     },
     selectedTextStyle: {
         ...typography.body1(),
-        color: customColors.text,
+        color: "#333",
     },
     iconStyle: {
         width: 20,
         height: 20,
     },
-    productSection: {
-        flex: 1,
-    },
-    tabContainer: {
-        flexDirection: 'row',
-        marginBottom: 16,
-    },
-    tabButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        marginRight: 8,
-        borderRadius: 20,
-        backgroundColor: customColors.surface,
-    },
-    activeTab: {
-        backgroundColor: customColors.primary,
-    },
-    tabText: {
-        ...typography.button(),
-        color: customColors.textSecondary,
-    },
-    activeTabText: {
-        color: customColors.white,
-    },
-    pagerView: {
-        flex: 1,
-    },
-    page: {
-        flex: 1,
-    },
-    groupTitle: {
-        ...typography.h5(),
-        color: customColors.text,
-        marginBottom: 16,
-    },
-    productGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-    },
-    productCard: {
-        width: '48%',
-        marginBottom: 16,
+
+    productsContainer: {
         backgroundColor: customColors.white,
         borderRadius: 8,
         padding: 12,
-        elevation: 2,
+        shadowColor: customColors.black,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
-    productImage: {
-        width: "100%",
-        resizeMode: "cover",
-        aspectRatio: 1,
-        borderRadius: 8,
-        marginBottom: 8,
+    sectionTitle: {
+        color: "#333",
+        ...typography.h5(),
+        fontWeight: "bold",
+        marginBottom: 12,
+    },
+    productItem: {
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
+        paddingVertical: 12,
     },
     productName: {
-        ...typography.caption(),
-        color: customColors.text,
-        marginBottom: 4,
+        ...typography.h6(),
+        color: "#333",
+        marginBottom: 8,
     },
-    itemRate: {
-        ...typography.body2(),
-        color: customColors.primary,
-        fontWeight: 'bold',
-    },
-    orderSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    quantityButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: customColors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    quantityButtonText: {
-        color: customColors.white,
-        fontSize: 18,
-        fontWeight: 'bold',
+    quantityContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
     },
     quantityInput: {
-        flex: 1,
-        height: 40,
+        width: 60,
         borderWidth: 1,
-        borderColor: customColors.border,
+        borderColor: "#ddd",
+        borderRadius: 4,
+        padding: 6,
+        textAlign: "center",
+    },
+    uomDropdown: {
+        width: 120,
+        height: 40,
+        borderColor: "#ccc",
+        borderWidth: 1,
         borderRadius: 4,
         paddingHorizontal: 8,
-        marginHorizontal: 8,
-        textAlign: 'center',
+        marginRight: 10,
     },
-    addButton: {
-        backgroundColor: customColors.primary,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+    uomDropdownContainer: {
         borderRadius: 4,
     },
-    addButtonText: {
-        color: customColors.white,
-        ...typography.button(),
-    },
 
-
-    summaryButton: {
-        backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 5,
-        marginTop: 20,
-        alignItems: 'center',
+    priceContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 4,
+        paddingHorizontal: 5,
+        backgroundColor: customColors.white,
+        minWidth: 75,
     },
-    summaryButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
+    currencySymbol: {
+        ...typography.h6(),
+        color: "#333",
+        marginRight: 2,
     },
-    modalContainer: {
+    priceInput: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        textAlign: "center",
+        width: 40,
+        height: 40,
+        ...typography.h6(),
+        color: "#333",
+        padding: 0,
+        minWidth: 20,
+    },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "flex-end",
     },
     modalContent: {
-        backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 10,
-        width: '90%',
-        maxHeight: '80%',
+        maxHeight: "80%",
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 16,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 15,
+        ...typography.h4(),
+        fontWeight: "bold",
+    },
+    closeButton: {
+        padding: 8,
+    },
+
+    summaryList: {
+        maxHeight: "60%",
     },
     summaryItem: {
-        marginBottom: 10,
-    },
-    summaryItemName: {
-        fontSize: 16,
-        fontWeight: 'bold',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
     },
     summaryItemDetails: {
-        fontSize: 14,
+        flex: 1,
+        marginRight: 10,
     },
-    totalOrderValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 15,
-        marginBottom: 15,
+    summaryItemName: {
+        ...typography.body1(),
+        color: "#333",
+        marginBottom: 4,
     },
-    modalButtonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    summaryItemQty: {
+        ...typography.body2(),
+        color: "#666",
     },
-    modalButton: {
-        padding: 10,
-        borderRadius: 5,
-        width: '45%',
-        alignItems: 'center',
+    summaryItemPrice: {
+        ...typography.body1(),
+        fontWeight: "bold",
+        marginLeft: 16,
     },
-    cancelButton: {
-        backgroundColor: '#f44336',
+    deleteButton: {
+        padding: 8,
     },
-    confirmButton: {
-        backgroundColor: '#4CAF50',
+    summaryFooter: {
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
     },
-    modalButtonText: {
-        color: 'white',
-        fontSize: 16,
+    totalRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+    },
+    totalLabel: {
+        ...typography.h6(),
+        fontWeight: "600",
+    },
+
+    totalAmount: {
+        ...typography.h5(),
+        fontWeight: "bold",
+        color: "#2196F3",
+    },
+    submitButton: {
+        backgroundColor: "#4CAF50",
+        borderRadius: 8,
+        padding: 16,
+        alignItems: "center",
+        marginTop: 8,
+    },
+    submitButtonDisabled: {
+        opacity: 0.7,
+    },
+    submitButtonText: {
+        ...typography.h6(),
+        color: "white",
+        fontWeight: "bold",
     },
 });

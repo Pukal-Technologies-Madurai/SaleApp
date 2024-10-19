@@ -16,14 +16,14 @@ const Customers = () => {
     const [filteredData, setFilteredData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalVisible, setModalVisible] = useState(false);
-    const [selectedArea, setSelectedArea] = useState(null);  // State for area filter
-    const [areas, setAreas] = useState([]);  // Assuming you have area list
+    const [selectedArea, setSelectedArea] = useState(null);
+    const [areas, setAreas] = useState([]);
     const colors = customColors;
 
     useEffect(() => {
         (async () => {
             try {
-                const companyId = await AsyncStorage.getItem('Company_Id');
+                const companyId = await AsyncStorage.getItem("Company_Id");
                 fetchRetailersData(companyId)
             } catch (err) {
                 console.log(err);

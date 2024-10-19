@@ -92,6 +92,7 @@ const RetailerVisit = () => {
     };
 
     const handleSubmit = async () => {
+        console.log(location.latitude, location.longitude)
         if (!validateInputs()) return;
 
         const formData = new FormData();
@@ -132,7 +133,19 @@ const RetailerVisit = () => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                navigation.navigate("HomeScreen")
+                navigation.navigate("HomeScreen");
+                setLocation({ latitude: null, longitude: null });
+                setFormValues({
+                    Retailer_Name: "",
+                    Contact_Person: "",
+                    Mobile_No: "",
+                    Location_Address: "",
+                    Narration: "",
+                    Location_Image: "",
+                });
+                setSelectedRetail(null);
+                setSelectedValue(null);
+                setCapturedPhotoPath(null);
             } else {
                 throw new Error(data.message);
             }

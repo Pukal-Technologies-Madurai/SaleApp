@@ -57,7 +57,7 @@ const AppStack = () => {
 
             <Stack.Screen name="Orders" component={SaleOrder} />
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
-            <Stack.Screen name="Sales" component={Sales} options={{ title: "Temp Sales" }} />
+            <Stack.Screen name="Sales" component={Sales} />
 
             {/* Not Used */}
             <Stack.Screen name="LoginScreen" component={LoginScreen} />

@@ -23,6 +23,8 @@ export const customColors = {
     accent: "#9F9E9E",
     black: "#000000",
     white: "#ffffff",
+    grey: "#808080",
+    lightGrey: "#ddd",
 }
 
 export const typography = {

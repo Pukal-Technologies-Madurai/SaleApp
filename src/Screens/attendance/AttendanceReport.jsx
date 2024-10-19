@@ -10,13 +10,15 @@ import assetImages from "../../Config/Image";
 
 const AttendanceReport = () => {
     const navigation = useNavigation();
-    const [attendanceData, setAttendanceData] = useState(null)
 
-    const [show, setShow] = useState(false);
     const currentDate = new Date();
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, -1);
+
+    const [attendanceData, setAttendanceData] = useState(null)
+    const [show, setShow] = useState(false);
     const [selectedFromDate, setSelectedFromDate] = useState(firstDayOfMonth);
-    const [selectedToDate, setSelectedToDate] = useState(new Date());
+    const [selectedToDate, setSelectedToDate] = useState(lastDayOfMonth);
     const [isSelectingFromDate, setIsSelectingFromDate] = useState(true);
 
     useEffect(() => {
@@ -190,7 +192,7 @@ const DatePickerButton = ({ title, date, onPress }) => (
 
 const SummaryCard = ({ icon, title, value }) => (
     <View style={styles.card}>
-        <Icon name={icon} size={30} color={customColors.accent} />
+        <Icon name={icon} size={30} color={customColors.white} />
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardValue}>{value}</Text>
     </View>

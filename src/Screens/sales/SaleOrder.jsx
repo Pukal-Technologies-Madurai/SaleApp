@@ -16,16 +16,16 @@ const SaleOrder = ({ route }) => {
     const [selectedTab, setSelectedTab] = useState(0);
     const [productData, setProductData] = useState([])
     const initialStockValue = {
-        So_Id: '',
-        Company_Id: '',
-        ST_Date: new Date().toISOString().split('T')[0],
-        Branch_Id: '',
-        Retailer_Id: '',
-        Retailer_Name: '',
-        Narration: '',
-        Created_by: '',
+        So_Id: "",
+        Company_Id: "",
+        ST_Date: new Date().toISOString().split("T")[0],
+        Branch_Id: "",
+        Retailer_Id: "",
+        Retailer_Name: "",
+        Narration: "",
+        Created_by: "",
         Product_Array: [],
-        Sales_Person_Id: '',
+        Sales_Person_Id: "",
     }
     const [stockInputValue, setStockInputValue] = useState(initialStockValue)
     const [retailers, setRetailers] = useState([])

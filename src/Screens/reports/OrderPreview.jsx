@@ -148,11 +148,11 @@ const OrderPreview = () => {
                         ))}
                     </View>
                     <View style={styles.buttonContainer}>
-                        {currentDate === orderDate && (
+                        {/* {currentDate === orderDate && (
                             <TouchableOpacity style={styles.editButton} onPress={() => editOption(item)}>
                                 <Text style={styles.editButtonText}>Edit</Text>
                             </TouchableOpacity>
-                        )}
+                        )} */}
                         <TouchableOpacity style={styles.downloadButton} onPress={() => downloadItemPDF(item)}>
                             <Text style={styles.downloadButtonText}>Share PDF</Text>
                         </TouchableOpacity>
@@ -163,7 +163,16 @@ const OrderPreview = () => {
     };
 
     const editOption = (item) => {
-        navigation.navigate('Orders', { item, isEdit: true })
+        console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name)
+        navigation.navigate("Sales", {
+            item: {
+                ...item,
+                Retailer_Id: item.Retailer_Id,
+                Retailer_Name: item.Retailer_Name,
+                So_Id: item.So_Id
+            },
+            isEdit: true
+        });
     }
 
 
@@ -290,7 +299,7 @@ const OrderPreview = () => {
                                     </div>
                                     <div class="col logo-title-container">
                                         <a href="#!" class="d-block mt-3">
-                                            <img src="https://www.shrifoodsindia.com/web/image/website/1/logo/shrifoodsindia?unique=1c9d31f" class="img-fluid" alt="Logo" width="125" height="40" />
+                                            <img src="https://www.shrifoodsindia.com/static/logo-dad49c8392a067bd3834c9a55194fe25.png" class="img-fluid" alt="Logo" width="125" height="40" />
                                         </a>
                                         <h5 class="mb-0">Sale Order</h5>
                                     </div>

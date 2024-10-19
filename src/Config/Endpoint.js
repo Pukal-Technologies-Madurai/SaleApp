@@ -1,6 +1,6 @@
-// const baseURL = "http://shrifoods.erpsmt.in/"        // live api
+const baseURL = "http://shrifoods.erpsmt.in/"        // live api
 // const baseURL = "https://smttask.in/"                // test api
-const baseURL = "http://192.168.1.10:9001/"             // localhost endpoint
+// const baseURL = "http://192.168.1.10:9001/"             // localhost endpoint
 
 export const API = {
     login: baseURL + "api/authorization/login",
@@ -12,6 +12,7 @@ export const API = {
     routes: baseURL + "api/masters/routes",
     areas: baseURL + "api/masters/areas",
     state: baseURL + "api/masters/state",
+    uom: baseURL + "api/masters/uom",
 
     attendance: baseURL + "api/empAttendance/attendance",
     attendanceHistory: baseURL + "api/empAttendance/attendance/history?",
@@ -28,8 +29,10 @@ export const API = {
     productClosingStock: baseURL + "api/masters/retailers/closingStock?Retailer_Id=",
     closingStockReport: baseURL + "api/masters/retailers/closingStock/myEntry?UserId=",
 
-    saleOrder: baseURL + "api/sales/saleOrder",
     visitedLog: baseURL + "api/empAttendance/visitLogs",
+    saleOrder: baseURL + "api/sales/saleOrder",
+    company: baseURL + "api/masters/company?Company_id=",
+    users: baseURL + "api/masters/user/dropDown?Company_id=",
 
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",

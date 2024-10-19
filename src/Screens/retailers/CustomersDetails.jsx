@@ -198,6 +198,14 @@ const CustomersDetails = ({ route }) => {
                         <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Closing Stock</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity style={styles.button} onPress={() => { navigation.navigate("Sales", { item }) }} >
+                        <Image
+                            style={styles.tinyLogo}
+                            source={assetImages.salesOrder}
+                        />
+                        <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Order</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity style={styles.button} onPress={() => {
                         Linking.openURL(`${API.whatsApp}${item.Mobile_No}/?text=Hi`)
                     }} >

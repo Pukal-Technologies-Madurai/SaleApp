@@ -1,10 +1,9 @@
 import { View, Text, TextInput, ToastAndroid, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, ImageBackground } from "react-native"
 import React, { useEffect, useState } from "react"
 import { useNavigation, useRoute } from "@react-navigation/native"
-import { Dropdown } from "react-native-element-dropdown";
 import Geolocation from "@react-native-community/geolocation"
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { customColors, customFonts, typography } from "../../Config/helper";
+import { customColors, typography } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import assetImages from "../../Config/Image";
 import FormField from "../../Components/FormField";
@@ -16,12 +15,12 @@ const AddCustomer = () => {
         Retailer_Name: "",
         Contact_Person: "",
         Mobile_No: "",
-        Route_Id: "",
-        Area_Id: "",
+        Route_Id: 0,
+        Area_Id: 43,
         Reatailer_Address: "",
         Reatailer_City: "",
         PinCode: "",
-        State_Id: "",
+        State_Id: 1,
         Gstno: "",
         Latitude: "",
         Longitude: "",
@@ -29,20 +28,16 @@ const AddCustomer = () => {
         Branch_Id: "",
         Created_By: "",
         Company_Id: "",
+        Retailer_Class: "A",
+        Retailer_Channel_Id: "0"
     });
-    const [routes, setRoutes] = useState([])
-    const [areas, setAreas] = useState([])
-    const [state, setState] = useState([])
-    const [isMobileNoValid, setIsMobileNoValid] = useState(true);
-    const [isFocus, setIsFocus] = useState(false);
+
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [imageUri, setImageUri] = useState(null);
 
     useEffect(() => {
-        fetchRoutes()
-        fetchAreas()
-        fetchStates()
         loadAsyncStorageData()
-
         if (route.params?.imageUri) {
             setImageUri(route.params.imageUri);
         }
@@ -61,68 +56,7 @@ const AddCustomer = () => {
                 Company_Id: companyId || "",
             }));
         } catch (error) {
-            console.error('Error loading AsyncStorage data:', error);
-        }
-    };
-
-    const fetchRoutes = async () => {
-        try {
-            const response = await fetch(API.routes, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            });
-            const data = await response.json();
-
-            if (data.success === true) {
-                setRoutes(data.data);
-            } else {
-                console.log("Failed to fetch routes: ", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching routes:", error);
-        }
-    };
-
-    const fetchAreas = async () => {
-        try {
-            const response = await fetch(API.areas, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            const data = await response.json();
-
-            if (data.success === true) {
-                // console.log(data.data)
-                setAreas(data.data);
-            } else {
-                console.log("Failed to fetch routes:", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching routes:", error);
-        }
-    };
-
-    const fetchStates = async () => {
-        try {
-            const response = await fetch(API.state, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            const data = await response.json();
-
-            if (data.success === true) {
-                setState(data.data);
-            } else {
-                console.log("Failed to fetch routes:", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching routes:", error);
+            console.error("Error loading AsyncStorage data: ", error);
         }
     };
 
@@ -133,17 +67,22 @@ const AddCustomer = () => {
                     const latitude = position.coords.latitude.toString();
                     const longitude = position.coords.longitude.toString();
 
-                    setFormValues({
-                        ...formValues,
-                        Latitude: latitude,
-                        Longitude: longitude,
-                    });
+                    setFormValues((prev) => ({ ...prev, Latitude: latitude, Longitude: longitude }));
                 }
             )
         } catch (error) {
             console.error('Error fetching geolocation data:', error);
         }
     }
+
+    const handleInputChange = (field, value) => {
+        setFormValues((prev) => ({ ...prev, [field]: value }));
+
+        // Clear error when user starts typing
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: '' }));
+        }
+    };
 
     const handleOpenCamera = () => {
         navigation.navigate('OpenCamera', { onImageCapture: handleImageCapture });
@@ -154,76 +93,113 @@ const AddCustomer = () => {
         setFormValues({ ...formValues, profilePic: uri })
     };
 
-    const validateMobileNo = (mobileNo) => {
-        const regex = /^\d{10}$/;
-        return regex.test(mobileNo);
-    }
+    const validateMobileNo = (mobileNo) => /^\d{10}$/.test(mobileNo);
 
-    const handleInputChange = (field, value) => {
-        setFormValues({ ...formValues, [field]: value });
+    const validateForm = () => {
+        const newErrors = {};
+
+        // Retailer Name validation
+        if (!formValues.Retailer_Name.trim()) {
+            newErrors.Retailer_Name = 'Retailer Name is required';
+        } else if (formValues.Retailer_Name.length < 3) {
+            newErrors.Retailer_Name = 'Retailer Name must be at least 3 characters';
+        }
+
+        // Contact Person validation
+        if (!formValues.Contact_Person.trim()) {
+            newErrors.Contact_Person = 'Contact Person is required';
+        } else if (formValues.Contact_Person.length < 3) {
+            newErrors.Contact_Person = 'Contact Person name must be at least 3 characters';
+        }
+
+        // Mobile Number validation
+        if (!formValues.Mobile_No) {
+            newErrors.Mobile_No = 'Mobile Number is required';
+        } else if (!/^\d{10}$/.test(formValues.Mobile_No)) {
+            newErrors.Mobile_No = 'Mobile Number must be 10 digits';
+        }
+
+        // Address validation
+        if (!formValues.Reatailer_Address.trim()) {
+            newErrors.Reatailer_Address = 'Address is required';
+        } else if (formValues.Reatailer_Address.length < 5) {
+            newErrors.Reatailer_Address = 'Address must be at least 5 characters';
+        }
+
+        // City validation
+        if (!formValues.Reatailer_City.trim()) {
+            newErrors.Reatailer_City = 'City is required';
+        } else if (formValues.Reatailer_City.length < 3) {
+            newErrors.Reatailer_City = 'City name must be at least 3 characters';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async () => {
-
-        if (
-            !formValues.Retailer_Name ||
-            !formValues.Contact_Person ||
-            !formValues.Gstno ||
-            !formValues.Route_Id ||
-            !formValues.Area_Id ||
-            !formValues.Reatailer_Address ||
-            !formValues.Reatailer_City ||
-            !formValues.PinCode ||
-            !formValues.State_Id ||
-            !formValues.Mobile_No ||
-            !formValues.Branch_Id
-        ) {
-            Alert.alert("Please fill in all required fields.");
+        if (!validateForm()) {
+            Alert.alert(
+                "Validation Error",
+                "Please check all required fields and try again.",
+                [{ text: "OK" }]
+            );
             return;
-        } else {
-            var formData = new FormData()
-            formData.append("Retailer_Name", formValues.Retailer_Name)
-            formData.append("Contact_Person", formValues.Contact_Person)
-            formData.append("Mobile_No", formValues.Mobile_No)
-            formData.append("Route_Id", formValues.Route_Id)
-            formData.append("Area_Id", formValues.Area_Id)
-            formData.append("Reatailer_Address", formValues.Reatailer_Address)
-            formData.append("Reatailer_City", formValues.Reatailer_City)
-            formData.append("PinCode", formValues.PinCode)
-            formData.append("State_Id", formValues.State_Id)
-            formData.append("Gstno", formValues.Gstno)
-            formData.append("Latitude", formValues.Latitude)
-            formData.append("Longitude", formValues.Longitude)
-            formData.append("Distributor_Id", formValues.Distributor_Id)
-            formData.append("Company_Id", formValues.Company_Id)
-            formData.append("Profile_Pic", {
-                uri: `file://${imageUri}`,
-                name: "photo.jpg",
-                type: "image/jpeg"
-            })
-            formData.append("Created_By", formValues.Created_By)
+        }
 
-            const requestOptions = {
+        setIsSubmitting(true);
+
+        try {
+            const formData = new FormData();
+
+            // Append all form values to formData
+            Object.entries(formValues).forEach(([key, value]) => {
+                formData.append(key, value);
+            });
+
+            // Append image if exists
+            if (imageUri) {
+                formData.append("Profile_Pic", {
+                    uri: `file://${imageUri}`,
+                    name: "photo.jpg",
+                    type: "image/jpeg"
+                });
+            }
+
+            const response = await fetch(`${API.retailers}${1}`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
                 body: formData
-            };
+            });
 
-            fetch(`${API.retailers}${1}`, requestOptions)
-                .then((response) => response.text())
-                .then((result) => console.log(result))
-                .catch((error) => console.error(error));
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
 
+            const result = await response.text();
+            // console.log('Success:', result);
+
+            ToastAndroid.show("New Customer Added Successfully!", ToastAndroid.LONG);
             navigation.reset({
                 index: 0,
                 routes: [{ name: "HomeScreen" }]
-            })
-            ToastAndroid.show("New Customer Added", ToastAndroid.LONG)
+            });
+        } catch (error) {
+            console.error('Submission Error:', error);
+            Alert.alert(
+                "Error",
+                "Failed to add new customer. Please try again.",
+                [{ text: "OK" }]
+            );
+        } finally {
+            setIsSubmitting(false);
         }
-
     };
+
+    const FormLabel = ({ label, required }) => (
+        <Text style={styles.label}>
+            {label} {required && <Text style={styles.requiredAsterisk}>*</Text>}
+        </Text>
+    );
 
     return (
         <View style={styles.container}>
@@ -236,159 +212,161 @@ const AddCustomer = () => {
                 </View>
 
                 <ScrollView style={styles.contentContainer}>
-                    <View style={styles.TopContainer}>
+                    <View style={styles.formContainer}>
 
-                        <FormField label="Retailer Name" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.Retailer_Name}
-                            placeholder="Retailer Name"
-                            onChangeText={(text) => handleInputChange("Retailer_Name", text)}
-                        />
-
-                        <FormField label="Contact Person" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.Contact_Person}
-                            placeholder="Contact Person"
-                            onChangeText={(text) => handleInputChange("Contact_Person", text)}
-                        />
-
-                        <FormField label="GST" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.Gstno}
-                            keyboardType="default"
-                            autoCapitalize="characters"
-                            placeholder="GST Number"
-                            onChangeText={(text) => handleInputChange("Gstno", text)}
-                        />
-
-                        {imageUri && (
-                            <Image source={{ uri: `file://${imageUri}` }} style={styles.previewImage} />
-                        )}
-
-                        <TouchableOpacity style={styles.button} onPress={handleOpenCamera}>
-                            <Text style={styles.buttonText}>Take Photo</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.geoContainer}>
+                        <View style={styles.inputWrapper}>
+                            <FormLabel label="Retailer Name" required />
                             <TextInput
-                                style={styles.geoInput}
-                                value={formValues.Latitude}
-                                placeholder="Latitude"
-                                keyboardType="numeric"
-                                onChangeText={(text) => handleInputChange("Latitude", text)}
+                                style={[styles.input, errors.Retailer_Name && styles.inputError]}
+                                value={formValues.Retailer_Name}
+                                onChangeText={(text) => handleInputChange("Retailer_Name", text)}
+                                placeholder="Enter retailer name"
                             />
+                            {errors.Retailer_Name && (
+                                <Text style={styles.errorText}>{errors.Retailer_Name}</Text>
+                            )}
+                        </View>
 
+                        <View style={styles.inputWrapper}>
+                            <FormLabel label="Contact Person" required />
                             <TextInput
-                                style={styles.geoInput}
-                                value={formValues.Longitude}
-                                placeholder="Longitude"
-                                keyboardType="numeric"
-                                onChangeText={(text) => handleInputChange("Longitude", text)}
+                                style={[styles.input, errors.Contact_Person && styles.inputError]}
+                                value={formValues.Contact_Person}
+                                onChangeText={(text) => handleInputChange("Contact_Person", text)}
+                                placeholder="Enter contact person name"
                             />
+                            {errors.Contact_Person && (
+                                <Text style={styles.errorText}>{errors.Contact_Person}</Text>
+                            )}
+                        </View>
 
-                            <TouchableOpacity style={styles.geoButton} onPress={handleGeoData}>
-                                <Text style={styles.geoButtonText}>GeoData</Text>
+                        <View style={styles.inputWrapper}>
+                            <FormLabel label="Mobile Number" required />
+                            <TextInput
+                                style={[styles.input, errors.Mobile_No && styles.inputError]}
+                                value={formValues.Mobile_No}
+                                onChangeText={(text) => handleInputChange("Mobile_No", text)}
+                                placeholder="Enter 10-digit mobile number"
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                            />
+                            {errors.Mobile_No && (
+                                <Text style={styles.errorText}>{errors.Mobile_No}</Text>
+                            )}
+                        </View>
+
+                        <View style={styles.inputWrapper}>
+                            <Text style={styles.label}>GST</Text>
+                            <TextInput
+                                style={[styles.input]}
+                                value={formValues.Gstno}
+                                onChangeText={(text) => handleInputChange("Gstno", text)}
+                                placeholder="GST number"
+                            />
+                        </View>
+
+                        <View style={styles.cameraSection}>
+                            {imageUri && (
+                                <Image
+                                    source={{ uri: `file://${imageUri}` }}
+                                    style={styles.previewImage}
+                                />
+                            )}
+
+                            <TouchableOpacity
+                                style={styles.cameraButton}
+                                onPress={handleOpenCamera}
+                            >
+                                <Text style={styles.cameraButtonText}>
+                                    {imageUri ? 'Retake Photo' : 'Take Photo'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
 
-                        <FormField label="Route" required />
-                        <Dropdown
-                            style={styles.dropdown}
-                            data={routes}
-                            labelField="Route_Name"
-                            valueField="Route_Id"
-                            search
-                            searchPlaceholder="Search..."
-                            placeholder={!isFocus ? "Select Route" : "..."}
-                            onChange={(value) => {
-                                setFormValues({ ...formValues, Route_Id: value.Route_Id })
-                            }}
-                        />
+                        <View style={styles.geoSection}>
+                            <Text style={styles.label}>Location Details</Text>
+                            <View style={styles.geoContainer}>
+                                <View style={styles.geoInputContainer}>
+                                    <TextInput
+                                        style={styles.geoInput}
+                                        value={formValues.Latitude}
+                                        placeholder="Latitude"
+                                        keyboardType="numeric"
+                                        onChangeText={(text) => handleInputChange("Latitude", text)}
+                                    />
+                                    <TextInput
+                                        style={styles.geoInput}
+                                        value={formValues.Longitude}
+                                        placeholder="Longitude"
+                                        keyboardType="numeric"
+                                        onChangeText={(text) => handleInputChange("Longitude", text)}
+                                    />
+                                </View>
 
-                        <FormField label="Area" required />
-                        <Dropdown
-                            data={areas}
-                            labelField="Area_Name"
-                            valueField="Area_Id"
-                            style={styles.dropdown}
-                            search
-                            searchPlaceholder="Search..."
-                            placeholder={!isFocus ? "Select Area" : "..."}
-                            onChange={(value) => {
-                                setFormValues({ ...formValues, Area_Id: value.Area_Id })
-                            }}
-                        />
+                                <TouchableOpacity
+                                    style={styles.geoButton}
+                                    onPress={handleGeoData}
+                                >
+                                    <Text style={styles.geoButtonText}>Get Location</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
 
-                        <FormField label="State" required />
-                        <Dropdown
-                            data={state}
-                            style={styles.dropdown}
-                            labelField="State_Name"
-                            valueField="State_Id"
-                            search
-                            searchPlaceholder="Search..."
-                            placeholder={!isFocus ? "Select State" : "..."}
-                            onChange={(value) => {
-                                setFormValues({ ...formValues, State_Id: value.State_Id })
-                            }}
-                        />
+                        <View style={styles.inputWrapper}>
+                            <FormLabel label="Address" required />
+                            <TextInput
+                                style={[styles.input, errors.Reatailer_Address && styles.inputError]}
+                                value={formValues.Reatailer_Address}
+                                onChangeText={(text) => handleInputChange("Reatailer_Address", text)}
+                                placeholder="Enter complete address"
+                                multiline
+                            />
+                            {errors.Reatailer_Address && (
+                                <Text style={styles.errorText}>{errors.Reatailer_Address}</Text>
+                            )}
+                        </View>
 
-                        <FormField label="Retailer Address" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.Reatailer_Address}
-                            keyboardType="default"
-                            placeholder="Retailer Address"
-                            onChangeText={(text) => handleInputChange("Reatailer_Address", text)}
-                        />
+                        <View style={styles.inputWrapper}>
+                            <FormLabel label="City" required />
+                            <TextInput
+                                style={[styles.input, errors.Reatailer_City && styles.inputError]}
+                                value={formValues.Reatailer_City}
+                                onChangeText={(text) => handleInputChange("Reatailer_City", text)}
+                                placeholder="Enter city name"
+                            />
+                            {errors.Reatailer_City && (
+                                <Text style={styles.errorText}>{errors.Reatailer_City}</Text>
+                            )}
+                        </View>
 
-                        <FormField label="City" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.Reatailer_City}
-                            keyboardType="default"
-                            placeholder="City"
-                            onChangeText={(text) => handleInputChange("Reatailer_City", text)}
-                        />
-
-                        <FormField label="Pin Code" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.PinCode}
-                            keyboardType="number-pad"
-                            placeholder="Pin Code"
-                            onChangeText={(text) => handleInputChange("PinCode", text)}
-                        />
+                        <View style={styles.inputWrapper}>
+                            <Text style={styles.label}>Pin Code</Text>
+                            <TextInput
+                                style={[styles.input]}
+                                value={formValues.PinCode}
+                                keyboardType="phone-pad"
+                                onChangeText={(text) => handleInputChange("PinCode", text)}
+                                placeholder="Pin Code"
+                            />
+                        </View>
 
 
-
-
-
-                        <FormField label="Mobile Number" required />
-                        <TextInput
-                            style={styles.input}
-                            value={formValues.Mobile_No}
-                            keyboardType="phone-pad"
-                            placeholder="Mobile Number"
-                            onChangeText={(text) => {
-                                setIsMobileNoValid(validateMobileNo(text));
-                                handleInputChange("Mobile_No", text)
-                            }}
-                        />
-                        {!isMobileNoValid && <Text style={styles.errorText}>Please enter a valid 10-digit mobile number.</Text>}
-
-                        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                            <Text style={styles.submitButtonText}>Save Retailer</Text>
+                        <TouchableOpacity
+                            style={[
+                                styles.submitButton,
+                                isSubmitting && styles.submitButtonDisabled
+                            ]}
+                            onPress={handleSubmit}
+                            disabled={isSubmitting}
+                        >
+                            <Text style={styles.submitButtonText}>
+                                {isSubmitting ? "Saving..." : "Save Retailer"}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
 
             </ImageBackground>
-
-
         </View>
     )
 }
@@ -422,115 +400,106 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 7.5
+        borderRadius: 10,
     },
-    inputSearchStyle: {
-        // height: 40,
-        // fontSize: 16,
-    },
-    TopContainer: {
+    formContainer: {
         padding: 20,
     },
-    dropdown: {
+    inputWrapper: {
+        marginBottom: 10,
+    },
+    label: {
+        ...typography.h6(),
+        marginBottom: 5,
+        color: customColors.grey,
+        fontWeight: "500",
+    },
+    input: {
         backgroundColor: customColors.white,
-        padding: 12,
         borderWidth: 1,
         borderColor: "#ddd",
         borderRadius: 8,
-        // marginBottom: 20
-    },
-    placeholderStyle: {
+        padding: 12,
         fontSize: 16,
+    },
+    inputError: {
+        borderColor: "red",
+    },
+    errorText: {
+        ...typography.body1(),
+        color: "red",
+        marginTop: 5,
+    },
+    cameraSection: {
+        marginBottom: 20,
     },
     previewImage: {
         width: "100%",
         height: 200,
-        resizeMode: "cover",
         borderRadius: 8,
-        marginBottom: 20,
+        marginBottom: 10,
+        backgroundColor: "#f0f0f0",
     },
-    imagePreview: {
-        width: 200,
-        height: 200,
-        resizeMode: 'cover',
-        borderRadius: 10,
+    cameraButton: {
+        backgroundColor: customColors.primary,
+        padding: 15,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    cameraButtonText: {
+        color: customColors.white,
+        ...typography.h6(),
+        fontWeight: "600",
+    },
+    geoSection: {
         marginBottom: 20,
     },
     geoContainer: {
+        width: "100%",
+    },
+    geoInputContainer: {
         flexDirection: "row",
-        justifyContent: "space-around",
-        alignContent: "center",
-        marginTop: 15
+        justifyContent: "space-between",
+        marginBottom: 10,
     },
     geoInput: {
         flex: 1,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 25,
-        marginRight: 15,
-    },
-    errorText: {
-        color: "red",
-    },
-    button: {
-        backgroundColor: '#007AFF',
-        borderRadius: 8,
-        padding: 16,
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    buttonText: {
-        ...typography.h6(),
-        fontWeight: "600",
-        color: customColors.white,
-    },
-    geoButton: {
-        flex: 1,
-        backgroundColor: "#007AFF",
-        borderRadius: 5,
-        justifyContent: "center",
-        alignItems: "center",
-        // padding: 10,
-        marginBottom: 25,
-    },
-    geoButtonText: {
-        ...typography.body1(),
-        color: customColors.white,
-    },
-    label: {
-        fontSize: 14,
-        marginBottom: 5,
-        color: customColors.text,
-        fontFamily: customFonts.plusJakartaSansBold
-    },
-    mobileLabel: {
-        fontSize: 14,
-        marginBottom: 5,
-        color: customColors.text,
-        marginTop: 10,
-        fontFamily: customFonts.plusJakartaSansBold
-    },
-    input: {
         backgroundColor: customColors.white,
-        borderRadius: 8,
-        padding: 12,
-        ...typography.body1(),
         borderWidth: 1,
         borderColor: "#ddd",
-        marginBottom: 20,
-    },
-
-    submitButton: {
-        backgroundColor: '#34C759',
         borderRadius: 8,
-        padding: 16,
-        alignItems: 'center',
+        padding: 12,
+        fontSize: 16,
+        marginRight: 10,
+    },
+    geoButton: {
+        backgroundColor: customColors.secondary,
+        padding: 15,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    geoButtonText: {
+        color: customColors.black,
+        ...typography.h5(),
+        fontWeight: "600",
+    },
+    submitButton: {
+        backgroundColor: customColors.primary,
+        padding: 15,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 20,
+    },
+    submitButtonDisabled: {
+        opacity: 0.5,
     },
     submitButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        ...typography.h5(),
+        color: customColors.white,
+        fontWeight: "bold",
+    },
+    requiredAsterisk: {
+        color: "#FF0000",
+        ...typography.h6(),
     },
 })

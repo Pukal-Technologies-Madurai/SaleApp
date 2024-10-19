@@ -15,7 +15,7 @@ const HomeScreen = () => {
     const buttons = [
         { title: "Retailers", icon: assetImages.retailer, navigate: "Customers" },
         { title: "Visit Log", icon: assetImages.visitLog, navigate: "RetailerLog" },
-        { title: "Sale Order", icon: assetImages.salesOrder, navigate: "OrderPreview" },
+        { title: "Sale List", icon: assetImages.salesOrder, navigate: "OrderPreview" },
         { title: "Stock List", icon: assetImages.inventoryStore, navigate: "StockInfo" },
     ];
 
