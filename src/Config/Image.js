@@ -11,6 +11,7 @@ const assetImages = {
     saveIcon: require("../../assets/images/saveIcon.png"),
     locationPin: require("../../assets/images/location_pin.png"),
     photoFrame: require("../../assets/images/photo_frame.png"),
+    edit: require("../../assets/images/order_list.png"),
 
     call: require("../../assets/images/call.png"),
     contact: require("../../assets/images/contact.png"),

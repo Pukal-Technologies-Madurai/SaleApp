@@ -19,6 +19,7 @@
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "@react-navigation/stack": "^6.3.29",
+    "lucide-react-native": "^0.454.0",
     "react": "18.2.0",
     "react-native": "0.73.6",
     "react-native-crypto-js": "^1.0.0",
