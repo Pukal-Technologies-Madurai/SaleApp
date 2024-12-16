@@ -1,6 +1,7 @@
-const baseURL = "http://shrifoods.erpsmt.in/"        // live api
-// const baseURL = "https://smttask.in/"                // test api
-// const baseURL = "http://192.168.1.10:9001/"             // localhost endpoint
+const baseURL = "http://shrifoods.erpsmt.in/"       // live api
+// const baseURL = "http://apiweb.erpsmt.in/"       // test api
+// const baseURL = "http://192.168.1.18:9001/"      // localhost endpoint
+// const baseURL = "http://192.168.1.20:3000/"      // localhost endpoint
 
 export const API = {
     login: baseURL + "api/authorization/login",
@@ -27,12 +28,16 @@ export const API = {
     productPacks: baseURL + "api/masters/products/packs?Company_Id=",
     closingStock: baseURL + "api/masters/retailers/closingStock",
     productClosingStock: baseURL + "api/masters/retailers/closingStock?Retailer_Id=",
+    productBasedClosingStock: baseURL + "api/masters/retailers/closingStock/productBased?Retailer_Id=",
     closingStockReport: baseURL + "api/masters/retailers/closingStock/myEntry?UserId=",
+
+    delivery: baseURL + "api/delivery/deliveryOrderList?Delivery_Person_Id=",
+    deliveryPut: baseURL + "api/delivery/deliveryOrderMobile",
 
     visitedLog: baseURL + "api/empAttendance/visitLogs",
     saleOrder: baseURL + "api/sales/saleOrder",
     company: baseURL + "api/masters/company?Company_id=",
-    users: baseURL + "api/masters/user/dropDown?Company_id=",
+    salesPerson: baseURL + "api/masters/users/salesPerson/dropDown?Company_id=",
 
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",

@@ -25,8 +25,15 @@ const LoginPortal = () => {
             const response = await fetch(`${API.userPortal}${userName}`);
             const jsonData = await response.json();
             if (jsonData.success && jsonData.data) {
-                setCompanies(jsonData.data);
-                setStep(2);
+                const companies = jsonData.data;
+                setCompanies(companies);
+
+                if (companies.length === 1) {
+                    setSelectedCompany(companies[0]);
+                    setStep(2);
+                } else {
+                    setStep(2);
+                }
             } else {
                 ToastAndroid.show(jsonData.message, ToastAndroid.LONG);
             }
@@ -130,7 +137,6 @@ const LoginPortal = () => {
             await AsyncStorage.setItem("Company_Id", String(data.Company_id));
             await AsyncStorage.setItem("userName", data.UserName);
             await AsyncStorage.setItem("Name", data.Name);
-            await AsyncStorage.setItem("UserType", data.UserType);
             await AsyncStorage.setItem("branchId", String(data.BranchId));
             await AsyncStorage.setItem("branchName", data.BranchName);
             await AsyncStorage.setItem("userType", data.UserType);
@@ -183,13 +189,14 @@ const LoginPortal = () => {
                                         value={userName}
                                         onChangeText={setUserName}
                                     />
-                                    <TouchableOpacity style={styles.selectButton} onPress={() => setModalVisible(true)
-                                    }>
-                                        <Text style={styles.selectButtonText}>
-                                            {selectedCompany ? selectedCompany.Company_Name : "Select your company"}
-                                        </Text>
-                                        < Icon name="chevron-down" size={24} color="#fff" />
-                                    </TouchableOpacity>
+                                    {companies.length > 1 && (
+                                        <TouchableOpacity style={styles.selectButton} onPress={() => setModalVisible(true)}>
+                                            <Text style={styles.selectButtonText}>
+                                                {selectedCompany ? selectedCompany.Company_Name : "Select your company"}
+                                            </Text>
+                                            <Icon name="chevron-down" size={24} color={customColors.white} />
+                                        </TouchableOpacity>
+                                    )}
 
                                     < Modal
                                         animationType="slide"
@@ -282,6 +289,7 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         ...typography.button(),
+        color: customColors.black,
         fontWeight: "bold",
     },
     selectButton: {
@@ -294,8 +302,8 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     selectButtonText: {
-        color: '#fff',
-        fontSize: 16,
+        ...typography.h6(),
+        color: customColors.white,
     },
     modalView: {
         flex: 1,
@@ -315,6 +323,7 @@ const styles = StyleSheet.create({
     },
     modalTitle: {
         ...typography.h5(),
+        color: customColors.black,
         fontWeight: "bold",
         marginBottom: 15,
         textAlign: "center",
@@ -326,6 +335,7 @@ const styles = StyleSheet.create({
     },
     companyText: {
         ...typography.body1(),
+        color: customColors.black,
     },
     closeButton: {
         backgroundColor: customColors.secondary,
@@ -336,6 +346,7 @@ const styles = StyleSheet.create({
     },
     closeButtonText: {
         ...typography.button(),
+        color: customColors.black,
         fontWeight: "bold",
     },
 })

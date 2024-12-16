@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
     },
     modalInput: {
         width: "100%",
+        color: customColors.black,
         borderWidth: 1,
         borderColor: "#a0a0a0",
         borderRadius: 10,

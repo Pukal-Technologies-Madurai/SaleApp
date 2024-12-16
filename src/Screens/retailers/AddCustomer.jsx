@@ -416,6 +416,7 @@ const styles = StyleSheet.create({
     },
     input: {
         backgroundColor: customColors.white,
+        color: customColors.black,
         borderWidth: 1,
         borderColor: "#ddd",
         borderRadius: 8,
@@ -465,6 +466,7 @@ const styles = StyleSheet.create({
     geoInput: {
         flex: 1,
         backgroundColor: customColors.white,
+        color: customColors.black,
         borderWidth: 1,
         borderColor: "#ddd",
         borderRadius: 8,

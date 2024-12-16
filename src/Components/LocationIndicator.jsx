@@ -1,196 +1,374 @@
-import { PermissionsAndroid, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native"
-import React, { useEffect, useState } from "react"
+import { PermissionsAndroid, StyleSheet, Text, TouchableOpacity, View, Alert, Linking, Platform, ToastAndroid } from "react-native"
+import React, { useCallback, useEffect, useState } from "react"
 import Geolocation from "@react-native-community/geolocation";
+import Icon from "react-native-vector-icons/Ionicons";
+import RefreshIcon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../Config/helper";
 
-const LocationIndicator = ({ onLocationUpdate }) => {
-    const [currentLocation, setCurrentLocation] = useState(
-        {
-            latitude: "",
-            longitude: ""
-        }
-    )
-    const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-    const [locationEnabled, setLocationEnabled] = useState(false);
-    const [refresh, setRefresh] = useState(false);
-    const [fetchButton, setFetchButton] = useState(true);
+const LocationIndicator = ({ onLocationUpdate, autoFetch = true, autoFetchOnMount = true }) => {
+    const [currentLocation, setCurrentLocation] = useState({
+        latitude: null,
+        longitude: null
+    });
 
-    useEffect(() => {
-        const checkPermission = async () => {
-            const granted = await PermissionsAndroid.check(
-                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-            );
-            setLocationPermissionGranted(granted);
-            return granted;
-        };
+    const [locationStatus, setLocationStatus] = useState({
+        permission: false,
+        enabled: false,
+        positioning: false,
+        error: null
+    });
 
-        const checkLocationStatus = () => {
-            Geolocation.getCurrentPosition(
-                (position) => {
-                    setLocationEnabled(true);
-                    const { latitude, longitude } = position.coords;
-                    setCurrentLocation({ latitude, longitude });
-                    if (onLocationUpdate) {
-                        onLocationUpdate({ latitude, longitude });
-                    }
-                },
-                (error) => {
-                    setLocationEnabled(false);
-                    console.error('Error getting location:', error);
+    // Comprehensive location permission request with multiple strategies
+    const requestLocationPermission = useCallback(async () => {
+        try {
+            if (Platform.OS === "android") {
+                // First, check location services
+                const serviceEnabled = await checkLocationServices();
+                if (!serviceEnabled) {
+                    return false;
                 }
-            );
-        };
 
-        const initializeLocation = async () => {
-            const granted = await checkPermission();
-            if (granted) {
-                checkLocationStatus();
-            } else {
-                Alert.alert('Location Permission', 'Location permission denied. App cannot function properly without it.');
-            }
-        };
-
-        const getLocationPermission = async () => {
-            try {
+                // Request permission
                 const granted = await PermissionsAndroid.request(
                     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
                     {
-                        title: 'Sales App Location Permission',
-                        message: 'Sales App needs access to your location',
-                        buttonNeutral: 'Ask Me Later',
-                        buttonNegative: 'Cancel',
-                        buttonPositive: 'OK',
-                    },
+                        title: "Location Access Required",
+                        message: "This app needs precise location to log retailer visits accurately.",
+                        buttonNeutral: "Ask Later",
+                        buttonNegative: "Cancel",
+                        buttonPositive: "Enable"
+                    }
                 );
+
                 if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-                    // console.log('Location permission granted');
-                    setLocationPermissionGranted(true);
-                    checkLocationStatus(); // Call checkLocationStatus after permission is granted
+                    setLocationStatus(prev => ({
+                        ...prev,
+                        permission: true,
+                        error: null
+                    }));
+
+                    // Auto fetch if enabled
+                    if (autoFetchOnMount && autoFetch) {
+                        fetchCurrentLocation();
+                    }
+
+                    return true;
                 } else {
-                    console.log('Location permission denied');
-                    setLocationEnabled(false); // Update locationEnabled state if permission is denied
-                    Alert.alert('Location Permission', 'Location permission denied. App cannot function properly without it.');
+                    // Detailed location permission denied guidance
+                    showLocationPermissionAlert();
+                    return false;
                 }
-            } catch (err) {
-                console.warn(err);
+            }
+            return false;
+        } catch (err) {
+            console.error("Location Permission Error:", err);
+            ToastAndroid.show("Failed to get location permissions", ToastAndroid.LONG);
+            return false;
+        }
+    }, [autoFetch, autoFetchOnMount]);
+
+    // Check if location services are enabled
+    const checkLocationServices = () => {
+        return new Promise((resolve) => {
+            Geolocation.getCurrentPosition(
+                () => resolve(true),
+                (error) => {
+                    if (error.code === error.POSITION_UNAVAILABLE) {
+                        Alert.alert(
+                            "Location Services Disabled",
+                            "Please enable location services in your device settings.",
+                            [
+                                {
+                                    text: "Open Settings",
+                                    onPress: () => {
+                                        Platform.OS === "android"
+                                            ? Linking.openSettings()
+                                            : Linking.openURL("app-settings:")
+                                    }
+                                },
+                                { text: "Cancel", style: "cancel" }
+                            ]
+                        );
+                        resolve(false);
+                    }
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 5000,
+                    maximumAge: 0
+                }
+            );
+        });
+    };
+
+    // Show detailed location permission alert
+    const showLocationPermissionAlert = () => {
+        Alert.alert(
+            "Location Access Denied",
+            "Retailer visit tracking requires location access. Please grant permissions in app settings.",
+            [
+                {
+                    text: "Open Settings",
+                    onPress: () => {
+                        Platform.OS === 'android'
+                            ? Linking.openSettings()
+                            : Linking.openURL('app-settings:')
+                    }
+                },
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
+
+    // Fetch current location with multiple strategies
+    const fetchCurrentLocation = useCallback(() => {
+        const locationOptions = [
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+            { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+        ];
+
+        const attemptLocationFetch = async (optionIndex = 0) => {
+            try {
+                // Try geolocation first
+                const position = await new Promise((resolve, reject) => {
+                    Geolocation.getCurrentPosition(resolve, reject, locationOptions[optionIndex]);
+                });
+
+                // Successful location
+                const { latitude, longitude } = position.coords;
+                setCurrentLocation({ latitude, longitude });
+
+                // Optional: Validate coordinates
+                if (isValidCoordinate(latitude, longitude)) {
+                    onLocationUpdate?.({ latitude, longitude });
+                } else {
+                    throw new Error('Invalid coordinates');
+                }
+            } catch (error) {
+                // Try alternative methods
+                if (optionIndex < locationOptions.length - 1) {
+                    attemptLocationFetch(optionIndex + 1);
+                    return;
+                }
+
+                // Additional fallback strategies
+                await tryAlternativeLocationMethods();
             }
         };
 
-        // Call getLocationPermission when locationPermissionGranted changes or refresh is triggered
-        if (!locationPermissionGranted || refresh) {
-            getLocationPermission();
+        // Additional location retrieval methods
+        const tryAlternativeLocationMethods = async () => {
+            try {
+                // Network-based location retrieval
+                const networkLocation = await fetchNetworkLocation();
+
+                // IP geolocation as last resort
+                const ipLocation = await fetchIPGeolocation();
+
+                // Choose the most accurate location
+                const bestLocation = selectBestLocation(networkLocation, ipLocation);
+
+                if (bestLocation) {
+                    setCurrentLocation(bestLocation);
+                    onLocationUpdate?.(bestLocation);
+                }
+            } catch (error) {
+                // Handle complete location failure
+                setLocationStatus(prev => ({
+                    ...prev,
+                    error: "Location unavailable"
+                }));
+            }
+        };
+
+        attemptLocationFetch();
+    }, [onLocationUpdate]);
+
+    // Utility to validate coordinates
+    const isValidCoordinate = (lat, lon) => {
+        return (
+            typeof lat === 'number' &&
+            typeof lon === 'number' &&
+            !isNaN(lat) &&
+            !isNaN(lon) &&
+            lat >= -90 &&
+            lat <= 90 &&
+            lon >= -180 &&
+            lon <= 180
+        );
+    };
+
+    // Automatic location fetch on mount
+    useEffect(() => {
+        if (autoFetchOnMount) {
+            requestLocationPermission();
         }
+    }, [requestLocationPermission, autoFetchOnMount]);
 
-    }, [locationPermissionGranted, refresh, onLocationUpdate]);
-
-    const fetchEvent = () => {
-        setFetchButton(!fetchButton);
-        setRefresh(!refresh)
+    // Manual refresh handler
+    const handleManualRefresh = () => {
+        requestLocationPermission();
     };
 
-    const refreshLocation = () => {
-        setCurrentLocation({ latitude: "", longitude: "" });
-        setLocationEnabled(false);
-    };
+    // Determine status color and icon
+    const getStatusStyle = (status) => ({
+        backgroundColor: status ? "#4CAF50" : "#FF5722",
+        color: status ? customColors.white : customColors.white
+    });
+
+    // Request permission on component mount
+    useEffect(() => {
+        requestLocationPermission();
+    }, []);
 
     return (
-        <View style={styles.card}>
-            <Text style={styles.cardTitle}>Location Status</Text>
-            <View style={styles.cardContent}>
-                <View style={styles.row}>
-                    <View style={locationPermissionGranted ? styles.active : styles.inActive}>
-                        <Text style={styles.text} maxFontSizeMultiplier={1.2}>Permission</Text>
-                    </View>
-                    <View style={locationEnabled ? styles.active : styles.inActive}>
-                        <Text style={styles.text} maxFontSizeMultiplier={1.2} >Location</Text>
-                    </View>
-                    <View style={(currentLocation.latitude && currentLocation.longitude) ? styles.active : styles.inActive}>
-                        <Text style={styles.text} maxFontSizeMultiplier={1.2}>Position</Text>
-                    </View>
+        <View style={styles.container}>
+            <View style={styles.statusContainer}>
+                <View style={[
+                    styles.statusItem,
+                    getStatusStyle(locationStatus.permission)
+                ]}>
+                    <Icon
+                        name="shield-checkmark"
+                        size={20}
+                        color="white"
+                    />
+                    <Text style={styles.statusText}>Permission</Text>
                 </View>
-                <View style={styles.buttonGroup}>
-                    <TouchableOpacity onPress={refreshLocation} style={styles.refreshButton}>
-                        <Text maxFontSizeMultiplier={1.2} style={styles.refreshButtonText}>Refresh Status</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={fetchEvent} style={styles.refreshButton}>
-                        <Text maxFontSizeMultiplier={1.2} style={styles.refreshButtonText}>Fetch Location</Text>
-                    </TouchableOpacity>
+
+                <View style={[
+                    styles.statusItem,
+                    getStatusStyle(locationStatus.enabled)
+                ]}>
+                    <Icon
+                        name="location"
+                        size={20}
+                        color="white"
+                    />
+                    <Text style={styles.statusText}>Location</Text>
+                </View>
+
+                <View style={[
+                    styles.statusItem,
+                    getStatusStyle(!!currentLocation.latitude)
+                ]}>
+                    <Icon
+                        name="pin"
+                        size={20}
+                        color="white"
+                    />
+                    <Text style={styles.statusText}>Position</Text>
                 </View>
             </View>
+
+            {locationStatus.error && (
+                <View style={styles.errorContainer}>
+                    <Icon name="warning" size={20} color="#FF5722" />
+                    <Text style={styles.errorText}>
+                        {locationStatus.error}
+                    </Text>
+                </View>
+            )}
+
+            {currentLocation.latitude && (
+                <View style={styles.locationDetails}>
+                    <Text style={styles.locationText}>
+                        Latitude: {currentLocation.latitude.toFixed(4)}
+                    </Text>
+                    <Text style={styles.locationText}>
+                        Longitude: {currentLocation.longitude.toFixed(4)}
+                    </Text>
+                </View>
+            )}
+
+            <View style={styles.actionContainer}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleManualRefresh}
+                >
+                    <RefreshIcon name="refresh" size={20} color="#333" />
+                    <Text style={styles.actionButtonText}>
+                        {locationStatus.permission ? "Update Location" : "Enable Location"}
+                    </Text>
+                </TouchableOpacity>
+            </View>
         </View>
-    )
+    );
 }
 
 export default LocationIndicator
 
 const styles = StyleSheet.create({
-    card: {
+    container: {
         backgroundColor: customColors.white,
-        borderRadius: 10,
+        borderRadius: 12,
         padding: 10,
-        margin: 10,
         shadowColor: customColors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
     },
-    cardTitle: {
-        ...typography.body1(),
-        fontWeight: "bold",
-        color: customColors.primary,
-        marginBottom: 10,
-
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-        borderStyle: "dashed",
-    },
-    cardContent: {
-        flexDirection: "column",
-        justifyContent: "center",
-    },
-    row: {
+    statusContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 5,
+        marginBottom: 12,
     },
-    active: {
-        minWidth: 80,
+    statusItem: {
+        flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#DAF7A6",
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        borderRadius: 25,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+        gap: 6,
     },
-    inActive: {
-        minWidth: 80,
-        alignItems: "center",
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        backgroundColor: "#FF5733",
-        borderRadius: 25,
-    },
-    text: {
+    statusText: {
         ...typography.body1(),
+        color: customColors.white,
         fontWeight: "600",
     },
-    buttonGroup: {
+    locationDetails: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 10,
+        backgroundColor: "#F0F0F0",
+        padding: 7,
+        borderRadius: 8,
+    },
+    locationText: {
+        ...typography.body1(),
+        fontWeight: "500",
+        color: "#333",
+    },
+    actionContainer: {
         flexDirection: "row",
         justifyContent: "flex-end",
-        gap: 10,
     },
-    refreshButton: {
+    actionButton: {
+        flexDirection: "row",
         alignItems: "center",
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        marginTop: 10,
-        borderWidth: 0.75,
-        borderRadius: 50,
+        backgroundColor: "#E0E0E0",
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 25,
+        gap: 6,
     },
-    refreshButtonText: {
-        ...typography.body1(),
-        textAlign: "center",
-        fontWeight: "600",
+    actionButtonText: {
+        ...typography.body2(),
+        fontWeight: "bold",
+        color: '#333',
+    },
+    errorContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#FFF3E0",
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    errorText: {
+        color: "#FF5722",
+        marginLeft: 10,
+        flex: 1,
     },
 })

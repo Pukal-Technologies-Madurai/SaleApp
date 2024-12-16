@@ -428,6 +428,7 @@ const Sales = ({ route }) => {
                                 placeholderStyle={styles.placeholderStyle}
                                 selectedTextStyle={styles.selectedTextStyle}
                                 iconStyle={styles.iconStyle}
+                                itemTextStyle={styles.itemTextStyle}
                             />
 
                             <Dropdown
@@ -449,6 +450,7 @@ const Sales = ({ route }) => {
                                 placeholderStyle={styles.placeholderStyle}
                                 selectedTextStyle={styles.selectedTextStyle}
                                 iconStyle={styles.iconStyle}
+                                itemTextStyle={styles.itemTextStyle}
                                 disabled={!selectedBrand}
                             />
                         </View>
@@ -477,6 +479,7 @@ const Sales = ({ route }) => {
                                                     )
                                                 }
                                                 placeholder="0"
+                                                placeholderTextColor={customColors.grey}
                                             />
 
                                             <Dropdown
@@ -491,6 +494,9 @@ const Sales = ({ route }) => {
                                                 value={selectedUOMs[product.Product_Id] || product.UOM_Id}
                                                 onChange={(item) => handleUOMChange(product.Product_Id, item.value)}
                                                 containerStyle={styles.uomDropdownContainer}
+                                                placeholderStyle={styles.placeholderStyle}
+                                                selectedTextStyle={styles.selectedTextStyle}
+                                                itemTextStyle={styles.itemTextStyle}
                                             />
                                             <View style={styles.priceContainer}>
                                                 <Text style={styles.currencySymbol}>₹</Text>
@@ -703,6 +709,10 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
     },
+    itemTextStyle: {
+        color: customColors.black,
+        fontWeight: "400",
+    },
 
     productsContainer: {
         backgroundColor: customColors.white,
@@ -737,6 +747,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        color: customColors.black
     },
     quantityInput: {
         width: 60,
@@ -745,6 +756,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         padding: 6,
         textAlign: "center",
+        color: customColors.black
     },
     uomDropdown: {
         width: 120,
@@ -754,8 +766,11 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         paddingHorizontal: 8,
         marginRight: 10,
+        backgroundColor: customColors.white,
+        color: customColors.black,
     },
     uomDropdownContainer: {
+        color: customColors.black,
         borderRadius: 4,
     },
 

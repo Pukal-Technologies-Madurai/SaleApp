@@ -215,6 +215,7 @@ const styles = StyleSheet.create({
     },
     textInput: {
         ...typography.h6(),
+        color: customColors.black,
         borderWidth: 1.5,
         borderColor: customColors.primary,
         borderRadius: 5,

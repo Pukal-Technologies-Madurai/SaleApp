@@ -23,8 +23,9 @@ const assetImages = {
     notification: require("../../assets/images/notification.png"),
     retailer: require("../../assets/images/retailers.png"),
     salesOrder: require("../../assets/images/sale_order.png"),
-    attendance: require("../../assets/images/attendance_list.png"),
+    attendance: require("../../assets/images/attendance.png"),
     visitLog: require("../../assets/images/visit_log.png"),
+    gpayLogo: require("../../assets/images/gpayLogo.jpg"),
 
     closingStock: require("../../assets/images/closing_stock.png"),
     whatsapp: require("../../assets/images/whatsapp.png"),

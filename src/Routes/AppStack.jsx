@@ -1,28 +1,30 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 
-import StartScreen from '../Screens/StartScreen';
-import LoginScreen from '../Screens/login/LoginScreen';
-import HomeScreen from '../Screens/HomeScreen';
-import Customers from '../Screens/retailers/Customers';
-import CustomersDetails from '../Screens/retailers/CustomersDetails';
-import AddCustomer from '../Screens/retailers/AddCustomer';
-import EditCustomer from '../Screens/retailers/EditCustomer';
-import Attendance from '../Screens/attendance/Attendance';
-import OpenCamera from '../Components/OpenCamera';
-import EndDay from '../Screens/attendance/EndDay';
-import StockClosing from '../Screens/StockClosing';
-import AttendanceInfo from '../Screens/attendance/AttendanceInfo';
-import RetailerVisit from '../Screens/retailers/RetailerVisit';
-import RetailerVisitLog from '../Screens/reports/RetailerVisitLog';
-import AttendanceReport from '../Screens/attendance/AttendanceReport';
-import StockInfo from '../Screens/reports/StockInfo';
-import SaleOrder from '../Screens/sales/SaleOrder';
-import OrderPreview from '../Screens/reports/OrderPreview';
-import ProfileScreen from '../Screens/ProfileScreen';
-import RetailerMapView from '../Screens/RetailerMapView';
+import OpenCamera from "../Components/OpenCamera";
+
+import StartScreen from "../Screens/StartScreen";
+import LoginScreen from "../Screens/login/LoginScreen";
+import HomeScreen from "../Screens/HomeScreen";
+import Customers from "../Screens/retailers/Customers";
+import CustomersDetails from "../Screens/retailers/CustomersDetails";
+import AddCustomer from "../Screens/retailers/AddCustomer";
+import EditCustomer from "../Screens/retailers/EditCustomer";
+import Attendance from "../Screens/attendance/Attendance";
+import EndDay from "../Screens/attendance/EndDay";
+import StockClosing from "../Screens/StockClosing";
+import AttendanceInfo from "../Screens/attendance/AttendanceInfo";
+import RetailerVisit from "../Screens/retailers/RetailerVisit";
+import RetailerVisitLog from "../Screens/reports/RetailerVisitLog";
+import AttendanceReport from "../Screens/attendance/AttendanceReport";
+import StockInfo from "../Screens/reports/StockInfo";
+import SaleOrder from "../Screens/sales/SaleOrder";
+import OrderPreview from "../Screens/reports/OrderPreview";
+import ProfileScreen from "../Screens/ProfileScreen";
+import RetailerMapView from "../Screens/RetailerMapView";
 import Sales from "../Screens/sales/Sales";
 import LoginPortal from "../Screens/login/LoginPortal";
+import DeliveryCheck from "../Screens/reports/DeliveryCheck";
 
 const Stack = createStackNavigator();
 
@@ -58,6 +60,8 @@ const AppStack = () => {
             <Stack.Screen name="Orders" component={SaleOrder} />
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="Sales" component={Sales} />
+
+            <Stack.Screen name="DeliveryCheck" component={DeliveryCheck} />
 
             {/* Not Used */}
             <Stack.Screen name="LoginScreen" component={LoginScreen} />

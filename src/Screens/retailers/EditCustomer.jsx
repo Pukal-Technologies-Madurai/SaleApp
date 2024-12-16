@@ -139,10 +139,12 @@ const EditCustomer = ({ route }) => {
                     value={value}
                     onFocus={() => setIsFocus(true)}
                     onBlur={() => setIsFocus(false)}
+                    selectedTextStyle={styles.selectedTextStyle}
                     onChange={item => {
                         handleInputChange(valueField, item[valueField]);
                         setIsFocus(false);
                     }}
+                    itemTextStyle={styles.itemTextStyle}
                 />
             </View>
         );
@@ -265,6 +267,7 @@ const styles = StyleSheet.create({
     },
     label: {
         ...typography.h6(),
+        color: customColors.black,
         fontWeight: "500",
         marginBottom: 3,
     },
@@ -277,6 +280,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         padding: 12,
         ...typography.h6(),
+        color: customColors.black
     },
     dropdown: {
         height: 50,
@@ -284,6 +288,15 @@ const styles = StyleSheet.create({
         borderColor: customColors.grey,
         borderRadius: 8,
         paddingHorizontal: 8,
+        color: customColors.black,
+    },
+    selectedTextStyle: {
+        color: customColors.black, // Black text for selected items
+        fontWeight: '600',
+    },
+    itemTextStyle: {
+        color: customColors.black,
+        fontWeight: "400",
     },
     imageSection: {
         marginVertical: 20,

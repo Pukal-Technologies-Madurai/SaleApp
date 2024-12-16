@@ -1,7 +1,9 @@
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
-import React, { useRef, useEffect } from 'react'
-import { Camera, useCameraDevice, useCameraPermission, } from 'react-native-vision-camera'
-import { customColors, typography } from '../Config/helper'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useRef, useEffect } from "react";
+import { Camera, useCameraDevice, useCameraPermission } from "react-native-vision-camera";
+import RNFS from "react-native-fs";
+import ImageResizer from "@bam.tech/react-native-image-resizer";
+import { customColors, typography } from "../Config/helper";
 
 const CameraComponent = ({ onPhotoCapture, showCamera }) => {
     const device = useCameraDevice("back");
@@ -13,25 +15,53 @@ const CameraComponent = ({ onPhotoCapture, showCamera }) => {
     }, [hasPermission]);
 
     const checkPermission = async () => {
-        const granted = await requestPermission(true);
-        if (!granted) {
-            console.log("Camera permission denied");
+        const status = await requestPermission();
+        if (status !== "authorized") {
+            // console.log("Camera permission denied");
+        }
+    };
+
+    const compressImage = async (imagePath) => {
+        try {
+            const result = await ImageResizer.createResizedImage(
+                imagePath,
+                640,        // Max width
+                640,        // Max height
+                "JPEG",
+                50,         // Quality (0-100)
+                0           // Rotation angle (e.g., 0, 90, 180, 270)
+            );
+
+            const fileStats = await RNFS.stat(result.uri);
+            // console.log("Compressed image size: ", fileStats.size / 1024, "KB");
+
+            return result.uri;
+        } catch (error) {
+            console.log("Image compression error: ", error);
+            return imagePath;
         }
     };
 
     const takePhoto = async () => {
+        if (!camera.current) {
+            console.log("Camera not ready");
+            return;
+        }
+
         try {
             const photo = await camera.current.takePhoto({
                 qualityPrioritization: "balanced",
                 enableAutoRedEyeReduction: true,
                 enableAutoStabilization: true,
                 flash: "off",
-                enableShutterSound: true
+                enableShutterSound: true,
             });
 
-            onPhotoCapture(photo.path);
+            // Compress the captured image
+            const compressedImagePath = await compressImage(photo.path);
+            onPhotoCapture(compressedImagePath);
         } catch (err) {
-            console.log(err);
+            console.log("Error taking photo: ", err);
         }
     };
 
@@ -80,5 +110,7 @@ const styles = StyleSheet.create({
     },
     captureButtonText: {
         ...typography.button(),
+        color: customColors.black,
+        fontWeight: "700"
     },
 })

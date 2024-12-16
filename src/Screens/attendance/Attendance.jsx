@@ -16,15 +16,15 @@ const Attendance = (locationData) => {
     const [formValues, setFormValues] = useState({
         UserId: "",
         Start_KM: "",
-        Latitude: locationData.latitude,
-        Longitude: locationData.longitude,
+        Latitude: locationData?.latitude || null,
+        Longitude: locationData?.longitude || null,
         Start_KM_Pic: ""
     })
 
     useEffect(() => {
         (async () => {
             try {
-                const userId = await AsyncStorage.getItem('UserId');
+                const userId = await AsyncStorage.getItem("UserId");
                 if (userId) {
                     setFormValues(prevValues => ({
                         ...prevValues,
@@ -113,48 +113,52 @@ const Attendance = (locationData) => {
     return (
         <View style={styles.container}>
             <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image
-                            source={assetImages.backArrow}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Attendance</Text>
-                </View>
-
-                <View style={styles.contentContainer}>
-                    <LocationIndicator onLocationUpdate={handleLocationUpdate} />
-
-                    <View style={styles.inputGroup}>
-                        <TextInput
-                            maxFontSizeMultiplier={1.2}
-                            style={styles.textInput}
-                            value={formValues.Start_KM}
-                            keyboardType="decimal-pad"
-                            placeholder="Starting Kilometers"
-                            placeholderTextColor={customColors.accent}
-                            autoCapitalize="characters"
-                            onChangeText={handleInputChange}
-                        />
-                        <TouchableOpacity onPress={() => setShowCameraModal(true)}
-                            style={styles.cameraButton}
-                        >
-                            <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>{!capturedPhotoPath ? "Take" : "Preview"}</Text>
+                <View style={styles.overlay}>
+                    <View style={styles.headerContainer}>
+                        <TouchableOpacity onPress={() => navigation.goBack()}>
+                            <Image source={assetImages.backArrow} />
                         </TouchableOpacity>
+                        <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Start your Day</Text>
                     </View>
 
-                    <TouchableOpacity
-                        style={styles.submitButton}
-                        onPress={handleSubmit}
-                    >
-                        <View style={{ flexDirection: "row" }}>
-                            <Image
-                                source={assetImages.saveIcon}
-                                style={{ marginRight: 15 }}
+                    <View style={styles.contentContainer}>
+                        <LocationIndicator
+                            onLocationUpdate={handleLocationUpdate}
+                            autoFetch={true}
+                            autoFetchOnMount={true}
+                        />
+
+                        <View style={styles.inputGroup}>
+                            <TextInput
+                                maxFontSizeMultiplier={1.2}
+                                style={styles.textInput}
+                                value={formValues.Start_KM}
+                                keyboardType="decimal-pad"
+                                placeholder="Starting Kilometers"
+                                placeholderTextColor={customColors.accent}
+                                autoCapitalize="characters"
+                                onChangeText={handleInputChange}
                             />
-                            <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Save</Text>
+                            <TouchableOpacity onPress={() => setShowCameraModal(true)}
+                                style={styles.cameraButton}
+                            >
+                                <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>{!capturedPhotoPath ? "Take" : "Preview"}</Text>
+                            </TouchableOpacity>
                         </View>
-                    </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.submitButton}
+                            onPress={handleSubmit}
+                        >
+                            <View style={{ flexDirection: "row" }}>
+                                <Image
+                                    source={assetImages.saveIcon}
+                                    style={{ marginRight: 15 }}
+                                />
+                                <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Save</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </ImageBackground>
 
@@ -199,13 +203,15 @@ export default Attendance
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
     },
     backgroundImage: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.background,
-        alignItems: "center",
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.2)",
     },
     headerContainer: {
         flexDirection: "row",
@@ -220,55 +226,56 @@ const styles = StyleSheet.create({
         marginHorizontal: 10,
     },
     loadingContainer: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     contentContainer: {
         width: "100%",
-        height: "85%",
+        height: "100%",
         backgroundColor: customColors.white,
         borderRadius: 7.5
     },
     inputGroup: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        marginHorizontal: 15,
-        marginBottom: 50,
+        justifyContent: "space-around",
+        // marginBottom: 50,
+        marginVertical: 20,
     },
     textInput: {
         ...typography.h6(),
-        borderWidth: 1.5,
+        color: customColors.black,
+        borderWidth: 1,
         borderColor: customColors.primary,
         borderRadius: 5,
-        padding: 10,
-        marginTop: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
     },
     cameraButton: {
         justifyContent: "center",
         backgroundColor: customColors.primary,
         borderRadius: 5,
         paddingVertical: 10,
-        paddingHorizontal: 20,
-        marginTop: 20,
+        paddingHorizontal: 15,
     },
     buttonText: {
         ...typography.button(),
         color: customColors.white,
+        marginHorizontal: 10,
     },
     submitButton: {
         backgroundColor: customColors.primary,
         justifyContent: "center",
         alignContent: "center",
         paddingVertical: 10,
-        paddingHorizontal: 20,
-        marginLeft: 'auto',
-        marginRight: 'auto',
+        paddingHorizontal: 15,
+        marginLeft: "auto",
+        marginRight: "auto",
         borderRadius: 5,
     },
     previewImageContainer: {

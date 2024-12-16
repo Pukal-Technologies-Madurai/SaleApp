@@ -1,7 +1,10 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, ScrollView } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { customColors, typography } from "../Config/helper";
+import { API } from "../Config/Endpoint";
 
 const SalesReportModal = ({
     visible,
@@ -9,7 +12,8 @@ const SalesReportModal = ({
     totalOrderAmount,
     totalProductsSold,
     logData,
-    productSummary
+    productSummary,
+    selectedDate
 }) => {
     const styles = {
         modalBackground: {
@@ -32,84 +36,89 @@ const SalesReportModal = ({
             borderBottomColor: "#E5E7EB",
         },
         modalHeaderText: {
-            ...typography.h5(),
+            ...typography.h6(),
             fontWeight: "700",
             color: "#111827",
         },
         closeButton: {
-            padding: 8,
+            padding: 2,
         },
         contentContainer: {
             flex: 1,
-            padding: 14,
+            paddingVertical: 3,
+            paddingHorizontal: 14,
         },
-        headerCardsContainer: {
+
+        statsContainer: {},
+        statRow: {
             flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 10,
-            marginBottom: 12,
+            alignItems: "center",
+            paddingVertical: 4,
+            borderBottomWidth: 1,
+            borderBottomColor: "#E5E7EB",
         },
-        headerCard: {
-            flex: 1,
-            minWidth: "48%",
-            padding: 16,
-            borderRadius: 12,
-            alignItems: 'center',
-            shadowColor: customColors.black,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-        },
-        cardIcon: {
-            marginBottom: 8,
-        },
-        cardLabel: {
-            ...typography.body1(),
-            textAlign: "center",
-            color: "#6B7280",
-        },
-        cardValue: {
-            ...typography.h5(),
-            fontWeight: "700",
+        statValue: {
+            ...typography.h6(),
             color: "#111827",
+            fontWeight: "600",
+            paddingHorizontal: 15,
         },
-        cardSubValue: {
-            ...typography.body1(),
-            color: "#6B7280",
-            marginTop: 2,
-        },
+
         tableContainer: {
             backgroundColor: customColors.white,
             borderRadius: 12,
             borderWidth: 1,
             borderColor: "#E5E7EB",
             overflow: "hidden",
+            marginTop: 10,
         },
         tableHeader: {
-            flexDirection: "row",
             backgroundColor: customColors.primary,
-            paddingVertical: 12,
+            paddingVertical: 7,
             paddingHorizontal: 16,
         },
         tableRow: {
             flexDirection: "row",
-            paddingVertical: 12,
+            paddingVertical: 8,
             paddingHorizontal: 16,
             borderBottomWidth: 1,
             borderBottomColor: "#E5E7EB",
         },
-        tableCell: {
-            ...typography.body1(),
-            color: "#374151",
+        headerRow: {
+            flexDirection: "row",
+            marginBottom: 4,
+        },
+        summaryRow: {
+            flexDirection: "row",
         },
         headerText: {
             ...typography.body1(),
             fontWeight: "700",
             color: customColors.white,
         },
+        summaryText: {
+            ...typography.body1(),
+            color: "#FFB6C1",
+            fontWeight: "700",
+        },
+        productHeaderCell: {
+            flex: 2,
+        },
+        quantityHeaderCell: {
+            flex: 1,
+            alignItems: "center",
+        },
+        amountHeaderCell: {
+            flex: 1,
+            alignItems: "flex-end",
+        },
+        tableCell: {
+            ...typography.body1(),
+            color: "#374151",
+        },
         productCell: {
             flex: 2,
+            ...typography.body2()
         },
         centerCell: {
             flex: 1,
@@ -119,48 +128,86 @@ const SalesReportModal = ({
             flex: 1,
             textAlign: "right",
         },
+        quantityCell: {
+            flex: 1,
+            textAlign: "center",
+        },
+        amountCell: {
+            flex: 1,
+            textAlign: "right",
+        },
         evenRow: {
             backgroundColor: customColors.white,
         },
         oddRow: {
             backgroundColor: "#F9FAFB",
         },
+
+        checkOrderRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            marginRight: 30,
+        },
+        checkOrderText: {
+            ...typography.body2(),
+            color: "#374151",
+            marginLeft: 10,
+        },
+    };
+    const [visitLogLength, setVisitLogLength] = React.useState(0);
+
+    const totalQuantity = productSummary.reduce((sum, item) => sum + item.totalQty, 0);
+    const totalAmount = productSummary.reduce((sum, item) => sum + parseFloat(item.totalAmount), 0);
+
+    const fromDate = new Date(selectedDate).toLocaleDateString().split("T")[0];
+    const fromTime = new Date(selectedDate).toLocaleString("en-US", {
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true
+    });
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                if (!selectedDate) {
+                    console.log("selectedDate is undefined");
+                    return;
+                }
+
+                const userId = await AsyncStorage.getItem("UserId");
+                const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
+                await getVisitedLog(formattedDate, userId);
+            } catch (err) {
+                console.error("Error retrieving UserId:", err);
+            }
+        })();
+    }, [selectedDate]);
+
+    const getVisitedLog = async (date, id) => {
+        try {
+            const url = `${API.visitedLog}?reqDate=${date}&UserId=${id}`;
+            const response = await fetch(url, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const length = data.data?.length || 0;
+                setVisitLogLength(length);
+            } else {
+                console.log("Failed to fetch logs:", data.message);
+                setVisitLogLength(0);
+            }
+        } catch (error) {
+            console.error("Error fetching logs:", error);
+            setVisitLogLength(0);
+        }
     };
 
-    const headerCards = [
-        {
-            icon: "calendar",
-            iconColor: "#4A90E2",
-            backgroundColor: "#F0F9FF",
-            label: new Date().toLocaleDateString(),
-            value: new Date().toLocaleString("en-US", {
-                hour: "numeric",
-                minute: "numeric",
-                hour12: true
-            }),
-        },
-        {
-            icon: "money",
-            iconColor: "#2ECC71",
-            backgroundColor: "#F0FFF4",
-            label: 'Total Order Amount',
-            value: `₹ ${totalOrderAmount.toFixed(2)}`,
-        },
-        {
-            icon: "shopping-basket",
-            iconColor: "#E74C3C",
-            backgroundColor: "#FFF0F0",
-            label: "Products Sold",
-            value: totalProductsSold.toString(),
-        },
-        {
-            icon: "line-chart",
-            iconColor: "#9B59B6",
-            backgroundColor: "#FAF0FF",
-            label: "Total Sales",
-            value: logData.length.toString(),
-        },
-    ];
+    const totalVisitLogCount = visitLogLength + logData.length;
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} >
@@ -174,52 +221,85 @@ const SalesReportModal = ({
                     </View>
 
                     <ScrollView style={styles.contentContainer}>
-                        <View style={styles.headerCardsContainer}>
-                            {headerCards.map((card, index) => (
-                                <View key={index}
-                                    style={[styles.headerCard, { backgroundColor: card.backgroundColor }]} >
-                                    <Icon
-                                        name={card.icon}
-                                        size={24}
-                                        color={card.iconColor}
-                                        style={styles.cardIcon}
-                                    />
-                                    <Text style={styles.cardLabel}>{card.label}</Text>
-                                    <Text style={styles.cardValue}>{card.value}</Text>
-                                    {card.subValue && (
-                                        <Text style={styles.cardSubValue}>{card.subValue}</Text>
-                                    )}
-                                </View>
-                            ))}
+                        <View style={styles.statsContainer}>
+                            <View style={styles.statRow}>
+                                <Icon name="calendar" size={20} color="#4A90E2" />
+                                <Text style={styles.statValue}>{fromDate} • {fromTime}</Text>
+                            </View>
+
+                            {/* <View style={styles.statRow}>
+                                <Icon name="line-chart" size={20} color="#9B59B6" />
+                                <Text style={styles.statValue}>Total Shop Orders Placed:
+                                    <Text style={{ color: "red", fontWeight: "bold" }}> {logData.length.toString()}</Text>
+                                </Text>
+                            </View> */}
+
+                            <View style={styles.checkOrderRow}>
+                                <Text style={styles.checkOrderText}>Check-Ins</Text>
+                                <Text style={styles.checkOrderText}>Orders</Text>
+                            </View>
+                            <View style={[styles.statRow, { marginTop: -10 }]}>
+                                <MaterialCommunityIcons name="bike" size={24} color="#2ECC71" />
+                                <Text style={styles.statValue}>Check & Order Stats:&nbsp;
+                                    <Text style={{ color: "red", fontWeight: "bold" }}>
+                                        {totalVisitLogCount} (
+                                        {visitLogLength}
+                                        &nbsp;+&nbsp;
+                                        {logData.length.toString()})
+                                    </Text>
+                                </Text>
+                            </View>
                         </View>
 
                         <View style={styles.tableContainer}>
                             <View style={styles.tableHeader}>
-                                <Text style={[styles.tableCell, styles.headerText, styles.productCell]}>
-                                    Product
-                                </Text>
-                                <Text style={[styles.tableCell, styles.headerText, styles.centerCell]}>
-                                    Qty
-                                </Text>
-                                <Text style={[styles.tableCell, styles.headerText, styles.rightCell]}>
-                                    Total
-                                </Text>
+                                {/* Header Labels Row */}
+                                <View style={styles.headerRow}>
+                                    <View style={styles.productHeaderCell}>
+                                        <Text style={styles.headerText}>Product</Text>
+                                    </View>
+                                    <View style={styles.quantityHeaderCell}>
+                                        <Text style={styles.headerText}>Quantity</Text>
+                                    </View>
+                                    <View style={styles.amountHeaderCell}>
+                                        <Text style={styles.headerText}>Total</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.summaryRow}>
+                                    <View style={styles.productHeaderCell}>
+                                        <Text style={styles.summaryText}>
+                                            {productSummary.length}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.quantityHeaderCell}>
+                                        <Text style={styles.summaryText}>
+                                            {totalQuantity}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.amountHeaderCell}>
+                                        <Text style={styles.summaryText}>
+                                            ₹ {totalAmount.toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
 
                             {productSummary.map((item, index) => (
-                                <View key={index} style={[
-                                    styles.tableRow,
-                                    index % 2 === 0 ? styles.evenRow : styles.oddRow,
-                                ]} >
-                                    <Text style={[styles.tableCell, styles.productCell]}
-                                        numberOfLines={2} >
+                                <View key={index}
+                                    style={[
+                                        styles.tableRow,
+                                        index % 2 === 0 ? styles.evenRow : styles.oddRow,
+                                    ]}
+                                >
+                                    <Text style={[styles.tableCell, styles.productCell]} numberOfLines={3} >
                                         {item.productName}
                                     </Text>
-                                    <Text style={[styles.tableCell, styles.centerCell]}>
+                                    <Text style={[styles.tableCell, styles.quantityCell]}>
                                         {item.totalQty}
                                     </Text>
-                                    <Text style={[styles.tableCell, styles.rightCell]}>
-                                        ₹ {item.totalAmount}
+                                    <Text style={[styles.tableCell, styles.amountCell]}>
+                                        ₹ {parseFloat(item.totalAmount).toFixed(2)}
                                     </Text>
                                 </View>
                             ))}
