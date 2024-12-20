@@ -53,7 +53,7 @@ const HomeScreen = () => {
                 setName(userName);
                 setUIdT(storeUserTypeId)
 
-                const isAdminUser = storeUserTypeId === "1" || storeUserTypeId === "2";
+                const isAdminUser = storeUserTypeId === "0" || storeUserTypeId === "1" || storeUserTypeId === "2";
                 setIsAdmin(isAdminUser)
 
                 if (isAdminUser) {
@@ -102,12 +102,11 @@ const HomeScreen = () => {
         setIsLoading(true);
         try {
             const url = `${API.visitedLog}?reqDate=${fromDate}&UserId=${id}`;
+            console.log(url)
 
             const response = await fetch(url, {
                 method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
+                headers: { "Content-Type": "application/json" }
             });
 
             const data = await response.json();
@@ -389,6 +388,7 @@ const HomeScreen = () => {
                             userCount={userCount}
                             isVisible={isVisitDataModalVisible}
                             onClose={() => setIsVisitDataModalVisible(false)}
+                            visitData={visitData}
                         />
 
                         <CountModal
@@ -400,13 +400,6 @@ const HomeScreen = () => {
                             isVisible={isProductVisible}
                             onClose={() => setProductVisible(false)}
                         />
-
-                        {/* <CountModal
-                            title="Sales"
-                            userCount={saleCount}
-                            isVisible={isSalesModalVisible}
-                            onClose={() => setIsSalesModalVisible(false)}
-                        /> */}
 
                         <SalesModal
                             saleData={saleData}

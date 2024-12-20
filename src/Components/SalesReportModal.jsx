@@ -155,8 +155,8 @@ const SalesReportModal = ({
             marginLeft: 10,
         },
     };
-    const [visitLogLength, setVisitLogLength] = React.useState(0);
 
+    const [visitLogLength, setVisitLogLength] = React.useState(0);
     const totalQuantity = productSummary.reduce((sum, item) => sum + item.totalQty, 0);
     const totalAmount = productSummary.reduce((sum, item) => sum + parseFloat(item.totalAmount), 0);
 
@@ -174,19 +174,29 @@ const SalesReportModal = ({
                     console.log("selectedDate is undefined");
                     return;
                 }
-
+                const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
                 const userId = await AsyncStorage.getItem("UserId");
                 const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
-                await getVisitedLog(formattedDate, userId);
+
+                const isAdminUser = ["0", "1", "2"].includes(storeUserTypeId);
+
+                if (isAdminUser){
+                    await getVisitedLog(formattedDate);
+                } else {
+                    await getVisitedLog(formattedDate, userId);
+                }
             } catch (err) {
                 console.error("Error retrieving UserId:", err);
             }
         })();
     }, [selectedDate]);
 
-    const getVisitedLog = async (date, id) => {
+    const getVisitedLog = async (date, id = "") => {
         try {
-            const url = `${API.visitedLog}?reqDate=${date}&UserId=${id}`;
+            const userIdParam = id || "";
+            const url = `${API.visitedLog}?reqDate=${date}&UserId=${userIdParam}`;
+            console.log(url)
+
             const response = await fetch(url, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },

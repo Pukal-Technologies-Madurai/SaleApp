@@ -9,8 +9,40 @@ const CountModal = ({
     userCount,
     isVisible,
     onClose,
-    title
+    title,
+    visitData = [],
 }) => {
+    const [expandedUser, setExpandedUser] = React.useState(null);
+
+    const formatTime = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true
+        });
+      };
+
+    const renderVisitDetails = (name) => {
+        const userVisits = visitData
+            .filter(visit => visit.EntryByGet === name)
+            .sort((a, b) => new Date(a.EntryAt) - new Date(b.EntryAt));
+        
+        return userVisits.map((visit, index) => (
+            <View key={index} style={styles.visitDetailItem}>
+                <Text 
+                    style={styles.visitDetailText} 
+                    numberOfLines={3}
+                    ellipsizeMode="tail">
+                    {visit.Reatailer_Name || "Unknown Customer"}
+                </Text>
+                <Text style={styles.visitTimeText}>
+                    {formatTime(visit.EntryAt)}
+                </Text>
+            </View>
+        ));
+    };
+
     return (
         <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose} >
             <View style={styles.modalOverlay}>
@@ -31,13 +63,37 @@ const CountModal = ({
                         showsVerticalScrollIndicator={true}
                     >
                         {Object.entries(userCount).map(([name, count]) => (
-                            <View key={name} style={styles.userCountItem}>
-                                <Text style={styles.userCountName}
-                                    numberOfLines={3}
-                                    ellipsizeMode="tail"
-                                >{name}
-                                </Text>
-                                <Text style={styles.userCountValue}>{count}</Text>
+                            <View key={name}>
+                                <TouchableOpacity style={styles.userCountItem} onPress={() => {
+                                        if (title === "Check-In's") {
+                                            setExpandedUser(expandedUser === name ? null : name);
+                                        }
+                                    }}>
+                                    <View style={styles.userNameContainer}>
+                                        <Text 
+                                            style={styles.userCountName}
+                                            numberOfLines={3}
+                                            ellipsizeMode="tail"
+                                        >
+                                            {name}
+                                        </Text>
+                                        {title === "Check-In's" && (
+                                            <Icon 
+                                                name={expandedUser === name ? "chevron-up" : "chevron-down"} 
+                                                size={16} 
+                                                color="#95a5a6" 
+                                            />
+                                        )}
+                                    </View>
+                                    <Text style={styles.userCountValue}>{count}</Text>
+                                </TouchableOpacity>
+
+                                {title === "Check-In's" && expandedUser === name && (
+                                    <View style={styles.visitDetailsContainer}>
+                                        {renderVisitDetails(name)}
+                                    </View>
+                                )}
+
                                 {/* {title === "Sales" && (
                                     <Text style={styles.totalValue}>₹{details.totalValue.toFixed(2)}</Text>
                                 )} */}
@@ -46,10 +102,7 @@ const CountModal = ({
                     </ScrollView>
 
                     {/* Close Button */}
-                    <TouchableOpacity
-                        style={styles.modalCloseButton}
-                        onPress={onClose}
-                    >
+                    <TouchableOpacity style={styles.modalCloseButton} onPress={onClose} >
                         <Text style={styles.modalCloseButtonText}>Dismiss</Text>
                     </TouchableOpacity>
                 </View>
@@ -104,30 +157,55 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 12,
+        padding: 12,
         borderBottomWidth: 1,
         borderBottomColor: "#F0F0F0",
     },
+    userNameContainer: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginRight: 16
+    },
     userCountName: {
-        width: "40%",
+        flexWrap: "wrap",
+        width: width * 0.6,
         ...typography.body1(),
         color: "#34495E",
         marginRight: 10,
-        flexWrap: "wrap",
-        width: width * 0.6,
     },
     userCountValue: {
         ...typography.h6(),
         fontWeight: "bold",
-        color: "#3498DB",
-        // marginRight: 20
+        color: "#2ECC71",
     },
-    totalValue: {
-        ...typography.h6(),
-        fontWeight: "bold",
-        color: "#af4e33",
-        // marginRight: 20
+    visitDetailsContainer: {
+        backgroundColor: "#f8f9fa",
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginHorizontal: 12,
+        borderRadius: 8
     },
+
+    visitDetailItem: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee'
+    },
+    visitDetailText: {
+        width: "60%",
+        ...typography.body1(),
+        color: "#34495e"
+    },
+    visitTimeText: {
+        ...typography.body2(),
+        color: "#95a5a6"
+    },
+    
     modalCloseButton: {
         backgroundColor: "#3498DB",
         borderRadius: 10,

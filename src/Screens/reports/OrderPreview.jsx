@@ -54,7 +54,7 @@ const OrderPreview = () => {
 
         setCompanyId(Number(Company_Id));
 
-        const isAdminUser = storeUserTypeId === "1" || storeUserTypeId === "2";
+        const isAdminUser = storeUserTypeId === "0" || storeUserTypeId === "1" || storeUserTypeId === "2";
         setIsAdmin(isAdminUser)
 
         if (isAdminUser) {
@@ -261,7 +261,7 @@ const OrderPreview = () => {
 
         <View style={styles.invoiceBody}>
           <View style={styles.invoiceRow}>
-            <Text style={styles.invoiceValue}>Total amount: ₹ {item.Total_Invoice_value}</Text>
+            <Text style={styles.invoiceValue}>Total amount: ₹{item.Total_Invoice_value}</Text>
           </View>
 
           <View style={styles.invoiceProducts}>
@@ -521,7 +521,7 @@ const OrderPreview = () => {
       if (pdfPath) {
         await Share.open({
           url: `file://${pdfPath}`,
-          title: "Sale order",
+          title: "sale_order",
           message: "Here is your order preview in PDF format",
         });
       } else {

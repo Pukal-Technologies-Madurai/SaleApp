@@ -8,6 +8,8 @@ export const API = {
 
     userPortal: baseURL + "api/authorization/userPortal/accounts?username=",
     userPortalLogin: baseURL + "api/authorization/userPortal/login",
+    getUserAuth: baseURL + "api/authorization/userAuth",
+    getUserAuthMob: baseURL + "api/authorization/userAuthmobile",
     changePassword: baseURL + "api/masters/users/changePassword",
 
     routes: baseURL + "api/masters/routes",
