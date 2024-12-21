@@ -86,6 +86,7 @@ const Customers = () => {
   }, []);
 
   const fetchRetailersData = async (id) => {
+    console.log(`${API.retailers}${id}`)
     try {
       const response = await fetch(`${API.retailers}${id}`);
       if (!response.ok) {
@@ -175,13 +176,14 @@ const Customers = () => {
 
           <View style={styles.contentContainer} behavior={Platform.OS === "ios" ? "padding" : "height"} >
             {loading ? (
-              <ActivityIndicator size="large" color={customColors.primary} />
+              <ActivityIndicator size="large" color={customColors.primary} style={{ flex: 1, justifyContent: "center" }} />
             ) : (
               <>
                 <Dropdown
                   style={styles.dropdown}
                   placeholderStyle={styles.placeholderStyle}
                   selectedTextStyle={styles.selectedTextStyle}
+                  itemTextStyle={styles.itemTextStyle}
                   data={routes}
                   maxHeight={300}
                   labelField="label"
@@ -201,6 +203,7 @@ const Customers = () => {
                   style={styles.dropdown}
                   placeholderStyle={styles.placeholderStyle}
                   selectedTextStyle={styles.selectedTextStyle}
+                  itemTextStyle={styles.itemTextStyle}
                   data={areas}
                   maxHeight={300}
                   labelField="label"
@@ -221,6 +224,7 @@ const Customers = () => {
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search retailers..."
+                    placeholderTextColor={customColors.grey}
                     value={searchQuery}
                     onChangeText={text => {
                       setSearchQuery(text);
@@ -315,7 +319,13 @@ const styles = StyleSheet.create({
     ...typography.body1(),
     color: customColors.accent,
     fontWeight: "500",
+    color: customColors.black
   },
+  itemTextStyle: {
+    color: customColors.black,
+    fontWeight: "400",
+  },
+
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -333,13 +343,14 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 50,
-    color: customColors.grey,
+    color: customColors.black,
   },
   clearButton: {
     padding: 8,
   },
   list: {
     flex: 1,
+    marginBottom: 50
   },
   listContent: {
     padding: 16,

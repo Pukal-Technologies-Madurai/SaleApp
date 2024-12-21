@@ -1,10 +1,8 @@
 import {
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
-  Platform,
   ScrollView,
   ImageBackground,
   Image,
@@ -13,10 +11,8 @@ import {
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
-import Icon from "react-native-vector-icons/FontAwesome";
 import FeatherIcon from "react-native-vector-icons/Feather";
 
 import { API } from "../../Config/Endpoint";
@@ -24,16 +20,22 @@ import { customColors, typography } from "../../Config/helper";
 import Accordion from "../../Components/Accordion";
 import assetImages from "../../Config/Image";
 import SalesReportModal from "../../Components/SalesReportModal";
+import DatePickerButton from "../../Components/DatePickerButton";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const OrderPreview = () => {
   const navigation = useNavigation();
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [salesPersonData, setSalesPersonData] = useState([]);
+  const [selectedSalesPerson, setSelectedSalesPerson] = useState(null);
+
   const [logData, setLogData] = useState([]);
+  const [companyId, setCompanyId] = useState([]);
   const [retailerInfo, setRetailerInfo] = useState({});
 
-  const [show, setShow] = useState(false);
   const [selectedFromDate, setSelectedFromDate] = useState(new Date());
   const [selectedToDate, setSelectedToDate] = useState(new Date());
-  const [isSelectingFromDate, setIsSelectingFromDate] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [productSummary, setProductSummary] = useState([]);
@@ -43,43 +45,79 @@ const OrderPreview = () => {
   useEffect(() => {
     (async () => {
       try {
+        const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
         const userId = await AsyncStorage.getItem("UserId");
         const Company_Id = await AsyncStorage.getItem("Company_Id");
+
         const fromDate = selectedFromDate.toISOString().split("T")[0];
         const toDate = selectedToDate.toISOString().split("T")[0];
-        fetchSaleOrder(fromDate, toDate, userId, Company_Id);
+
+        setCompanyId(Number(Company_Id));
+
+        const isAdminUser = storeUserTypeId === "0" || storeUserTypeId === "1" || storeUserTypeId === "2";
+        setIsAdmin(isAdminUser)
+
+        if (isAdminUser) {
+          fetchSalesPerson(Company_Id);
+          fetchSaleOrder(fromDate, toDate, Company_Id);
+        } else {
+          fetchSaleOrder(fromDate, toDate, Company_Id, userId);
+        }
       } catch (err) {
         console.log(err);
       }
     })();
   }, [selectedFromDate, selectedToDate]);
 
-  const selectDateFn = (event, selectedDate) => {
-    setShow(Platform.OS === "ios");
-    if (selectedDate) {
-      if (isSelectingFromDate) {
-        setSelectedFromDate(selectedDate);
-        if (selectedDate > selectedToDate) {
-          setSelectedToDate(selectedDate);
-        }
-      } else {
-        setSelectedToDate(selectedDate);
-        if (selectedDate < selectedFromDate) {
-          setSelectedFromDate(selectedDate);
-        }
-      }
+  const handleFromDateChange = (event, date) => {
+    if (date) {
+      const newFromDate = date > selectedToDate ? selectedToDate : date;
+      setSelectedFromDate(newFromDate);
     }
   };
 
-  const showDatePicker = (isFrom) => {
-    setShow(true);
-    setIsSelectingFromDate(isFrom);
+  const handleToDateChange = (event, date) => {
+    if (date) {
+      const newToDate = date < selectedFromDate ? selectedFromDate : date;
+      setSelectedToDate(newToDate);
+    }
   };
 
-  const fetchSaleOrder = async (from, to, userId, company) => {
+  const fetchSalesPerson = async (companyId) => {
     try {
-      const response = await fetch(
-        `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`,
+      const url = `${API.salesPerson}${companyId}`
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      const data = await response.json()
+
+      if (data.success === true) {
+        const dropdownData = [
+          { label: "All", value: "all" },
+          ...data.data.map(item => ({
+            label: item.Name,
+            value: item.UserId,
+          })),
+        ];
+
+        setSalesPersonData(dropdownData)
+      } else {
+        console.log("Failed to fetch logs: ", data.message);
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const fetchSaleOrder = async (from, to, company, userId = "") => {
+    try {
+      const salesPersonIdParam = userId || "";
+
+      let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
+
+      const response = await fetch(url,
         {
           method: "GET",
           headers: {
@@ -223,7 +261,7 @@ const OrderPreview = () => {
 
         <View style={styles.invoiceBody}>
           <View style={styles.invoiceRow}>
-            <Text style={styles.invoiceValue}>Total amount: ₹ {item.Total_Invoice_value}</Text>
+            <Text style={styles.invoiceValue}>Total amount: ₹{item.Total_Invoice_value}</Text>
           </View>
 
           <View style={styles.invoiceProducts}>
@@ -483,7 +521,7 @@ const OrderPreview = () => {
       if (pdfPath) {
         await Share.open({
           url: `file://${pdfPath}`,
-          title: "Sale order",
+          title: "sale_order",
           message: "Here is your order preview in PDF format",
         });
       } else {
@@ -508,6 +546,19 @@ const OrderPreview = () => {
     });
   };
 
+  const handleSalesPersonChange = (item) => {
+    setSelectedSalesPerson(item);
+
+    const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
+    const formattedToDate = selectedToDate.toISOString().split("T")[0];
+
+    // Check if "All" is selected
+    const salesPersonIdParam = item.value === "all" ? "" : item.value;
+
+    // Fetch Sale Order with the correct API parameters
+    fetchSaleOrder(formattedFromDate, formattedToDate, companyId, salesPersonIdParam);
+  };
+
   return (
     <View style={styles.container}>
       <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
@@ -517,51 +568,49 @@ const OrderPreview = () => {
               <Image source={assetImages.backArrow} />
             </TouchableOpacity>
             <Text style={styles.headersText} maxFontSizeMultiplier={1.2}>Sales Summary</Text>
+
+            {isAdmin && (
+              <View style={{ flex: 1, alignItems: "flex-end", justifyContent: "flex-end" }}>
+                <EnhancedDropdown
+                  data={salesPersonData}
+                  labelField="label"
+                  valueField="value"
+                  // placeholder="Select Sales Person"
+                  value={selectedSalesPerson}
+                  onChange={(item) => {
+                    setSelectedSalesPerson(item.value);
+                    handleSalesPersonChange(item)
+
+                    const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
+                    const formattedToDate = selectedToDate.toISOString().split("T")[0];
+
+                    fetchSaleOrder(formattedFromDate, formattedToDate, companyId, item.value,)
+                  }}
+                  // showIcon={true}              // Enable the icon
+                  iconOnly={true}
+                  iconName="filter"            // Feather icon name
+                // iconSize={20}                // Icon size
+                // iconColor={customColors.white}
+                />
+              </View>
+            )}
           </View>
 
           <View style={styles.datePickerContainer}>
-            <View style={styles.datePickerWrapper}>
-              <Text style={styles.dateTitle}>From</Text>
-              <TouchableOpacity activeOpacity={0.7} style={styles.datePicker} onPress={() => showDatePicker(true)}>
-                <TextInput maxFontSizeMultiplier={1.2} style={styles.datePickerTextInput}
-                  value={
-                    selectedFromDate
-                      ? new Intl.DateTimeFormat("en-GB").format(selectedFromDate)
-                      : ""
-                  }
-                  editable={false}
-                  placeholder="Select Date"
-                />
-                <Icon name="calendar" color={customColors.white} size={20} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.datePickerWrapper}>
-              <Text style={styles.dateTitle}>To</Text>
-              <TouchableOpacity activeOpacity={0.7} style={styles.datePicker} onPress={() => showDatePicker(false)}>
-                <TextInput maxFontSizeMultiplier={1.2} style={styles.datePickerTextInput}
-                  value={
-                    selectedToDate
-                      ? new Intl.DateTimeFormat("en-GB").format(selectedToDate)
-                      : ""
-                  }
-                  editable={false}
-                />
-                <Icon name="calendar" color={customColors.white} size={20} />
-              </TouchableOpacity>
-            </View>
-
-            {show && (
-              <DateTimePicker
-                value={isSelectingFromDate ? selectedFromDate : selectedToDate}
-                onChange={selectDateFn}
-                mode="date"
-                display="default"
-                timeZoneOffsetInMinutes={0}
-                style={{ width: "100%" }}
-                testID="dateTimePicker"
-              />
-            )}
+            <DatePickerButton
+              title="From Date"
+              date={selectedFromDate}
+              onDateChange={handleFromDateChange}
+              containerStyle={{ width: "50%" }}
+            />
+            <DatePickerButton
+              title="To Date"
+              date={selectedToDate}
+              onDateChange={handleToDateChange}
+              // disabled={true}
+              containerStyle={{ width: "50%" }}
+            // style={{ backgroundColor: "rgba(0,0,0,0.1)" }}
+            />
           </View>
 
           <View style={styles.countContainer}>
@@ -584,6 +633,10 @@ const OrderPreview = () => {
                 </Text>
               </View>
             </View>
+
+            {isAdmin && selectedSalesPerson && (
+              <Text style={{ color: "red", fontSize: 18 }}>{selectedSalesPerson.label}</Text>
+            )}
 
             <TouchableOpacity onPress={() => setModalVisible(true)} >
               <FeatherIcon
@@ -609,6 +662,7 @@ const OrderPreview = () => {
             totalProductsSold={totalProductsSold}
             logData={logData}
             productSummary={productSummary}
+            selectedDate={selectedFromDate.toISOString()}
           />
         </View>
       </ImageBackground>
@@ -643,31 +697,9 @@ const styles = StyleSheet.create({
   },
   datePickerContainer: {
     flexDirection: "row",
+    marginHorizontal: 20,
     justifyContent: "space-between",
-    alignItems: "center",
-    marginHorizontal: 15,
-  },
-  datePickerWrapper: {
-    flex: 1,
-    marginRight: 5,
-  },
-  dateTitle: {
-    ...typography.body2(),
-    color: customColors.white,
-    marginBottom: 2.5,
-  },
-  datePicker: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  datePickerTextInput: {
-    ...typography.body1(),
-    color: customColors.white,
+    gap: 10,
   },
   countContainer: {
     flexDirection: "row",
@@ -689,7 +721,8 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...typography.h5(),
-    fontWeight: "700"
+    fontWeight: "700",
+    color: customColors.grey
   },
   statValue: {
     ...typography.h6(),
@@ -798,5 +831,66 @@ const styles = StyleSheet.create({
   buttonText: {
     ...typography.h6(),
     fontWeight: "700",
+  },
+
+
+
+  adminFilterContainer: {
+    paddingHorizontal: 15,
+    marginVertical: 10,
+  },
+  dropdownButton: {
+    backgroundColor: customColors.white,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: customColors.primary,
+  },
+  dropdownButtonText: {
+    color: customColors.black,
+    textAlign: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: customColors.white,
+    margin: 20,
+    borderRadius: 10,
+    padding: 15,
+    maxHeight: '70%',
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: customColors.primary,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  dropdownItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: customColors.lightGray,
+  },
+  dropdownItemText: {
+    color: customColors.black,
+  },
+  closeButton: {
+    marginTop: 10,
+    padding: 15,
+    backgroundColor: customColors.primary,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: customColors.white,
+    fontWeight: 'bold',
+  },
+  noResultsText: {
+    textAlign: 'center',
+    color: customColors.accent,
+    padding: 15,
   },
 });

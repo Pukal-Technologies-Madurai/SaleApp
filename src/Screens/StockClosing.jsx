@@ -329,6 +329,7 @@ const StockClosing = ({ route }) => {
                         maxHeight={300}
                         style={styles.dropdown}
                         containerStyle={styles.dropdownContainer}
+                        itemTextStyle={styles.itemTextStyle}
                         placeholderStyle={styles.placeholderStyle}
                         selectedTextStyle={styles.selectedTextStyle}
                     />
@@ -347,6 +348,7 @@ const StockClosing = ({ route }) => {
                                 >
                                     <Text style={{
                                         ...typography.h6(),
+                                        color: customColors.black,
                                         fontWeight: "bold",
                                     }} maxFontSizeMultiplier={1.2}>{item.Pro_Group}</Text>
                                 </TouchableOpacity>
@@ -539,12 +541,14 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
     dropdown: {
-        marginHorizontal: 25,
-        marginBottom: 15,
         height: 45,
+        marginHorizontal: 25,
+        color: customColors.black,
+        marginBottom: 15,
         padding: 15,
         borderRadius: 10,
         borderWidth: 0.5,
+        backgroundColor: customColors.white,
     },
     dropdownContainer: {
         backgroundColor: customColors.white,
@@ -552,12 +556,18 @@ const styles = StyleSheet.create({
         borderWidth: 0.5,
         borderRadius: 10,
     },
+    itemTextStyle: {
+        color: customColors.black,
+        fontWeight: "400",
+    },
     placeholderStyle: {
         ...typography.body1(),
+        color: customColors.black,
         fontWeight: '500'
     },
     selectedTextStyle: {
         ...typography.body1(),
+        color: customColors.black,
         fontWeight: '600'
     },
     tabContainer: {
@@ -597,24 +607,28 @@ const styles = StyleSheet.create({
     },
     pagerViewContainerText: {
         ...typography.body1(),
+        color: customColors.black,
         fontWeight: 'bold',
     },
     pagerViewContainerSubText: {
         ...typography.body2(),
+        color: customColors.black,
         fontWeight: '500',
     },
     highlightedText: {
         backgroundColor: '#FFFF00',
-        color: '#000',
+        color: customColors.black,
         fontWeight: 'bold',
     },
     dateText: {
         ...typography.body1(),
+        color: customColors.black,
         // color: '#444',
         marginBottom: 4,
     },
     pagerViewContainerInputText: {
         ...typography.body2(),
+        color: customColors.black,
         padding: 8,
         borderWidth: 1,
         borderColor: '#ccc',
@@ -665,6 +679,7 @@ const styles = StyleSheet.create({
     },
     modalInputText: {
         ...typography.h6(),
+        color: customColors.black,
         borderWidth: 1,
         borderColor: '#ccc',
         borderRadius: 8,

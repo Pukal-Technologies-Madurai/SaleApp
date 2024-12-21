@@ -2,13 +2,13 @@ import { Image, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, Touchable
 import React, { useEffect, useState } from "react";
 import Icon from "react-native-vector-icons/AntDesign";
 import { useNavigation } from "@react-navigation/native";
-import { Dropdown } from "react-native-element-dropdown";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { customColors, typography } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import CustomRadioButton from "../../Components/CustomRadioButton";
 import LocationIndicator from "../../Components/LocationIndicator";
 import CameraComponent from "../../Components/CameraComponent";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import assetImages from "../../Config/Image";
 
 const RetailerVisit = () => {
@@ -53,7 +53,7 @@ const RetailerVisit = () => {
             const jsonData = await response.json();
             setRetailerData(jsonData.data)
         } catch (error) {
-            console.error("Error fetching data:", error);
+            console.error("Error fetching data: ", error);
         }
     };
 
@@ -92,7 +92,6 @@ const RetailerVisit = () => {
     };
 
     const handleSubmit = async () => {
-        console.log(location.latitude, location.longitude)
         if (!validateInputs()) return;
 
         const formData = new FormData();
@@ -119,7 +118,7 @@ const RetailerVisit = () => {
             const photo = {
                 uri: `file://${formValues.Location_Image}`,
                 type: "image/jpeg",
-                name: capturedPhotoPath.split('/').pop()
+                name: capturedPhotoPath.split("/").pop()
             };
             formData.append("Location_Image", photo);
         }
@@ -156,22 +155,21 @@ const RetailerVisit = () => {
     };
 
     return (
-        <ScrollView style={styles.container}
-            keyboardShouldPersistTaps="always"
-            nestedScrollEnabled={true}
-        >
+        <ScrollView style={styles.container} keyboardShouldPersistTaps="always" nestedScrollEnabled={true} >
             <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image
-                            source={assetImages.backArrow}
-                        />
+                        <Image source={assetImages.backArrow} />
                     </TouchableOpacity>
                     <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Retailers Visit</Text>
                 </View>
 
                 <View style={styles.contentContainer}>
-                    <LocationIndicator onLocationUpdate={(locationData) => setLocation(locationData)} />
+                    <LocationIndicator
+                        onLocationUpdate={(locationData) => setLocation(locationData)}
+                        autoFetch={true}
+                        autoFetchOnMount={true}
+                    />
 
                     <View style={styles.radioView}>
                         <CustomRadioButton
@@ -188,11 +186,8 @@ const RetailerVisit = () => {
                     </View>
 
                     {selectedValue === "exist" &&
-                        <ScrollView
-                            keyboardShouldPersistTaps="always"
-                            nestedScrollEnabled={true}
-                        >
-                            <Dropdown
+                        <ScrollView keyboardShouldPersistTaps="always" nestedScrollEnabled={true} >
+                            <EnhancedDropdown
                                 data={retailerData}
                                 labelField="Retailer_Name"
                                 valueField="Retailer_Id"
@@ -201,20 +196,7 @@ const RetailerVisit = () => {
                                 onChange={item => {
                                     setSelectedRetail(item.Retailer_Id);
                                     handleInputChange("Retailer_Id", item.Retailer_Id);
-                                    // setFormValues(prevState => ({
-                                    //     ...prevState,
-                                    //     Retailer_Id: item.Retailer_Id
-                                    // }));
                                 }}
-                                maxHeight={300}
-                                search
-                                searchPlaceholder="Search Retailer"
-                                style={styles.dropdown}
-                                placeholderStyle={styles.placeholderStyle}
-                                containerStyle={styles.dropdownContainer}
-                                selectedTextStyle={styles.selectedTextStyle}
-                                inputSearchStyle={styles.inputSearchStyle}
-                                maxFontSizeMultiplier={1.2}
                             />
 
                             <TextInput
@@ -232,7 +214,7 @@ const RetailerVisit = () => {
                                     style={styles.button}
                                 >
                                     <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
-                                        {!capturedPhotoPath ? "Take Photo" : "Preview Photo"}
+                                        {!capturedPhotoPath ? "Take Photo" : "Preview"}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -298,7 +280,7 @@ const RetailerVisit = () => {
                                     autoCapitalize="words"
                                     placeholder="Contact Person"
                                     placeholderTextColor={customColors.accent}
-                                    onChangeText={(text) => handleInputChange('Contact_Person', text)}
+                                    onChangeText={(text) => handleInputChange("Contact_Person", text)}
                                 />
 
                                 <TextInput
@@ -338,7 +320,7 @@ const RetailerVisit = () => {
                             <View style={styles.buttonGroup}>
                                 <TouchableOpacity onPress={() => setShowCameraModal(true)}
                                     style={styles.button}
-                                ><Text style={styles.buttonText}>{!capturedPhotoPath ? "Take Photo" : "Preview Photo"}</Text></TouchableOpacity>
+                                ><Text style={styles.buttonText}>{!capturedPhotoPath ? "Take Photo" : "Preview"}</Text></TouchableOpacity>
 
                                 <TouchableOpacity onPress={handleSubmit}
                                     style={styles.button}
@@ -362,7 +344,7 @@ const RetailerVisit = () => {
                                             capturedPhotoPath && typeof capturedPhotoPath === "string" && (
                                                 <View style={styles.previewImageContainer}>
                                                     <Image
-                                                        source={{ uri: 'file://' + capturedPhotoPath }}
+                                                        source={{ uri: "file://" + capturedPhotoPath }}
                                                         style={styles.previewImage}
                                                     />
                                                     <TouchableOpacity onPress={clearPhoto} style={styles.clearPhotoButton}>
@@ -440,34 +422,6 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         padding: 12,
     },
-    dropdown: {
-        backgroundColor: customColors.white,
-        height: 50,
-        margin: 20,
-        padding: 12,
-        borderRadius: 10,
-        borderColor: "#E2E8F0",
-        borderWidth: 1,
-    },
-    dropdownContainer: {
-        backgroundColor: customColors.white,
-        borderColor: customColors.accent,
-        borderWidth: 0.5,
-        borderRadius: 10,
-    },
-    placeholderStyle: {
-        ...typography.h6(),
-        color: customColors.black,
-    },
-    selectedTextStyle: {
-        ...typography.body1(),
-        color: customColors.black,
-        // numberOfLines: 1,
-    },
-    inputSearchStyle: {
-        ...typography.body1(),
-        color: customColors.black,
-    },
     buttonGroup: {
         flexDirection: "row",
         justifyContent: "space-around",
@@ -502,13 +456,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignSelf: 'center',
         backgroundColor: customColors.secondary,
-        color: customColors.white,
         borderRadius: 10,
         marginTop: 30
     },
     buttonText: {
         textAlign: "center",
         ...typography.button(),
+        color: customColors.primary,
         fontWeight: "bold",
     },
     clearPhotoButton: {

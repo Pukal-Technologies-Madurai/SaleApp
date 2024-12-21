@@ -25,7 +25,8 @@ const AttendanceReport = () => {
         (async () => {
             try {
                 const userTypeId = await AsyncStorage.getItem("userTypeId");
-                fetchAttendance(selectedFromDate.toISOString(), selectedToDate.toISOString(), userTypeId);
+                const UserId = await AsyncStorage.getItem("UserId");
+                fetchAttendance(selectedFromDate.toISOString(), selectedToDate.toISOString(), userTypeId, UserId);
             } catch (err) {
                 console.log(err);
             }
@@ -54,9 +55,9 @@ const AttendanceReport = () => {
         setIsSelectingFromDate(isFrom);
     };
 
-    const fetchAttendance = async (fromDay, toDay, id) => {
+    const fetchAttendance = async (fromDay, toDay, id, uid) => {
         try {
-            const response = await fetch(`${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}`, {
+            const response = await fetch(`${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",

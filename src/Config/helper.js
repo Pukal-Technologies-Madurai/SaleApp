@@ -4,6 +4,7 @@ const deviceWidth = Dimensions.get("window").width;
 
 const responsiveFontSize = (baseFontSize) => {
     const baseWidth = 375;
+    const size = baseFontSize * (deviceWidth / baseWidth);
     return baseFontSize * (deviceWidth / baseWidth);
 }
 

@@ -1,18 +1,22 @@
-import { StyleSheet, Text, Dimensions, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, Dimensions, TouchableOpacity, View } from "react-native";
 import React from "react";
 import { customColors, typography } from "../Config/helper";
 
-const { width } = Dimensions.get("window")
+const { width } = Dimensions.get("window");
 
-const CustomRadioButton = ({ label, selected, onSelect }) => {
+const CustomRadioButton = ({ label, selected, onSelect, style }) => {
 
     return (
-        <TouchableOpacity
-            style={[styles.radioButton,
-            { backgroundColor: selected ? customColors.primary : "#0534CE" }]}
+        <TouchableOpacity style={[styles.radioButtonContainer, style]}
             onPress={onSelect}
+            activeOpacity={0.7}
         >
-            <Text style={styles.radioButtonText}>
+            <View style={[
+                styles.radioButton,
+                selected && styles.selectedRadioButton
+            ]}
+            />
+            <Text style={[styles.radioButtonText, selected && styles.selectedText]}>
                 {label}
             </Text>
         </TouchableOpacity>
@@ -22,20 +26,44 @@ const CustomRadioButton = ({ label, selected, onSelect }) => {
 export default CustomRadioButton
 
 const styles = StyleSheet.create({
-    radioButton: {
-        padding: 12,
-        borderRadius: 10,
-        marginHorizontal: 15,
-        marginVertical: 8,
-        borderWidth: 1,
-        borderColor: "#007BFF",
+    radioButtonContainer: {
+        width: width * 0.42,
+        flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        width: width * 0.4,
+        backgroundColor: customColors.background,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        margin: 8,
+        shadowColor: customColors.black,
+        shadowOffset: {
+            width: 0,
+            height: 2
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    radioButton: {
+        width: 15,
+        height: 15,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: customColors.accent,
+        marginRight: 10,
+    },
+    selectedRadioButton: {
+        backgroundColor: customColors.secondary,
+        borderColor: customColors.grey,
     },
     radioButtonText: {
-        ...typography.body1(),
-        fontWeight: "bold",
+        ...typography.body2(),
         color: customColors.white,
+        fontWeight: "bold",
+    },
+    selectedText: {
+        ...typography.body1(),
+        color: customColors.white,
+        fontWeight: "700",
     },
 })

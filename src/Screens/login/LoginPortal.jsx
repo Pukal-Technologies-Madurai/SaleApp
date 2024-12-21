@@ -24,9 +24,17 @@ const LoginPortal = () => {
         try {
             const response = await fetch(`${API.userPortal}${userName}`);
             const jsonData = await response.json();
+            // console.log("jsonData", jsonData)
             if (jsonData.success && jsonData.data) {
-                setCompanies(jsonData.data);
-                setStep(2);
+                const companies = jsonData.data;
+                setCompanies(companies);
+
+                if (companies.length === 1) {
+                    setSelectedCompany(companies[0]);
+                    setStep(2);
+                } else {
+                    setStep(2);
+                }
             } else {
                 ToastAndroid.show(jsonData.message, ToastAndroid.LONG);
             }
@@ -47,7 +55,7 @@ const LoginPortal = () => {
         </TouchableOpacity>
     );
 
-    const handleLoginPortal = async () => {
+    const handleLogin = async () => {
         if (!selectedCompany) {
             ToastAndroid.show("Please select a company.", ToastAndroid.LONG);
             return;
@@ -61,23 +69,19 @@ const LoginPortal = () => {
                 body: JSON.stringify({
                     Global_User_ID: selectedCompany.Global_User_ID,
                     username: userName,
-                    password: passHash,
+                    Password: passHash,
 
-                    // Company_Name: selectedCompany.Company_Name,
-                    // Global_Id: selectedCompany.Global_Id,
-                    // Local_Id: selectedCompany.Local_Id,
-                    // Web_Api: selectedCompany.Web_Api,
+                    Company_Name: selectedCompany.Company_Name,
+                    Global_Id: selectedCompany.Global_Id,
+                    Local_Id: selectedCompany.Local_Id,
+                    Web_Api: selectedCompany.Web_Api,
                 })
             });
 
             const data = await response.json();
-            // console.log(data)
+
             if (data.success) {
-                await AsyncStorage.setItem("userToken", data.user.Autheticate_Id);
-                await setData(data.user);
-                setAuthInfo(data.user);
-                navigation.replace("HomeScreen");
-                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                getUserAuth(data.data.Autheticate_Id)
             } else {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
             }
@@ -88,7 +92,37 @@ const LoginPortal = () => {
         }
     };
 
-    const handleLogin = async () => {
+    const getUserAuth = async (userAuth) => {
+        try {
+            const url = `${API.getUserAuthMob}`
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": `${userAuth}`,
+                },
+            });
+
+            const data = await response.json();
+            // console.log(data)
+
+            if(data.success) {
+                const authData = data.user;
+
+                await AsyncStorage.setItem("userToken", authData.Autheticate_Id);
+                await setData(authData);
+                setAuthInfo(authData);
+                navigation.replace("HomeScreen");
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+            } else {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+            }
+
+        } catch (err) {
+            console.error(err)
+        }
+    }
+ 
+    const handleLoginPortal = async () => {
         if (!selectedCompany) {
             ToastAndroid.show("Please select a company.", ToastAndroid.LONG);
             return;
@@ -106,7 +140,6 @@ const LoginPortal = () => {
             });
 
             const data = await response.json();
-            // console.log(data)
             if (data.success) {
                 await AsyncStorage.setItem("userToken", data.user.Autheticate_Id);
                 await setData(data.user);
@@ -130,7 +163,6 @@ const LoginPortal = () => {
             await AsyncStorage.setItem("Company_Id", String(data.Company_id));
             await AsyncStorage.setItem("userName", data.UserName);
             await AsyncStorage.setItem("Name", data.Name);
-            await AsyncStorage.setItem("UserType", data.UserType);
             await AsyncStorage.setItem("branchId", String(data.BranchId));
             await AsyncStorage.setItem("branchName", data.BranchName);
             await AsyncStorage.setItem("userType", data.UserType);
@@ -183,13 +215,14 @@ const LoginPortal = () => {
                                         value={userName}
                                         onChangeText={setUserName}
                                     />
-                                    <TouchableOpacity style={styles.selectButton} onPress={() => setModalVisible(true)
-                                    }>
-                                        <Text style={styles.selectButtonText}>
-                                            {selectedCompany ? selectedCompany.Company_Name : "Select your company"}
-                                        </Text>
-                                        < Icon name="chevron-down" size={24} color="#fff" />
-                                    </TouchableOpacity>
+                                    {companies.length > 1 && (
+                                        <TouchableOpacity style={styles.selectButton} onPress={() => setModalVisible(true)}>
+                                            <Text style={styles.selectButtonText}>
+                                                {selectedCompany ? selectedCompany.Company_Name : "Select your company"}
+                                            </Text>
+                                            <Icon name="chevron-down" size={24} color={customColors.white} />
+                                        </TouchableOpacity>
+                                    )}
 
                                     < Modal
                                         animationType="slide"
@@ -282,6 +315,7 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         ...typography.button(),
+        color: customColors.black,
         fontWeight: "bold",
     },
     selectButton: {
@@ -294,8 +328,8 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     selectButtonText: {
-        color: '#fff',
-        fontSize: 16,
+        ...typography.h6(),
+        color: customColors.white,
     },
     modalView: {
         flex: 1,
@@ -315,6 +349,7 @@ const styles = StyleSheet.create({
     },
     modalTitle: {
         ...typography.h5(),
+        color: customColors.black,
         fontWeight: "bold",
         marginBottom: 15,
         textAlign: "center",
@@ -326,6 +361,7 @@ const styles = StyleSheet.create({
     },
     companyText: {
         ...typography.body1(),
+        color: customColors.black,
     },
     closeButton: {
         backgroundColor: customColors.secondary,
@@ -336,6 +372,7 @@ const styles = StyleSheet.create({
     },
     closeButtonText: {
         ...typography.button(),
+        color: customColors.black,
         fontWeight: "bold",
     },
 })
