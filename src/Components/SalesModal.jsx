@@ -9,7 +9,6 @@ const SalesModal = ({
     setIsSalesModalVisible
 }) => {
     const renderSalesDetails = () => {
-        // If no sale count data, return empty view
         if (!saleCount || Object.keys(saleCount).length === 0) {
             return (
                 <Text style={styles.noDataText}>No sales data available</Text>

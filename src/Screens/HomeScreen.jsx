@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, ImageBackground, ActivityIndicator, Modal, Button } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, ImageBackground, ActivityIndicator } from "react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
@@ -11,8 +11,8 @@ import { customColors, typography } from "../Config/helper";
 import { API } from "../Config/Endpoint";
 import AttendanceInfo from "./attendance/AttendanceInfo";
 import assetImages from "../Config/Image";
-import CountModal from "../Components/CountModal";
 import DatePickerButton from "../Components/DatePickerButton";
+import CountModal from "../Components/CountModal";
 import SalesModal from "../Components/SalesModal";
 
 const HomeScreen = () => {
@@ -73,6 +73,13 @@ const HomeScreen = () => {
 
     const fetchSaleOrder = async (from, to, company, userId = "") => {
         setIsLoading(true);
+
+        setSaleData([]);
+        setSaleCount({});
+        setProductSummary([]);
+        setTotalOrderAmount(0);
+        setTotalProductsSold(0);
+
         try {
             let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
             // console.log(url)
@@ -100,9 +107,13 @@ const HomeScreen = () => {
 
     const fetchVisitersLog = async (fromDate, id = "") => {
         setIsLoading(true);
+        // Clear the visit data before fetching new data
+        setVisitData([]); 
+        setUserCount({}); // Also clear the user count
+
         try {
             const url = `${API.visitedLog}?reqDate=${fromDate}&UserId=${id}`;
-            console.log(url)
+            // console.log(url)
 
             const response = await fetch(url, {
                 method: "GET",

@@ -43,6 +43,10 @@ const CountModal = ({
         ));
     };
 
+    React.useEffect(() => {
+        setExpandedUser(null);
+    }, [visitData])
+
     return (
         <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose} >
             <View style={styles.modalOverlay}>
@@ -62,43 +66,50 @@ const CountModal = ({
                         nestedScrollEnabled={true}
                         showsVerticalScrollIndicator={true}
                     >
-                        {Object.entries(userCount).map(([name, count]) => (
-                            <View key={name}>
-                                <TouchableOpacity style={styles.userCountItem} onPress={() => {
-                                        if (title === "Check-In's") {
-                                            setExpandedUser(expandedUser === name ? null : name);
-                                        }
-                                    }}>
-                                    <View style={styles.userNameContainer}>
-                                        <Text 
-                                            style={styles.userCountName}
-                                            numberOfLines={3}
-                                            ellipsizeMode="tail"
-                                        >
-                                            {name}
-                                        </Text>
-                                        {title === "Check-In's" && (
-                                            <Icon 
-                                                name={expandedUser === name ? "chevron-up" : "chevron-down"} 
-                                                size={16} 
-                                                color="#95a5a6" 
-                                            />
-                                        )}
-                                    </View>
-                                    <Text style={styles.userCountValue}>{count}</Text>
-                                </TouchableOpacity>
+                        {
+                            (!userCount || Object.keys(userCount).length===0) ? (
+                                <View style={styles.noDataContainer}>
+                                    <Text style={styles.noDataText}>No data available</Text>
+                                </View>
+                            ) : (Object.entries(userCount).map(([name, count]) => (
+                                <View key={name}>
+                                    <TouchableOpacity style={styles.userCountItem} onPress={() => {
+                                            if (title === "Check-In's") {
+                                                setExpandedUser(expandedUser === name ? null : name);
+                                            }
+                                        }}>
+                                        <View style={styles.userNameContainer}>
+                                            <Text 
+                                                style={styles.userCountName}
+                                                numberOfLines={3}
+                                                ellipsizeMode="tail"
+                                            >
+                                                {name}
+                                            </Text>
+                                            {title === "Check-In's" && (
+                                                <Icon 
+                                                    name={expandedUser === name ? "chevron-up" : "chevron-down"} 
+                                                    size={16} 
+                                                    color="#95a5a6" 
+                                                />
+                                            )}
+                                        </View>
+                                        <Text style={styles.userCountValue}>{count}</Text>
+                                    </TouchableOpacity>
+    
+                                    {title === "Check-In's" && expandedUser === name && (
+                                        <View style={styles.visitDetailsContainer}>
+                                            {renderVisitDetails(name)}
+                                        </View>
+                                    )}
+    
+                                    {/* {title === "Sales" && (
+                                        <Text style={styles.totalValue}>₹{details.totalValue.toFixed(2)}</Text>
+                                    )} */}
+                                </View>
+                            )))
+                        }
 
-                                {title === "Check-In's" && expandedUser === name && (
-                                    <View style={styles.visitDetailsContainer}>
-                                        {renderVisitDetails(name)}
-                                    </View>
-                                )}
-
-                                {/* {title === "Sales" && (
-                                    <Text style={styles.totalValue}>₹{details.totalValue.toFixed(2)}</Text>
-                                )} */}
-                            </View>
-                        ))}
                     </ScrollView>
 
                     {/* Close Button */}
@@ -218,6 +229,17 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         color: customColors.white,
     },
+    noDataContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 20
+    },
+    noDataText: {
+        ...typography.h5(),
+        color: "#95a5a6",
+        textAlign: "center",
+    }
 });
 
 export default CountModal;
