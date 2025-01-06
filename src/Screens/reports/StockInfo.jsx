@@ -1,17 +1,28 @@
-import { StyleSheet, Text, TouchableOpacity, View, Image, ImageBackground, Modal, Dimensions, ScrollView } from "react-native";
+import {
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    Image,
+    ImageBackground,
+    Modal,
+    Dimensions,
+    ScrollView,
+} from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Feather";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 import DatePickerButton from "../../Components/DatePickerButton";
 import { customColors, typography } from "../../Config/helper";
-import { API } from '../../Config/Endpoint';
-import Accordion from '../../Components/Accordion';
-import assetImages from '../../Config/Image';
+import { API } from "../../Config/Endpoint";
+import Accordion from "../../Components/Accordion";
+import assetImages from "../../Config/Image";
 import StockReportCard from "../../Components/StockReportCard";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 const StockInfo = () => {
     const navigation = useNavigation();
@@ -21,7 +32,6 @@ const StockInfo = () => {
     const [expandedRetailer, setExpandedRetailer] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [summaryDetails, setSummaryDetails] = useState([]);
-
 
     useEffect(() => {
         (async () => {
@@ -34,17 +44,20 @@ const StockInfo = () => {
                 console.log(err);
             }
         })();
-    }, [selectedDate])
+    }, [selectedDate]);
 
     const fetchStockLog = async (day, id) => {
-        console.log(`${API.closingStockReport}${id}&reqDate=${day}`)
+        console.log(`${API.closingStockReport}${id}&reqDate=${day}`);
         try {
-            const response = await fetch(`${API.closingStockReport}${id}&reqDate=${day}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            });
+            const response = await fetch(
+                `${API.closingStockReport}${id}&reqDate=${day}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
             const data = await response.json();
 
             if (data.success === true) {
@@ -55,7 +68,7 @@ const StockInfo = () => {
         } catch (error) {
             console.log("Error fetching logs: ", error);
         }
-    }
+    };
 
     const handleDateChange = (event, date) => {
         setSelectedDate(date);
@@ -65,8 +78,8 @@ const StockInfo = () => {
     const calculateSummary = () => {
         const productSummary = {};
 
-        logData.forEach((entry) => {
-            entry.ProductCount.forEach((product) => {
+        logData.forEach(entry => {
+            entry.ProductCount.forEach(product => {
                 const productName = product.Product_Name.trim();
                 if (!productSummary[productName]) {
                     productSummary[productName] = { count: 0, totalQty: 0 };
@@ -93,11 +106,17 @@ const StockInfo = () => {
 
     const summary = calculateSummary();
 
-    const renderSummaryCard = (icon, title, value, onPress, isDisabled = false) => (
+    const renderSummaryCard = (
+        icon,
+        title,
+        value,
+        onPress,
+        isDisabled = false,
+    ) => (
         <TouchableOpacity
             style={[
                 styles.summaryCard,
-                isDisabled && styles.disabledCard // Apply a different style if disabled
+                isDisabled && styles.disabledCard, // Apply a different style if disabled
             ]}
             onPress={!isDisabled ? onPress : null} // Disable the click if isDisabled is true
             activeOpacity={isDisabled ? 1 : 0.7} // Prevent visual feedback when disabled
@@ -110,27 +129,38 @@ const StockInfo = () => {
         </TouchableOpacity>
     );
 
-    const toggleRetailerExpand = (retailerName) => {
-        setExpandedRetailer(expandedRetailer === retailerName ? null : retailerName);
+    const toggleRetailerExpand = retailerName => {
+        setExpandedRetailer(
+            expandedRetailer === retailerName ? null : retailerName,
+        );
     };
 
-    const editOption = (item) => {
-        navigation.navigate("StockClosing", { item, isEdit: true })
-    }
-
+    const editOption = item => {
+        navigation.navigate("StockClosing", { item, isEdit: true });
+    };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.overlay}>
                     <View style={styles.headersContainer}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Image source={assetImages.backArrow} />
+                            <MaterialIcon
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
+                            />
                         </TouchableOpacity>
-                        <Text style={styles.headersText} maxFontSizeMultiplier={1.2}>Stock Report</Text>
+                        <Text
+                            style={styles.headersText}
+                            maxFontSizeMultiplier={1.2}>
+                            Stock Report
+                        </Text>
                     </View>
 
-                    <View style={{ marginHorizontal: 20, }}>
+                    <View style={{ marginHorizontal: 20 }}>
                         <DatePickerButton
                             title="Select Stock Date"
                             date={selectedDate}
@@ -139,56 +169,96 @@ const StockInfo = () => {
                     </View>
 
                     <View style={styles.summaryCardsContainer}>
-                        {renderSummaryCard('users', 'Retailers', logData.length, null, true)}
-                        {renderSummaryCard('list', 'Product Types', summary.length, null, true)}
-                        {renderSummaryCard('arrow-up-right', 'Total Qty',
-                            summary.reduce((total, product) => total + product.ST_Qty, 0),
-                            handleModalPreview
+                        {renderSummaryCard(
+                            "users",
+                            "Retailers",
+                            logData.length,
+                            null,
+                            true,
+                        )}
+                        {renderSummaryCard(
+                            "list",
+                            "Product Types",
+                            summary.length,
+                            null,
+                            true,
+                        )}
+                        {renderSummaryCard(
+                            "arrow-up-right",
+                            "Total Qty",
+                            summary.reduce(
+                                (total, product) => total + product.ST_Qty,
+                                0,
+                            ),
+                            handleModalPreview,
                         )}
                     </View>
 
-
                     <ScrollView
                         style={styles.retailerListContainer}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <Text style={styles.sectionTitle}>Retailer Stock Details</Text>
-                        {logData.map((entry) => (
+                        showsVerticalScrollIndicator={false}>
+                        <Text style={styles.sectionTitle}>
+                            Retailer Stock Details
+                        </Text>
+                        {logData.map(entry => (
                             <TouchableOpacity
                                 key={entry.ST_Id}
                                 style={styles.retailerCard}
                                 onPress={() =>
                                     setExpandedRetailer(
-                                        expandedRetailer === entry.Retailer_Name ? null : entry.Retailer_Name
+                                        expandedRetailer === entry.Retailer_Name
+                                            ? null
+                                            : entry.Retailer_Name,
                                     )
-                                }
-                            >
+                                }>
                                 <View style={styles.retailerHeader}>
-                                    <Text style={styles.retailerName} numberOfLines={1}>
+                                    <Text
+                                        style={styles.retailerName}
+                                        numberOfLines={1}>
                                         {entry.Retailer_Name}
                                     </Text>
 
                                     {/* Edit Option */}
                                     <TouchableOpacity
                                         onPress={() => editOption(entry)}
-                                        style={styles.editButton}
-                                    >
-                                        <Icon name="edit" size={20} color="blue" />
+                                        style={styles.editButton}>
+                                        <Icon
+                                            name="edit"
+                                            size={20}
+                                            color="blue"
+                                        />
                                     </TouchableOpacity>
                                 </View>
 
                                 {expandedRetailer === entry.Retailer_Name && (
-                                    <View style={styles.productDetailsContainer}>
-                                        {entry.ProductCount.map((product, productIndex) => (
-                                            <View key={productIndex} style={styles.productRow}>
-                                                <Text style={styles.productName} numberOfLines={2}>
-                                                    {product.Product_Name.trim()}
-                                                </Text>
-                                                <View style={styles.quantityBadge}>
-                                                    <Text style={styles.quantityText}>{product.ST_Qty}</Text>
+                                    <View
+                                        style={styles.productDetailsContainer}>
+                                        {entry.ProductCount.map(
+                                            (product, productIndex) => (
+                                                <View
+                                                    key={productIndex}
+                                                    style={styles.productRow}>
+                                                    <Text
+                                                        style={
+                                                            styles.productName
+                                                        }
+                                                        numberOfLines={2}>
+                                                        {product.Product_Name.trim()}
+                                                    </Text>
+                                                    <View
+                                                        style={
+                                                            styles.quantityBadge
+                                                        }>
+                                                        <Text
+                                                            style={
+                                                                styles.quantityText
+                                                            }>
+                                                            {product.ST_Qty}
+                                                        </Text>
+                                                    </View>
                                                 </View>
-                                            </View>
-                                        ))}
+                                            ),
+                                        )}
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -200,21 +270,32 @@ const StockInfo = () => {
                     animationType="slide"
                     transparent={true}
                     visible={modalVisible}
-                    onRequestClose={() => setModalVisible(false)}
-                >
+                    onRequestClose={() => setModalVisible(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContainer}>
                             <Text style={styles.modalTitle}>Stock Summary</Text>
 
                             <View style={styles.modalTableHeader}>
-                                <Text style={styles.modalHeaderText}>Product</Text>
-                                <Text style={[styles.modalHeaderText, { textAlign: "right" }]}>Qty</Text>
+                                <Text style={styles.modalHeaderText}>
+                                    Product
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.modalHeaderText,
+                                        { textAlign: "right" },
+                                    ]}>
+                                    Qty
+                                </Text>
                             </View>
 
                             <ScrollView style={styles.modalScrollView}>
                                 {summaryDetails.map((product, index) => (
-                                    <View key={index} style={styles.modalTableRow}>
-                                        <Text style={styles.modalProductName} numberOfLines={2}>
+                                    <View
+                                        key={index}
+                                        style={styles.modalTableRow}>
+                                        <Text
+                                            style={styles.modalProductName}
+                                            numberOfLines={2}>
                                             {product.Product_Name}
                                         </Text>
                                         <Text style={styles.modalProductQty}>
@@ -226,19 +307,20 @@ const StockInfo = () => {
 
                             <TouchableOpacity
                                 style={styles.modalCloseButton}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <Text style={styles.modalCloseButtonText}>Close</Text>
+                                onPress={() => setModalVisible(false)}>
+                                <Text style={styles.modalCloseButtonText}>
+                                    Close
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
-export default StockInfo
+export default StockInfo;
 
 const styles = StyleSheet.create({
     container: {
@@ -264,8 +346,6 @@ const styles = StyleSheet.create({
         marginHorizontal: 10,
     },
 
-
-
     editButton: {
         alignSelf: "flex-end",
         backgroundColor: customColors.secondary,
@@ -289,7 +369,7 @@ const styles = StyleSheet.create({
     summaryRowContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center"
+        alignItems: "center",
     },
     summaryCard: {
         width: "30%",
@@ -314,12 +394,10 @@ const styles = StyleSheet.create({
         // marginTop: 5,
     },
 
-
-
     iconColors: {
-        'users': '#4A90E2',
-        'list': '#50C878',
-        'arrow-up-right': '#FF6B6B'
+        users: "#4A90E2",
+        list: "#50C878",
+        "arrow-up-right": "#FF6B6B",
     },
 
     // iconColors: {
@@ -328,64 +406,87 @@ const styles = StyleSheet.create({
     //     'shopping-bag': '#FF6B6B'
     // },
 
-    modalOverlay: { flex: 1, justifyContent: "center", backgroundColor: "rgba(0,0,0,0.5)" },
-    modalContent: { margin: 20, backgroundColor: "white", borderRadius: 10, padding: 20 },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: "center",
+        backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    modalContent: {
+        margin: 20,
+        backgroundColor: "white",
+        borderRadius: 10,
+        padding: 20,
+    },
     modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
 
     tableContainer: { marginTop: 10 },
-    tableHeader: { flexDirection: "row", justifyContent: "space-between", paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: "#ddd" },
+    tableHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingBottom: 5,
+        borderBottomWidth: 1,
+        borderBottomColor: "#ddd",
+    },
     tableHeaderText: { fontWeight: "bold", flex: 1, textAlign: "center" },
-    tableRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
+    tableRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 5,
+    },
     tableCell: { flex: 1, textAlign: "center" },
-    modalCloseButton: { backgroundColor: "#FF6B6B", padding: 10, borderRadius: 5, marginTop: 20 },
-    modalCloseButtonText: { color: "#fff", fontWeight: "bold", textAlign: "center" },
-
     modalCloseButton: {
-        backgroundColor: '#4A90E2',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 25
+        backgroundColor: "#FF6B6B",
+        padding: 10,
+        borderRadius: 5,
+        marginTop: 20,
     },
     modalCloseButtonText: {
-        color: 'white',
-        fontWeight: '600'
+        color: "#fff",
+        fontWeight: "bold",
+        textAlign: "center",
     },
 
-
-
-
-
+    modalCloseButton: {
+        backgroundColor: "#4A90E2",
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 25,
+    },
+    modalCloseButtonText: {
+        color: "white",
+        fontWeight: "600",
+    },
 
     retailerListContainer: {
         padding: 10,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: '700',
+        fontWeight: "700",
         color: customColors.white,
         marginBottom: 15,
         marginLeft: 5,
     },
     retailerCard: {
-        backgroundColor: 'white',
+        backgroundColor: "white",
         borderRadius: 12,
         padding: 15,
         marginBottom: 10,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
     },
     retailerHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
     retailerName: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
+        fontWeight: "600",
+        color: "#333",
         flex: 0.7,
     },
     editButton: {
@@ -394,213 +495,205 @@ const styles = StyleSheet.create({
     },
     dateText: {
         fontSize: 12,
-        color: '#6B7280',
+        color: "#6B7280",
     },
     productDetailsContainer: {
         marginTop: 10,
         borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
+        borderTopColor: "#E5E7EB",
         paddingTop: 10,
     },
     productRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: 5,
     },
     productName: {
         fontSize: 14,
-        color: '#4B5563',
+        color: "#4B5563",
         flex: 0.8,
     },
     quantityBadge: {
-        backgroundColor: '#E6F2FF',
+        backgroundColor: "#E6F2FF",
         borderRadius: 15,
         paddingHorizontal: 10,
         paddingVertical: 5,
     },
     quantityText: {
-        color: '#2C5282',
+        color: "#2C5282",
         fontSize: 12,
-        fontWeight: '600',
+        fontWeight: "600",
     },
-
-
-
-
-
-
-
-
 
     summaryCardsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        justifyContent: "space-between",
         paddingHorizontal: 20,
-        marginVertical: 15
+        marginVertical: 15,
     },
     summaryCard: {
-        backgroundColor: 'white',
+        backgroundColor: "white",
         borderRadius: 15,
         padding: 15,
         width: width * 0.27,
-        alignItems: 'center',
-        shadowColor: '#000',
+        alignItems: "center",
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 6,
-        elevation: 5
+        elevation: 5,
     },
     summaryCardIconContainer: {
-        backgroundColor: '#F0F4F8',
+        backgroundColor: "#F0F4F8",
         borderRadius: 50,
         padding: 10,
-        marginBottom: 10
+        marginBottom: 10,
     },
 
     summaryCardTitle: {
         fontSize: 12,
-        color: '#6E7CA0',
-        marginBottom: 5
+        color: "#6E7CA0",
+        marginBottom: 5,
     },
     summaryCardValue: {
         fontSize: 16,
-        fontWeight: '700',
-        color: '#333'
+        fontWeight: "700",
+        color: "#333",
     },
     retailerListContainer: {
         flex: 1,
-        paddingHorizontal: 20
+        paddingHorizontal: 20,
     },
     sectionTitle: {
         fontSize: 16,
-        fontWeight: '700',
+        fontWeight: "700",
         color: customColors.white,
-        marginBottom: 15
+        marginBottom: 15,
     },
     retailerCard: {
-        backgroundColor: 'white',
+        backgroundColor: "white",
         borderRadius: 15,
         padding: 15,
         marginBottom: 15,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 6,
-        elevation: 5
+        elevation: 5,
     },
     retailerHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
     retailerName: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-        flex: 1
+        fontWeight: "600",
+        color: "#333",
+        flex: 1,
     },
     dateText: {
         fontSize: 12,
-        color: '#6E7CA0'
+        color: "#6E7CA0",
     },
     productDetailsContainer: {
         marginTop: 10,
         borderTopWidth: 1,
-        borderTopColor: '#F0F4F8',
-        paddingTop: 10
+        borderTopColor: "#F0F4F8",
+        paddingTop: 10,
     },
     productRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 8,
     },
     productName: {
         fontSize: 14,
-        color: '#333',
+        color: "#333",
         flex: 1,
-        marginRight: 10
+        marginRight: 10,
     },
     quantityBadge: {
-        backgroundColor: '#F0F4F8',
+        backgroundColor: "#F0F4F8",
         borderRadius: 20,
         paddingHorizontal: 10,
-        paddingVertical: 5
+        paddingVertical: 5,
     },
     quantityText: {
         fontSize: 12,
-        fontWeight: '600',
-        color: '#4A90E2'
+        fontWeight: "600",
+        color: "#4A90E2",
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center'
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     modalContainer: {
         width: width * 0.9,
-        backgroundColor: 'white',
+        backgroundColor: "white",
         borderRadius: 20,
         padding: 20,
-        maxHeight: height * 0.7
+        maxHeight: height * 0.7,
     },
     modalTitle: {
         fontSize: 20,
-        fontWeight: '700',
-        textAlign: 'center',
+        fontWeight: "700",
+        textAlign: "center",
         marginBottom: 20,
-        color: '#333'
+        color: "#333",
     },
     modalTableHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-evenly',
+        flexDirection: "row",
+        justifyContent: "space-evenly",
         paddingBottom: 5,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F4F8'
+        borderBottomColor: "#F0F4F8",
     },
     modalHeaderText: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#6E7CA0',
+        fontWeight: "600",
+        color: "#6E7CA0",
         flex: 1,
-        textAlign: 'center'
+        textAlign: "center",
     },
     modalScrollView: {
         maxHeight: height * 0.4,
-        marginVertical: 15
+        marginVertical: 15,
     },
     modalTableRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F4F8'
+        borderBottomColor: "#F0F4F8",
     },
     modalProductName: {
         fontSize: 14,
-        color: '#333',
+        color: "#333",
         flex: 2,
-        marginRight: 10
+        marginRight: 10,
     },
     modalProductQty: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#4A90E2',
+        fontWeight: "600",
+        color: "#4A90E2",
         flex: 1,
-        textAlign: 'right'
+        textAlign: "right",
     },
     modalCloseButton: {
-        backgroundColor: '#4A90E2',
+        backgroundColor: "#4A90E2",
         borderRadius: 25,
         paddingVertical: 12,
-        alignItems: 'center'
+        alignItems: "center",
     },
     modalCloseButtonText: {
-        color: 'white',
+        color: "white",
         fontSize: 16,
-        fontWeight: '600'
-    }
-})
+        fontWeight: "600",
+    },
+});

@@ -1,10 +1,22 @@
-import { Alert, Image, ImageBackground, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native";
+import {
+    Alert,
+    Image,
+    ImageBackground,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    ToastAndroid,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Dropdown } from "react-native-element-dropdown";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import CameraComponent from "../../Components/CameraComponent";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import assetImages from "../../Config/Image";
 
 const EditCustomer = ({ route }) => {
@@ -17,7 +29,7 @@ const EditCustomer = ({ route }) => {
         Contact_Person: item.Contact_Person || "",
         Mobile_No: item.Mobile_No || "",
         Retailer_Channel_Id: item.Retailer_Channel_Id || "",
-        Retailer_Class: item.Retailer_Class || '',
+        Retailer_Class: item.Retailer_Class || "",
         Route_Id: item.Route_Id || "",
         Area_Id: item.Area_Id || "",
         State_Id: item.State_Id || "",
@@ -35,13 +47,13 @@ const EditCustomer = ({ route }) => {
         routes: [],
         areas: [],
         states: [],
-        distributors: []
+        distributors: [],
     });
     const [isFocus, setIsFocus] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
 
     const [currentPhoto, setCurrentPhoto] = useState(
-        item.Profile_Pic ? { uri: `file://${item.Profile_Pic}` } : null
+        item.Profile_Pic ? { uri: `file://${item.Profile_Pic}` } : null,
     );
 
     const fetchDropdownData = useCallback(async () => {
@@ -50,20 +62,20 @@ const EditCustomer = ({ route }) => {
                 routes: API.routes,
                 areas: API.areas,
                 states: API.state,
-                distributors: API.distributors
+                distributors: API.distributors,
             };
 
             const results = await Promise.all(
                 Object.entries(endpoints).map(([key, url]) =>
-                    fetch(url).then(res => res.json())
-                )
+                    fetch(url).then(res => res.json()),
+                ),
             );
 
             const newDropdownData = Object.fromEntries(
                 Object.keys(endpoints).map((key, index) => [
                     key,
-                    results[index].success ? results[index].data : []
-                ])
+                    results[index].success ? results[index].data : [],
+                ]),
             );
 
             setDropdownData(newDropdownData);
@@ -81,7 +93,7 @@ const EditCustomer = ({ route }) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     }, []);
 
-    const handlePhotoCapture = useCallback((photoPath) => {
+    const handlePhotoCapture = useCallback(photoPath => {
         setCurrentPhoto({ uri: `file://${photoPath}` });
         setFormData(prev => ({ ...prev, Profile_Pic: photoPath }));
         setShowCamera(false);
@@ -91,11 +103,11 @@ const EditCustomer = ({ route }) => {
         const formDataToSubmit = new FormData();
 
         Object.entries(formData).forEach(([key, value]) => {
-            if (key === 'Profile_Pic' && value !== item.Profile_Pic) {
+            if (key === "Profile_Pic" && value !== item.Profile_Pic) {
                 formDataToSubmit.append(key, {
                     uri: currentPhoto.uri,
                     name: "photo.jpg",
-                    type: "image/jpeg"
+                    type: "image/jpeg",
                 });
             } else {
                 formDataToSubmit.append(key, value);
@@ -103,61 +115,83 @@ const EditCustomer = ({ route }) => {
         });
 
         try {
-            const response = await fetch(`${API.retailers}${item.Retailer_Id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "multipart/form-data" },
-                body: formDataToSubmit
-            });
+            const response = await fetch(
+                `${API.retailers}${item.Retailer_Id}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "multipart/form-data" },
+                    body: formDataToSubmit,
+                },
+            );
 
-            if (!response.ok) throw new Error('Update failed');
+            if (!response.ok) throw new Error("Update failed");
 
-            ToastAndroid.show("Retailer updated successfully.", ToastAndroid.LONG);
+            ToastAndroid.show(
+                "Retailer updated successfully.",
+                ToastAndroid.LONG,
+            );
             navigation.reset({
                 index: 0,
-                routes: [{ name: "HomeScreen" }]
+                routes: [{ name: "HomeScreen" }],
             });
         } catch (err) {
-            Alert.alert("Error", "Failed to update retailer. Please try again.");
+            Alert.alert(
+                "Error",
+                "Failed to update retailer. Please try again.",
+            );
         }
     }, [currentPhoto, formData, navigation, item]);
 
-    const renderDropdown = useCallback(({ label, data, valueField, labelField, value }) => {
-        if (!data?.length) return null;
+    const renderDropdown = useCallback(
+        ({ label, data, valueField, labelField, value }) => {
+            if (!data?.length) return null;
 
-        return (
-            <View style={styles.fieldContainer}>
-                <Text style={styles.label}>{label} <Text style={styles.required}>*</Text></Text>
-                <Dropdown
-                    style={styles.dropdown}
-                    data={data}
-                    search
-                    maxHeight={300}
-                    labelField={labelField}
-                    valueField={valueField}
-                    placeholder={!isFocus ? `Select ${label}` : "..."}
-                    searchPlaceholder="Search..."
-                    value={value}
-                    onFocus={() => setIsFocus(true)}
-                    onBlur={() => setIsFocus(false)}
-                    selectedTextStyle={styles.selectedTextStyle}
-                    onChange={item => {
-                        handleInputChange(valueField, item[valueField]);
-                        setIsFocus(false);
-                    }}
-                    itemTextStyle={styles.itemTextStyle}
-                />
-            </View>
-        );
-    }, [isFocus, handleInputChange]);
+            return (
+                <View style={styles.fieldContainer}>
+                    <Text style={styles.label}>
+                        {label} <Text style={styles.required}>*</Text>
+                    </Text>
+                    <Dropdown
+                        style={styles.dropdown}
+                        data={data}
+                        search
+                        maxHeight={300}
+                        labelField={labelField}
+                        valueField={valueField}
+                        placeholder={!isFocus ? `Select ${label}` : "..."}
+                        searchPlaceholder="Search..."
+                        value={value}
+                        onFocus={() => setIsFocus(true)}
+                        onBlur={() => setIsFocus(false)}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        onChange={item => {
+                            handleInputChange(valueField, item[valueField]);
+                            setIsFocus(false);
+                        }}
+                        itemTextStyle={styles.itemTextStyle}
+                    />
+                </View>
+            );
+        },
+        [isFocus, handleInputChange],
+    );
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image source={assetImages.backArrow} />
+                        <MaterialIcons
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Edit Retailer</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Edit Retailer
+                    </Text>
                 </View>
 
                 <ScrollView style={styles.contentContainer}>
@@ -165,17 +199,27 @@ const EditCustomer = ({ route }) => {
                         {/* Basic input fields */}
                         {[
                             { label: "Retailer Name", field: "Retailer_Name" },
-                            { label: "Contact Person", field: "Contact_Person" },
-                            { label: "GST Number", field: "Gstno", autoCapitalize: 'characters' },
+                            {
+                                label: "Contact Person",
+                                field: "Contact_Person",
+                            },
+                            {
+                                label: "GST Number",
+                                field: "Gstno",
+                                autoCapitalize: "characters",
+                            },
                         ].map(({ label, field, ...props }) => (
                             <View key={field} style={styles.fieldContainer}>
                                 <Text style={styles.label}>
-                                    {label} <Text style={styles.required}>*</Text>
+                                    {label}{" "}
+                                    <Text style={styles.required}>*</Text>
                                 </Text>
                                 <TextInput
                                     style={styles.input}
                                     value={formData[field]}
-                                    onChangeText={(text) => handleInputChange(field, text)}
+                                    onChangeText={text =>
+                                        handleInputChange(field, text)
+                                    }
                                     placeholder={label}
                                     {...props}
                                 />
@@ -185,7 +229,9 @@ const EditCustomer = ({ route }) => {
                         {/* Image Section */}
                         <View style={styles.imageSection}>
                             {showCamera ? (
-                                <CameraComponent onPhotoCapture={handlePhotoCapture} />
+                                <CameraComponent
+                                    onPhotoCapture={handlePhotoCapture}
+                                />
                             ) : (
                                 <View style={styles.photoContainer}>
                                     {currentPhoto ? (
@@ -200,10 +246,11 @@ const EditCustomer = ({ route }) => {
                                     )}
                                     <TouchableOpacity
                                         style={styles.updatePhotoButton}
-                                        onPress={() => setShowCamera(true)}
-                                    >
+                                        onPress={() => setShowCamera(true)}>
                                         <Text style={styles.updatePhotoText}>
-                                            {currentPhoto ? 'Update Photo' : 'Add Photo'}
+                                            {currentPhoto
+                                                ? "Update Photo"
+                                                : "Add Photo"}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -212,23 +259,50 @@ const EditCustomer = ({ route }) => {
 
                         {/* Dropdowns */}
                         {[
-                            { label: "Routes", data: dropdownData.routes, valueField: "Route_Id", labelField: "Route_Name" },
-                            { label: "Areas", data: dropdownData.areas, valueField: "Area_Id", labelField: "Area_Name" },
-                            { label: "States", data: dropdownData.states, valueField: "State_Id", labelField: "State_Name" },
-                            { label: "Distributors", data: dropdownData.distributors, valueField: "Distributor_Id", labelField: "distributor_Name" }
-                        ].map(props => renderDropdown({ ...props, value: formData[props.valueField] }))}
+                            {
+                                label: "Routes",
+                                data: dropdownData.routes,
+                                valueField: "Route_Id",
+                                labelField: "Route_Name",
+                            },
+                            {
+                                label: "Areas",
+                                data: dropdownData.areas,
+                                valueField: "Area_Id",
+                                labelField: "Area_Name",
+                            },
+                            {
+                                label: "States",
+                                data: dropdownData.states,
+                                valueField: "State_Id",
+                                labelField: "State_Name",
+                            },
+                            {
+                                label: "Distributors",
+                                data: dropdownData.distributors,
+                                valueField: "Distributor_Id",
+                                labelField: "distributor_Name",
+                            },
+                        ].map(props =>
+                            renderDropdown({
+                                ...props,
+                                value: formData[props.valueField],
+                            }),
+                        )}
 
-                        <TouchableOpacity style={styles.updateButton} onPress={handleSubmit}>
+                        <TouchableOpacity
+                            style={styles.updateButton}
+                            onPress={handleSubmit}>
                             <Text style={styles.updateButtonText}>Update</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
-export default EditCustomer
+export default EditCustomer;
 
 const styles = StyleSheet.create({
     container: {
@@ -280,7 +354,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         padding: 12,
         ...typography.h6(),
-        color: customColors.black
+        color: customColors.black,
     },
     dropdown: {
         height: 50,
@@ -292,7 +366,7 @@ const styles = StyleSheet.create({
     },
     selectedTextStyle: {
         color: customColors.black, // Black text for selected items
-        fontWeight: '600',
+        fontWeight: "600",
     },
     itemTextStyle: {
         color: customColors.black,
@@ -343,4 +417,4 @@ const styles = StyleSheet.create({
         color: customColors.black,
         fontWeight: "bold",
     },
-})
+});

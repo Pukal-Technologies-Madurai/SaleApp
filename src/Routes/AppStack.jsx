@@ -25,16 +25,16 @@ import RetailerMapView from "../Screens/RetailerMapView";
 import Sales from "../Screens/sales/Sales";
 import LoginPortal from "../Screens/login/LoginPortal";
 import DeliveryCheck from "../Screens/reports/DeliveryCheck";
+import RetailerHistory from "../Screens/retailers/RetailerHistory";
 
 const Stack = createStackNavigator();
 
 const AppStack = () => {
-
     return (
         <Stack.Navigator
             initialRouteName="StartScreen"
             screenOptions={{
-                header: () => null
+                header: () => null,
             }}>
             <Stack.Screen name="StartScreen" component={StartScreen} />
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
@@ -43,12 +43,19 @@ const AppStack = () => {
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
 
             <Stack.Screen name="Customers" component={Customers} />
-            <Stack.Screen name="CustomersDetails" component={CustomersDetails} />
+            <Stack.Screen
+                name="CustomersDetails"
+                component={CustomersDetails}
+            />
             <Stack.Screen name="RetailerVisit" component={RetailerVisit} />
+            <Stack.Screen name="RetailerHistory" component={RetailerHistory} />
 
             <Stack.Screen name="RetailerLog" component={RetailerVisitLog} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
-            <Stack.Screen name="AttendanceReport" component={AttendanceReport} />
+            <Stack.Screen
+                name="AttendanceReport"
+                component={AttendanceReport}
+            />
 
             <Stack.Screen name="AttendanceInfo" component={AttendanceInfo} />
             <Stack.Screen name="Attendance" component={Attendance} />
@@ -65,12 +72,19 @@ const AppStack = () => {
 
             {/* Not Used */}
             <Stack.Screen name="LoginScreen" component={LoginScreen} />
-            <Stack.Screen name="AddCustomer" component={AddCustomer} options={{ title: "Retailer Visit" }} />
+            <Stack.Screen
+                name="AddCustomer"
+                component={AddCustomer}
+                options={{ title: "Retailer Visit" }}
+            />
             <Stack.Screen name="EditCustomer" component={EditCustomer} />
-            <Stack.Screen name="RetailerMapView" component={RetailerMapView} options={{ title: "Retailers" }} />
-
+            <Stack.Screen
+                name="RetailerMapView"
+                component={RetailerMapView}
+                options={{ title: "Retailers" }}
+            />
         </Stack.Navigator>
     );
-}
+};
 
 export default AppStack;

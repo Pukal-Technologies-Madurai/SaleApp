@@ -1,4 +1,4 @@
-const baseURL = "http://shrifoods.erpsmt.in/"       // live api
+const baseURL = "http://shrifoods.erpsmt.in/"; // live api
 // const baseURL = "http://apiweb.erpsmt.in/"       // test api
 // const baseURL = "http://192.168.1.18:9001/"      // localhost endpoint
 // const baseURL = "http://192.168.1.20:3000/"      // localhost endpoint
@@ -29,11 +29,16 @@ export const API = {
     groupedProducts: baseURL + "api/masters/products/grouped?Company_Id=",
     productPacks: baseURL + "api/masters/products/packs?Company_Id=",
     closingStock: baseURL + "api/masters/retailers/closingStock",
-    productClosingStock: baseURL + "api/masters/retailers/closingStock?Retailer_Id=",
-    productBasedClosingStock: baseURL + "api/masters/retailers/closingStock/productBased?Retailer_Id=",
-    closingStockReport: baseURL + "api/masters/retailers/closingStock/myEntry?UserId=",
+    productClosingStock:
+        baseURL + "api/masters/retailers/closingStock?Retailer_Id=",
+    productBasedClosingStock:
+        baseURL +
+        "api/masters/retailers/closingStock/productBased?Retailer_Id=",
+    closingStockReport:
+        baseURL + "api/masters/retailers/closingStock/myEntry?UserId=",
 
     delivery: baseURL + "api/delivery/deliveryOrderList?Delivery_Person_Id=",
+    todayDelivery: baseURL + "api/delivery/deliveryOrderList?",
     deliveryPut: baseURL + "api/delivery/deliveryOrderMobile",
 
     visitedLog: baseURL + "api/empAttendance/visitLogs",
@@ -46,9 +51,10 @@ export const API = {
 
     // Not Used API
     distributors: baseURL + "api/masters/distributors",
-    closingStockReturn: baseURL + "api/transaction/retailers/closingStock?Retailer_Id=",
+    closingStockReturn:
+        baseURL + "api/transaction/retailers/closingStock?Retailer_Id=",
     salesReturn: baseURL + "api/sales/areaBasedReport?Company_id=",
     productGroups: baseURL + "api/masters/products/productGroups?Company_Id=",
     areaRetailers: baseURL + "api/masters/retailers/areaRetailers?Company_Id=",
     products: baseURL + "api/masters/products?Company_Id=",
-}
+};

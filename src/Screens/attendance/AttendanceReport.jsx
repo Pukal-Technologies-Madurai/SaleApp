@@ -1,8 +1,17 @@
-import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+    Image,
+    ImageBackground,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Icon from "react-native-vector-icons/Ionicons";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { customColors, typography } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
@@ -12,10 +21,18 @@ const AttendanceReport = () => {
     const navigation = useNavigation();
 
     const currentDate = new Date();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, -1);
+    const firstDayOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1,
+    );
+    const lastDayOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        -1,
+    );
 
-    const [attendanceData, setAttendanceData] = useState(null)
+    const [attendanceData, setAttendanceData] = useState(null);
     const [show, setShow] = useState(false);
     const [selectedFromDate, setSelectedFromDate] = useState(firstDayOfMonth);
     const [selectedToDate, setSelectedToDate] = useState(lastDayOfMonth);
@@ -26,12 +43,17 @@ const AttendanceReport = () => {
             try {
                 const userTypeId = await AsyncStorage.getItem("userTypeId");
                 const UserId = await AsyncStorage.getItem("UserId");
-                fetchAttendance(selectedFromDate.toISOString(), selectedToDate.toISOString(), userTypeId, UserId);
+                fetchAttendance(
+                    selectedFromDate.toISOString(),
+                    selectedToDate.toISOString(),
+                    userTypeId,
+                    UserId,
+                );
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, [selectedFromDate, selectedToDate])
+    }, [selectedFromDate, selectedToDate]);
 
     const selectDateFn = (event, selectedDate) => {
         setShow(Platform.OS === "ios");
@@ -50,19 +72,22 @@ const AttendanceReport = () => {
         }
     };
 
-    const showDatePicker = (isFrom) => {
+    const showDatePicker = isFrom => {
         setShow(true);
         setIsSelectingFromDate(isFrom);
     };
 
     const fetchAttendance = async (fromDay, toDay, id, uid) => {
         try {
-            const response = await fetch(`${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            });
+            const response = await fetch(
+                `${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
             const data = await response.json();
             if (data.success === true) {
                 setAttendanceData(data.data);
@@ -72,7 +97,7 @@ const AttendanceReport = () => {
         } catch (error) {
             console.log("Error fetching logs:", error);
         }
-    }
+    };
 
     const calculateDistance = (startKM, endKM) => {
         if (endKM !== null) {
@@ -81,7 +106,7 @@ const AttendanceReport = () => {
         return "N/A";
     };
 
-    const calculateTotalKms = (data) => {
+    const calculateTotalKms = data => {
         return data.reduce((total, item) => {
             if (item.End_KM !== null) {
                 return total + (item.End_KM - item.Start_KM);
@@ -90,25 +115,33 @@ const AttendanceReport = () => {
         }, 0);
     };
 
-    const countTotalAttendances = (data) => {
+    const countTotalAttendances = data => {
         return data.length;
     };
 
-    const countUnclosedAttendances = (data) => {
+    const countUnclosedAttendances = data => {
         return data.filter(item => item.End_KM === null).length;
     };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.overlay}>
                     <View style={styles.headersContainer}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Image
-                                source={assetImages.backArrow}
+                            <MaterialIcon
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
                             />
                         </TouchableOpacity>
-                        <Text style={styles.headersText} maxFontSizeMultiplier={1.2}>Attendance Report</Text>
+                        <Text
+                            style={styles.headersText}
+                            maxFontSizeMultiplier={1.2}>
+                            Attendance Report
+                        </Text>
                     </View>
 
                     <View style={styles.datePickerContainer}>
@@ -126,7 +159,11 @@ const AttendanceReport = () => {
 
                     {show && (
                         <DateTimePicker
-                            value={isSelectingFromDate ? selectedFromDate : selectedToDate}
+                            value={
+                                isSelectingFromDate
+                                    ? selectedFromDate
+                                    : selectedToDate
+                            }
                             onChange={selectDateFn}
                             mode="date"
                             display="default"
@@ -135,19 +172,31 @@ const AttendanceReport = () => {
 
                     <View style={styles.cardContainer}>
                         <SummaryCard
-                            icon="speedometer"
-                            title="Total KMs"
-                            value={attendanceData ? calculateTotalKms(attendanceData) : 'N/A'}
+                            icon="person-add"
+                            title="Day Count"
+                            value={
+                                attendanceData
+                                    ? countTotalAttendances(attendanceData)
+                                    : "N/A"
+                            }
                         />
                         <SummaryCard
-                            icon="list"
-                            title="Count"
-                            value={attendanceData ? countTotalAttendances(attendanceData) : 'N/A'}
+                            icon="speedometer"
+                            title="Total KMs"
+                            value={
+                                attendanceData
+                                    ? calculateTotalKms(attendanceData)
+                                    : "N/A"
+                            }
                         />
                         <SummaryCard
                             icon="alert-circle"
                             title="Unclosed"
-                            value={attendanceData ? countUnclosedAttendances(attendanceData) : 'N/A'}
+                            value={
+                                attendanceData
+                                    ? countUnclosedAttendances(attendanceData)
+                                    : "N/A"
+                            }
                         />
                     </View>
 
@@ -160,31 +209,54 @@ const AttendanceReport = () => {
                         </View>
                         <ScrollView style={styles.tableBody}>
                             {attendanceData && attendanceData.length > 0 ? (
-                                attendanceData.map((item) => (
+                                attendanceData.map(item => (
                                     <View style={styles.tableRow} key={item.Id}>
-                                        <Text style={styles.cell}>{new Date(item.Start_Date).toLocaleDateString()}</Text>
-                                        <Text style={styles.cell}>{item.Start_KM}</Text>
-                                        <Text style={styles.cell}>{item.End_KM !== null ? item.End_KM : 'N/A'}</Text>
-                                        <Text style={styles.cell}>{calculateDistance(item.Start_KM, item.End_KM)}</Text>
+                                        <Text style={styles.cell}>
+                                            {new Date(
+                                                item.Start_Date,
+                                            ).toLocaleDateString("en-GB", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "numeric",
+                                            })}
+                                        </Text>
+                                        <Text style={styles.cell}>
+                                            {item.Start_KM}
+                                        </Text>
+                                        <Text style={styles.cell}>
+                                            {item.End_KM !== null
+                                                ? item.End_KM
+                                                : "N/A"}
+                                        </Text>
+                                        <Text style={styles.cell}>
+                                            {calculateDistance(
+                                                item.Start_KM,
+                                                item.End_KM,
+                                            )}
+                                        </Text>
                                     </View>
                                 ))
                             ) : (
-                                <Text style={styles.noDataText}>No attendance data available.</Text>
+                                <Text style={styles.noDataText}>
+                                    No attendance data available.
+                                </Text>
                             )}
                         </ScrollView>
                     </View>
                 </View>
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
 const DatePickerButton = ({ title, date, onPress }) => (
     <View style={styles.datePickerWrapper}>
         <Text style={styles.dateTitle}>{title}</Text>
         <TouchableOpacity style={styles.datePicker} onPress={onPress}>
             <Text style={styles.dateText}>
-                {date ? new Intl.DateTimeFormat("en-GB").format(date) : "Select Date"}
+                {date
+                    ? new Intl.DateTimeFormat("en-GB").format(date)
+                    : "Select Date"}
             </Text>
             <Icon name="calendar" color={customColors.white} size={20} />
         </TouchableOpacity>
@@ -199,7 +271,7 @@ const SummaryCard = ({ icon, title, value }) => (
     </View>
 );
 
-export default AttendanceReport
+export default AttendanceReport;
 
 const styles = StyleSheet.create({
     container: {
@@ -278,7 +350,7 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(255, 255, 255, 0.1)",
         borderRadius: 8,
         overflow: "hidden",
-        margin: 10
+        margin: 10,
     },
     tableHeader: {
         flexDirection: "row",
@@ -294,13 +366,14 @@ const styles = StyleSheet.create({
     },
     tableBody: {
         flex: 1,
+        paddingBottom: 20,
     },
     tableRow: {
         flexDirection: "row",
         borderBottomWidth: 1,
         borderBottomColor: "rgba(255, 255, 255, 0.1)",
         padding: 10,
-        backgroundColor: customColors.white
+        backgroundColor: customColors.white,
     },
     cell: {
         flex: 1,
@@ -314,4 +387,4 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginTop: 20,
     },
-})
+});

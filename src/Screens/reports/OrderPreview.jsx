@@ -1,12 +1,12 @@
 import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ScrollView,
-  ImageBackground,
-  Image,
-  Alert,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    ScrollView,
+    ImageBackground,
+    Image,
+    Alert,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
 import FeatherIcon from "react-native-vector-icons/Feather";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
@@ -24,311 +25,339 @@ import DatePickerButton from "../../Components/DatePickerButton";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const OrderPreview = () => {
-  const navigation = useNavigation();
+    const navigation = useNavigation();
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [salesPersonData, setSalesPersonData] = useState([]);
-  const [selectedSalesPerson, setSelectedSalesPerson] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [salesPersonData, setSalesPersonData] = useState([]);
+    const [selectedSalesPerson, setSelectedSalesPerson] = useState(null);
 
-  const [logData, setLogData] = useState([]);
-  const [companyId, setCompanyId] = useState([]);
-  const [retailerInfo, setRetailerInfo] = useState({});
+    const [logData, setLogData] = useState([]);
+    const [companyId, setCompanyId] = useState([]);
+    const [retailerInfo, setRetailerInfo] = useState({});
 
-  const [selectedFromDate, setSelectedFromDate] = useState(new Date());
-  const [selectedToDate, setSelectedToDate] = useState(new Date());
+    const [selectedFromDate, setSelectedFromDate] = useState(new Date());
+    const [selectedToDate, setSelectedToDate] = useState(new Date());
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [productSummary, setProductSummary] = useState([]);
-  const [totalOrderAmount, setTotalOrderAmount] = useState(0);
-  const [totalProductsSold, setTotalProductsSold] = useState(0);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [productSummary, setProductSummary] = useState([]);
+    const [totalOrderAmount, setTotalOrderAmount] = useState(0);
+    const [totalProductsSold, setTotalProductsSold] = useState(0);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
-        const userId = await AsyncStorage.getItem("UserId");
-        const Company_Id = await AsyncStorage.getItem("Company_Id");
+    useEffect(() => {
+        (async () => {
+            try {
+                const storeUserTypeId =
+                    await AsyncStorage.getItem("userTypeId");
+                const userId = await AsyncStorage.getItem("UserId");
+                const Company_Id = await AsyncStorage.getItem("Company_Id");
 
-        const fromDate = selectedFromDate.toISOString().split("T")[0];
-        const toDate = selectedToDate.toISOString().split("T")[0];
+                const fromDate = selectedFromDate.toISOString().split("T")[0];
+                const toDate = selectedToDate.toISOString().split("T")[0];
 
-        setCompanyId(Number(Company_Id));
+                setCompanyId(Number(Company_Id));
 
-        const isAdminUser = storeUserTypeId === "0" || storeUserTypeId === "1" || storeUserTypeId === "2";
-        setIsAdmin(isAdminUser)
+                const isAdminUser =
+                    storeUserTypeId === "0" ||
+                    storeUserTypeId === "1" ||
+                    storeUserTypeId === "2";
+                setIsAdmin(isAdminUser);
 
-        if (isAdminUser) {
-          fetchSalesPerson(Company_Id);
-          fetchSaleOrder(fromDate, toDate, Company_Id);
-        } else {
-          fetchSaleOrder(fromDate, toDate, Company_Id, userId);
+                if (isAdminUser) {
+                    fetchSalesPerson(Company_Id);
+                    fetchSaleOrder(fromDate, toDate, Company_Id);
+                } else {
+                    fetchSaleOrder(fromDate, toDate, Company_Id, userId);
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        })();
+    }, [selectedFromDate, selectedToDate]);
+
+    const handleFromDateChange = (event, date) => {
+        if (date) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
         }
-      } catch (err) {
-        console.log(err);
-      }
-    })();
-  }, [selectedFromDate, selectedToDate]);
+    };
 
-  const handleFromDateChange = (event, date) => {
-    if (date) {
-      const newFromDate = date > selectedToDate ? selectedToDate : date;
-      setSelectedFromDate(newFromDate);
-    }
-  };
+    const handleToDateChange = (event, date) => {
+        if (date) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
+        }
+    };
 
-  const handleToDateChange = (event, date) => {
-    if (date) {
-      const newToDate = date < selectedFromDate ? selectedFromDate : date;
-      setSelectedToDate(newToDate);
-    }
-  };
+    const fetchSalesPerson = async companyId => {
+        try {
+            const url = `${API.salesPerson}${companyId}`;
+            const response = await fetch(url, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
 
-  const fetchSalesPerson = async (companyId) => {
-    try {
-      const url = `${API.salesPerson}${companyId}`
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
+            const data = await response.json();
 
-      const data = await response.json()
+            if (data.success === true) {
+                const dropdownData = [
+                    { label: "All", value: "all" },
+                    ...data.data.map(item => ({
+                        label: item.Name,
+                        value: item.UserId,
+                    })),
+                ];
 
-      if (data.success === true) {
-        const dropdownData = [
-          { label: "All", value: "all" },
-          ...data.data.map(item => ({
-            label: item.Name,
-            value: item.UserId,
-          })),
+                setSalesPersonData(dropdownData);
+            } else {
+                console.log("Failed to fetch logs: ", data.message);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const fetchSaleOrder = async (from, to, company, userId = "") => {
+        try {
+            const salesPersonIdParam = userId || "";
+
+            let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
+
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            const data = await response.json();
+
+            if (data.success === true) {
+                setLogData(data.data);
+                calculateProductSummaryAndTotals(data.data);
+            } else {
+                console.log("Failed to fetch logs: ", data.message);
+            }
+        } catch (error) {
+            console.log("Error fetching logs: ", error);
+        }
+    };
+
+    const calculateProductSummaryAndTotals = orders => {
+        const summary = {};
+        let totalAmount = 0;
+        let productCount = 0;
+
+        orders.forEach(order => {
+            totalAmount += order.Total_Invoice_value;
+
+            order.Products_List.forEach(product => {
+                productCount += product.Total_Qty;
+
+                if (!summary[product.Product_Name]) {
+                    summary[product.Product_Name] = {
+                        productName: product.Product_Name,
+                        totalQty: 0,
+                        totalAmount: 0,
+                        timesSold: 0,
+                    };
+                }
+
+                summary[product.Product_Name].totalQty += product.Total_Qty;
+                summary[product.Product_Name].totalAmount += product.Amount;
+                summary[product.Product_Name].timesSold += 1;
+            });
+        });
+
+        setProductSummary(Object.values(summary));
+        setTotalOrderAmount(totalAmount);
+        setTotalProductsSold(productCount);
+    };
+
+    function numberToWords(num) {
+        const under20 = [
+            "Zero",
+            "One",
+            "Two",
+            "Three",
+            "Four",
+            "Five",
+            "Six",
+            "Seven",
+            "Eight",
+            "Nine",
+            "Ten",
+            "Eleven",
+            "Twelve",
+            "Thirteen",
+            "Fourteen",
+            "Fifteen",
+            "Sixteen",
+            "Seventeen",
+            "Eighteen",
+            "Nineteen",
         ];
+        const tens = [
+            "",
+            "",
+            "Twenty",
+            "Thirty",
+            "Forty",
+            "Fifty",
+            "Sixty",
+            "Seventy",
+            "Eighty",
+            "Ninety",
+        ];
+        const thousand = ["Thousand", "Million", "Billion"];
 
-        setSalesPersonData(dropdownData)
-      } else {
-        console.log("Failed to fetch logs: ", data.message);
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
+        if (num < 20) return under20[num];
+        if (num < 100)
+            return (
+                tens[Math.floor(num / 10)] +
+                (num % 10 === 0 ? "" : " " + under20[num % 10])
+            );
+        if (num < 1000)
+            return (
+                under20[Math.floor(num / 100)] +
+                " hundred" +
+                (num % 100 === 0 ? "" : " " + numberToWords(num % 100))
+            );
 
-  const fetchSaleOrder = async (from, to, company, userId = "") => {
-    try {
-      const salesPersonIdParam = userId || "";
-
-      let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
-
-      const response = await fetch(url,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-      const data = await response.json();
-
-      if (data.success === true) {
-        setLogData(data.data);
-        calculateProductSummaryAndTotals(data.data);
-      } else {
-        console.log("Failed to fetch logs: ", data.message);
-      }
-    } catch (error) {
-      console.log("Error fetching logs: ", error);
-    }
-  };
-
-  const calculateProductSummaryAndTotals = (orders) => {
-    const summary = {};
-    let totalAmount = 0;
-    let productCount = 0;
-
-    orders.forEach((order) => {
-      totalAmount += order.Total_Invoice_value;
-
-      order.Products_List.forEach((product) => {
-        productCount += product.Total_Qty;
-
-        if (!summary[product.Product_Name]) {
-          summary[product.Product_Name] = {
-            productName: product.Product_Name,
-            totalQty: 0,
-            totalAmount: 0,
-            timesSold: 0,
-          };
+        for (let i = 0; i < thousand.length; i++) {
+            let decimal = Math.pow(1000, i + 1);
+            if (num < decimal) {
+                return (
+                    numberToWords(Math.floor(num / Math.pow(1000, i))) +
+                    " " +
+                    thousand[i - 1] +
+                    (num % Math.pow(1000, i) === 0
+                        ? ""
+                        : " " + numberToWords(num % Math.pow(1000, i)))
+                );
+            }
         }
-
-        summary[product.Product_Name].totalQty += product.Total_Qty;
-        summary[product.Product_Name].totalAmount += product.Amount;
-        summary[product.Product_Name].timesSold += 1;
-      });
-    });
-
-    setProductSummary(Object.values(summary));
-    setTotalOrderAmount(totalAmount);
-    setTotalProductsSold(productCount);
-  };
-
-  function numberToWords(num) {
-    const under20 = [
-      "Zero",
-      "One",
-      "Two",
-      "Three",
-      "Four",
-      "Five",
-      "Six",
-      "Seven",
-      "Eight",
-      "Nine",
-      "Ten",
-      "Eleven",
-      "Twelve",
-      "Thirteen",
-      "Fourteen",
-      "Fifteen",
-      "Sixteen",
-      "Seventeen",
-      "Eighteen",
-      "Nineteen",
-    ];
-    const tens = [
-      "",
-      "",
-      "Twenty",
-      "Thirty",
-      "Forty",
-      "Fifty",
-      "Sixty",
-      "Seventy",
-      "Eighty",
-      "Ninety",
-    ];
-    const thousand = ["Thousand", "Million", "Billion"];
-
-    if (num < 20) return under20[num];
-    if (num < 100)
-      return (
-        tens[Math.floor(num / 10)] +
-        (num % 10 === 0 ? "" : " " + under20[num % 10])
-      );
-    if (num < 1000)
-      return (
-        under20[Math.floor(num / 100)] +
-        " hundred" +
-        (num % 100 === 0 ? "" : " " + numberToWords(num % 100))
-      );
-
-    for (let i = 0; i < thousand.length; i++) {
-      let decimal = Math.pow(1000, i + 1);
-      if (num < decimal) {
-        return (
-          numberToWords(Math.floor(num / Math.pow(1000, i))) +
-          " " +
-          thousand[i - 1] +
-          (num % Math.pow(1000, i) === 0
-            ? ""
-            : " " + numberToWords(num % Math.pow(1000, i)))
-        );
-      }
+        return num;
     }
-    return num;
-  }
 
-  const renderHeader = (item) => {
-    return (
-      <View style={styles.accordionHeader}>
-        <Text style={styles.accordionHeaderText}>{item.Retailer_Name}</Text>
-      </View>
-    );
-  };
-
-  const renderContent = (item) => {
-    const currentDate = new Date().toISOString().split("T")[0];
-    const orderDate = new Date(item.So_Date).toISOString().split("T")[0];
-
-    return (
-      <View style={styles.content}>
-        <View style={styles.invoiceContainer}>
-          <View style={styles.invoiceHeader}>
-            <Text style={styles.invoiceTitle}>Order Summary</Text>
-            <Text style={styles.invoiceDate}>
-              {" "}
-              {new Date(item.So_Date).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.invoiceBody}>
-          <View style={styles.invoiceRow}>
-            <Text style={styles.invoiceValue}>Total amount: ₹{item.Total_Invoice_value}</Text>
-          </View>
-
-          <View style={styles.invoiceProducts}>
-            <View style={styles.productRowHeader}>
-              <Text style={styles.invoiceCell}>Name</Text>
-              <Text style={styles.invoiceCell}>Qty</Text>
-              <Text style={styles.invoiceCell}>Amount</Text>
-            </View>
-            {item.Products_List.map((product, index) => (
-              <View key={index} style={styles.productRow}>
-                <Text style={[styles.invoiceCell, { flex: 1, textAlign: "left", }]}
-                  numberOfLines={5}
-                  ellipsizeMode="tail">
-                  {product.Product_Name}
+    const renderHeader = item => {
+        return (
+            <View style={styles.accordionHeader}>
+                <Text style={styles.accordionHeaderText}>
+                    {item.Retailer_Name} -{" "}
+                    <Text style={{ color: "#32cd32", fontWeight: "bold" }}>
+                        ₹{item.Total_Invoice_value}
+                    </Text>
                 </Text>
-                <Text style={styles.invoiceCell}>{product.Bill_Qty}</Text>
-                <Text style={styles.invoiceCell}>₹ {product.Amount}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.buttonContainer}>
-            {/* {currentDate === orderDate && (
+            </View>
+        );
+    };
+
+    const renderContent = item => {
+        const currentDate = new Date().toISOString().split("T")[0];
+        const orderDate = new Date(item.So_Date).toISOString().split("T")[0];
+
+        return (
+            <View style={styles.content}>
+                <View style={styles.invoiceContainer}>
+                    <View style={styles.invoiceHeader}>
+                        <Text style={styles.invoiceTitle}>Order Summary</Text>
+                        <Text style={styles.invoiceDate}>
+                            {" "}
+                            {new Date(item.So_Date).toLocaleDateString()}
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={styles.invoiceBody}>
+                    <View style={styles.invoiceRow}>
+                        {/* <Text style={styles.invoiceValue}>
+                            Total amount: ₹{item.Total_Invoice_value}
+                        </Text> */}
+                    </View>
+
+                    <View style={styles.invoiceProducts}>
+                        <View style={styles.productRowHeader}>
+                            <Text style={styles.invoiceCell}>Name</Text>
+                            <Text style={styles.invoiceCell}>Qty</Text>
+                            <Text style={styles.invoiceCell}>Amount</Text>
+                        </View>
+                        {item.Products_List.map((product, index) => (
+                            <View key={index} style={styles.productRow}>
+                                <Text
+                                    style={[
+                                        styles.invoiceCell,
+                                        { flex: 1, textAlign: "left" },
+                                    ]}
+                                    numberOfLines={5}
+                                    ellipsizeMode="tail">
+                                    {product.Product_Name}
+                                </Text>
+                                <Text style={styles.invoiceCell}>
+                                    {product.Bill_Qty}
+                                </Text>
+                                <Text style={styles.invoiceCell}>
+                                    ₹ {product.Amount}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                    <View style={styles.buttonContainer}>
+                        {/* {currentDate === orderDate && (
               <TouchableOpacity style={styles.button} onPress={() => editOption(item)}>
                 <Text style={styles.buttonText}>Edit</Text>
               </TouchableOpacity>
             )} */}
-            <TouchableOpacity style={[styles.button, { backgroundColor: customColors.primary }]} onPress={() => downloadItemPDF(item)}>
-              <Text style={[styles.buttonText, { color: customColors.white }]}>Share PDF</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
-  };
+                        <TouchableOpacity
+                            style={[
+                                styles.button,
+                                { backgroundColor: customColors.primary },
+                            ]}
+                            onPress={() => downloadItemPDF(item)}>
+                            <Text
+                                style={[
+                                    styles.buttonText,
+                                    { color: customColors.white },
+                                ]}>
+                                Share PDF
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        );
+    };
 
-  useEffect(() => {
-    if (logData && logData.length > 0 && logData[0].Retailer_Id) {
-      fetchRetailerInfo(logData[0].Retailer_Id);
-    }
-  }, [logData]);
+    useEffect(() => {
+        if (logData && logData.length > 0 && logData[0].Retailer_Id) {
+            fetchRetailerInfo(logData[0].Retailer_Id);
+        }
+    }, [logData]);
 
-  const fetchRetailerInfo = async (retailerId) => {
-    try {
-      const response = await fetch(`${API.retailerInfo}${retailerId}`);
-      const data = await response.json();
-      if (data.success) {
-        setRetailerInfo(data.data[0]);
-      }
-    } catch (error) {
-      console.error("Error fetching retailer data: ", error);
-    }
-  };
+    const fetchRetailerInfo = async retailerId => {
+        try {
+            const response = await fetch(`${API.retailerInfo}${retailerId}`);
+            const data = await response.json();
+            if (data.success) {
+                setRetailerInfo(data.data[0]);
+            }
+        } catch (error) {
+            console.error("Error fetching retailer data: ", error);
+        }
+    };
 
-  const generateItemPDF = async (item) => {
-    if (!retailerInfo || retailerInfo.Retailer_Id !== item.Retailer_Id) {
-      await fetchRetailerInfo(item.Retailer_Id);
-    }
+    const generateItemPDF = async item => {
+        if (!retailerInfo || retailerInfo.Retailer_Id !== item.Retailer_Id) {
+            await fetchRetailerInfo(item.Retailer_Id);
+        }
 
-    if (!retailerInfo) {
-      console.error("Failed to fetch retailer information");
-      return null;
-    }
+        if (!retailerInfo) {
+            console.error("Failed to fetch retailer information");
+            return null;
+        }
 
-    console.log(retailerInfo.Retailer_Name);
-    const totalAmountWords = numberToWords(item.Total_Invoice_value);
+        console.log(retailerInfo.Retailer_Name);
+        const totalAmountWords = numberToWords(item.Total_Invoice_value);
 
-    const htmlContent = `
+        const htmlContent = `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -465,7 +494,7 @@ const OrderPreview = () => {
                                                 </thead>
                                                 <tbody class="table-group-divider">
                                                     ${item.Products_List.map(
-      (product, index) => `
+                                                        (product, index) => `
                                                         <tr>
                                                             <td>${index + 1}</td>
                                                             <td>${product.Product_Name}</td>
@@ -474,7 +503,7 @@ const OrderPreview = () => {
                                                             <td>₹ ${product.Amount}</td>
                                                         </tr>
                                                     `,
-    ).join('')}
+                                                    ).join("")}
                                                     <tr>
                                                         <th scope="row" colspan="4" class="text-uppercase text-end">Total</th>
                                                         <td class="text-end">₹ ${item.Total_Invoice_value}</td>
@@ -505,392 +534,423 @@ const OrderPreview = () => {
             </html>
         `;
 
-    const options = {
-      html: htmlContent,
-      fileName: 'order',
-      directory: 'Documents',
+        const options = {
+            html: htmlContent,
+            fileName: "order",
+            directory: "Documents",
+        };
+
+        const pdf = await RNHTMLtoPDF.convert(options);
+        return pdf.filePath;
     };
 
-    const pdf = await RNHTMLtoPDF.convert(options);
-    return pdf.filePath;
-  };
+    const downloadItemPDF = async item => {
+        try {
+            const pdfPath = await generateItemPDF(item);
+            if (pdfPath) {
+                await Share.open({
+                    url: `file://${pdfPath}`,
+                    title: "sale_order",
+                    message: "Here is your order preview in PDF format",
+                });
+            } else {
+                Alert.alert(
+                    "Error",
+                    "Failed to generate PDF. Please try again.",
+                );
+            }
+        } catch (error) {
+            console.log("Error generating or sharing PDF: ", error);
+            // Alert.alert("Error", "An error occurred while generating or sharing the PDF.");
+        }
+    };
 
-  const downloadItemPDF = async (item) => {
-    try {
-      const pdfPath = await generateItemPDF(item);
-      if (pdfPath) {
-        await Share.open({
-          url: `file://${pdfPath}`,
-          title: "sale_order",
-          message: "Here is your order preview in PDF format",
+    const editOption = item => {
+        console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name);
+        navigation.navigate("Sales", {
+            item: {
+                ...item,
+                Retailer_Id: item.Retailer_Id,
+                Retailer_Name: item.Retailer_Name,
+                So_Id: item.So_Id,
+            },
+            isEdit: true,
         });
-      } else {
-        Alert.alert("Error", "Failed to generate PDF. Please try again.");
-      }
-    } catch (error) {
-      console.log("Error generating or sharing PDF: ", error);
-      // Alert.alert("Error", "An error occurred while generating or sharing the PDF.");
-    }
-  };
+    };
 
-  const editOption = (item) => {
-    console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name);
-    navigation.navigate('Sales', {
-      item: {
-        ...item,
-        Retailer_Id: item.Retailer_Id,
-        Retailer_Name: item.Retailer_Name,
-        So_Id: item.So_Id,
-      },
-      isEdit: true,
-    });
-  };
+    const handleSalesPersonChange = item => {
+        setSelectedSalesPerson(item);
 
-  const handleSalesPersonChange = (item) => {
-    setSelectedSalesPerson(item);
+        const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
+        const formattedToDate = selectedToDate.toISOString().split("T")[0];
 
-    const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
-    const formattedToDate = selectedToDate.toISOString().split("T")[0];
+        // Check if "All" is selected
+        const salesPersonIdParam = item.value === "all" ? "" : item.value;
 
-    // Check if "All" is selected
-    const salesPersonIdParam = item.value === "all" ? "" : item.value;
+        // Fetch Sale Order with the correct API parameters
+        fetchSaleOrder(
+            formattedFromDate,
+            formattedToDate,
+            companyId,
+            salesPersonIdParam,
+        );
+    };
 
-    // Fetch Sale Order with the correct API parameters
-    fetchSaleOrder(formattedFromDate, formattedToDate, companyId, salesPersonIdParam);
-  };
+    return (
+        <View style={styles.container}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
+                <View style={styles.overlay}>
+                    <View style={styles.headersContainer}>
+                        <TouchableOpacity onPress={() => navigation.goBack()}>
+                            <MaterialIcon
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
+                            />
+                        </TouchableOpacity>
+                        <Text
+                            style={styles.headersText}
+                            maxFontSizeMultiplier={1.2}>
+                            Sales Summary
+                        </Text>
 
-  return (
-    <View style={styles.container}>
-      <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
-        <View style={styles.overlay}>
-          <View style={styles.headersContainer}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Image source={assetImages.backArrow} />
-            </TouchableOpacity>
-            <Text style={styles.headersText} maxFontSizeMultiplier={1.2}>Sales Summary</Text>
+                        {isAdmin && (
+                            <View
+                                style={{
+                                    flex: 1,
+                                    alignItems: "flex-end",
+                                    justifyContent: "flex-end",
+                                }}>
+                                <EnhancedDropdown
+                                    data={salesPersonData}
+                                    labelField="label"
+                                    valueField="value"
+                                    // placeholder="Select Sales Person"
+                                    value={selectedSalesPerson}
+                                    onChange={item => {
+                                        setSelectedSalesPerson(item.value);
+                                        handleSalesPersonChange(item);
 
-            {isAdmin && (
-              <View style={{ flex: 1, alignItems: "flex-end", justifyContent: "flex-end" }}>
-                <EnhancedDropdown
-                  data={salesPersonData}
-                  labelField="label"
-                  valueField="value"
-                  // placeholder="Select Sales Person"
-                  value={selectedSalesPerson}
-                  onChange={(item) => {
-                    setSelectedSalesPerson(item.value);
-                    handleSalesPersonChange(item)
+                                        const formattedFromDate =
+                                            selectedFromDate
+                                                .toISOString()
+                                                .split("T")[0];
+                                        const formattedToDate = selectedToDate
+                                            .toISOString()
+                                            .split("T")[0];
 
-                    const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
-                    const formattedToDate = selectedToDate.toISOString().split("T")[0];
+                                        fetchSaleOrder(
+                                            formattedFromDate,
+                                            formattedToDate,
+                                            companyId,
+                                            item.value,
+                                        );
+                                    }}
+                                    // showIcon={true}              // Enable the icon
+                                    iconOnly={true}
+                                    iconName="filter" // Feather icon name
+                                    // iconSize={20}                // Icon size
+                                    // iconColor={customColors.white}
+                                />
+                            </View>
+                        )}
+                    </View>
 
-                    fetchSaleOrder(formattedFromDate, formattedToDate, companyId, item.value,)
-                  }}
-                  // showIcon={true}              // Enable the icon
-                  iconOnly={true}
-                  iconName="filter"            // Feather icon name
-                // iconSize={20}                // Icon size
-                // iconColor={customColors.white}
-                />
-              </View>
-            )}
-          </View>
+                    <View style={styles.datePickerContainer}>
+                        <DatePickerButton
+                            title="From Date"
+                            date={selectedFromDate}
+                            onDateChange={handleFromDateChange}
+                            containerStyle={{ width: "50%" }}
+                        />
+                        <DatePickerButton
+                            title="To Date"
+                            date={selectedToDate}
+                            onDateChange={handleToDateChange}
+                            // disabled={true}
+                            containerStyle={{ width: "50%" }}
+                            // style={{ backgroundColor: "rgba(0,0,0,0.1)" }}
+                        />
+                    </View>
 
-          <View style={styles.datePickerContainer}>
-            <DatePickerButton
-              title="From Date"
-              date={selectedFromDate}
-              onDateChange={handleFromDateChange}
-              containerStyle={{ width: "50%" }}
-            />
-            <DatePickerButton
-              title="To Date"
-              date={selectedToDate}
-              onDateChange={handleToDateChange}
-              // disabled={true}
-              containerStyle={{ width: "50%" }}
-            // style={{ backgroundColor: "rgba(0,0,0,0.1)" }}
-            />
-          </View>
+                    <View style={styles.countContainer}>
+                        <View style={styles.statsContainer}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>Sales</Text>
+                                <Text style={styles.statValue}>
+                                    {logData ? logData.length : "0"}
+                                </Text>
+                            </View>
 
-          <View style={styles.countContainer}>
-            <View style={styles.statsContainer}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>Amount</Text>
+                                <Text style={styles.statValue}>
+                                    {totalOrderAmount
+                                        ? `₹${totalOrderAmount.toFixed(2)}`
+                                        : "₹0.00"}
+                                </Text>
+                            </View>
+                        </View>
 
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Sales</Text>
-                <Text style={styles.statValue}>
-                  {logData ? logData.length : "0"}
-                </Text>
-              </View>
+                        {isAdmin && selectedSalesPerson && (
+                            <Text style={{ color: "red", fontSize: 18 }}>
+                                {selectedSalesPerson.label}
+                            </Text>
+                        )}
 
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Amount</Text>
-                <Text style={styles.statValue}>
-                  {totalOrderAmount
-                    ? `₹${totalOrderAmount.toFixed(2)}`
-                    : "₹0.00"
-                  }
-                </Text>
-              </View>
-            </View>
+                        <TouchableOpacity onPress={() => setModalVisible(true)}>
+                            <FeatherIcon
+                                name="arrow-up-right"
+                                color={customColors.black}
+                                size={25}
+                            />
+                        </TouchableOpacity>
+                    </View>
 
-            {isAdmin && selectedSalesPerson && (
-              <Text style={{ color: "red", fontSize: 18 }}>{selectedSalesPerson.label}</Text>
-            )}
+                    <ScrollView style={styles.accordationScrollContainer}>
+                        <Accordion
+                            data={logData}
+                            renderHeader={renderHeader}
+                            renderContent={renderContent}
+                        />
+                    </ScrollView>
 
-            <TouchableOpacity onPress={() => setModalVisible(true)} >
-              <FeatherIcon
-                name="arrow-up-right"
-                color={customColors.black}
-                size={25}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.accordationScrollContainer}>
-            <Accordion
-              data={logData}
-              renderHeader={renderHeader}
-              renderContent={renderContent}
-            />
-          </ScrollView>
-
-          <SalesReportModal
-            visible={modalVisible}
-            onClose={() => setModalVisible(false)}
-            totalOrderAmount={totalOrderAmount}
-            totalProductsSold={totalProductsSold}
-            logData={logData}
-            productSummary={productSummary}
-            selectedDate={selectedFromDate.toISOString()}
-          />
+                    <SalesReportModal
+                        visible={modalVisible}
+                        onClose={() => setModalVisible(false)}
+                        totalOrderAmount={totalOrderAmount}
+                        totalProductsSold={totalProductsSold}
+                        logData={logData}
+                        productSummary={productSummary}
+                        selectedDate={selectedFromDate.toISOString()}
+                    />
+                </View>
+            </ImageBackground>
         </View>
-      </ImageBackground>
-    </View>
-  );
+    );
 };
 
 export default OrderPreview;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: customColors.background,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
-  },
-  headersContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-  },
-  headersText: {
-    ...typography.h4(),
-    color: customColors.white,
-    marginHorizontal: 10,
-  },
-  datePickerContainer: {
-    flexDirection: "row",
-    marginHorizontal: 20,
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  countContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: customColors.secondary,
-    borderRadius: 5,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-  },
-  statsContainer: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 24,
-  },
-  statItem: {
-    flexDirection: "column",
-  },
-  statLabel: {
-    ...typography.h5(),
-    fontWeight: "700",
-    color: customColors.grey
-  },
-  statValue: {
-    ...typography.h6(),
-    textAlign: "center",
-    color: customColors.black,
-    fontWeight: "bold",
-  },
+    container: {
+        flex: 1,
+    },
+    backgroundImage: {
+        flex: 1,
+        width: "100%",
+        backgroundColor: customColors.background,
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.2)",
+    },
+    headersContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+    },
+    headersText: {
+        ...typography.h4(),
+        color: customColors.white,
+        marginHorizontal: 10,
+    },
+    datePickerContainer: {
+        flexDirection: "row",
+        marginHorizontal: 20,
+        justifyContent: "space-between",
+        gap: 10,
+    },
+    countContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: customColors.secondary,
+        borderRadius: 5,
+        padding: 16,
+        marginHorizontal: 16,
+        marginVertical: 8,
+    },
+    statsContainer: {
+        flex: 1,
+        flexDirection: "row",
+        gap: 24,
+    },
+    statItem: {
+        flexDirection: "column",
+    },
+    statLabel: {
+        ...typography.h5(),
+        fontWeight: "700",
+        color: customColors.grey,
+    },
+    statValue: {
+        ...typography.h6(),
+        textAlign: "center",
+        color: customColors.black,
+        fontWeight: "bold",
+    },
 
-  accordationScrollContainer: {
-    marginTop: 15,
-  },
-  accordionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: customColors.white,
-  },
-  accordionHeaderText: {
-    width: "90%",
-    flexWrap: "wrap",
-    textAlign: "left",
-    ...typography.h6(),
-    color: customColors.white,
-    fontWeight: "500",
-  },
+    accordationScrollContainer: {
+        marginTop: 15,
+    },
+    accordionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.white,
+    },
+    accordionHeaderText: {
+        width: "90%",
+        flexWrap: "wrap",
+        textAlign: "left",
+        ...typography.h6(),
+        color: customColors.white,
+        fontWeight: "500",
+    },
 
-  content: {
-    margin: 10,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: customColors.grey,
-    borderRadius: 10,
-  },
-  invoiceContainer: {
-    paddingVertical: 5,
-    paddingHorizontal: 10
-  },
-  invoiceHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  invoiceTitle: {
-    ...typography.h6(),
-    color: customColors.white,
-    fontWeight: "bold",
-  },
-  invoiceDate: {
-    ...typography.body1(),
-    color: customColors.white,
-  },
-  invoiceBody: {
-    padding: 10,
-  },
-  invoiceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  invoiceValue: {
-    ...typography.h6(),
-    color: customColors.white,
-    fontWeight: "700"
-  },
-  invoiceProducts: {
-    marginTop: 10,
-  },
-  productRowHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: customColors.secondary,
-    borderWidth: 1,
-    borderColor: customColors.secondary,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  invoiceCell: {
-    flex: 1,
-    textAlign: "center",
-    ...typography.body2(),
-    color: customColors.black,
-    fontWeight: "bold",
-  },
-  productRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: customColors.secondary,
-    padding: 10,
-    backgroundColor: customColors.white,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  button: {
-    backgroundColor: customColors.secondary,
-    alignItems: "center",
-    borderRadius: 5,
-    padding: 12,
-    marginTop: 10,
-  },
-  buttonText: {
-    ...typography.h6(),
-    fontWeight: "700",
-  },
+    content: {
+        margin: 10,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: customColors.grey,
+        borderRadius: 10,
+    },
+    invoiceContainer: {
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+    },
+    invoiceHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    invoiceTitle: {
+        ...typography.h6(),
+        color: customColors.white,
+        fontWeight: "bold",
+    },
+    invoiceDate: {
+        ...typography.body1(),
+        color: customColors.white,
+    },
+    invoiceBody: {
+        padding: 10,
+    },
+    invoiceRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    invoiceValue: {
+        ...typography.h6(),
+        color: customColors.white,
+        fontWeight: "700",
+    },
+    invoiceProducts: {
+        marginTop: 10,
+    },
+    productRowHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        backgroundColor: customColors.secondary,
+        borderWidth: 1,
+        borderColor: customColors.secondary,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+    },
+    invoiceCell: {
+        flex: 1,
+        textAlign: "center",
+        ...typography.body2(),
+        color: customColors.black,
+        fontWeight: "bold",
+    },
+    productRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 5,
+        borderWidth: 1,
+        borderColor: customColors.secondary,
+        padding: 10,
+        backgroundColor: customColors.white,
+    },
+    buttonContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
+    button: {
+        backgroundColor: customColors.secondary,
+        alignItems: "center",
+        borderRadius: 5,
+        padding: 12,
+        marginTop: 10,
+    },
+    buttonText: {
+        ...typography.h6(),
+        fontWeight: "700",
+    },
 
-
-
-  adminFilterContainer: {
-    paddingHorizontal: 15,
-    marginVertical: 10,
-  },
-  dropdownButton: {
-    backgroundColor: customColors.white,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: customColors.primary,
-  },
-  dropdownButtonText: {
-    color: customColors.black,
-    textAlign: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: customColors.white,
-    margin: 20,
-    borderRadius: 10,
-    padding: 15,
-    maxHeight: '70%',
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: customColors.primary,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  dropdownItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: customColors.lightGray,
-  },
-  dropdownItemText: {
-    color: customColors.black,
-  },
-  closeButton: {
-    marginTop: 10,
-    padding: 15,
-    backgroundColor: customColors.primary,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    color: customColors.white,
-    fontWeight: 'bold',
-  },
-  noResultsText: {
-    textAlign: 'center',
-    color: customColors.accent,
-    padding: 15,
-  },
+    adminFilterContainer: {
+        paddingHorizontal: 15,
+        marginVertical: 10,
+    },
+    dropdownButton: {
+        backgroundColor: customColors.white,
+        padding: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: customColors.primary,
+    },
+    dropdownButtonText: {
+        color: customColors.black,
+        textAlign: "center",
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    modalContent: {
+        backgroundColor: customColors.white,
+        margin: 20,
+        borderRadius: 10,
+        padding: 15,
+        maxHeight: "70%",
+    },
+    searchInput: {
+        borderWidth: 1,
+        borderColor: customColors.primary,
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 10,
+    },
+    dropdownItem: {
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.lightGray,
+    },
+    dropdownItemText: {
+        color: customColors.black,
+    },
+    closeButton: {
+        marginTop: 10,
+        padding: 15,
+        backgroundColor: customColors.primary,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    closeButtonText: {
+        color: customColors.white,
+        fontWeight: "bold",
+    },
+    noResultsText: {
+        textAlign: "center",
+        color: customColors.accent,
+        padding: 15,
+    },
 });

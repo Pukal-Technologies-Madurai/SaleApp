@@ -1,4 +1,16 @@
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, ImageBackground, ActivityIndicator } from "react-native";
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    StatusBar,
+    Image,
+    ScrollView,
+    ImageBackground,
+    ActivityIndicator,
+    AppState,
+    RefreshControl,
+} from "react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
@@ -17,6 +29,7 @@ import SalesModal from "../Components/SalesModal";
 
 const HomeScreen = () => {
     const navigation = useNavigation();
+    const [isPollingActive, setIsPollingActive] = useState(true);
     const [name, setName] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -26,50 +39,161 @@ const HomeScreen = () => {
     const [saleData, setSaleData] = useState([]);
     const [visitData, setVisitData] = useState([]);
     const [attendanceData, setAttendanceData] = useState([]);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+    const [deliveryData, setDeliveryData] = useState([]);
+    const [selectedDate, setSelectedDate] = useState(
+        new Date().toISOString().split("T")[0],
+    );
 
     const [userCount, setUserCount] = useState({});
     const [saleCount, setSaleCount] = useState({});
     const [attendanceCount, setAttendanceCount] = useState({});
+    const [kilometersCount, setKilometersCount] = useState({});
 
-    const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
-    const [isVisitDataModalVisible, setIsVisitDataModalVisible] = useState(false);
+    const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
+        useState(false);
+    const [isVisitDataModalVisible, setIsVisitDataModalVisible] =
+        useState(false);
     const [isSalesModalVisible, setIsSalesModalVisible] = useState(false);
     const [isProductVisible, setProductVisible] = useState(false);
+    const [deliveryVisible, setDeliveryVisible] = useState(false);
 
     const [productSummary, setProductSummary] = useState([]);
     const [totalOrderAmount, setTotalOrderAmount] = useState(0);
     const [totalProductsSold, setTotalProductsSold] = useState(0);
 
+    const POLLING_INTERVAL = 90000;
+    const [activeModal, setActiveModal] = useState(null);
+
+    const isAnyModalOpen = activeModal !== null;
+
+    const fetchAllData = async () => {
+        if (!isAdmin || !companyId || !uIdT) return;
+
+        const today = new Date().toISOString().split("T")[0];
+        try {
+            await Promise.all([
+                fetchVisitersLog(today),
+                fetchSaleOrder(today, today, companyId),
+                fetchAttendanceInfo(today, today, uIdT),
+                fetchDeliveryData(today),
+            ]);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    };
+
     useEffect(() => {
         (async () => {
             try {
-                const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
+                const storeUserTypeId =
+                    await AsyncStorage.getItem("userTypeId");
                 const userName = await AsyncStorage.getItem("Name");
                 const UserId = await AsyncStorage.getItem("UserId");
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
 
-                setCompanyId(Company_Id)
+                setCompanyId(Company_Id);
                 setName(userName);
-                setUIdT(storeUserTypeId)
+                setUIdT(storeUserTypeId);
 
-                const isAdminUser = storeUserTypeId === "0" || storeUserTypeId === "1" || storeUserTypeId === "2";
-                setIsAdmin(isAdminUser)
+                const isAdminUser =
+                    storeUserTypeId === "0" ||
+                    storeUserTypeId === "1" ||
+                    storeUserTypeId === "2";
+                setIsAdmin(isAdminUser);
 
                 if (isAdminUser) {
-                    const today = new Date().toISOString().split("T")[0];
+                    await fetchAllData();
+                    //   const today = new Date().toISOString().split('T')[0];
 
-                    await Promise.all([
-                        fetchVisitersLog(today),
-                        fetchSaleOrder(today, today, Company_Id),
-                        fetchAttendanceInfo(today, today, storeUserTypeId),
-                    ])
+                    //   await Promise.all([
+                    //     fetchVisitersLog(today),
+                    //     fetchSaleOrder(today, today, Company_Id),
+                    //     fetchAttendanceInfo(today, today, storeUserTypeId),
+                    //   ]);
                 }
             } catch (err) {
                 console.log(err);
             }
         })();
     }, []);
+
+    useEffect(() => {
+        let intervalId;
+
+        if (isAdmin && isPollingActive) {
+            // Initial fetch
+            fetchAllData();
+
+            // Set up interval for subsequent fetches
+            intervalId = setInterval(fetchAllData, POLLING_INTERVAL);
+        }
+
+        // Cleanup function
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [isAdmin, isPollingActive, companyId, uIdT]);
+
+    const openModal = modalName => {
+        setActiveModal(modalName);
+        setIsPollingActive(false); // Pause polling when modal opens
+    };
+
+    const closeModal = () => {
+        setActiveModal(null);
+        setIsPollingActive(true); // Resume polling when modal closes
+        // Fetch latest data immediately when modal closes
+        fetchAllData();
+    };
+
+    // Handle app state changes
+    useEffect(() => {
+        const subscription = AppState.addEventListener(
+            "change",
+            nextAppState => {
+                // Enable polling when app comes to foreground
+                if (nextAppState === "active") {
+                    setIsPollingActive(true);
+                    fetchAllData(); // Immediate fetch when returning to app
+                }
+                // Disable polling when app goes to background
+                else if (nextAppState === "background") {
+                    setIsPollingActive(false);
+                }
+            },
+        );
+
+        return () => {
+            subscription.remove();
+        };
+    }, []);
+
+    // Add function to manually refresh data
+    const handleManualRefresh = async () => {
+        const today = new Date().toISOString().split("T")[0];
+        if (selectedDate === today) {
+            setIsLoading(true);
+            await fetchAllData();
+            setIsLoading(false);
+        }
+    };
+
+    // Modified polling useEffect
+    useEffect(() => {
+        let intervalId;
+
+        if (isAdmin && isPollingActive && !isAnyModalOpen) {
+            intervalId = setInterval(fetchAllData, POLLING_INTERVAL);
+        }
+
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [isAdmin, isPollingActive, isAnyModalOpen]);
 
     const fetchSaleOrder = async (from, to, company, userId = "") => {
         setIsLoading(true);
@@ -83,14 +207,12 @@ const HomeScreen = () => {
         try {
             let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
             // console.log(url)
-            const response = await fetch(url,
-                {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
                 },
-            );
+            });
             const data = await response.json();
 
             if (data.success === true) {
@@ -108,7 +230,7 @@ const HomeScreen = () => {
     const fetchVisitersLog = async (fromDate, id = "") => {
         setIsLoading(true);
         // Clear the visit data before fetching new data
-        setVisitData([]); 
+        setVisitData([]);
         setUserCount({}); // Also clear the user count
 
         try {
@@ -117,7 +239,7 @@ const HomeScreen = () => {
 
             const response = await fetch(url, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" }
+                headers: { "Content-Type": "application/json" },
             });
 
             const data = await response.json();
@@ -130,12 +252,39 @@ const HomeScreen = () => {
         } catch (error) {
             console.log("Error fetching logs:", error);
         }
-    }
+    };
+
+    const fetchDeliveryData = async today => {
+        setIsLoading(true);
+        try {
+            const url = `${API.todayDelivery}Fromdate=${today}&Todate=${today}`;
+            // console.log(url);
+
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const data = await response.json();
+            if (data?.success) {
+                setDeliveryData(data.data || []);
+            } else {
+                // Reset delivery data if fetch fails
+                setDeliveryData([]);
+            }
+            setIsLoading(false);
+        } catch (err) {
+            console.log(err);
+        }
+    };
 
     const fetchAttendanceInfo = async (from, to, userTypeID) => {
         setIsLoading(true);
         try {
             const url = `${API.attendanceHistory}From=${from}&To=${to}&UserTypeID=${userTypeID}`;
+            // console.log(url);
 
             const response = await fetch(url, {
                 method: "GET",
@@ -155,17 +304,17 @@ const HomeScreen = () => {
         } catch (err) {
             console.log(err);
         }
-    }
+    };
 
-    const calculateProductSummaryAndTotals = (orders) => {
+    const calculateProductSummaryAndTotals = orders => {
         const summary = {};
         let totalAmount = 0;
         let productCount = 0;
 
-        orders.forEach((order) => {
+        orders.forEach(order => {
             totalAmount += order.Total_Invoice_value;
 
-            order.Products_List.forEach((product) => {
+            order.Products_List.forEach(product => {
                 productCount += product.Total_Qty;
 
                 if (!summary[product.Product_Name]) {
@@ -197,6 +346,7 @@ const HomeScreen = () => {
         }
         if (attendanceData && attendanceData.length > 0) {
             getAttendanceCount();
+            calculateAttendanceStats();
         } else {
             // Reset attendance count if no data
             setAttendanceCount({});
@@ -205,34 +355,33 @@ const HomeScreen = () => {
 
     const getVisitUserBasedCount = () => {
         const count = visitData.reduce((entry, item) => {
-
             if (entry[item.EntryByGet]) {
-                entry[item.EntryByGet]++
+                entry[item.EntryByGet]++;
             } else {
-                entry[item.EntryByGet] = 1
+                entry[item.EntryByGet] = 1;
             }
             return entry;
-        }, {})
+        }, {});
         setUserCount(count);
-    }
+    };
 
     const getSaleUserCount = () => {
         const result = saleData.reduce((entry, item) => {
-
             if (entry[item.Sales_Person_Name]) {
-                entry[item.Sales_Person_Name].count++
-                entry[item.Sales_Person_Name].totalValue += item.Total_Invoice_value;
+                entry[item.Sales_Person_Name].count++;
+                entry[item.Sales_Person_Name].totalValue +=
+                    item.Total_Invoice_value;
             } else {
                 entry[item.Sales_Person_Name] = {
                     count: 1,
                     totalValue: item.Total_Invoice_value,
-                }
+                };
             }
 
             return entry;
-        }, {})
-        setSaleCount(result)
-    }
+        }, {});
+        setSaleCount(result);
+    };
 
     const getAttendanceCount = () => {
         if (!attendanceData || attendanceData.length === 0) {
@@ -240,8 +389,9 @@ const HomeScreen = () => {
             return;
         }
 
-        const uniqueAttendance = attendanceData.filter((item, index, self) =>
-            index === self.findIndex((t) => t.User_Name === item.User_Name)
+        const uniqueAttendance = attendanceData.filter(
+            (item, index, self) =>
+                index === self.findIndex(t => t.User_Name === item.User_Name),
         );
 
         const count = uniqueAttendance.reduce((entry, item) => {
@@ -253,59 +403,198 @@ const HomeScreen = () => {
         setAttendanceCount(count);
     };
 
-    const handleDateChange = (event, date) => {
+    const calculateAttendanceStats = () => {
+        if (!attendanceData || attendanceData.length === 0) {
+            setAttendanceCount({});
+            setKilometersCount({});
+            return;
+        }
+
+        // Calculate unique users and their attendance count
+        const uniqueAttendance = attendanceData.filter(
+            (item, index, self) =>
+                index === self.findIndex(t => t.User_Name === item.User_Name),
+        );
+
+        const attendCount = uniqueAttendance.reduce((entry, item) => {
+            const userName = item.User_Name || "Unknown";
+            entry[userName] = (entry[userName] || 0) + 1;
+            return entry;
+        }, {});
+
+        // Calculate kilometers for each user
+        const kmCount = attendanceData.reduce((entry, item) => {
+            const userName = item.User_Name || "Unknown";
+            const kmTraveled =
+                item.End_KM && item.Start_KM
+                    ? Math.max(0, item.End_KM - item.Start_KM)
+                    : 0;
+
+            if (!entry[userName]) {
+                entry[userName] = {
+                    totalKm: kmTraveled,
+                    details: [
+                        {
+                            startKm: item.Start_KM,
+                            endKm: item.End_KM,
+                            date: item.Start_Date,
+                        },
+                    ],
+                };
+            } else {
+                entry[userName].totalKm += kmTraveled;
+                entry[userName].details.push({
+                    startKm: item.Start_KM,
+                    endKm: item.End_KM,
+                    date: item.Start_Date,
+                });
+            }
+            return entry;
+        }, {});
+
+        setAttendanceCount(attendCount);
+        setKilometersCount(kmCount);
+    };
+
+    const handleDateChange = async (event, date) => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
             setSelectedDate(formattedDate);
 
             if (isAdmin) {
-                fetchVisitersLog(formattedDate);
-                fetchSaleOrder(formattedDate, formattedDate, companyId);
-                fetchAttendanceInfo(formattedDate, formattedDate, uIdT);
+                setIsPollingActive(false);
+                await Promise.all([
+                    fetchVisitersLog(formattedDate),
+                    fetchSaleOrder(formattedDate, formattedDate, companyId),
+                    fetchAttendanceInfo(formattedDate, formattedDate, uIdT),
+                    fetchDeliveryData(formattedDate),
+                ]);
             }
         }
     };
 
+    const returnToToday = async () => {
+        const today = new Date().toISOString().split("T")[0];
+        setSelectedDate(today);
+        setIsPollingActive(true); // Resume polling when returning to today
+        await fetchAllData();
+    };
+
     const buttons = [
-        { title: "Retailers", icon: assetImages.retailer, navigate: "Customers" },
-        { title: "Visit Log", icon: assetImages.visitLog, navigate: "RetailerLog" },
-        { title: "Sale List", icon: assetImages.salesOrder, navigate: "OrderPreview" },
-        { title: "Stock List", icon: assetImages.inventoryStore, navigate: "StockInfo" },
-        { title: "Delivery", icon: assetImages.attendance, navigate: "DeliveryCheck" },
+        {
+            title: "Retailers",
+            icon: assetImages.retailer,
+            navigate: "Customers",
+        },
+        {
+            title: "Visit Log",
+            icon: assetImages.visitLog,
+            navigate: "RetailerLog",
+        },
+        {
+            title: "Sale List",
+            icon: assetImages.salesOrder,
+            navigate: "OrderPreview",
+        },
+        {
+            title: "Stock List",
+            icon: assetImages.inventoryStore,
+            navigate: "StockInfo",
+        },
+        {
+            title: "Delivery",
+            icon: assetImages.attendance,
+            navigate: "DeliveryCheck",
+        },
     ];
 
-    const statsData = useMemo(() => [
-        {
-            icon: <MaterialCommunityIcons name="human-greeting-variant" size={40} color="#2ECC71" style={styles.materialIcon} />,
-            label: "Attendance",
-            value: Object.keys(attendanceCount).length,
-            onPress: () => setIsAttendanceModalVisible(true)
-        },
-        {
-            icon: <MaterialCommunityIcons name="map-marker-account-outline" size={40} color="#9B59B6" />,
-            label: "Check-ins",
-            value: visitData.length,
-            onPress: () => setIsVisitDataModalVisible(true)
-        },
-        {
-            icon: <Ionicons name="cube-outline" size={40} color="#F39C12" />,
-            label: "Products Sold",
-            value: totalProductsSold,
-            onPress: () => setProductVisible(true)
-        },
-        {
-            icon: <MaterialCommunityIcons name="chart-areaspline" size={40} color="#4A90E2" />,
-            label: "Total Sales",
-            value: saleData.length,
-            onPress: () => setIsSalesModalVisible(true)
-        },
-        {
-            icon: <MaterialIcons name="currency-rupee" size={40} color="#2ECC71" />,
-            label: "Total Order Amount",
-            value: `₹ ${totalOrderAmount.toFixed(2)}`,
-            onPress: () => navigation.navigate("OrderPreview")
-        },
-    ], [attendanceCount, visitData, saleData, totalProductsSold, totalOrderAmount]);
+    const statsData = useMemo(
+        () => [
+            {
+                icon: (
+                    <MaterialCommunityIcons
+                        name="human-greeting-variant"
+                        size={40}
+                        color="#2ECC71"
+                        style={styles.materialIcon}
+                    />
+                ),
+                label: "Attendance",
+                value: Object.keys(attendanceCount).length,
+                onPress: () => setIsAttendanceModalVisible(true),
+            },
+            {
+                icon: (
+                    <MaterialCommunityIcons
+                        name="map-marker-account-outline"
+                        size={40}
+                        color="#9B59B6"
+                    />
+                ),
+                label: "Check-ins",
+                value: visitData.length,
+                onPress: () => setIsVisitDataModalVisible(true),
+            },
+            {
+                icon: (
+                    <Ionicons name="cube-outline" size={40} color="#F39C12" />
+                ),
+                label: "Products Sold",
+                value: totalProductsSold,
+                onPress: () => setProductVisible(true),
+            },
+            {
+                icon: (
+                    <MaterialCommunityIcons
+                        name="chart-areaspline"
+                        size={40}
+                        color="#4A90E2"
+                    />
+                ),
+                label: "Total Sales",
+                value: saleData.length,
+                onPress: () => setIsSalesModalVisible(true),
+            },
+            {
+                icon: (
+                    <MaterialIcons
+                        name="currency-rupee"
+                        size={40}
+                        color="#2ECC71"
+                    />
+                ),
+                label: "Total Order Amount",
+                value: `₹ ${totalOrderAmount.toFixed(2)}`,
+                onPress: () => navigation.navigate("OrderPreview"),
+            },
+            {
+                icon: (
+                    <MaterialIcons
+                        name="delivery-dining"
+                        size={40}
+                        color="#E74C3C"
+                    />
+                ),
+                label: "Delivery",
+                value: `${
+                    deliveryData.filter(
+                        item =>
+                            item.DeliveryStatusName === "Delivered" ||
+                            item.DeliveryStatusName === "Pending",
+                    ).length
+                }/${deliveryData.length || 0}`,
+                onPress: () => setDeliveryVisible(true),
+            },
+        ],
+        [
+            attendanceCount,
+            visitData,
+            saleData,
+            totalProductsSold,
+            totalOrderAmount,
+            deliveryData,
+        ],
+    );
 
     if (isLoading) {
         return (
@@ -318,22 +607,54 @@ const HomeScreen = () => {
     return (
         <View style={styles.container}>
             <StatusBar backgroundColor={customColors.background} />
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.overlay}>
-
                     <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.openDrawer()}>
-                            <Icon name="bars" color={customColors.white} size={23} />
+                        <TouchableOpacity
+                            onPress={() => navigation.openDrawer()}>
+                            <Icon
+                                name="bars"
+                                color={customColors.white}
+                                size={23}
+                            />
                         </TouchableOpacity>
-                        <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Welcome,
-                            <Text style={{ color: customColors.secondary, fontWeight: "bold" }}> {name}!</Text>
+                        <Text
+                            style={styles.headerText}
+                            maxFontSizeMultiplier={1.2}>
+                            Welcome,
+                            <Text
+                                style={{
+                                    color: customColors.secondary,
+                                    fontWeight: "bold",
+                                }}>
+                                {" "}
+                                {name}!
+                            </Text>
                         </Text>
-                        <TouchableOpacity>
-                            <AntDesignIcons name="bells" color={customColors.white} size={23} />
+                        <TouchableOpacity
+                            onPress={() =>
+                                navigation.navigate("RetailerHistory")
+                            }>
+                            <AntDesignIcons
+                                name="bells"
+                                color={customColors.white}
+                                size={23}
+                            />
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView>
+                    <ScrollView
+                        refreshControl={
+                            selectedDate ===
+                            new Date().toISOString().split("T")[0] ? (
+                                <RefreshControl
+                                    refreshing={isLoading}
+                                    onRefresh={handleManualRefresh}
+                                />
+                            ) : null
+                        }>
                         {isAdmin ? (
                             <View style={styles.isAdminContainer}>
                                 <DatePickerButton
@@ -345,19 +666,36 @@ const HomeScreen = () => {
                                     title="Select Date"
                                     containerStyle={styles.datePickerContainer}
                                 />
+                                {selectedDate !==
+                                    new Date().toISOString().split("T")[0] && (
+                                    <TouchableOpacity
+                                        style={styles.todayButton}
+                                        onPress={returnToToday}>
+                                        <Text style={styles.todayButtonText}>
+                                            Return to Today
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
 
                                 <View style={styles.statsContainer}>
                                     <View style={styles.gridContainer}>
                                         {statsData.map((stat, index) => (
-                                            <TouchableOpacity key={index}
+                                            <TouchableOpacity
+                                                key={index}
                                                 style={styles.statItem}
-                                                onPress={stat.onPress}
-                                            >
-                                                <View style={styles.statIconContainer}>
+                                                onPress={stat.onPress}>
+                                                <View
+                                                    style={
+                                                        styles.statIconContainer
+                                                    }>
                                                     {stat.icon}
                                                 </View>
-                                                <Text style={styles.statLabel}>{stat.label}</Text>
-                                                <Text style={styles.statValue}>{stat.value}</Text>
+                                                <Text style={styles.statLabel}>
+                                                    {stat.label}
+                                                </Text>
+                                                <Text style={styles.statValue}>
+                                                    {stat.value}
+                                                </Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -369,21 +707,26 @@ const HomeScreen = () => {
 
                         {!isAdmin && (
                             <View style={styles.buttonContainer}>
-                                {
-                                    buttons.map((button, index) => (
-                                        <TouchableOpacity
-                                            key={index}
-                                            style={styles.button}
-                                            onPress={() => navigation.navigate(button.navigate)}
-                                        >
-                                            <View style={styles.iconContainer}>
-                                                <Image source={button.icon} style={styles.icon} />
-                                            </View>
-                                            < Text style={styles.buttonText} maxFontSizeMultiplier={1.2} >
-                                                {button.title}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                {buttons.map((button, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={styles.button}
+                                        onPress={() =>
+                                            navigation.navigate(button.navigate)
+                                        }>
+                                        <View style={styles.iconContainer}>
+                                            <Image
+                                                source={button.icon}
+                                                style={styles.icon}
+                                            />
+                                        </View>
+                                        <Text
+                                            style={styles.buttonText}
+                                            maxFontSizeMultiplier={1.2}>
+                                            {button.title}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                         )}
 
@@ -391,6 +734,7 @@ const HomeScreen = () => {
                             title="Attendance"
                             userCount={attendanceCount}
                             isVisible={isAttendanceModalVisible}
+                            kilometersCount={kilometersCount}
                             onClose={() => setIsAttendanceModalVisible(false)}
                         />
 
@@ -403,13 +747,32 @@ const HomeScreen = () => {
                         />
 
                         <CountModal
-                            userCount={productSummary.reduce((result, product) => {
-                                result[product.productName] = product.totalQty;
-                                return result;
-                            }, {})}
+                            userCount={productSummary.reduce(
+                                (result, product) => {
+                                    result[product.productName] =
+                                        product.totalQty;
+                                    return result;
+                                },
+                                {},
+                            )}
                             title="Product"
                             isVisible={isProductVisible}
                             onClose={() => setProductVisible(false)}
+                        />
+
+                        <CountModal
+                            title="Delivery Status"
+                            userCount={deliveryData.reduce((acc, item) => {
+                                const name = item.Delivery_Person_Name;
+                                if (!acc[name]) {
+                                    acc[name] = 0; // Initialize with just a number
+                                }
+                                acc[name]++; // Increment the count
+                                return acc;
+                            }, {})}
+                            isVisible={deliveryVisible}
+                            onClose={() => setDeliveryVisible(false)}
+                            deliveryData={deliveryData}
                         />
 
                         <SalesModal
@@ -418,15 +781,14 @@ const HomeScreen = () => {
                             isSalesModalVisible={isSalesModalVisible}
                             setIsSalesModalVisible={setIsSalesModalVisible}
                         />
-
                     </ScrollView>
                 </View>
             </ImageBackground>
-        </View >
-    )
-}
+        </View>
+    );
+};
 
-export default HomeScreen
+export default HomeScreen;
 
 const styles = StyleSheet.create({
     container: {
@@ -458,7 +820,7 @@ const styles = StyleSheet.create({
     loaderContainer: {
         flex: 1,
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
     },
     isAdminContainer: {
         backgroundColor: "#F7F9FC",
@@ -469,7 +831,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.background,
         borderRadius: 15,
         paddingHorizontal: 15,
-        paddingVertical: 10
+        paddingVertical: 10,
     },
     statsContainer: {
         padding: 14,
@@ -485,7 +847,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
-        alignItems: 'center',
+        alignItems: "center",
         shadowColor: customColors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -555,5 +917,17 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 2,
         elevation: 2,
+    },
+    todayButton: {
+        backgroundColor: customColors.primary,
+        marginLeft: "auto",
+        marginRight: "auto",
+        padding: 8,
+        borderRadius: 10,
+    },
+    todayButtonText: {
+        ...typography.h6,
+        color: "white",
+        fontWeight: "500",
     },
 });

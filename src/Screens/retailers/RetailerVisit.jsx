@@ -1,4 +1,15 @@
-import { Image, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View, Modal, ImageBackground } from "react-native";
+import {
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    ToastAndroid,
+    TouchableOpacity,
+    View,
+    Modal,
+    ImageBackground,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import Icon from "react-native-vector-icons/AntDesign";
 import { useNavigation } from "@react-navigation/native";
@@ -10,6 +21,7 @@ import LocationIndicator from "../../Components/LocationIndicator";
 import CameraComponent from "../../Components/CameraComponent";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import assetImages from "../../Config/Image";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 const RetailerVisit = () => {
     const navigation = useNavigation();
@@ -22,49 +34,54 @@ const RetailerVisit = () => {
         Route_Id: "",
         Location_Address: "",
         Narration: "",
-        Location_Image: ""
+        Location_Image: "",
     });
-    const [retailerData, setRetailerData] = useState([])
+    const [retailerData, setRetailerData] = useState([]);
     const [selectedValue, setSelectedValue] = useState("new");
     const [capturedPhotoPath, setCapturedPhotoPath] = useState(null);
     const [showCameraModal, setShowCameraModal] = useState(false);
-    const [location, setLocation] = useState({ latitude: null, longitude: null });
-    const [userId, setUserId] = useState()
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
+    const [userId, setUserId] = useState();
 
     useEffect(() => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
                 const companyId = await AsyncStorage.getItem("Company_Id");
-                setUserId(userId)
-                fetchCustomersData(companyId)
+                setUserId(userId);
+                fetchCustomersData(companyId);
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, [])
+    }, []);
 
-    const fetchCustomersData = async (companyId) => {
+    const fetchCustomersData = async companyId => {
         try {
             const response = await fetch(`${API.retailerName}${companyId}`);
             if (!response.ok) {
-                throw new Error(`API request failed with status: ${response.status}`);
+                throw new Error(
+                    `API request failed with status: ${response.status}`,
+                );
             }
             const jsonData = await response.json();
-            setRetailerData(jsonData.data)
+            setRetailerData(jsonData.data);
         } catch (error) {
             console.error("Error fetching data: ", error);
         }
     };
 
     const handleInputChange = (fieldName, value) => {
-        setFormValues((prevState) => ({
+        setFormValues(prevState => ({
             ...prevState,
-            [fieldName]: value
+            [fieldName]: value,
         }));
     };
 
-    const handlePhotoCapture = async (photoPath) => {
+    const handlePhotoCapture = async photoPath => {
         setCapturedPhotoPath(photoPath);
         handleInputChange("Location_Image", photoPath);
     };
@@ -76,15 +93,24 @@ const RetailerVisit = () => {
     const validateInputs = () => {
         if (selectedValue === "new") {
             if (formValues.Retailer_Name.trim() === "") {
-                ToastAndroid.show("Please enter the Shop Name", ToastAndroid.LONG);
+                ToastAndroid.show(
+                    "Please enter the Shop Name",
+                    ToastAndroid.LONG,
+                );
                 return false;
             }
             if (formValues.Contact_Person.trim() === "") {
-                ToastAndroid.show("Please enter the Shop Owner Name", ToastAndroid.LONG);
+                ToastAndroid.show(
+                    "Please enter the Shop Owner Name",
+                    ToastAndroid.LONG,
+                );
                 return false;
             }
             if (formValues.Mobile_No.trim().length !== 10) {
-                ToastAndroid.show("Please enter a valid 10-digit Mobile Number", ToastAndroid.LONG);
+                ToastAndroid.show(
+                    "Please enter a valid 10-digit Mobile Number",
+                    ToastAndroid.LONG,
+                );
                 return false;
             }
         }
@@ -112,13 +138,13 @@ const RetailerVisit = () => {
         formData.append("Narration", formValues.Narration);
         formData.append("EntryBy", userId);
 
-        console.log(formData)
+        console.log(formData);
 
         if (capturedPhotoPath) {
             const photo = {
                 uri: `file://${formValues.Location_Image}`,
                 type: "image/jpeg",
-                name: capturedPhotoPath.split("/").pop()
+                name: capturedPhotoPath.split("/").pop(),
             };
             formData.append("Location_Image", photo);
         }
@@ -155,18 +181,31 @@ const RetailerVisit = () => {
     };
 
     return (
-        <ScrollView style={styles.container} keyboardShouldPersistTaps="always" nestedScrollEnabled={true} >
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+        <ScrollView
+            style={styles.container}
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled={true}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image source={assetImages.backArrow} />
+                        <MaterialIcon
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Retailers Visit</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Retailers Visit
+                    </Text>
                 </View>
 
                 <View style={styles.contentContainer}>
                     <LocationIndicator
-                        onLocationUpdate={(locationData) => setLocation(locationData)}
+                        onLocationUpdate={locationData =>
+                            setLocation(locationData)
+                        }
                         autoFetch={true}
                         autoFetchOnMount={true}
                     />
@@ -181,12 +220,16 @@ const RetailerVisit = () => {
                         <CustomRadioButton
                             label="Existing Retailer"
                             selected={selectedValue === "exist"}
-                            onSelect={() => { setSelectedValue("exist") }}
+                            onSelect={() => {
+                                setSelectedValue("exist");
+                            }}
                         />
                     </View>
 
-                    {selectedValue === "exist" &&
-                        <ScrollView keyboardShouldPersistTaps="always" nestedScrollEnabled={true} >
+                    {selectedValue === "exist" && (
+                        <ScrollView
+                            keyboardShouldPersistTaps="always"
+                            nestedScrollEnabled={true}>
                             <EnhancedDropdown
                                 data={retailerData}
                                 labelField="Retailer_Name"
@@ -195,7 +238,10 @@ const RetailerVisit = () => {
                                 value={selectedRetail}
                                 onChange={item => {
                                     setSelectedRetail(item.Retailer_Id);
-                                    handleInputChange("Retailer_Id", item.Retailer_Id);
+                                    handleInputChange(
+                                        "Retailer_Id",
+                                        item.Retailer_Id,
+                                    );
                                 }}
                             />
 
@@ -206,59 +252,107 @@ const RetailerVisit = () => {
                                 numberOfLines={4}
                                 placeholder="Enter a narration"
                                 value={formValues.Narration}
-                                onChangeText={(text) => handleInputChange("Narration", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Narration", text)
+                                }
                             />
 
                             <View style={styles.buttonGroup}>
-                                <TouchableOpacity onPress={() => setShowCameraModal(true)}
-                                    style={styles.button}
-                                >
-                                    <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
-                                        {!capturedPhotoPath ? "Take Photo" : "Preview"}
+                                <TouchableOpacity
+                                    onPress={() => setShowCameraModal(true)}
+                                    style={styles.button}>
+                                    <Text
+                                        maxFontSizeMultiplier={1.2}
+                                        style={styles.buttonText}>
+                                        {!capturedPhotoPath
+                                            ? "Take Photo"
+                                            : "Preview"}
                                     </Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity onPress={handleSubmit}
-                                    style={styles.button}
-                                ><Text style={styles.buttonText}>Submit</Text></TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={handleSubmit}
+                                    style={styles.button}>
+                                    <Text style={styles.buttonText}>
+                                        Submit
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
 
                             <Modal
                                 visible={showCameraModal}
                                 animationType="slide"
                                 transparent={true}
-                                onRequestClose={() => setShowCameraModal(false)}
-                            >
+                                onRequestClose={() =>
+                                    setShowCameraModal(false)
+                                }>
                                 <View style={styles.modalContainer}>
-                                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={styles.closeButton}>
-                                        <Icon name='close' size={30} color={customColors.white} />
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            setShowCameraModal(false)
+                                        }
+                                        style={styles.closeButton}>
+                                        <Icon
+                                            name="close"
+                                            size={30}
+                                            color={customColors.white}
+                                        />
                                     </TouchableOpacity>
-                                    {
-                                        !capturedPhotoPath ? (
-                                            <CameraComponent onPhotoCapture={handlePhotoCapture} />
-                                        ) : (
-                                            capturedPhotoPath && typeof capturedPhotoPath === 'string' && (
-                                                <View style={styles.previewImageContainer}>
-                                                    <Image
-                                                        source={{ uri: 'file://' + capturedPhotoPath }}
-                                                        style={styles.previewImage}
-                                                    />
-                                                    <TouchableOpacity onPress={clearPhoto} style={styles.clearPhotoButton}>
-                                                        <Text style={styles.buttonText}>Retake Photo</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={styles.button}>
-                                                        <Text style={styles.buttonText}>Okay</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            )
+                                    {!capturedPhotoPath ? (
+                                        <CameraComponent
+                                            onPhotoCapture={handlePhotoCapture}
+                                        />
+                                    ) : (
+                                        capturedPhotoPath &&
+                                        typeof capturedPhotoPath ===
+                                            "string" && (
+                                            <View
+                                                style={
+                                                    styles.previewImageContainer
+                                                }>
+                                                <Image
+                                                    source={{
+                                                        uri:
+                                                            "file://" +
+                                                            capturedPhotoPath,
+                                                    }}
+                                                    style={styles.previewImage}
+                                                />
+                                                <TouchableOpacity
+                                                    onPress={clearPhoto}
+                                                    style={
+                                                        styles.clearPhotoButton
+                                                    }>
+                                                    <Text
+                                                        style={
+                                                            styles.buttonText
+                                                        }>
+                                                        Retake Photo
+                                                    </Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    onPress={() =>
+                                                        setShowCameraModal(
+                                                            false,
+                                                        )
+                                                    }
+                                                    style={styles.button}>
+                                                    <Text
+                                                        style={
+                                                            styles.buttonText
+                                                        }>
+                                                        Okay
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )
-                                    }
+                                    )}
                                 </View>
                             </Modal>
                         </ScrollView>
-                    }
+                    )}
 
-                    {selectedValue === "new" &&
+                    {selectedValue === "new" && (
                         <View>
                             <View style={styles.inputContainer}>
                                 <TextInput
@@ -269,7 +363,9 @@ const RetailerVisit = () => {
                                     autoCapitalize="words"
                                     placeholder="Retailer Name"
                                     placeholderTextColor={customColors.accent}
-                                    onChangeText={(text) => handleInputChange("Retailer_Name", text)}
+                                    onChangeText={text =>
+                                        handleInputChange("Retailer_Name", text)
+                                    }
                                 />
 
                                 <TextInput
@@ -280,7 +376,12 @@ const RetailerVisit = () => {
                                     autoCapitalize="words"
                                     placeholder="Contact Person"
                                     placeholderTextColor={customColors.accent}
-                                    onChangeText={(text) => handleInputChange("Contact_Person", text)}
+                                    onChangeText={text =>
+                                        handleInputChange(
+                                            "Contact_Person",
+                                            text,
+                                        )
+                                    }
                                 />
 
                                 <TextInput
@@ -291,7 +392,9 @@ const RetailerVisit = () => {
                                     autoCapitalize="none"
                                     placeholder="Mobile Number"
                                     placeholderTextColor={customColors.accent}
-                                    onChangeText={(text) => handleInputChange('Mobile_No', text)}
+                                    onChangeText={text =>
+                                        handleInputChange("Mobile_No", text)
+                                    }
                                 />
 
                                 <TextInput
@@ -301,7 +404,12 @@ const RetailerVisit = () => {
                                     keyboardType="default"
                                     placeholder="Address"
                                     placeholderTextColor={customColors.accent}
-                                    onChangeText={(text) => handleInputChange('Location_Address', text)}
+                                    onChangeText={text =>
+                                        handleInputChange(
+                                            "Location_Address",
+                                            text,
+                                        )
+                                    }
                                 />
 
                                 <TextInput
@@ -312,63 +420,111 @@ const RetailerVisit = () => {
                                     placeholder="Enter a narration"
                                     placeholderTextColor={customColors.accent}
                                     value={formValues.Narration}
-                                    onChangeText={(text) => handleInputChange('Narration', text)} // Ensure this is properly set
+                                    onChangeText={text =>
+                                        handleInputChange("Narration", text)
+                                    } // Ensure this is properly set
                                 />
                             </View>
 
-
                             <View style={styles.buttonGroup}>
-                                <TouchableOpacity onPress={() => setShowCameraModal(true)}
-                                    style={styles.button}
-                                ><Text style={styles.buttonText}>{!capturedPhotoPath ? "Take Photo" : "Preview"}</Text></TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setShowCameraModal(true)}
+                                    style={styles.button}>
+                                    <Text style={styles.buttonText}>
+                                        {!capturedPhotoPath
+                                            ? "Take Photo"
+                                            : "Preview"}
+                                    </Text>
+                                </TouchableOpacity>
 
-                                <TouchableOpacity onPress={handleSubmit}
-                                    style={styles.button}
-                                ><Text style={styles.buttonText}>Submit</Text></TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={handleSubmit}
+                                    style={styles.button}>
+                                    <Text style={styles.buttonText}>
+                                        Submit
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
 
                             <Modal
                                 visible={showCameraModal}
                                 animationType="slide"
                                 transparent={true}
-                                onRequestClose={() => setShowCameraModal(false)}
-                            >
+                                onRequestClose={() =>
+                                    setShowCameraModal(false)
+                                }>
                                 <View style={styles.modalContainer}>
-                                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={styles.closeButton}>
-                                        <Icon name='close' size={30} color={customColors.white} />
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            setShowCameraModal(false)
+                                        }
+                                        style={styles.closeButton}>
+                                        <Icon
+                                            name="close"
+                                            size={30}
+                                            color={customColors.white}
+                                        />
                                     </TouchableOpacity>
-                                    {
-                                        !capturedPhotoPath ? (
-                                            <CameraComponent onPhotoCapture={handlePhotoCapture} />
-                                        ) : (
-                                            capturedPhotoPath && typeof capturedPhotoPath === "string" && (
-                                                <View style={styles.previewImageContainer}>
-                                                    <Image
-                                                        source={{ uri: "file://" + capturedPhotoPath }}
-                                                        style={styles.previewImage}
-                                                    />
-                                                    <TouchableOpacity onPress={clearPhoto} style={styles.clearPhotoButton}>
-                                                        <Text style={styles.buttonText}>Retake Photo</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={styles.button}>
-                                                        <Text style={styles.buttonText}>Okay</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            )
+                                    {!capturedPhotoPath ? (
+                                        <CameraComponent
+                                            onPhotoCapture={handlePhotoCapture}
+                                        />
+                                    ) : (
+                                        capturedPhotoPath &&
+                                        typeof capturedPhotoPath ===
+                                            "string" && (
+                                            <View
+                                                style={
+                                                    styles.previewImageContainer
+                                                }>
+                                                <Image
+                                                    source={{
+                                                        uri:
+                                                            "file://" +
+                                                            capturedPhotoPath,
+                                                    }}
+                                                    style={styles.previewImage}
+                                                />
+                                                <TouchableOpacity
+                                                    onPress={clearPhoto}
+                                                    style={
+                                                        styles.clearPhotoButton
+                                                    }>
+                                                    <Text
+                                                        style={
+                                                            styles.buttonText
+                                                        }>
+                                                        Retake Photo
+                                                    </Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    onPress={() =>
+                                                        setShowCameraModal(
+                                                            false,
+                                                        )
+                                                    }
+                                                    style={styles.button}>
+                                                    <Text
+                                                        style={
+                                                            styles.buttonText
+                                                        }>
+                                                        Okay
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )
-                                    }
+                                    )}
                                 </View>
                             </Modal>
                         </View>
-                    }
+                    )}
                 </View>
             </ImageBackground>
-
         </ScrollView>
-    )
-}
+    );
+};
 
-export default RetailerVisit
+export default RetailerVisit;
 
 const styles = StyleSheet.create({
     container: {
@@ -425,7 +581,7 @@ const styles = StyleSheet.create({
     buttonGroup: {
         flexDirection: "row",
         justifyContent: "space-around",
-        marginBottom: 250
+        marginBottom: 250,
     },
     modalContainer: {
         flex: 1,
@@ -439,25 +595,25 @@ const styles = StyleSheet.create({
         right: 25,
     },
     previewImageContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         marginTop: 20,
         marginBottom: 20,
     },
     previewImage: {
         width: 350,
         height: 450,
-        resizeMode: 'cover',
+        resizeMode: "cover",
         borderRadius: 10,
     },
     button: {
         width: 150,
         height: 50,
-        justifyContent: 'center',
-        alignSelf: 'center',
+        justifyContent: "center",
+        alignSelf: "center",
         backgroundColor: customColors.secondary,
         borderRadius: 10,
-        marginTop: 30
+        marginTop: 30,
     },
     buttonText: {
         textAlign: "center",
@@ -473,7 +629,7 @@ const styles = StyleSheet.create({
         color: customColors.white,
         padding: 10,
         borderRadius: 10,
-        justifyContent: 'center',
-        alignSelf: 'center',
+        justifyContent: "center",
+        alignSelf: "center",
     },
-})
+});

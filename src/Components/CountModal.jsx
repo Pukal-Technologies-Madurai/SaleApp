@@ -1,5 +1,13 @@
 import React from "react";
-import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from "react-native";
+import {
+    View,
+    Text,
+    Modal,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+    Dimensions,
+} from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { customColors, typography } from "../Config/helper";
 
@@ -7,31 +15,33 @@ const { width } = Dimensions.get("window");
 
 const CountModal = ({
     userCount,
+    kilometersCount,
     isVisible,
     onClose,
     title,
     visitData = [],
+    deliveryData = [],
 }) => {
     const [expandedUser, setExpandedUser] = React.useState(null);
 
-    const formatTime = (dateString) => {
+    const formatTime = dateString => {
         const date = new Date(dateString);
         return date.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
         });
-      };
+    };
 
-    const renderVisitDetails = (name) => {
+    const renderVisitDetails = name => {
         const userVisits = visitData
             .filter(visit => visit.EntryByGet === name)
             .sort((a, b) => new Date(a.EntryAt) - new Date(b.EntryAt));
-        
+
         return userVisits.map((visit, index) => (
             <View key={index} style={styles.visitDetailItem}>
-                <Text 
-                    style={styles.visitDetailText} 
+                <Text
+                    style={styles.visitDetailText}
                     numberOfLines={3}
                     ellipsizeMode="tail">
                     {visit.Reatailer_Name || "Unknown Customer"}
@@ -43,77 +53,146 @@ const CountModal = ({
         ));
     };
 
+    const renderCount = (name, count) => {
+        if (title === "Delivery Status") {
+            const pending = deliveryData.filter(
+                d =>
+                    d.Delivery_Person_Name === name &&
+                    (d.DeliveryStatusName === "New" ||
+                        d.DeliveryStatusName === "Pending"),
+            ).length;
+
+            return (
+                <Text style={styles.userCountValue}>
+                    {count} ({pending} pending)
+                </Text>
+            );
+        }
+
+        return <Text style={styles.userCountValue}>{count}</Text>;
+    };
+
     React.useEffect(() => {
         setExpandedUser(null);
-    }, [visitData])
+    }, [visitData]);
 
     return (
-        <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose} >
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isVisible}
+            onRequestClose={onClose}>
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContainer}>
-                    {/* Modal Header */}
                     <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>{title} Statistics</Text>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.modalTitle}>
+                            {" "}
+                            {title} Statistics
+                        </Text>
+                        <TouchableOpacity
+                            onPress={onClose}
+                            style={styles.closeButton}>
                             <Icon name="close" size={24} color="#2C3E50" />
                         </TouchableOpacity>
                     </View>
 
-                    {/* User Count List */}
                     <ScrollView
                         style={styles.userCountContainer}
                         contentContainerStyle={styles.scrollViewContent}
                         nestedScrollEnabled={true}
-                        showsVerticalScrollIndicator={true}
-                    >
-                        {
-                            (!userCount || Object.keys(userCount).length===0) ? (
-                                <View style={styles.noDataContainer}>
-                                    <Text style={styles.noDataText}>No data available</Text>
-                                </View>
-                            ) : (Object.entries(userCount).map(([name, count]) => (
+                        showsVerticalScrollIndicator={true}>
+                        {!userCount || Object.keys(userCount).length === 0 ? (
+                            <View style={styles.noDataContainer}>
+                                <Text style={styles.noDataText}>
+                                    No data available
+                                </Text>
+                            </View>
+                        ) : (
+                            Object.entries(userCount).map(([name, count]) => (
                                 <View key={name}>
-                                    <TouchableOpacity style={styles.userCountItem} onPress={() => {
+                                    <TouchableOpacity
+                                        style={styles.userCountItem}
+                                        onPress={() => {
                                             if (title === "Check-In's") {
-                                                setExpandedUser(expandedUser === name ? null : name);
+                                                setExpandedUser(
+                                                    expandedUser === name
+                                                        ? null
+                                                        : name,
+                                                );
                                             }
                                         }}>
                                         <View style={styles.userNameContainer}>
-                                            <Text 
+                                            <Text
                                                 style={styles.userCountName}
                                                 numberOfLines={3}
-                                                ellipsizeMode="tail"
-                                            >
+                                                ellipsizeMode="tail">
                                                 {name}
                                             </Text>
                                             {title === "Check-In's" && (
-                                                <Icon 
-                                                    name={expandedUser === name ? "chevron-up" : "chevron-down"} 
-                                                    size={16} 
-                                                    color="#95a5a6" 
+                                                <Icon
+                                                    name={
+                                                        expandedUser === name
+                                                            ? "chevron-up"
+                                                            : "chevron-down"
+                                                    }
+                                                    size={16}
+                                                    color="#95a5a6"
                                                 />
                                             )}
                                         </View>
-                                        <Text style={styles.userCountValue}>{count}</Text>
+                                        {kilometersCount &&
+                                        kilometersCount[name] ? (
+                                            <>
+                                                {kilometersCount &&
+                                                    kilometersCount[name] && (
+                                                        <Text
+                                                            style={
+                                                                styles.kmText
+                                                            }>
+                                                            Route distance:{" "}
+                                                            <Text
+                                                                style={{
+                                                                    color: "#fc2105",
+                                                                }}>
+                                                                {
+                                                                    kilometersCount[
+                                                                        name
+                                                                    ].totalKm
+                                                                }{" "}
+                                                                KM
+                                                            </Text>
+                                                        </Text>
+                                                    )}
+                                            </>
+                                        ) : (
+                                            <Text style={styles.userCountValue}>
+                                                {renderCount(name, count)}
+                                            </Text>
+                                        )}
                                     </TouchableOpacity>
-    
-                                    {title === "Check-In's" && expandedUser === name && (
-                                        <View style={styles.visitDetailsContainer}>
-                                            {renderVisitDetails(name)}
-                                        </View>
-                                    )}
-    
+
+                                    {title === "Check-In's" &&
+                                        expandedUser === name && (
+                                            <View
+                                                style={
+                                                    styles.visitDetailsContainer
+                                                }>
+                                                {renderVisitDetails(name)}
+                                            </View>
+                                        )}
+
                                     {/* {title === "Sales" && (
                                         <Text style={styles.totalValue}>₹{details.totalValue.toFixed(2)}</Text>
                                     )} */}
                                 </View>
-                            )))
-                        }
-
+                            ))
+                        )}
                     </ScrollView>
 
                     {/* Close Button */}
-                    <TouchableOpacity style={styles.modalCloseButton} onPress={onClose} >
+                    <TouchableOpacity
+                        style={styles.modalCloseButton}
+                        onPress={onClose}>
                         <Text style={styles.modalCloseButtonText}>Dismiss</Text>
                     </TouchableOpacity>
                 </View>
@@ -177,7 +256,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        marginRight: 16
+        marginRight: 16,
     },
     userCountName: {
         flexWrap: "wrap",
@@ -191,12 +270,17 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         color: "#2ECC71",
     },
+    kmText: {
+        ...typography.body1(),
+        fontWeight: "600",
+        color: customColors.grey,
+    },
     visitDetailsContainer: {
         backgroundColor: "#f8f9fa",
         paddingHorizontal: 16,
         paddingVertical: 8,
         marginHorizontal: 12,
-        borderRadius: 8
+        borderRadius: 8,
     },
 
     visitDetailItem: {
@@ -205,18 +289,18 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee'
+        borderBottomColor: "#eee",
     },
     visitDetailText: {
         width: "60%",
         ...typography.body1(),
-        color: "#34495e"
+        color: "#34495e",
     },
     visitTimeText: {
         ...typography.body2(),
-        color: "#95a5a6"
+        color: "#95a5a6",
     },
-    
+
     modalCloseButton: {
         backgroundColor: "#3498DB",
         borderRadius: 10,
@@ -233,13 +317,13 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 20
+        paddingVertical: 20,
     },
     noDataText: {
         ...typography.h5(),
         color: "#95a5a6",
         textAlign: "center",
-    }
+    },
 });
 
 export default CountModal;

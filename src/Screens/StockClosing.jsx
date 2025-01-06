@@ -1,10 +1,22 @@
-import { Image, ImageBackground, Modal, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native";
+import {
+    Image,
+    ImageBackground,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    ToastAndroid,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Dropdown } from "react-native-element-dropdown";
 import Icon from "react-native-vector-icons/AntDesign";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import CustomButton from "../Components/CustomButton";
 import { customColors, typography } from "../Config/helper";
 import { API } from "../Config/Endpoint";
@@ -15,27 +27,29 @@ const StockClosing = ({ route }) => {
     const { item, isEdit } = route.params;
     const pagerRef = useRef(null);
     const [selectedTab, setSelectedTab] = useState(0);
-    const [productData, setProductData] = useState([])
-    const [productClosingData, setProductClosingData] = useState([])
+    const [productData, setProductData] = useState([]);
+    const [productClosingData, setProductClosingData] = useState([]);
 
     const initialStockValue = {
         Company_Id: item.Company_Id,
-        ST_Date: new Date().toISOString().split('T')[0],
+        ST_Date: new Date().toISOString().split("T")[0],
         Retailer_Id: item.Retailer_Id,
         Retailer_Name: item.Retailer_Name,
         Narration: "",
         Created_by: "",
         Product_Stock_List: [],
-        ST_Id: ""
-    }
+        ST_Id: "",
+    };
 
-    const [stockInputValue, setStockInputValue] = useState(initialStockValue)
+    const [stockInputValue, setStockInputValue] = useState(initialStockValue);
     const [closingStockValues, setClosingStockValues] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
 
-    const [productPacks, setProductPacks] = useState([])
-    const [dropdownData, setDropdownData] = useState([])
-    const [selectedProductGroup, setSelectedProductGroup] = useState(dropdownData[0]?.Pack_Id || 0);
+    const [productPacks, setProductPacks] = useState([]);
+    const [dropdownData, setDropdownData] = useState([]);
+    const [selectedProductGroup, setSelectedProductGroup] = useState(
+        dropdownData[0]?.Pack_Id || 0,
+    );
     const [filteredProductData, setFilteredProductData] = useState([]);
     const [selectedProductPack, setSelectedProductPack] = useState(null);
 
@@ -47,29 +61,30 @@ const StockClosing = ({ route }) => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
                 const companyId = await AsyncStorage.getItem("Company_Id");
-                fetchproductPacks(companyId)
+                fetchproductPacks(companyId);
 
                 setStockInputValue(prev => ({
                     ...prev,
-                    Created_by: userId
+                    Created_by: userId,
                 }));
-                fetchGroupedproducts(item.Company_Id)
-                fetchProductClosingStock(item.Retailer_Id)
-
+                fetchGroupedproducts(item.Company_Id);
+                fetchProductClosingStock(item.Retailer_Id);
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, [stockInputValue.ST_Date, stockInputValue.Retailer_Id])
+    }, [stockInputValue.ST_Date, stockInputValue.Retailer_Id]);
 
     useEffect(() => {
         if (isEdit) {
-            setClosingStockValues(item.ProductCount.map(product => ({
-                Product_Id: product.Item_Id,
-                ST_Qty: product.ST_Qty,
-                PR_Qty: product.PR_Qty,
-                LT_CL_Date: product.LT_CL_Date,
-            })));
+            setClosingStockValues(
+                item.ProductCount.map(product => ({
+                    Product_Id: product.Item_Id,
+                    ST_Qty: product.ST_Qty,
+                    PR_Qty: product.PR_Qty,
+                    LT_CL_Date: product.LT_CL_Date,
+                })),
+            );
             setStockInputValue({
                 ...stockInputValue,
                 ST_Id: item.ST_Id,
@@ -82,29 +97,31 @@ const StockClosing = ({ route }) => {
         }
     }, [isEdit, item]);
 
-    const fetchGroupedproducts = async (company) => {
-        console.log(`${API.groupedProducts}${company}`)
+    const fetchGroupedproducts = async company => {
+        console.log(`${API.groupedProducts}${company}`);
         fetch(`${API.groupedProducts}${company}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    setProductData(data.data)
-                    filterProductDataByPack(selectedProductGroup, data.data)
+                    setProductData(data.data);
+                    filterProductDataByPack(selectedProductGroup, data.data);
                 }
-            }).catch(e => console.error(e))
+            })
+            .catch(e => console.error(e));
     };
 
-    const fetchProductClosingStock = async (Retailer_Id) => {
+    const fetchProductClosingStock = async Retailer_Id => {
         fetch(`${API.productClosingStock}${Retailer_Id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    setProductClosingData(data.data)
+                    setProductClosingData(data.data);
                 }
-            }).catch(e => console.error(e))
+            })
+            .catch(e => console.error(e));
     };
 
-    const fetchproductPacks = async (id) => {
+    const fetchproductPacks = async id => {
         try {
             const response = await fetch(`${API.productPacks}${id}`);
             const jsonData = await response.json();
@@ -112,7 +129,7 @@ const StockClosing = ({ route }) => {
             if (jsonData.success) {
                 const dropdownOptions = [
                     { Pack: "All", Pack_Id: 0 },
-                    ...jsonData.data.filter(pack => pack.Pack_Id !== 0)
+                    ...jsonData.data.filter(pack => pack.Pack_Id !== 0),
                 ];
                 setDropdownData(dropdownOptions);
                 const initialPackId = dropdownOptions[0]?.Pack_Id || 0;
@@ -128,40 +145,53 @@ const StockClosing = ({ route }) => {
 
     const filterProductDataByPack = (packId, data) => {
         // console.log("Filtering with Pack Id:", packId); // Debug log
-        const filteredData = (data || productData).map(group => {
-            const filteredGroup = {
-                ...group,
-                GroupedProductArray: group.GroupedProductArray.filter(product => product.Pack_Id === packId || packId === 0)
-            };
-            return filteredGroup.GroupedProductArray.length ? filteredGroup : null;
-        }).filter(group => group !== null);
+        const filteredData = (data || productData)
+            .map(group => {
+                const filteredGroup = {
+                    ...group,
+                    GroupedProductArray: group.GroupedProductArray.filter(
+                        product => product.Pack_Id === packId || packId === 0,
+                    ),
+                };
+                return filteredGroup.GroupedProductArray.length
+                    ? filteredGroup
+                    : null;
+            })
+            .filter(group => group !== null);
 
         // console.log("Filtered Data:", JSON.stringify(filteredData, null, 2)); // Debug log
         setFilteredProductData(filteredData);
     };
 
-    const handlePackSelection = (packId) => {
+    const handlePackSelection = packId => {
         setSelectedProductPack(packId);
         filterProductDataByPack(packId);
     };
 
-    const getStockCount = (productId) => {
-        const mergedData = productClosingData.filter(item => Number(item.Item_Id) === Number(productId));
-        if (mergedData.length > 0 && mergedData[0].Previous_Balance !== undefined) {
+    const getStockCount = productId => {
+        const mergedData = productClosingData.filter(
+            item => Number(item.Item_Id) === Number(productId),
+        );
+        if (
+            mergedData.length > 0 &&
+            mergedData[0].Previous_Balance !== undefined
+        ) {
             return {
                 previousBalance: mergedData[0].Previous_Balance,
-                hasPreviousBalance: mergedData[0].Previous_Balance > 0
+                hasPreviousBalance: mergedData[0].Previous_Balance > 0,
             };
         } else {
             return {
                 previousBalance: 0,
-                hasPreviousBalance: false
+                hasPreviousBalance: false,
             };
         }
     };
 
-    const getClosingStockDate = (productId) => {
-        const productDataItem = productClosingData.find(item => Number(item.Item_Id) === Number(productId));
+    const getClosingStockDate = productId => {
+        const productDataItem = productClosingData.find(
+            item => Number(item.Item_Id) === Number(productId),
+        );
         if (productDataItem && productDataItem.Cl_Date) {
             const date = new Date(productDataItem.Cl_Date);
             return date;
@@ -171,7 +201,9 @@ const StockClosing = ({ route }) => {
     };
 
     const handleStockInputChange = (productId, value, date, previousStock) => {
-        const updatedStockIndex = closingStockValues.findIndex(item => Number(item.Product_Id) === Number(productId))
+        const updatedStockIndex = closingStockValues.findIndex(
+            item => Number(item.Product_Id) === Number(productId),
+        );
 
         if (updatedStockIndex !== -1) {
             const updatedValues = [...closingStockValues];
@@ -184,21 +216,24 @@ const StockClosing = ({ route }) => {
 
             setClosingStockValues(updatedValues);
         } else {
-            setClosingStockValues(prevValues => [...prevValues, {
-                Product_Id: Number(productId),
-                ST_Qty: Number(value),
-                PR_Qty: previousStock,
-                LT_CL_Date: date,
-            }]);
+            setClosingStockValues(prevValues => [
+                ...prevValues,
+                {
+                    Product_Id: Number(productId),
+                    ST_Qty: Number(value),
+                    PR_Qty: previousStock,
+                    LT_CL_Date: date,
+                },
+            ]);
         }
     };
 
-    const handleTabPress = (index) => {
+    const handleTabPress = index => {
         setSelectedTab(index);
         pagerRef.current.setPage(index); // Set the currently visible page in the PagerView
     };
 
-    const onPageSelected = (e) => {
+    const onPageSelected = e => {
         setSelectedTab(e.nativeEvent.position);
     };
 
@@ -225,11 +260,10 @@ const StockClosing = ({ route }) => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                navigation.navigate("HomeScreen")
+                navigation.navigate("HomeScreen");
             } else {
                 throw new Error(data.message);
             }
-
         } catch (err) {
             ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
             console.error("Error submitting form:", err);
@@ -242,19 +276,19 @@ const StockClosing = ({ route }) => {
                 const response = await fetch(API.closingStock, {
                     method: isEdit ? "PUT" : "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
                         ...stockInputValue,
-                        Product_Stock_List: closingStockValues
-                    })
+                        Product_Stock_List: closingStockValues,
+                    }),
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
                         ToastAndroid.show(data.message, ToastAndroid.LONG);
-                        navigation.navigate("HomeScreen")
+                        navigation.navigate("HomeScreen");
                     } else {
                         ToastAndroid.show(data.message, ToastAndroid.LONG);
                     }
@@ -263,12 +297,18 @@ const StockClosing = ({ route }) => {
                 }
             } catch (e) {
                 console.error(e);
-                ToastAndroid.show("Failed to post stock data: " + e.message, ToastAndroid.LONG);
+                ToastAndroid.show(
+                    "Failed to post stock data: " + e.message,
+                    ToastAndroid.LONG,
+                );
             }
         } else {
-            ToastAndroid.show("Please enter at least one valid stock value", ToastAndroid.LONG);
+            ToastAndroid.show(
+                "Please enter at least one valid stock value",
+                ToastAndroid.LONG,
+            );
         }
-    }
+    };
 
     const handleUpdatePress = () => {
         setModalVisible(true);
@@ -277,11 +317,11 @@ const StockClosing = ({ route }) => {
     const handleModalSubmit = () => {
         // console.log("handleModalSubmit called");
         setModalVisible(false);
-        handleSubmit()
+        handleSubmit();
         postClosingStock();
     };
 
-    const handleImagePress = (imageUrl) => {
+    const handleImagePress = imageUrl => {
         setCurrentImage(imageUrl);
         setImageModalVisible(true);
     };
@@ -295,30 +335,42 @@ const StockClosing = ({ route }) => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image
-                            source={assetImages.backArrow}
+                        <MaterialIcons
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
                         />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Closing Stock</Text>
-                    <TouchableOpacity onPress={handleUpdatePress} style={styles.updateContainer}>
-                        <Text style={styles.updateText}>
-                            UPDATE
-                        </Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Closing Stock
+                    </Text>
+                    <TouchableOpacity
+                        onPress={handleUpdatePress}
+                        style={styles.updateContainer}>
+                        <Text style={styles.updateText}>UPDATE</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.contentContainer}>
                     <View style={styles.retailerInfo}>
-                        <Icon name="user" size={22} color={customColors.primary} />
-                        <Text style={styles.retailerLabel}>{item.Retailer_Name}</Text>
+                        <Icon
+                            name="user"
+                            size={22}
+                            color={customColors.primary}
+                        />
+                        <Text style={styles.retailerLabel}>
+                            {item.Retailer_Name}
+                        </Text>
                     </View>
 
                     <Dropdown
                         data={dropdownData}
-                        labelField='Pack'
+                        labelField="Pack"
                         valueField="Pack_Id"
                         placeholder="Select Product Group"
                         value={selectedProductGroup}
@@ -335,97 +387,164 @@ const StockClosing = ({ route }) => {
                     />
 
                     <View style={{ flex: 1 }}>
-                        <ScrollView horizontal contentContainerStyle={styles.tabContainer} showsHorizontalScrollIndicator={true}>
+                        <ScrollView
+                            horizontal
+                            contentContainerStyle={styles.tabContainer}
+                            showsHorizontalScrollIndicator={true}>
                             {filteredProductData.map((item, index) => (
                                 <TouchableOpacity
                                     key={index}
                                     style={[
                                         styles.tabButton,
-                                        selectedTab === index
-                                        && styles.activeTab
+                                        selectedTab === index &&
+                                            styles.activeTab,
                                     ]}
-                                    onPress={() => { handleTabPress(index) }}
-                                >
-                                    <Text style={{
-                                        ...typography.h6(),
-                                        color: customColors.black,
-                                        fontWeight: "bold",
-                                    }} maxFontSizeMultiplier={1.2}>{item.Pro_Group}</Text>
+                                    onPress={() => {
+                                        handleTabPress(index);
+                                    }}>
+                                    <Text
+                                        style={{
+                                            ...typography.h6(),
+                                            color: customColors.black,
+                                            fontWeight: "bold",
+                                        }}
+                                        maxFontSizeMultiplier={1.2}>
+                                        {item.Pro_Group}
+                                    </Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
                         <ScrollView>
                             <PagerView
-                                style={{ marginBottom: 250, }}
+                                style={{ marginBottom: 250 }}
                                 initialPage={selectedTab}
                                 ref={pagerRef}
-                                onPageSelected={onPageSelected}
-                            >
-
+                                onPageSelected={onPageSelected}>
                                 {filteredProductData.map((item, index) => (
                                     <View key={index}>
-                                        {item.GroupedProductArray.map((product, pIndex) => {
-                                            const stockCount = getStockCount(product.Product_Id);
-                                            return (
-                                                <View key={pIndex} style={styles.pagerViewContainer}>
-                                                    <View style={styles.card}>
-                                                        <TouchableOpacity
-                                                            style={{
-                                                                width: "40%",
-                                                                height: 175,
-                                                                marginTop: 25,
-                                                            }} onPress={() => handleImagePress(product.productImageUrl)}>
-                                                            <Image
+                                        {item.GroupedProductArray.map(
+                                            (product, pIndex) => {
+                                                const stockCount =
+                                                    getStockCount(
+                                                        product.Product_Id,
+                                                    );
+                                                return (
+                                                    <View
+                                                        key={pIndex}
+                                                        style={
+                                                            styles.pagerViewContainer
+                                                        }>
+                                                        <View
+                                                            style={styles.card}>
+                                                            <TouchableOpacity
                                                                 style={{
-                                                                    width: "100%",
-                                                                    height: '100%',
-                                                                    borderRadius: 8,
-                                                                    marginRight: 10,
-                                                                    resizeMode: 'contain'
+                                                                    width: "40%",
+                                                                    height: 175,
+                                                                    marginTop: 25,
                                                                 }}
-                                                                source={{
-                                                                    uri: product.productImageUrl,
-                                                                }}
-                                                            />
-                                                        </TouchableOpacity>
-                                                        <View style={styles.retailersContainer}>
-                                                            <Text style={styles.pagerViewContainerText}>{product.Product_Name}</Text>
-                                                            <Text style={styles.pagerViewContainerSubText}>{product.UOM}</Text>
-                                                            <Text style={styles.dateText}>Closing Date: {getClosingStockDate(product.Product_Id).toLocaleDateString()}</Text>
-                                                            <Text style={[styles.dateText, stockCount.hasPreviousBalance && styles.highlightedText]}>Previous Stock: {stockCount.previousBalance}</Text>
-                                                            <TextInput
-                                                                style={styles.pagerViewContainerInputText}
-                                                                onChangeText={(text) =>
-                                                                    handleStockInputChange(
-                                                                        product.Product_Id,
-                                                                        text,
-                                                                        getClosingStockDate(product.Product_Id),
-                                                                        stockCount.previousBalance
+                                                                onPress={() =>
+                                                                    handleImagePress(
+                                                                        product.productImageUrl,
                                                                     )
-                                                                }
-                                                                value={
-                                                                    (closingStockValues.find(
-                                                                        (ooo) =>
-                                                                            Number(ooo?.Product_Id) ===
-                                                                            Number(product?.Product_Id)
-                                                                    )?.ST_Qty
-                                                                        || '').toString()
-                                                                }
-                                                                placeholder="Closing Stock Qty"
-                                                                keyboardType='number-pad'
-                                                            />
+                                                                }>
+                                                                <Image
+                                                                    style={{
+                                                                        width: "100%",
+                                                                        height: "100%",
+                                                                        borderRadius: 8,
+                                                                        marginRight: 10,
+                                                                        resizeMode:
+                                                                            "contain",
+                                                                    }}
+                                                                    source={{
+                                                                        uri: product.productImageUrl,
+                                                                    }}
+                                                                />
+                                                            </TouchableOpacity>
+                                                            <View
+                                                                style={
+                                                                    styles.retailersContainer
+                                                                }>
+                                                                <Text
+                                                                    style={
+                                                                        styles.pagerViewContainerText
+                                                                    }>
+                                                                    {
+                                                                        product.Product_Name
+                                                                    }
+                                                                </Text>
+                                                                <Text
+                                                                    style={
+                                                                        styles.pagerViewContainerSubText
+                                                                    }>
+                                                                    {
+                                                                        product.UOM
+                                                                    }
+                                                                </Text>
+                                                                <Text
+                                                                    style={
+                                                                        styles.dateText
+                                                                    }>
+                                                                    Closing
+                                                                    Date:{" "}
+                                                                    {getClosingStockDate(
+                                                                        product.Product_Id,
+                                                                    ).toLocaleDateString()}
+                                                                </Text>
+                                                                <Text
+                                                                    style={[
+                                                                        styles.dateText,
+                                                                        stockCount.hasPreviousBalance &&
+                                                                            styles.highlightedText,
+                                                                    ]}>
+                                                                    Previous
+                                                                    Stock:{" "}
+                                                                    {
+                                                                        stockCount.previousBalance
+                                                                    }
+                                                                </Text>
+                                                                <TextInput
+                                                                    style={
+                                                                        styles.pagerViewContainerInputText
+                                                                    }
+                                                                    onChangeText={text =>
+                                                                        handleStockInputChange(
+                                                                            product.Product_Id,
+                                                                            text,
+                                                                            getClosingStockDate(
+                                                                                product.Product_Id,
+                                                                            ),
+                                                                            stockCount.previousBalance,
+                                                                        )
+                                                                    }
+                                                                    value={(
+                                                                        closingStockValues.find(
+                                                                            ooo =>
+                                                                                Number(
+                                                                                    ooo?.Product_Id,
+                                                                                ) ===
+                                                                                Number(
+                                                                                    product?.Product_Id,
+                                                                                ),
+                                                                        )
+                                                                            ?.ST_Qty ||
+                                                                        ""
+                                                                    ).toString()}
+                                                                    placeholder="Closing Stock Qty"
+                                                                    keyboardType="number-pad"
+                                                                />
+                                                            </View>
                                                         </View>
                                                     </View>
-                                                </View>
-                                            );
-                                        })}
+                                                );
+                                            },
+                                        )}
                                     </View>
                                 ))}
                             </PagerView>
                         </ScrollView>
                     </View>
                 </View>
-
             </ImageBackground>
 
             <Modal
@@ -434,14 +553,16 @@ const StockClosing = ({ route }) => {
                 visible={modalVisible}
                 onRequestClose={() => {
                     setModalVisible(false);
-                }}
-            >
+                }}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
                         <Text style={styles.modalTitle}>Confirmation</Text>
-                        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+                        <ScrollView
+                            contentContainerStyle={styles.scrollViewContent}>
                             {closingStockValues.map((stock, index) => (
-                                <View key={index} style={styles.confirmContainer}>
+                                <View
+                                    key={index}
+                                    style={styles.confirmContainer}>
                                     <Text style={styles.productText}>
                                         {productIdToNameMap[stock.Product_Id]} -
                                         <Text style={{ color: "#003BFF" }}>
@@ -453,44 +574,64 @@ const StockClosing = ({ route }) => {
                         </ScrollView>
                         <TextInput
                             style={styles.modalInputText}
-                            placeholder='Narration'
-                            onChangeText={(text) =>
+                            placeholder="Narration"
+                            onChangeText={text =>
                                 setStockInputValue({
                                     ...stockInputValue,
                                     Narration: text,
                                 })
                             }
                         />
-                        <View style={{ flexDirection: 'row', marginVertical: 20, marginHorizontal: 75 }}>
-                            <CustomButton onPress={handleModalSubmit}>Update</CustomButton>
-                            <CustomButton onPress={() => setModalVisible(false)}>Cancal</CustomButton>
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                marginVertical: 20,
+                                marginHorizontal: 75,
+                            }}>
+                            <CustomButton onPress={handleModalSubmit}>
+                                Update
+                            </CustomButton>
+                            <CustomButton
+                                onPress={() => setModalVisible(false)}>
+                                Cancal
+                            </CustomButton>
                         </View>
                     </View>
                 </View>
-            </Modal >
+            </Modal>
 
             <Modal
                 animationType="slide"
                 transparent={true}
                 visible={isImageModalVisible}
-                onRequestClose={() => setImageModalVisible(false)}
-            >
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
-                    <TouchableOpacity onPress={() => setImageModalVisible(false)} style={{ position: 'absolute', top: 40, right: 20 }}>
+                onRequestClose={() => setImageModalVisible(false)}>
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                    }}>
+                    <TouchableOpacity
+                        onPress={() => setImageModalVisible(false)}
+                        style={{ position: "absolute", top: 40, right: 20 }}>
                         <Icon name="close" size={30} color="#fff" />
                     </TouchableOpacity>
                     <Image
                         source={{ uri: currentImage }}
-                        style={{ width: '90%', height: '80%', resizeMode: 'contain' }}
+                        style={{
+                            width: "90%",
+                            height: "80%",
+                            resizeMode: "contain",
+                        }}
                     />
                 </View>
             </Modal>
+        </View>
+    );
+};
 
-        </View >
-    )
-}
-
-export default StockClosing
+export default StockClosing;
 
 const styles = StyleSheet.create({
     container: {
@@ -516,18 +657,18 @@ const styles = StyleSheet.create({
         marginHorizontal: 10,
     },
     updateContainer: {
-        alignSelf: 'flex-end',
-        alignItems: 'flex-end'
+        alignSelf: "flex-end",
+        alignItems: "flex-end",
     },
     updateText: {
         ...typography.body1(),
-        color: customColors.white
+        color: customColors.white,
     },
     contentContainer: {
         width: "100%",
         height: "85%",
         backgroundColor: customColors.white,
-        borderRadius: 7.5
+        borderRadius: 7.5,
     },
     retailerInfo: {
         flexDirection: "row",
@@ -563,20 +704,20 @@ const styles = StyleSheet.create({
     placeholderStyle: {
         ...typography.body1(),
         color: customColors.black,
-        fontWeight: '500'
+        fontWeight: "500",
     },
     selectedTextStyle: {
         ...typography.body1(),
         color: customColors.black,
-        fontWeight: '600'
+        fontWeight: "600",
     },
     tabContainer: {
         height: 50,
-        flexDirection: 'row',
+        flexDirection: "row",
         backgroundColor: customColors.white,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-        marginBottom: 25
+        borderBottomColor: "#ccc",
+        marginBottom: 25,
     },
     tabButton: {
         paddingVertical: 10,
@@ -591,14 +732,14 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderRadius: 10,
         margin: 10,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 6,
         elevation: 5,
     },
     card: {
-        flexDirection: 'row',
+        flexDirection: "row",
     },
     retailersContainer: {
         width: "60%",
@@ -608,17 +749,17 @@ const styles = StyleSheet.create({
     pagerViewContainerText: {
         ...typography.body1(),
         color: customColors.black,
-        fontWeight: 'bold',
+        fontWeight: "bold",
     },
     pagerViewContainerSubText: {
         ...typography.body2(),
         color: customColors.black,
-        fontWeight: '500',
+        fontWeight: "500",
     },
     highlightedText: {
-        backgroundColor: '#FFFF00',
+        backgroundColor: "#FFFF00",
         color: customColors.black,
-        fontWeight: 'bold',
+        fontWeight: "bold",
     },
     dateText: {
         ...typography.body1(),
@@ -631,15 +772,15 @@ const styles = StyleSheet.create({
         color: customColors.black,
         padding: 8,
         borderWidth: 1,
-        borderColor: '#ccc',
+        borderColor: "#ccc",
         borderRadius: 4,
         marginTop: 5,
     },
     modalOverlay: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
     modalContainer: {
         width: "85%",
@@ -664,7 +805,7 @@ const styles = StyleSheet.create({
     },
     scrollViewContent: {
         flexGrow: 1,
-        justifyContent: 'flex-start',
+        justifyContent: "flex-start",
     },
     confirmContainer: {
         marginBottom: 10,
@@ -675,16 +816,16 @@ const styles = StyleSheet.create({
         ...typography.body1(),
         fontWeight: "bold",
         color: customColors.black,
-        flexWrap: 'nowrap'
+        flexWrap: "nowrap",
     },
     modalInputText: {
         ...typography.h6(),
         color: customColors.black,
         borderWidth: 1,
-        borderColor: '#ccc',
+        borderColor: "#ccc",
         borderRadius: 8,
         padding: 12,
-        marginHorizontal: 'auto',
-        marginTop: 25
+        marginHorizontal: "auto",
+        marginTop: 25,
     },
-})
+});

@@ -1,16 +1,27 @@
-import { Image, ImageBackground, Modal, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native";
+import {
+    Image,
+    ImageBackground,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    ToastAndroid,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import { customColors, typography } from "../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../Config/Endpoint";
 import assetImages from "../Config/Image";
 import { useNavigation } from "@react-navigation/native";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 const ProfileScreen = () => {
     const navigation = useNavigation();
-    const [name, setName] = useState()
-    const [branchName, setBranchName] = useState()
-    const [userId, setUserId] = useState()
+    const [name, setName] = useState();
+    const [branchName, setBranchName] = useState();
+    const [userId, setUserId] = useState();
 
     const [modalVisible, setModalVisible] = useState(false);
     const [oldPassword, setOldPassword] = useState("");
@@ -20,29 +31,30 @@ const ProfileScreen = () => {
         (async () => {
             try {
                 const storedName = await AsyncStorage.getItem("Name");
-                const storedBranchName = await AsyncStorage.getItem("branchName");
+                const storedBranchName =
+                    await AsyncStorage.getItem("branchName");
                 const storedUserId = await AsyncStorage.getItem("UserId");
                 if (storedName !== null) setName(storedName);
-                if (storedBranchName !== null) setBranchName(storedBranchName)
-                if (setUserId !== null) setUserId(storedUserId)
+                if (storedBranchName !== null) setBranchName(storedBranchName);
+                if (setUserId !== null) setUserId(storedUserId);
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, [])
+    }, []);
 
     const handleChangePassword = async () => {
         try {
             const response = await fetch(`${API.changePassword}`, {
                 method: "PUT",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     userId: userId,
                     oldPassword: oldPassword,
                     newPassword: newPassword,
-                })
+                }),
             });
 
             if (response.ok) {
@@ -55,22 +67,37 @@ const ProfileScreen = () => {
                 }
             } else {
                 const data = await response.json();
-                ToastAndroid.show("Failed to change password", + data.message, ToastAndroid.LONG);
+                ToastAndroid.show(
+                    "Failed to change password",
+                    +data.message,
+                    ToastAndroid.LONG,
+                );
             }
         } catch (err) {
             console.error(err);
-            ToastAndroid.show("Failed to change password: " + err.message, ToastAndroid.LONG);
+            ToastAndroid.show(
+                "Failed to change password: " + err.message,
+                ToastAndroid.LONG,
+            );
         }
-    }
+    };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image source={assetImages.backArrow} />
+                        <MaterialIcon
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Personal Info</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Personal Info
+                    </Text>
                 </View>
 
                 <View style={styles.contentContainer}>
@@ -92,7 +119,9 @@ const ProfileScreen = () => {
                         />
                     </View>
 
-                    <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.button} >
+                    <TouchableOpacity
+                        onPress={() => setModalVisible(true)}
+                        style={styles.button}>
                         <Text style={styles.buttonText}>Change Password</Text>
                     </TouchableOpacity>
 
@@ -100,11 +129,12 @@ const ProfileScreen = () => {
                         animationType="slide"
                         transparent={true}
                         visible={modalVisible}
-                        onRequestClose={() => setModalVisible(false)}
-                    >
+                        onRequestClose={() => setModalVisible(false)}>
                         <View style={styles.modalOverlay}>
                             <View style={styles.modalContainer}>
-                                <Text style={styles.modalTitle}>Change Password</Text>
+                                <Text style={styles.modalTitle}>
+                                    Change Password
+                                </Text>
                                 <TextInput
                                     style={styles.modalInput}
                                     placeholder="Old Password"
@@ -120,11 +150,19 @@ const ProfileScreen = () => {
                                     onChangeText={setNewPassword}
                                 />
                                 <View style={styles.modalButtonContainer}>
-                                    <TouchableOpacity onPress={handleChangePassword} style={styles.modalButton}>
-                                        <Text style={styles.modalButtonText}>Submit</Text>
+                                    <TouchableOpacity
+                                        onPress={handleChangePassword}
+                                        style={styles.modalButton}>
+                                        <Text style={styles.modalButtonText}>
+                                            Submit
+                                        </Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalButton}>
-                                        <Text style={styles.modalButtonText}>Cancel</Text>
+                                    <TouchableOpacity
+                                        onPress={() => setModalVisible(false)}
+                                        style={styles.modalButton}>
+                                        <Text style={styles.modalButtonText}>
+                                            Cancel
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -133,10 +171,10 @@ const ProfileScreen = () => {
                 </View>
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
-export default ProfileScreen
+export default ProfileScreen;
 
 const styles = StyleSheet.create({
     container: {
@@ -165,7 +203,7 @@ const styles = StyleSheet.create({
         width: "100%",
         height: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 15
+        borderRadius: 15,
     },
     formGroup: {
         margin: 20,
@@ -196,13 +234,13 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         ...typography.button(),
-        color: customColors.white
+        color: customColors.white,
     },
     modalOverlay: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
     modalContainer: {
         width: "90%",
@@ -243,4 +281,4 @@ const styles = StyleSheet.create({
         ...typography.button(),
         color: customColors.white,
     },
-})
+});

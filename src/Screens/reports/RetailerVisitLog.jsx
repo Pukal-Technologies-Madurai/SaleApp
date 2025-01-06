@@ -1,40 +1,56 @@
-import { Image, ImageBackground, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import React, { useState, useEffect } from 'react'
-import Icon from 'react-native-vector-icons/FontAwesome';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { customColors, typography } from '../../Config/helper';
-import { API } from '../../Config/Endpoint';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Accordion from '../../Components/Accordion';
-import assetImages from '../../Config/Image';
-import { useNavigation } from '@react-navigation/native';
+import {
+    Image,
+    ImageBackground,
+    Linking,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import React, { useState, useEffect } from "react";
+import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from "react-native-vector-icons/FontAwesome";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import MaterialIconsIcon from "react-native-vector-icons/MaterialIcons";
+import { customColors, typography } from "../../Config/helper";
+import { API } from "../../Config/Endpoint";
+import assetImages from "../../Config/Image";
+import DatePickerButton from "../../Components/DatePickerButton";
 
 const RetailerVisitLog = () => {
     const navigation = useNavigation();
-    const [logData, setLogData] = useState(null)
+    const [logData, setLogData] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [isImageModalVisible, setImageModalVisible] = useState(false);
+    const [timeLineVisible, setTimeLineVisible] = useState(false);
     const [currentImage, setCurrentImage] = useState(null);
+    const [expandedId, setExpandedId] = useState(null);
 
     useEffect(() => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
-                fetchVisitersLog(selectedDate.toISOString(), userId);
+                fetchVisitersLog(
+                    selectedDate.toISOString().split("T")[0],
+                    userId,
+                );
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, [selectedDate])
+    }, [selectedDate]);
 
     const fetchVisitersLog = async (fromDate, id) => {
         try {
-            const response = await fetch(`${API.visitedLog}?reqDate=${fromDate}&UserId=${id}`, {
+            const url = `${API.visitedLog}?reqDate=${fromDate}&UserId=${id}`;
+            const response = await fetch(url, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                }
+                },
             });
             const data = await response.json();
 
@@ -46,33 +62,37 @@ const RetailerVisitLog = () => {
         } catch (error) {
             console.log("Error fetching logs:", error);
         }
-    }
+    };
 
     const handleDateChange = (event, selectedDate) => {
-        setShowDatePicker(false);
         if (selectedDate) {
             setSelectedDate(selectedDate);
         }
     };
 
-    const showDatepicker = () => {
-        setShowDatePicker(true);
-    };
-
-    const handleImagePress = (imageUrl) => {
+    const handleImagePress = imageUrl => {
         setCurrentImage(imageUrl);
         setImageModalVisible(true);
     };
 
-    const renderHeader = (item) => {
-        return (
-            < View style={styles.header} >
-                <Text maxFontSizeMultiplier={1.2} style={styles.headerText}>{item.Reatailer_Name}</Text>
-            </View >
-        )
-    }
+    const formatTime = dateString => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
+    };
 
-    const renderContent = (item) => {
+    const formatDate = date => {
+        return date.toLocaleDateString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    };
+
+    const renderRetailerCard = (item, index) => {
         const latitude = item.Latitude;
         const longitude = item.Longitude;
 
@@ -81,98 +101,173 @@ const RetailerVisitLog = () => {
 
         return (
             <View style={styles.card}>
-                <View style={styles.textContainer}>
-                    <Text style={[
-                        styles.boldText,
-                        item.IsExistingRetailer === 0 && {
-                            color: "green"
-                        }]}>
-                        {item.IsExistingRetailer === 1 ? "Existing Retailer" : "New Retailer"}
-                    </Text>
-                    <Text maxFontSizeMultiplier={1.2} style={styles.cardText}>
-                        Contact Person:
-                        <TouchableOpacity onPress={() => {
-                            Linking.openURL(`tel:${item.Contact_Mobile}`)
-                        }}>
-                            <Text style={[styles.boldText, { color: "blue" }]}>
-                                {item.Contact_Mobile}
-                            </Text>
-                        </TouchableOpacity>
-                    </Text>
-                    <Text maxFontSizeMultiplier={1.2} style={styles.cardText}>
-                        Address:
-                        <Text style={styles.boldText}> {item.Location_Address}</Text>
-                    </Text>
-                    <Text maxFontSizeMultiplier={1.2} style={styles.cardText}>
-                        Narration:
-                        <Text style={styles.boldText}> {item.Narration}</Text>
-                    </Text>
-                    {/* <TouchableOpacity
-                        style={{
-                            borderColor: customColors.primary,
-                            borderWidth: 1
-                        }}
-                        onPress={() => {
-                            const { Contact_Mobile, Reatailer_Name, Contact_Person } = item;
-                            navigation.navigate("Sales", {
-                                Contact_Mobile,
-                                Reatailer_Name,
-                                Contact_Person
-                            });
-                        }}>
-                        <Text style={styles.boldText} maxFontSizeMultiplier={1.2}>Sales Order</Text>
-                    </TouchableOpacity> */}
+                <TouchableOpacity
+                    style={styles.cardHeader}
+                    onPress={() =>
+                        setExpandedId(expandedId === index ? null : index)
+                    }>
+                    <View style={styles.headerContent}>
+                        <Text
+                            style={[
+                                styles.retailerName,
+                                {
+                                    color:
+                                        item.IsExistingRetailer === 1
+                                            ? customColors.white
+                                            : "#4CAF50",
+                                },
+                            ]}>
+                            {item.Reatailer_Name}
+                        </Text>
+                        <Text style={styles.timestamp}>
+                            {formatTime(item.EntryAt)}
+                        </Text>
+                    </View>
+                    <MaterialIconsIcon
+                        name={
+                            expandedId === index
+                                ? "keyboard-arrow-up"
+                                : "keyboard-arrow-down"
+                        }
+                        size={24}
+                        color={customColors.white}
+                    />
+                </TouchableOpacity>
 
-                    {isValidCoordinates && (
-                        <TouchableOpacity onPress={() => Linking.openURL(googleMapsUrl)}>
-                            <Text style={[styles.boldText, { color: "blue" }]}>
-                                View Location on Map
+                {expandedId === index && (
+                    <View style={styles.cardContent}>
+                        <View style={styles.statusBadge}>
+                            <Text
+                                style={[
+                                    styles.statusText,
+                                    {
+                                        color:
+                                            item.IsExistingRetailer === 1
+                                                ? customColors.white
+                                                : "#4CAF50",
+                                    },
+                                ]}>
+                                {item.IsExistingRetailer === 1
+                                    ? "● Existing Retailer"
+                                    : "● New Retailer"}
                             </Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-                {item.imageUrl && (
-                    <TouchableOpacity
-                        onPress={() => handleImagePress(item.imageUrl)}
-                        style={styles.imageContainer}
-                    >
-                        <Image
-                            source={{ uri: item.imageUrl }}
-                            style={styles.cardImage}
-                            resizeMode="contain"
-                        />
-                    </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.infoSection}>
+                            <View style={styles.infoRow}>
+                                <MaterialIconsIcon
+                                    name="phone"
+                                    size={20}
+                                    color={customColors.white}
+                                />
+                                <TouchableOpacity
+                                    onPress={() =>
+                                        Linking.openURL(
+                                            `tel:${item.Contact_Mobile}`,
+                                        )
+                                    }
+                                    style={styles.phoneButton}>
+                                    <Text style={styles.phoneText}>
+                                        {item.Contact_Mobile}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.infoRow}>
+                                <MaterialIconsIcon
+                                    name="location-on"
+                                    size={20}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.infoText}>
+                                    {item.Location_Address || "N/A"}
+                                </Text>
+                            </View>
+
+                            {item.Narration && (
+                                <View style={styles.narrationContainer}>
+                                    <MaterialIconsIcon
+                                        name="notes"
+                                        size={20}
+                                        color={customColors.white}
+                                    />
+                                    <Text style={styles.narrationText}>
+                                        {item.Narration}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+
+                        {item.imageUrl && (
+                            <TouchableOpacity
+                                onPress={() => handleImagePress(item.imageUrl)}
+                                style={styles.imageContainer}>
+                                <Image
+                                    source={{ uri: item.imageUrl }}
+                                    style={styles.cardImage}
+                                    resizeMode="cover"
+                                />
+                            </TouchableOpacity>
+                        )}
+
+                        {isValidCoordinates && (
+                            <TouchableOpacity
+                                style={styles.mapButton}
+                                onPress={() => Linking.openURL(googleMapsUrl)}>
+                                <MaterialIconsIcon
+                                    name="map"
+                                    size={20}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.mapButtonText}>
+                                    View on Maps
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 )}
             </View>
         );
-    }
+    };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
-                <View style={styles.headersContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image
-                            source={assetImages.backArrow}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headersText} maxFontSizeMultiplier={1.2}>Retailers Log</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate("RetailerVisit")}>
-                        <Text style={styles.headersText} maxFontSizeMultiplier={1.2}>Entry</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.datePickerContainer}>
-                    <View style={styles.datePickerWrapper}>
-                        <TouchableOpacity style={styles.datePicker} onPress={showDatepicker}>
-                            <TextInput
-                                maxFontSizeMultiplier={1.2}
-                                style={styles.textInput}
-                                value={selectedDate ? new Intl.DateTimeFormat('en-GB').format(selectedDate) : ''}
-                                editable={false}
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
+                <View style={styles.overlay}>
+                    <View style={styles.headersContainer}>
+                        <TouchableOpacity onPress={() => navigation.goBack()}>
+                            <MaterialIconsIcon
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
                             />
-                            <Icon name="calendar" color={customColors.white} size={20} />
                         </TouchableOpacity>
+                        <Text
+                            style={styles.headersText}
+                            maxFontSizeMultiplier={1.2}>
+                            Retailers Log
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() =>
+                                navigation.navigate("RetailerVisit")
+                            }>
+                            <MaterialIconsIcon
+                                name="add"
+                                size={24}
+                                color={customColors.white}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.datePickerContainer}>
+                        <DatePickerButton
+                            title="Pick a Date"
+                            date={selectedDate}
+                            onDateChange={handleDateChange}
+                            containerStyle={styles.datePickerButton}
+                        />
                         <View style={styles.countContainer}>
                             <Text style={styles.countText}>
                                 {logData ? (
@@ -180,56 +275,84 @@ const RetailerVisitLog = () => {
                                         Total: {logData.length}
                                     </Text>
                                 ) : (
-                                    <Text style={styles.countText}>No logs available</Text>
+                                    <Text style={styles.countText}>
+                                        No logs available
+                                    </Text>
                                 )}
                             </Text>
                         </View>
                     </View>
 
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={selectedDate}
-                            mode="date"
-                            display="default"
-                            onChange={handleDateChange}
-                        />
-                    )}
+                    <ScrollView
+                        style={styles.scrollContainer}
+                        showsVerticalScrollIndicator={false}>
+                        {logData?.map((item, index) => (
+                            <View key={index} style={styles.cardWrapper}>
+                                {renderRetailerCard(item, index)}
+                            </View>
+                        ))}
+                    </ScrollView>
                 </View>
-
-                <ScrollView style={styles.cardContainer}>
-                    {logData && (
-                        <Accordion
-                            data={logData}
-                            renderHeader={renderHeader}
-                            renderContent={renderContent}
-                        />
-                    )}
-                </ScrollView>
-
-
             </ImageBackground>
 
             <Modal
                 animationType="slide"
                 transparent={true}
+                visible={timeLineVisible}
+                onRequestClose={() => setTimeLineVisible(false)}>
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: "rgba(0, 0, 0, 0.5)",
+                        color: customColors.white,
+                    }}>
+                    <Text>TimeLine</Text>
+                    {logData && (
+                        <View>
+                            <Text>Retailer Name: {logData.Reatailer_Name}</Text>
+                            <Text>
+                                Entry Time:{" "}
+                                {new Date(logData.EntryAt).toLocaleTimeString()}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </Modal>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
                 visible={isImageModalVisible}
-                onRequestClose={() => setImageModalVisible(false)}
-            >
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
-                    <TouchableOpacity onPress={() => setImageModalVisible(false)} style={{ position: 'absolute', top: 40, right: 20 }}>
+                onRequestClose={() => setImageModalVisible(false)}>
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                    }}>
+                    <TouchableOpacity
+                        onPress={() => setImageModalVisible(false)}
+                        style={{ position: "absolute", top: 40, right: 20 }}>
                         <Icon name="close" size={30} color="#fff" />
                     </TouchableOpacity>
                     <Image
                         source={{ uri: currentImage }}
-                        style={{ width: '90%', height: '80%', resizeMode: 'contain' }}
+                        style={{
+                            width: "90%",
+                            height: "80%",
+                            resizeMode: "contain",
+                        }}
                     />
                 </View>
             </Modal>
         </View>
-    )
-}
+    );
+};
 
-export default RetailerVisitLog
+export default RetailerVisitLog;
 
 const styles = StyleSheet.create({
     container: {
@@ -240,13 +363,18 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.background,
-        alignItems: "center",
+        // justifyContent: "center",
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.2)",
     },
     headersContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         padding: 20,
+        width: "100%",
     },
     headersText: {
         flex: 1,
@@ -258,45 +386,30 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 15,
     },
-    countContainer: {
-        width: "50%",
-        padding: 10,
-        marginHorizontal: 10,
-        backgroundColor: customColors.secondary,
-        borderRadius: 5,
-        elevation: 2,
-    },
-    countText: {
-        textAlign: "center",
-        flexWrap: "wrap",
-        ...typography.h6(),
-        fontWeight: "bold",
-        color: customColors.primary,
-    },
     datePickerContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginHorizontal: 20,
-    },
-    datePickerWrapper: {
-        flex: 1,
-        flexDirection: "row",
-        marginRight: 10,
-        marginVertical: 15,
-    },
-    datePicker: {
-        width: "50%",
-        flexDirection: "row",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: customColors.white,
-        borderRadius: 5,
+        width: "100%",
         paddingHorizontal: 10,
     },
-    textInput: {
+    datePickerButton: {
         flex: 1,
-        color: customColors.white,
-        ...typography.body1(),
+        margin: 15,
+    },
+    countContainer: {
+        justifyContent: "center",
+        padding: 10,
+        marginTop: 30,
+        marginRight: 25,
+        backgroundColor: customColors.secondary,
+        borderRadius: 5,
+    },
+    countText: {
+        flexWrap: "wrap",
+        textAlign: "center",
+        ...typography.h6(),
+        fontWeight: "bold",
+        color: customColors.primary,
     },
     header: {
         flexDirection: "row",
@@ -314,38 +427,113 @@ const styles = StyleSheet.create({
         color: customColors.white,
         fontWeight: "500",
     },
+    scrollContainer: {
+        flex: 1,
+        width: "100%",
+        paddingHorizontal: 10,
+    },
     card: {
-        backgroundColor: customColors.white,
-        borderBottomLeftRadius: 10,
-        borderBottomRightRadius: 10,
-        padding: 10,
+        backgroundColor: customColors.primary,
+        borderBottomLeftRadius: 15,
+        borderBottomRightRadius: 15,
+        marginVertical: 5,
+        width: "100%",
     },
-    textContainer: {
-        marginBottom: 10,
+    cardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 16,
     },
-
-    cardText: {
-        ...typography.body1(),
-        marginBottom: 10,
+    headerContent: {
+        // flex: 1,
+        marginRight: 12,
     },
-    boldText: {
+    retailerName: {
         ...typography.h6(),
-        fontWeight: "bold",
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    timestamp: {
+        ...typography.body1(),
+        color: "rgba(255, 255, 255, 0.7)",
+        marginTop: 2,
+    },
+    cardContent: {
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: "rgba(255, 255, 255, 0.1)",
+        width: "100%",
+    },
+    statusBadge: {
+        marginBottom: 16,
+    },
+    statusText: {
+        ...typography.h6(),
+        fontWeight: "500",
+    },
+    infoSection: {
+        gap: 16,
+    },
+    infoRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    phoneButton: {
+        flex: 1,
+    },
+    phoneText: {
+        color: "#64B5F6",
+        ...typography.h6(),
+        fontWeight: "500",
+    },
+    infoText: {
+        flex: 1,
+        color: customColors.white,
+        ...typography.h6,
+        flexWrap: "wrap",
+    },
+    narrationContainer: {
+        flexDirection: "row",
+        gap: 12,
+        backgroundColor: "rgba(255, 255, 255, 0.05)",
+        padding: 12,
+        borderRadius: 8,
+    },
+    narrationText: {
+        flex: 1,
+        color: customColors.white,
+        ...typography.h6,
+        lineHeight: 22,
+        flexWrap: "wrap",
     },
     imageContainer: {
-        width: 100,
-        height: 100,
+        width: "100%",
+        aspectRatio: 1,
+        maxWidth: 200,
+        maxHeight: 200,
         marginTop: 10,
-        alignSelf: "center"
+        alignSelf: "center",
     },
     cardImage: {
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
         borderRadius: 5,
     },
-    // cardImage: {
-    //     width: "100%",
-    //     height: "100%",
-    //     resizeMode: "contain",
-    // },
-})
+    mapButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 16,
+        gap: 8,
+    },
+    mapButtonText: {
+        ...typography.h6(),
+        color: customColors.white,
+        fontWeight: "500",
+    },
+});

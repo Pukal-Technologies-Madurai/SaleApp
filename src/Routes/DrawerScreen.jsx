@@ -1,4 +1,10 @@
-import { Image, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from "react-native";
+import {
+    StyleSheet,
+    Text,
+    ToastAndroid,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -6,10 +12,8 @@ import IconFont from "react-native-vector-icons/FontAwesome6";
 import IconAntDesign from "react-native-vector-icons/AntDesign";
 
 import { customColors, typography } from "../Config/helper";
-import assetImages from "../Config/Image";
 
 const DrawerScreen = ({ navigation }) => {
-
     const logout = async () => {
         try {
             await AsyncStorage.multiRemove([
@@ -21,7 +25,7 @@ const DrawerScreen = ({ navigation }) => {
                 "UserType",
                 "branchId",
                 "branchName",
-                "userTypeId"
+                "userTypeId",
             ]);
             ToastAndroid.show("Log out Successfully", ToastAndroid.LONG);
 
@@ -43,17 +47,28 @@ const DrawerScreen = ({ navigation }) => {
 
             <View style={styles.drawerContent}>
                 <DrawerItem
-                    icon={<IconFont name="circle-user" size={24} color={customColors.white} />}
+                    icon={
+                        <IconFont
+                            name="circle-user"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    }
                     label="Account"
                     onPress={() => navigation.navigate("ProfileScreen")}
                 />
 
                 <DrawerItem
-                    icon={<IconAntDesign name="adduser" size={24} color={customColors.white} />}
+                    icon={
+                        <IconAntDesign
+                            name="adduser"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    }
                     label="Add Customer"
                     onPress={() => navigation.navigate("AddCustomer")}
                 />
-
             </View>
             <TouchableOpacity style={styles.logoutButton} onPress={logout}>
                 <Icon name="logout" size={24} color={customColors.primary} />
@@ -62,7 +77,6 @@ const DrawerScreen = ({ navigation }) => {
         </View>
     );
 };
-
 
 const DrawerItem = ({ icon, label, onPress }) => (
     <TouchableOpacity style={styles.drawerItem} onPress={onPress}>
@@ -87,7 +101,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 20,
         borderBottomStartRadius: 20,
-        borderBottomEndRadius: 20
+        borderBottomEndRadius: 20,
     },
     appName: {
         width: "50%",

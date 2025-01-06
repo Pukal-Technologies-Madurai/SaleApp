@@ -1,7 +1,19 @@
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, Image, ToastAndroid, Modal, ImageBackground, Alert } from "react-native";
+import {
+    StyleSheet,
+    Text,
+    View,
+    TouchableOpacity,
+    TextInput,
+    Image,
+    ToastAndroid,
+    Modal,
+    ImageBackground,
+    Alert,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/AntDesign";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CameraComponent from "../../Components/CameraComponent";
 import { customColors, typography } from "../../Config/helper";
@@ -15,23 +27,23 @@ const EndDay = () => {
     const [formValues, setFormValues] = useState({
         Id: "",
         End_KM: "",
-        End_KM_Pic: ""
-    })
+        End_KM_Pic: "",
+    });
 
     useEffect(() => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
-                getAttendanceInfo(userId)
+                getAttendanceInfo(userId);
                 setFormValues({ ...formValues, Id: userId });
             } catch (err) {
                 console.error("Error fetching user ID:", err);
                 Alert.alert("Error", "Unable to fetch user ID");
             }
         })();
-    }, [])
+    }, []);
 
-    const getAttendanceInfo = async (userId) => {
+    const getAttendanceInfo = async userId => {
         try {
             const url = `${API.MyLastAttendance}${userId}`;
             const response = await fetch(url, {
@@ -41,9 +53,12 @@ const EndDay = () => {
             const attendanceStatus = await response.json();
 
             if (response.ok && attendanceStatus?.data?.length > 0) {
-                setFormValues(prevState => ({ ...prevState, Id: attendanceStatus.data[0].Id }));
+                setFormValues(prevState => ({
+                    ...prevState,
+                    Id: attendanceStatus.data[0].Id,
+                }));
             } else {
-                throw new Error('Failed to fetch attendance data');
+                throw new Error("Failed to fetch attendance data");
             }
 
             // setFormValues({ ...formValues, Id: attendanceStatus.data[0].Id });
@@ -58,7 +73,7 @@ const EndDay = () => {
         // setFormValues({ ...formValues, End_KM: value });
     };
 
-    const handlePhotoCapture = (photoPath) => {
+    const handlePhotoCapture = photoPath => {
         setCapturedPhotoPath(photoPath);
         setFormValues(prevState => ({ ...prevState, End_KM_Pic: photoPath }));
         // setFormValues({ ...formValues, End_KM_Pic: photoPath });
@@ -77,13 +92,13 @@ const EndDay = () => {
             formData.append("End_KM_Pic", {
                 uri: `file://${formValues.End_KM_Pic}`,
                 name: "photo.jpg",
-                type: "image/jpeg"
-            })
+                type: "image/jpeg",
+            });
 
             const response = await fetch(API.attendance, {
                 method: "PUT",
                 headers: { "Content-Type": "multipart/form-data" },
-                body: formData
+                body: formData,
             });
 
             const responseData = await response.json();
@@ -92,24 +107,33 @@ const EndDay = () => {
                 throw new Error("Failed to post data to server");
             }
 
-            ToastAndroid.show("Your attendance update successfully", ToastAndroid.LONG);
-            navigation.navigate("HomeScreen")
+            ToastAndroid.show(
+                "Your attendance update successfully",
+                ToastAndroid.LONG,
+            );
+            navigation.navigate("HomeScreen");
             console.log("Response from server: ", responseData);
         } catch (error) {
             console.error("Error posting data: ", error);
         }
-    }
+    };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image
-                            source={assetImages.backArrow}
+                        <MaterialIcon
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
                         />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Attendance</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Attendance
+                    </Text>
                 </View>
 
                 <View style={styles.contentContainer}>
@@ -124,18 +148,25 @@ const EndDay = () => {
                             autoCapitalize="characters"
                             onChangeText={handleInputChange}
                         />
-                        <TouchableOpacity onPress={() => setShowCameraModal(true)}
-                            style={styles.cameraButton}
-                        >
-                            <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>{!capturedPhotoPath ? "Take" : "Preview"}</Text>
+                        <TouchableOpacity
+                            onPress={() => setShowCameraModal(true)}
+                            style={styles.cameraButton}>
+                            <Text
+                                maxFontSizeMultiplier={1.2}
+                                style={styles.buttonText}>
+                                {!capturedPhotoPath ? "Take" : "Preview"}
+                            </Text>
                         </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
                         style={styles.submitButton}
-                        onPress={handleSubmit}
-                    >
-                        <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Close Day</Text>
+                        onPress={handleSubmit}>
+                        <Text
+                            maxFontSizeMultiplier={1.2}
+                            style={styles.buttonText}>
+                            Close Day
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ImageBackground>
@@ -144,39 +175,64 @@ const EndDay = () => {
                 visible={showCameraModal}
                 animationType="slide"
                 transparent={true}
-                onRequestClose={() => setShowCameraModal(false)}
-            >
+                onRequestClose={() => setShowCameraModal(false)}>
                 <View style={styles.modalContainer}>
-                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={styles.closeButton}>
-                        <Icon name="close" size={30} color={customColors.white} />
+                    <TouchableOpacity
+                        onPress={() => setShowCameraModal(false)}
+                        style={styles.closeButton}>
+                        <Icon
+                            name="close"
+                            size={30}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    {
-                        !capturedPhotoPath ? (
-                            <CameraComponent onPhotoCapture={handlePhotoCapture} />
-                        ) : (
-                            capturedPhotoPath && typeof capturedPhotoPath === "string" && (
-                                <View style={styles.previewImageContainer}>
-                                    <Image
-                                        source={{ uri: 'file://' + capturedPhotoPath }}
-                                        style={styles.previewImage}
-                                    />
-                                    <TouchableOpacity onPress={clearPhoto} style={styles.clearPhotoButton}>
-                                        <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Retake</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={[styles.submitButton, { marginTop: 15, backgroundColor: customColors.primary }]}>
-                                        <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Okay</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )
+                    {!capturedPhotoPath ? (
+                        <CameraComponent onPhotoCapture={handlePhotoCapture} />
+                    ) : (
+                        capturedPhotoPath &&
+                        typeof capturedPhotoPath === "string" && (
+                            <View style={styles.previewImageContainer}>
+                                <Image
+                                    source={{
+                                        uri: "file://" + capturedPhotoPath,
+                                    }}
+                                    style={styles.previewImage}
+                                />
+                                <TouchableOpacity
+                                    onPress={clearPhoto}
+                                    style={styles.clearPhotoButton}>
+                                    <Text
+                                        maxFontSizeMultiplier={1.2}
+                                        style={styles.buttonText}>
+                                        Retake
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setShowCameraModal(false)}
+                                    style={[
+                                        styles.submitButton,
+                                        {
+                                            marginTop: 15,
+                                            backgroundColor:
+                                                customColors.primary,
+                                        },
+                                    ]}>
+                                    <Text
+                                        maxFontSizeMultiplier={1.2}
+                                        style={styles.buttonText}>
+                                        Okay
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         )
-                    }
+                    )}
                 </View>
             </Modal>
         </View>
-    )
-}
+    );
+};
 
-export default EndDay
+export default EndDay;
 
 const styles = StyleSheet.create({
     container: {
@@ -211,7 +267,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         marginHorizontal: 15,
-        marginVertical: 50
+        marginVertical: 50,
     },
     textInput: {
         ...typography.h6(),
@@ -247,12 +303,12 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         backgroundColor: customColors.primary,
-        justifyContent: 'center',
-        alignContent: 'center',
+        justifyContent: "center",
+        alignContent: "center",
         paddingVertical: 10,
         paddingHorizontal: 20,
-        marginLeft: 'auto',
-        marginRight: 'auto',
+        marginLeft: "auto",
+        marginRight: "auto",
         borderRadius: 5,
     },
     modalContainer: {
@@ -272,4 +328,4 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         borderRadius: 5,
     },
-})
+});

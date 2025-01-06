@@ -1,11 +1,23 @@
-import { View, Text, TextInput, ToastAndroid, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, ImageBackground } from "react-native"
-import React, { useEffect, useState } from "react"
-import { useNavigation, useRoute } from "@react-navigation/native"
-import Geolocation from "@react-native-community/geolocation"
+import {
+    View,
+    Text,
+    TextInput,
+    ToastAndroid,
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    Image,
+    Alert,
+    ImageBackground,
+} from "react-native";
+import React, { useEffect, useState } from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import Geolocation from "@react-native-community/geolocation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { customColors, typography } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import assetImages from "../../Config/Image";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import FormField from "../../Components/FormField";
 
 const AddCustomer = () => {
@@ -29,7 +41,7 @@ const AddCustomer = () => {
         Created_By: "",
         Company_Id: "",
         Retailer_Class: "A",
-        Retailer_Channel_Id: "0"
+        Retailer_Channel_Id: "0",
     });
 
     const [errors, setErrors] = useState({});
@@ -37,11 +49,11 @@ const AddCustomer = () => {
     const [imageUri, setImageUri] = useState(null);
 
     useEffect(() => {
-        loadAsyncStorageData()
+        loadAsyncStorageData();
         if (route.params?.imageUri) {
             setImageUri(route.params.imageUri);
         }
-    }, [route.params?.imageUri])
+    }, [route.params?.imageUri]);
 
     const loadAsyncStorageData = async () => {
         try {
@@ -62,75 +74,83 @@ const AddCustomer = () => {
 
     const handleGeoData = async () => {
         try {
-            Geolocation.getCurrentPosition(
-                (position) => {
-                    const latitude = position.coords.latitude.toString();
-                    const longitude = position.coords.longitude.toString();
+            Geolocation.getCurrentPosition(position => {
+                const latitude = position.coords.latitude.toString();
+                const longitude = position.coords.longitude.toString();
 
-                    setFormValues((prev) => ({ ...prev, Latitude: latitude, Longitude: longitude }));
-                }
-            )
+                setFormValues(prev => ({
+                    ...prev,
+                    Latitude: latitude,
+                    Longitude: longitude,
+                }));
+            });
         } catch (error) {
-            console.error('Error fetching geolocation data:', error);
+            console.error("Error fetching geolocation data:", error);
         }
-    }
+    };
 
     const handleInputChange = (field, value) => {
-        setFormValues((prev) => ({ ...prev, [field]: value }));
+        setFormValues(prev => ({ ...prev, [field]: value }));
 
         // Clear error when user starts typing
         if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
+            setErrors(prev => ({ ...prev, [field]: "" }));
         }
     };
 
     const handleOpenCamera = () => {
-        navigation.navigate('OpenCamera', { onImageCapture: handleImageCapture });
+        navigation.navigate("OpenCamera", {
+            onImageCapture: handleImageCapture,
+        });
     };
 
-    const handleImageCapture = (uri) => {
+    const handleImageCapture = uri => {
         setImageUri(uri);
-        setFormValues({ ...formValues, profilePic: uri })
+        setFormValues({ ...formValues, profilePic: uri });
     };
 
-    const validateMobileNo = (mobileNo) => /^\d{10}$/.test(mobileNo);
+    const validateMobileNo = mobileNo => /^\d{10}$/.test(mobileNo);
 
     const validateForm = () => {
         const newErrors = {};
 
         // Retailer Name validation
         if (!formValues.Retailer_Name.trim()) {
-            newErrors.Retailer_Name = 'Retailer Name is required';
+            newErrors.Retailer_Name = "Retailer Name is required";
         } else if (formValues.Retailer_Name.length < 3) {
-            newErrors.Retailer_Name = 'Retailer Name must be at least 3 characters';
+            newErrors.Retailer_Name =
+                "Retailer Name must be at least 3 characters";
         }
 
         // Contact Person validation
         if (!formValues.Contact_Person.trim()) {
-            newErrors.Contact_Person = 'Contact Person is required';
+            newErrors.Contact_Person = "Contact Person is required";
         } else if (formValues.Contact_Person.length < 3) {
-            newErrors.Contact_Person = 'Contact Person name must be at least 3 characters';
+            newErrors.Contact_Person =
+                "Contact Person name must be at least 3 characters";
         }
 
         // Mobile Number validation
         if (!formValues.Mobile_No) {
-            newErrors.Mobile_No = 'Mobile Number is required';
+            newErrors.Mobile_No = "Mobile Number is required";
         } else if (!/^\d{10}$/.test(formValues.Mobile_No)) {
-            newErrors.Mobile_No = 'Mobile Number must be 10 digits';
+            newErrors.Mobile_No = "Mobile Number must be 10 digits";
         }
 
         // Address validation
         if (!formValues.Reatailer_Address.trim()) {
-            newErrors.Reatailer_Address = 'Address is required';
+            newErrors.Reatailer_Address = "Address is required";
         } else if (formValues.Reatailer_Address.length < 5) {
-            newErrors.Reatailer_Address = 'Address must be at least 5 characters';
+            newErrors.Reatailer_Address =
+                "Address must be at least 5 characters";
         }
 
         // City validation
         if (!formValues.Reatailer_City.trim()) {
-            newErrors.Reatailer_City = 'City is required';
+            newErrors.Reatailer_City = "City is required";
         } else if (formValues.Reatailer_City.length < 3) {
-            newErrors.Reatailer_City = 'City name must be at least 3 characters';
+            newErrors.Reatailer_City =
+                "City name must be at least 3 characters";
         }
 
         setErrors(newErrors);
@@ -142,7 +162,7 @@ const AddCustomer = () => {
             Alert.alert(
                 "Validation Error",
                 "Please check all required fields and try again.",
-                [{ text: "OK" }]
+                [{ text: "OK" }],
             );
             return;
         }
@@ -162,33 +182,38 @@ const AddCustomer = () => {
                 formData.append("Profile_Pic", {
                     uri: `file://${imageUri}`,
                     name: "photo.jpg",
-                    type: "image/jpeg"
+                    type: "image/jpeg",
                 });
             }
 
             const response = await fetch(`${API.retailers}${1}`, {
                 method: "POST",
-                body: formData
+                body: formData,
             });
 
             if (!response.ok) {
-                throw new Error(`Server responded with status: ${response.status}`);
+                throw new Error(
+                    `Server responded with status: ${response.status}`,
+                );
             }
 
             const result = await response.text();
             // console.log('Success:', result);
 
-            ToastAndroid.show("New Customer Added Successfully!", ToastAndroid.LONG);
+            ToastAndroid.show(
+                "New Customer Added Successfully!",
+                ToastAndroid.LONG,
+            );
             navigation.reset({
                 index: 0,
-                routes: [{ name: "HomeScreen" }]
+                routes: [{ name: "HomeScreen" }],
             });
         } catch (error) {
-            console.error('Submission Error:', error);
+            console.error("Submission Error:", error);
             Alert.alert(
                 "Error",
                 "Failed to add new customer. Please try again.",
-                [{ text: "OK" }]
+                [{ text: "OK" }],
             );
         } finally {
             setIsSubmitting(false);
@@ -203,55 +228,83 @@ const AddCustomer = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image source={assetImages.backArrow} />
+                        <MaterialIcon
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Retailers</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Retailers
+                    </Text>
                 </View>
 
                 <ScrollView style={styles.contentContainer}>
                     <View style={styles.formContainer}>
-
                         <View style={styles.inputWrapper}>
                             <FormLabel label="Retailer Name" required />
                             <TextInput
-                                style={[styles.input, errors.Retailer_Name && styles.inputError]}
+                                style={[
+                                    styles.input,
+                                    errors.Retailer_Name && styles.inputError,
+                                ]}
                                 value={formValues.Retailer_Name}
-                                onChangeText={(text) => handleInputChange("Retailer_Name", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Retailer_Name", text)
+                                }
                                 placeholder="Enter retailer name"
                             />
                             {errors.Retailer_Name && (
-                                <Text style={styles.errorText}>{errors.Retailer_Name}</Text>
+                                <Text style={styles.errorText}>
+                                    {errors.Retailer_Name}
+                                </Text>
                             )}
                         </View>
 
                         <View style={styles.inputWrapper}>
                             <FormLabel label="Contact Person" required />
                             <TextInput
-                                style={[styles.input, errors.Contact_Person && styles.inputError]}
+                                style={[
+                                    styles.input,
+                                    errors.Contact_Person && styles.inputError,
+                                ]}
                                 value={formValues.Contact_Person}
-                                onChangeText={(text) => handleInputChange("Contact_Person", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Contact_Person", text)
+                                }
                                 placeholder="Enter contact person name"
                             />
                             {errors.Contact_Person && (
-                                <Text style={styles.errorText}>{errors.Contact_Person}</Text>
+                                <Text style={styles.errorText}>
+                                    {errors.Contact_Person}
+                                </Text>
                             )}
                         </View>
 
                         <View style={styles.inputWrapper}>
                             <FormLabel label="Mobile Number" required />
                             <TextInput
-                                style={[styles.input, errors.Mobile_No && styles.inputError]}
+                                style={[
+                                    styles.input,
+                                    errors.Mobile_No && styles.inputError,
+                                ]}
                                 value={formValues.Mobile_No}
-                                onChangeText={(text) => handleInputChange("Mobile_No", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Mobile_No", text)
+                                }
                                 placeholder="Enter 10-digit mobile number"
                                 keyboardType="phone-pad"
                                 maxLength={10}
                             />
                             {errors.Mobile_No && (
-                                <Text style={styles.errorText}>{errors.Mobile_No}</Text>
+                                <Text style={styles.errorText}>
+                                    {errors.Mobile_No}
+                                </Text>
                             )}
                         </View>
 
@@ -260,7 +313,9 @@ const AddCustomer = () => {
                             <TextInput
                                 style={[styles.input]}
                                 value={formValues.Gstno}
-                                onChangeText={(text) => handleInputChange("Gstno", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Gstno", text)
+                                }
                                 placeholder="GST number"
                             />
                         </View>
@@ -275,10 +330,9 @@ const AddCustomer = () => {
 
                             <TouchableOpacity
                                 style={styles.cameraButton}
-                                onPress={handleOpenCamera}
-                            >
+                                onPress={handleOpenCamera}>
                                 <Text style={styles.cameraButtonText}>
-                                    {imageUri ? 'Retake Photo' : 'Take Photo'}
+                                    {imageUri ? "Retake Photo" : "Take Photo"}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -292,22 +346,27 @@ const AddCustomer = () => {
                                         value={formValues.Latitude}
                                         placeholder="Latitude"
                                         keyboardType="numeric"
-                                        onChangeText={(text) => handleInputChange("Latitude", text)}
+                                        onChangeText={text =>
+                                            handleInputChange("Latitude", text)
+                                        }
                                     />
                                     <TextInput
                                         style={styles.geoInput}
                                         value={formValues.Longitude}
                                         placeholder="Longitude"
                                         keyboardType="numeric"
-                                        onChangeText={(text) => handleInputChange("Longitude", text)}
+                                        onChangeText={text =>
+                                            handleInputChange("Longitude", text)
+                                        }
                                     />
                                 </View>
 
                                 <TouchableOpacity
                                     style={styles.geoButton}
-                                    onPress={handleGeoData}
-                                >
-                                    <Text style={styles.geoButtonText}>Get Location</Text>
+                                    onPress={handleGeoData}>
+                                    <Text style={styles.geoButtonText}>
+                                        Get Location
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -315,27 +374,42 @@ const AddCustomer = () => {
                         <View style={styles.inputWrapper}>
                             <FormLabel label="Address" required />
                             <TextInput
-                                style={[styles.input, errors.Reatailer_Address && styles.inputError]}
+                                style={[
+                                    styles.input,
+                                    errors.Reatailer_Address &&
+                                        styles.inputError,
+                                ]}
                                 value={formValues.Reatailer_Address}
-                                onChangeText={(text) => handleInputChange("Reatailer_Address", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Reatailer_Address", text)
+                                }
                                 placeholder="Enter complete address"
                                 multiline
                             />
                             {errors.Reatailer_Address && (
-                                <Text style={styles.errorText}>{errors.Reatailer_Address}</Text>
+                                <Text style={styles.errorText}>
+                                    {errors.Reatailer_Address}
+                                </Text>
                             )}
                         </View>
 
                         <View style={styles.inputWrapper}>
                             <FormLabel label="City" required />
                             <TextInput
-                                style={[styles.input, errors.Reatailer_City && styles.inputError]}
+                                style={[
+                                    styles.input,
+                                    errors.Reatailer_City && styles.inputError,
+                                ]}
                                 value={formValues.Reatailer_City}
-                                onChangeText={(text) => handleInputChange("Reatailer_City", text)}
+                                onChangeText={text =>
+                                    handleInputChange("Reatailer_City", text)
+                                }
                                 placeholder="Enter city name"
                             />
                             {errors.Reatailer_City && (
-                                <Text style={styles.errorText}>{errors.Reatailer_City}</Text>
+                                <Text style={styles.errorText}>
+                                    {errors.Reatailer_City}
+                                </Text>
                             )}
                         </View>
 
@@ -345,33 +419,32 @@ const AddCustomer = () => {
                                 style={[styles.input]}
                                 value={formValues.PinCode}
                                 keyboardType="phone-pad"
-                                onChangeText={(text) => handleInputChange("PinCode", text)}
+                                onChangeText={text =>
+                                    handleInputChange("PinCode", text)
+                                }
                                 placeholder="Pin Code"
                             />
                         </View>
 
-
                         <TouchableOpacity
                             style={[
                                 styles.submitButton,
-                                isSubmitting && styles.submitButtonDisabled
+                                isSubmitting && styles.submitButtonDisabled,
                             ]}
                             onPress={handleSubmit}
-                            disabled={isSubmitting}
-                        >
+                            disabled={isSubmitting}>
                             <Text style={styles.submitButtonText}>
                                 {isSubmitting ? "Saving..." : "Save Retailer"}
                             </Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
-
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
-export default AddCustomer
+export default AddCustomer;
 
 const styles = StyleSheet.create({
     container: {
@@ -504,4 +577,4 @@ const styles = StyleSheet.create({
         color: "#FF0000",
         ...typography.h6(),
     },
-})
+});

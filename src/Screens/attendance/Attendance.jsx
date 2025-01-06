@@ -1,15 +1,27 @@
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, Alert, Image, Modal, ToastAndroid, ImageBackground } from "react-native";
-import React, { useEffect, useState } from "react"
-import { useNavigation } from "@react-navigation/native"
+import {
+    StyleSheet,
+    Text,
+    View,
+    TouchableOpacity,
+    TextInput,
+    Alert,
+    Image,
+    Modal,
+    ToastAndroid,
+    ImageBackground,
+} from "react-native";
+import React, { useEffect, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/AntDesign";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import CameraComponent from "../../Components/CameraComponent";
 import LocationIndicator from "../../Components/LocationIndicator";
 import assetImages from "../../Config/Image";
 
-const Attendance = (locationData) => {
+const Attendance = locationData => {
     const navigation = useNavigation();
     const [showCameraModal, setShowCameraModal] = useState(false);
     const [capturedPhotoPath, setCapturedPhotoPath] = useState(null);
@@ -18,8 +30,8 @@ const Attendance = (locationData) => {
         Start_KM: "",
         Latitude: locationData?.latitude || null,
         Longitude: locationData?.longitude || null,
-        Start_KM_Pic: ""
-    })
+        Start_KM_Pic: "",
+    });
 
     useEffect(() => {
         (async () => {
@@ -28,16 +40,16 @@ const Attendance = (locationData) => {
                 if (userId) {
                     setFormValues(prevValues => ({
                         ...prevValues,
-                        UserId: userId
+                        UserId: userId,
                     }));
                 }
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, [])
+    }, []);
 
-    const handleLocationUpdate = (locationData) => {
+    const handleLocationUpdate = locationData => {
         setFormValues(prevState => ({
             ...prevState,
             Latitude: locationData.latitude,
@@ -48,15 +60,15 @@ const Attendance = (locationData) => {
     const handleInputChange = value => {
         setFormValues(prevState => ({
             ...prevState,
-            Start_KM: value
+            Start_KM: value,
         }));
     };
 
-    const handlePhotoCapture = async (photoPath) => {
+    const handlePhotoCapture = async photoPath => {
         setCapturedPhotoPath(photoPath);
         setFormValues(prevState => ({
             ...prevState,
-            Start_KM_Pic: photoPath
+            Start_KM_Pic: photoPath,
         }));
     };
 
@@ -64,15 +76,19 @@ const Attendance = (locationData) => {
         setCapturedPhotoPath(null);
         setFormValues(prevState => ({
             ...prevState,
-            Start_KM_Pic: ""
+            Start_KM_Pic: "",
         }));
     };
 
     const handleSubmit = async () => {
-        const { UserId, Start_KM, Latitude, Longitude, Start_KM_Pic } = formValues;
+        const { UserId, Start_KM, Latitude, Longitude, Start_KM_Pic } =
+            formValues;
 
         if (!Latitude || !Longitude) {
-            Alert.alert("Location Permission", "Please ensure location services are enabled.");
+            Alert.alert(
+                "Location Permission",
+                "Please ensure location services are enabled.",
+            );
             return;
         }
 
@@ -85,7 +101,7 @@ const Attendance = (locationData) => {
             formData.append("Start_KM_Pic", {
                 uri: `file://${Start_KM_Pic}`,
                 name: "photo.jpg",
-                type: "image/jpeg"
+                type: "image/jpeg",
             });
 
             const response = await fetch(API.attendance, {
@@ -93,7 +109,7 @@ const Attendance = (locationData) => {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
-                body: formData
+                body: formData,
             });
 
             const responseData = await response.json();
@@ -112,13 +128,23 @@ const Attendance = (locationData) => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.overlay}>
                     <View style={styles.headerContainer}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Image source={assetImages.backArrow} />
+                            <MaterialIcon
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
+                            />
                         </TouchableOpacity>
-                        <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Start your Day</Text>
+                        <Text
+                            style={styles.headerText}
+                            maxFontSizeMultiplier={1.2}>
+                            Start your Day
+                        </Text>
                     </View>
 
                     <View style={styles.contentContainer}>
@@ -139,23 +165,30 @@ const Attendance = (locationData) => {
                                 autoCapitalize="characters"
                                 onChangeText={handleInputChange}
                             />
-                            <TouchableOpacity onPress={() => setShowCameraModal(true)}
-                                style={styles.cameraButton}
-                            >
-                                <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>{!capturedPhotoPath ? "Take" : "Preview"}</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowCameraModal(true)}
+                                style={styles.cameraButton}>
+                                <Text
+                                    style={styles.buttonText}
+                                    maxFontSizeMultiplier={1.2}>
+                                    {!capturedPhotoPath ? "Take" : "Preview"}
+                                </Text>
                             </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity
                             style={styles.submitButton}
-                            onPress={handleSubmit}
-                        >
+                            onPress={handleSubmit}>
                             <View style={{ flexDirection: "row" }}>
                                 <Image
                                     source={assetImages.saveIcon}
                                     style={{ marginRight: 15 }}
                                 />
-                                <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Save</Text>
+                                <Text
+                                    maxFontSizeMultiplier={1.2}
+                                    style={styles.buttonText}>
+                                    Save
+                                </Text>
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -166,39 +199,67 @@ const Attendance = (locationData) => {
                 visible={showCameraModal}
                 animationType="slide"
                 transparent={true}
-                onRequestClose={() => setShowCameraModal(false)}
-            >
+                onRequestClose={() => setShowCameraModal(false)}>
                 <View style={styles.modalContainer}>
-                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={styles.closeButton}>
-                        <Icon name="close" size={30} color={customColors.white} />
+                    <TouchableOpacity
+                        onPress={() => setShowCameraModal(false)}
+                        style={styles.closeButton}>
+                        <Icon
+                            name="close"
+                            size={30}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    {
-                        !capturedPhotoPath ? (
-                            <CameraComponent onPhotoCapture={handlePhotoCapture} />
-                        ) : (
-                            capturedPhotoPath && typeof capturedPhotoPath === "string" && (
-                                <View style={styles.previewImageContainer}>
-                                    <Image
-                                        source={{ uri: 'file://' + capturedPhotoPath }}
-                                        style={styles.previewImage}
-                                    />
-                                    <TouchableOpacity onPress={clearPhoto} style={styles.clearPhotoButton}>
-                                        <Text maxFontSizeMultiplier={1.2} style={[styles.buttonText, { color: customColors.black }]}>Retake</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => setShowCameraModal(false)} style={[styles.submitButton, { marginTop: 15, backgroundColor: customColors.primary }]}>
-                                        <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>Done</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )
+                    {!capturedPhotoPath ? (
+                        <CameraComponent onPhotoCapture={handlePhotoCapture} />
+                    ) : (
+                        capturedPhotoPath &&
+                        typeof capturedPhotoPath === "string" && (
+                            <View style={styles.previewImageContainer}>
+                                <Image
+                                    source={{
+                                        uri: "file://" + capturedPhotoPath,
+                                    }}
+                                    style={styles.previewImage}
+                                />
+                                <TouchableOpacity
+                                    onPress={clearPhoto}
+                                    style={styles.clearPhotoButton}>
+                                    <Text
+                                        maxFontSizeMultiplier={1.2}
+                                        style={[
+                                            styles.buttonText,
+                                            { color: customColors.black },
+                                        ]}>
+                                        Retake
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setShowCameraModal(false)}
+                                    style={[
+                                        styles.submitButton,
+                                        {
+                                            marginTop: 15,
+                                            backgroundColor:
+                                                customColors.primary,
+                                        },
+                                    ]}>
+                                    <Text
+                                        maxFontSizeMultiplier={1.2}
+                                        style={styles.buttonText}>
+                                        Done
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         )
-                    }
+                    )}
                 </View>
-            </Modal >
-        </View >
-    )
-}
+            </Modal>
+        </View>
+    );
+};
 
-export default Attendance
+export default Attendance;
 
 const styles = StyleSheet.create({
     container: {
@@ -239,7 +300,7 @@ const styles = StyleSheet.create({
         width: "100%",
         height: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 7.5
+        borderRadius: 7.5,
     },
     inputGroup: {
         flexDirection: "row",
@@ -291,9 +352,9 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     closeButton: {
         marginLeft: "auto",
@@ -306,4 +367,4 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         borderRadius: 5,
     },
-})
+});

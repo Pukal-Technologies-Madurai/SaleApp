@@ -1,8 +1,23 @@
-import { StyleSheet, Text, View, ImageBackground, TouchableOpacity, Image, ScrollView, Modal, Alert, TextInput, Dimensions, Linking, ToastAndroid } from "react-native";
+import {
+    StyleSheet,
+    Text,
+    View,
+    ImageBackground,
+    TouchableOpacity,
+    Image,
+    ScrollView,
+    Modal,
+    Alert,
+    TextInput,
+    Dimensions,
+    Linking,
+    ToastAndroid,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
@@ -16,11 +31,11 @@ const ImagePreviewModal = ({ imageSource, visible, onClose }) => {
     const { width, height } = Dimensions.get("window");
 
     return (
-        <Modal visible={visible} transparent={true} onRequestClose={onClose} >
-            <TouchableOpacity style={styles.fullScreenModalOverlay}
+        <Modal visible={visible} transparent={true} onRequestClose={onClose}>
+            <TouchableOpacity
+                style={styles.fullScreenModalOverlay}
                 onPress={onClose}
-                activeOpacity={1}
-            >
+                activeOpacity={1}>
                 <View style={styles.fullScreenImageContainer}>
                     <Image
                         source={imageSource}
@@ -53,7 +68,7 @@ const DeliveryCheck = () => {
 
     const deliveryStatus = { 5: "Pending", 7: "Delivered" };
     const paymentMode = { 1: "Cash", 2: "G-Pay" };
-    const paymentStatus = { 0: "Pending", 3: "Completed" }
+    const paymentStatus = { 0: "Pending", 3: "Completed" };
 
     useEffect(() => {
         (async () => {
@@ -70,7 +85,9 @@ const DeliveryCheck = () => {
     }, [selectedFromDate, selectedToDate]);
 
     const fetchDelivery = async (from, to, userId, company) => {
-        console.log(`${API.delivery}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`)
+        console.log(
+            `${API.delivery}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
+        );
         try {
             const response = await fetch(
                 `${API.delivery}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
@@ -108,19 +125,27 @@ const DeliveryCheck = () => {
         }
     };
 
-    const renderHeader = (item) => {
+    const renderHeader = item => {
         return (
             <View style={styles.accordionHeader}>
                 <Text style={styles.accordionHeaderText}>
-                    {item.Retailer_Name} {item.Delivery_Status === 7 && (
-                        <Text style={{ ...typography.h6(), color: "red", fontWeight: "bold" }}>(Delivered)</Text>
+                    {item.Retailer_Name}{" "}
+                    {item.Delivery_Status === 7 && (
+                        <Text
+                            style={{
+                                ...typography.h6(),
+                                color: "red",
+                                fontWeight: "bold",
+                            }}>
+                            (Delivered)
+                        </Text>
                     )}
                 </Text>
             </View>
         );
     };
 
-    const getDirection = (item) => {
+    const getDirection = item => {
         let latitude = item.rettainerLatitude;
         let longitude = item.retailerLongitude;
 
@@ -138,9 +163,9 @@ const DeliveryCheck = () => {
         } else {
             ToastAndroid.show("Location not available.", ToastAndroid.LONG);
         }
-    }
+    };
 
-    const renderContent = (item) => {
+    const renderContent = item => {
         return (
             <View style={styles.content}>
                 <View style={styles.invoiceContainer}>
@@ -154,7 +179,9 @@ const DeliveryCheck = () => {
 
                 <View style={styles.invoiceBody}>
                     <View style={styles.invoiceRow}>
-                        <Text style={styles.invoiceValue}>Total amount: ₹ {item.Total_Invoice_value}</Text>
+                        <Text style={styles.invoiceValue}>
+                            Total amount: ₹ {item.Total_Invoice_value}
+                        </Text>
                     </View>
 
                     <View style={styles.invoiceProducts}>
@@ -166,14 +193,20 @@ const DeliveryCheck = () => {
                         {item.Products_List.map((product, index) => (
                             <View key={index} style={styles.productRow}>
                                 <Text
-                                    style={[styles.invoiceCell, { flex: 1, textAlign: "left" }]}
+                                    style={[
+                                        styles.invoiceCell,
+                                        { flex: 1, textAlign: "left" },
+                                    ]}
                                     numberOfLines={5}
-                                    ellipsizeMode="tail"
-                                >
+                                    ellipsizeMode="tail">
                                     {product.Product_Name}
                                 </Text>
-                                <Text style={styles.invoiceCell}>{product.Bill_Qty}</Text>
-                                <Text style={styles.invoiceCell}>₹ {product.Amount}</Text>
+                                <Text style={styles.invoiceCell}>
+                                    {product.Bill_Qty}
+                                </Text>
+                                <Text style={styles.invoiceCell}>
+                                    ₹ {product.Amount}
+                                </Text>
                             </View>
                         ))}
                     </View>
@@ -183,17 +216,26 @@ const DeliveryCheck = () => {
                             onPress={() => {
                                 setSelectedItem(item);
                                 setIsUpdateModalVisible(true);
-                            }}
-                        >
-                            <Text style={[styles.buttonText, { color: customColors.black }]}>
+                            }}>
+                            <Text
+                                style={[
+                                    styles.buttonText,
+                                    { color: customColors.black },
+                                ]}>
                                 Update
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.button} onPress={() => {
-                            getDirection(item);
-                        }}>
-                            <Text style={[styles.buttonText, { color: customColors.black }]}>
+                        <TouchableOpacity
+                            style={styles.button}
+                            onPress={() => {
+                                getDirection(item);
+                            }}>
+                            <Text
+                                style={[
+                                    styles.buttonText,
+                                    { color: customColors.black },
+                                ]}>
                                 Direction
                             </Text>
                         </TouchableOpacity>
@@ -204,14 +246,13 @@ const DeliveryCheck = () => {
                     visible={isUpdateModalVisible}
                     transparent={true}
                     animationType="slide"
-                    onRequestClose={() => setIsUpdateModalVisible(false)}
-                >
+                    onRequestClose={() => setIsUpdateModalVisible(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             {/* Fetch and display current location */}
                             <LocationIndicator
-                                onLocationUpdate={(locationData) => {
-                                    setLocation((prevLocation) => ({
+                                onLocationUpdate={locationData => {
+                                    setLocation(prevLocation => ({
                                         latitude: locationData.latitude,
                                         longitude: locationData.longitude,
                                     }));
@@ -222,7 +263,7 @@ const DeliveryCheck = () => {
 
                             {/* Delivery Status Dropdown */}
                             <EnhancedDropdown
-                                data={Object.keys(deliveryStatus).map((key) => ({
+                                data={Object.keys(deliveryStatus).map(key => ({
                                     label: deliveryStatus[key],
                                     value: key,
                                 }))}
@@ -230,8 +271,8 @@ const DeliveryCheck = () => {
                                 valueField="value"
                                 placeholder="Select Delivery Status"
                                 value={selectedItem?.deliveryStatus}
-                                onChange={(item) => {
-                                    setSelectedItem((prev) => ({
+                                onChange={item => {
+                                    setSelectedItem(prev => ({
                                         ...prev,
                                         deliveryStatus: item.value,
                                     }));
@@ -240,7 +281,7 @@ const DeliveryCheck = () => {
 
                             {/* Payment Status Dropdown */}
                             <EnhancedDropdown
-                                data={Object.keys(paymentMode).map((key) => ({
+                                data={Object.keys(paymentMode).map(key => ({
                                     label: paymentMode[key],
                                     value: key,
                                 }))}
@@ -248,8 +289,8 @@ const DeliveryCheck = () => {
                                 valueField="value"
                                 placeholder="Select Payment Status"
                                 value={selectedItem?.paymentMode}
-                                onChange={(item) => {
-                                    setSelectedItem((prev) => ({
+                                onChange={item => {
+                                    setSelectedItem(prev => ({
                                         ...prev,
                                         paymentMode: item.value,
                                     }));
@@ -259,8 +300,9 @@ const DeliveryCheck = () => {
                             {selectedItem?.paymentMode === "2" && (
                                 <View style={styles.gpayContainer}>
                                     <TouchableOpacity
-                                        onPress={() => setIsImagePreviewVisible(true)}
-                                    >
+                                        onPress={() =>
+                                            setIsImagePreviewVisible(true)
+                                        }>
                                         <Image
                                             source={assetImages.gpayLogo}
                                             style={styles.gpayLogo}
@@ -271,8 +313,8 @@ const DeliveryCheck = () => {
                                         style={styles.gpayReferenceInput}
                                         placeholder="Enter G-Pay Reference Number"
                                         value={selectedItem?.paymentRefNo}
-                                        onChangeText={(text) => {
-                                            setSelectedItem((prev) => ({
+                                        onChangeText={text => {
+                                            setSelectedItem(prev => ({
                                                 ...prev,
                                                 paymentRefNo: text,
                                             }));
@@ -283,7 +325,9 @@ const DeliveryCheck = () => {
                                     <ImagePreviewModal
                                         imageSource={assetImages.gpayLogo}
                                         visible={isImagePreviewVisible}
-                                        onClose={() => setIsImagePreviewVisible(false)}
+                                        onClose={() =>
+                                            setIsImagePreviewVisible(false)
+                                        }
                                     />
                                 </View>
                             )}
@@ -296,20 +340,25 @@ const DeliveryCheck = () => {
                                         handleUpdate(
                                             {
                                                 ...selectedItem,
-                                                Payment_Ref_No: selectedItem?.paymentRefNo || "",
+                                                Payment_Ref_No:
+                                                    selectedItem?.paymentRefNo ||
+                                                    "",
                                             },
-                                            selectedItem?.deliveryStatus
+                                            selectedItem?.deliveryStatus,
                                         );
                                         setIsUpdateModalVisible(false);
-                                    }}
-                                >
+                                    }}>
                                     <Text style={styles.buttonText}>Save</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.button, styles.modalButton]}
-                                    onPress={() => setIsUpdateModalVisible(false)} // Close modal without saving
+                                    onPress={() =>
+                                        setIsUpdateModalVisible(false)
+                                    } // Close modal without saving
                                 >
-                                    <Text style={styles.buttonText}>Cancel</Text>
+                                    <Text style={styles.buttonText}>
+                                        Cancel
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -328,9 +377,10 @@ const DeliveryCheck = () => {
             }
 
             const userId = await AsyncStorage.getItem("UserId");
-            const locationString = location.latitude && location.longitude
-                ? `${location.latitude},${location.longitude}`
-                : "Madurai";
+            const locationString =
+                location.latitude && location.longitude
+                    ? `${location.latitude},${location.longitude}`
+                    : "Madurai";
 
             let paymentStatus = "0"; // Default to pending
             let paymentRefNo = "";
@@ -374,7 +424,6 @@ const DeliveryCheck = () => {
                 Delivery_Status: dropdownValue || "5",
                 Created_by: userId,
                 Alter_Id: item.Alter_Id,
-
             };
 
             // Perform the PUT request with improved error handling
@@ -383,7 +432,6 @@ const DeliveryCheck = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updatePayload),
             });
-
 
             const responseData = await response.json();
 
@@ -395,27 +443,33 @@ const DeliveryCheck = () => {
                 const toDate = selectedToDate.toISOString().split("T")[0];
                 fetchDelivery(fromDate, toDate, userId, item.Company_Id);
             } else {
-                Alert.alert("Error", responseData.message || "Failed to update delivery.");
+                Alert.alert(
+                    "Error",
+                    responseData.message || "Failed to update delivery.",
+                );
             }
-
         } catch (error) {
             // Catch any other unexpected errors
             console.error("Unexpected Error in handleUpdate:", error);
-            Alert.alert(
-                "Error",
-                "An unexpected error occurred",
-                [{ text: "OK" }]
-            );
+            Alert.alert("Error", "An unexpected error occurred", [
+                { text: "OK" },
+            ]);
         }
     };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.overlay}>
                     <View style={styles.headerContainer}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Image source={assetImages.backArrow} />
+                            <MaterialIcon
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
+                            />
                         </TouchableOpacity>
                         <Text style={styles.headerText}>Delivery Check</Text>
                     </View>
@@ -433,7 +487,7 @@ const DeliveryCheck = () => {
                             onDateChange={handleToDateChange}
                             // disabled={true}
                             containerStyle={{ width: "50%" }}
-                        // style={{ backgroundColor: "rgba(0,0,0,0.1)" }}
+                            // style={{ backgroundColor: "rgba(0,0,0,0.1)" }}
                         />
                     </View>
 
@@ -452,10 +506,10 @@ const DeliveryCheck = () => {
                 </View>
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
-export default DeliveryCheck
+export default DeliveryCheck;
 
 const styles = StyleSheet.create({
     container: {
@@ -515,7 +569,7 @@ const styles = StyleSheet.create({
     },
     invoiceContainer: {
         paddingVertical: 5,
-        paddingHorizontal: 10
+        paddingHorizontal: 10,
     },
     invoiceHeader: {
         flexDirection: "row",
@@ -542,7 +596,7 @@ const styles = StyleSheet.create({
     invoiceValue: {
         ...typography.h6(),
         color: customColors.white,
-        fontWeight: "700"
+        fontWeight: "700",
     },
     invoiceProducts: {
         marginTop: 10,
@@ -579,9 +633,9 @@ const styles = StyleSheet.create({
 
     modalOverlay: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
         height: "90%",
     },
     modalContent: {
@@ -589,8 +643,8 @@ const styles = StyleSheet.create({
         height: "85%",
         backgroundColor: customColors.white,
         borderRadius: 15,
-        maxHeight: '80%',
-        marginVertical: 10
+        maxHeight: "80%",
+        marginVertical: 10,
     },
     modalButtonContainer: {
         flexDirection: "row",
@@ -601,10 +655,10 @@ const styles = StyleSheet.create({
     modalButton: {
         flex: 1,
         marginHorizontal: 5,
-        backgroundColor: '#007BFF',
+        backgroundColor: "#007BFF",
         borderRadius: 5,
         paddingVertical: 10,
-        alignItems: 'center',
+        alignItems: "center",
     },
     button: {
         backgroundColor: customColors.secondary,
@@ -615,18 +669,18 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         ...typography.h6(),
-        color: 'white',
-        fontWeight: 'bold',
+        color: "white",
+        fontWeight: "bold",
     },
 
     gpayContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         marginVertical: 10,
         paddingHorizontal: 10,
     },
     gpayLogo: {
-        width: 100,  // Increased from 50
+        width: 100, // Increased from 50
         height: 100, // Increased from 50
         marginRight: 10,
     },
@@ -642,4 +696,4 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-})
+});

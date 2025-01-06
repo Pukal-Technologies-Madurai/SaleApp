@@ -1,10 +1,24 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View, ScrollView, SafeAreaView, TextInput, Modal, Alert, ImageBackground, ActivityIndicator } from "react-native";
+import {
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    ScrollView,
+    SafeAreaView,
+    TextInput,
+    Modal,
+    Alert,
+    ImageBackground,
+    ActivityIndicator,
+} from "react-native";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Dropdown } from "react-native-element-dropdown";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Feather";
 import AntDesign from "react-native-vector-icons/AntDesign";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
@@ -60,7 +74,7 @@ const Sales = ({ route }) => {
                         Sales_Person_Id: userId,
                         Created_by: userId,
                         Sales_Person_Name: userName,
-                        Branch_Id: branchId
+                        Branch_Id: branchId,
                     }));
                     await fetchProducts(companyId);
                     await fetchUOMData();
@@ -71,7 +85,7 @@ const Sales = ({ route }) => {
         })();
     }, []);
 
-    const fetchProducts = async (id) => {
+    const fetchProducts = async id => {
         try {
             const response = await fetch(`${API.products}${id}`);
             const jsonData = await response.json();
@@ -80,13 +94,13 @@ const Sales = ({ route }) => {
                 setProductData(jsonData.data);
 
                 const brands = Array.from(
-                    new Set(jsonData.data.map(item => item.Brand_Name))
+                    new Set(jsonData.data.map(item => item.Brand_Name)),
                 )
                     .filter(brand => brand)
                     .sort()
                     .map(brand => ({
                         label: brand,
-                        value: brand
+                        value: brand,
                     }));
 
                 setBrandData(brands);
@@ -108,194 +122,216 @@ const Sales = ({ route }) => {
         }
     };
 
-    const handleBrandChange = (item) => {
+    const handleBrandChange = item => {
         setSelectedBrand(item.value);
         setSelectedGroup(null); // Reset product group when brand changes
         setFilteredProducts([]); // Clear products when brand changes
 
         // Update product groups for selected brand
         const filteredByBrand = productData.filter(
-            product => product.Brand_Name === item.value
+            product => product.Brand_Name === item.value,
         );
 
         // Extract unique product groups for the selected brand
         const groups = Array.from(
-            new Set(filteredByBrand.map(item => item.Pro_Group))
+            new Set(filteredByBrand.map(item => item.Pro_Group)),
         )
             .filter(group => group) // Remove empty or null values
             .sort() // Sort alphabetically
             .map(group => ({
                 label: group,
-                value: group
+                value: group,
             }));
 
         setProGroupData(groups);
     };
 
     // Handle product group selection
-    const handleGroupChange = (item) => {
+    const handleGroupChange = item => {
         setSelectedGroup(item.value);
 
         // Filter products only when both brand and group are selected
-        const filtered = productData.filter(product =>
-            product.Brand_Name === selectedBrand &&
-            product.Pro_Group === item.value
+        const filtered = productData.filter(
+            product =>
+                product.Brand_Name === selectedBrand &&
+                product.Pro_Group === item.value,
         );
 
         setFilteredProducts(filtered);
     };
 
-    const handleQuantityChange = useCallback((productId, quantity, rate, product) => {
-        const newQuantity = Math.max(0, parseInt(quantity) || 0);
-        const selectedUOM = selectedUOMs[productId] || product.UOM_Id;
+    const handleQuantityChange = useCallback(
+        (productId, quantity, rate, product) => {
+            const newQuantity = Math.max(0, parseInt(quantity) || 0);
+            const selectedUOM = selectedUOMs[productId] || product.UOM_Id;
 
-        setInitialValue(prev => {
-            const updatedProductArray = [...(prev.Product_Array || [])];
-            const existingIndex = updatedProductArray.findIndex(
-                item => item.Item_Id === productId
-            );
-
-            if (newQuantity > 0) {
-                const productEntry = {
-                    Item_Id: productId,
-                    Bill_Qty: newQuantity,
-                    Item_Rate: rate,
-                    UOM: selectedUOM, // Changed from UOM to UOM_Id
-                    Product_Id: productId // Added Product_Id explicitly
-                };
-
-                if (existingIndex !== -1) {
-                    updatedProductArray[existingIndex] = productEntry;
-                } else {
-                    updatedProductArray.push(productEntry);
-                }
-            } else if (existingIndex !== -1) {
-                updatedProductArray.splice(existingIndex, 1);
-            }
-
-            return {
-                ...prev,
-                Product_Array: updatedProductArray,
-            };
-        });
-
-        setOrderQuantities(prev => ({
-            ...prev,
-            [productId]: newQuantity > 0 ? newQuantity.toString() : ''
-        }));
-    }, [selectedUOMs]);
-
-    const handleUOMChange = useCallback((productId, uomId) => {
-        // Update local state for UOM selection
-        setSelectedUOMs(prev => ({
-            ...prev,
-            [productId]: uomId
-        }));
-
-        // Update Product_Array with new UOM
-        setInitialValue(prev => {
-            const updatedProductArray = [...prev.Product_Array];
-            const existingIndex = updatedProductArray.findIndex(
-                item => item.Item_Id === productId
-            );
-
-            if (existingIndex !== -1) {
-                // Update existing product entry
-                updatedProductArray[existingIndex] = {
-                    ...updatedProductArray[existingIndex],
-                    UOM: uomId  // Make sure to use UOM_Id instead of UOM
-                };
-            } else {
-                // If product doesn't exist in array but has quantity, add it
-                const product = filteredProducts.find(p => p.Product_Id === productId);
-                if (product && orderQuantities[productId]) {
-                    updatedProductArray.push({
-                        Item_Id: productId,
-                        Product_Id: productId,
-                        Bill_Qty: parseInt(orderQuantities[productId] || 0),
-                        Item_Rate: editedPrices[productId] || product.Item_Rate,
-                        UOM: uomId
-                    });
-                }
-            }
-
-            return {
-                ...prev,
-                Product_Array: updatedProductArray
-            };
-        });
-    }, [orderQuantities, filteredProducts, editedPrices]);
-
-    const handlePriceChange = useCallback((productId, price) => {
-        // Update the display value immediately
-        setPriceInputValues(prev => ({
-            ...prev,
-            [productId]: price
-        }));
-
-        // Only update the actual price if it's a valid number
-        const numericPrice = price === '' ? 0 : parseFloat(price);
-        if (!isNaN(numericPrice)) {
-            setEditedPrices(prev => ({
-                ...prev,
-                [productId]: numericPrice
-            }));
-
-            // Update Product_Array with new price
             setInitialValue(prev => {
-                const updatedProductArray = [...prev.Product_Array];
+                const updatedProductArray = [...(prev.Product_Array || [])];
                 const existingIndex = updatedProductArray.findIndex(
-                    item => item.Item_Id === productId
+                    item => item.Item_Id === productId,
                 );
 
-                if (existingIndex !== -1) {
-                    updatedProductArray[existingIndex] = {
-                        ...updatedProductArray[existingIndex],
-                        Item_Rate: numericPrice
-                    };
-                } else if (orderQuantities[productId]) {
-                    const product = filteredProducts.find(p => p.Product_Id === productId);
-                    updatedProductArray.push({
+                if (newQuantity > 0) {
+                    const productEntry = {
                         Item_Id: productId,
-                        Product_Id: productId,
-                        Bill_Qty: parseInt(orderQuantities[productId]),
-                        Item_Rate: numericPrice,
-                        UOM: selectedUOMs[productId] || product.UOM_Id
-                    });
+                        Bill_Qty: newQuantity,
+                        Item_Rate: rate,
+                        UOM: selectedUOM, // Changed from UOM to UOM_Id
+                        Product_Id: productId, // Added Product_Id explicitly
+                    };
+
+                    if (existingIndex !== -1) {
+                        updatedProductArray[existingIndex] = productEntry;
+                    } else {
+                        updatedProductArray.push(productEntry);
+                    }
+                } else if (existingIndex !== -1) {
+                    updatedProductArray.splice(existingIndex, 1);
                 }
 
                 return {
                     ...prev,
-                    Product_Array: updatedProductArray
+                    Product_Array: updatedProductArray,
                 };
             });
-        }
-    }, [orderQuantities, filteredProducts, selectedUOMs]);
+
+            setOrderQuantities(prev => ({
+                ...prev,
+                [productId]: newQuantity > 0 ? newQuantity.toString() : "",
+            }));
+        },
+        [selectedUOMs],
+    );
+
+    const handleUOMChange = useCallback(
+        (productId, uomId) => {
+            // Update local state for UOM selection
+            setSelectedUOMs(prev => ({
+                ...prev,
+                [productId]: uomId,
+            }));
+
+            // Update Product_Array with new UOM
+            setInitialValue(prev => {
+                const updatedProductArray = [...prev.Product_Array];
+                const existingIndex = updatedProductArray.findIndex(
+                    item => item.Item_Id === productId,
+                );
+
+                if (existingIndex !== -1) {
+                    // Update existing product entry
+                    updatedProductArray[existingIndex] = {
+                        ...updatedProductArray[existingIndex],
+                        UOM: uomId, // Make sure to use UOM_Id instead of UOM
+                    };
+                } else {
+                    // If product doesn't exist in array but has quantity, add it
+                    const product = filteredProducts.find(
+                        p => p.Product_Id === productId,
+                    );
+                    if (product && orderQuantities[productId]) {
+                        updatedProductArray.push({
+                            Item_Id: productId,
+                            Product_Id: productId,
+                            Bill_Qty: parseInt(orderQuantities[productId] || 0),
+                            Item_Rate:
+                                editedPrices[productId] || product.Item_Rate,
+                            UOM: uomId,
+                        });
+                    }
+                }
+
+                return {
+                    ...prev,
+                    Product_Array: updatedProductArray,
+                };
+            });
+        },
+        [orderQuantities, filteredProducts, editedPrices],
+    );
+
+    const handlePriceChange = useCallback(
+        (productId, price) => {
+            // Update the display value immediately
+            setPriceInputValues(prev => ({
+                ...prev,
+                [productId]: price,
+            }));
+
+            // Only update the actual price if it's a valid number
+            const numericPrice = price === "" ? 0 : parseFloat(price);
+            if (!isNaN(numericPrice)) {
+                setEditedPrices(prev => ({
+                    ...prev,
+                    [productId]: numericPrice,
+                }));
+
+                // Update Product_Array with new price
+                setInitialValue(prev => {
+                    const updatedProductArray = [...prev.Product_Array];
+                    const existingIndex = updatedProductArray.findIndex(
+                        item => item.Item_Id === productId,
+                    );
+
+                    if (existingIndex !== -1) {
+                        updatedProductArray[existingIndex] = {
+                            ...updatedProductArray[existingIndex],
+                            Item_Rate: numericPrice,
+                        };
+                    } else if (orderQuantities[productId]) {
+                        const product = filteredProducts.find(
+                            p => p.Product_Id === productId,
+                        );
+                        updatedProductArray.push({
+                            Item_Id: productId,
+                            Product_Id: productId,
+                            Bill_Qty: parseInt(orderQuantities[productId]),
+                            Item_Rate: numericPrice,
+                            UOM: selectedUOMs[productId] || product.UOM_Id,
+                        });
+                    }
+
+                    return {
+                        ...prev,
+                        Product_Array: updatedProductArray,
+                    };
+                });
+            }
+        },
+        [orderQuantities, filteredProducts, selectedUOMs],
+    );
 
     // Add a handler for input focus
     const handlePriceFocus = useCallback((productId, originalPrice) => {
         // When focusing, if there's no input value, set it to the current price
         setPriceInputValues(prev => ({
             ...prev,
-            [productId]: prev[productId] || String(originalPrice)
+            [productId]: prev[productId] || String(originalPrice),
         }));
     }, []);
 
     // Add a handler for input blur
-    const handlePriceBlur = useCallback((productId) => {
-        const inputValue = priceInputValues[productId];
-        if (inputValue === '' || isNaN(parseFloat(inputValue))) {
-            // Reset to the original price if empty or invalid
-            const product = filteredProducts.find(p => p.Product_Id === productId);
-            handlePriceChange(productId, String(product.Item_Rate));
-        }
-    }, [priceInputValues, filteredProducts]);
+    const handlePriceBlur = useCallback(
+        productId => {
+            const inputValue = priceInputValues[productId];
+            if (inputValue === "" || isNaN(parseFloat(inputValue))) {
+                // Reset to the original price if empty or invalid
+                const product = filteredProducts.find(
+                    p => p.Product_Id === productId,
+                );
+                handlePriceChange(productId, String(product.Item_Rate));
+            }
+        },
+        [priceInputValues, filteredProducts],
+    );
 
-    const handleDeleteItem = useCallback((productId) => {
+    const handleDeleteItem = useCallback(productId => {
         // Remove item from Product_Array
         setInitialValue(prev => ({
             ...prev,
-            Product_Array: prev.Product_Array.filter(item => item.Item_Id !== productId)
+            Product_Array: prev.Product_Array.filter(
+                item => item.Item_Id !== productId,
+            ),
         }));
 
         // Clear the quantity
@@ -325,32 +361,39 @@ const Sales = ({ route }) => {
         return initialValue.Product_Array.reduce((sum, item) => {
             // Use edited price if available, otherwise use the original item rate
             const price = editedPrices[item.Item_Id] || item.Item_Rate;
-            return sum + (item.Bill_Qty * price);
+            return sum + item.Bill_Qty * price;
         }, 0);
     }, [initialValue.Product_Array, editedPrices]);
 
     // Calculate total items in cart
-    const totalItems = useMemo(() =>
-        initialValue.Product_Array.reduce((sum, item) => sum + Number(item.Bill_Qty), 0),
-        [initialValue.Product_Array]
+    const totalItems = useMemo(
+        () =>
+            initialValue.Product_Array.reduce(
+                (sum, item) => sum + Number(item.Bill_Qty),
+                0,
+            ),
+        [initialValue.Product_Array],
     );
 
     // Memoize the order total calculation
-    const orderTotal = useMemo(() => calculateOrderTotal(),
-        [calculateOrderTotal]
+    const orderTotal = useMemo(
+        () => calculateOrderTotal(),
+        [calculateOrderTotal],
     );
 
     // Handle order submission
     const handleSubmitOrder = async () => {
         if (initialValue.Product_Array.length === 0) {
-            Alert.alert("Error", "Please add at least one product to the order");
+            Alert.alert(
+                "Error",
+                "Please add at least one product to the order",
+            );
             return;
         }
 
         setIsSubmitting(true);
         // console.log(initialValue)
         try {
-
             const response = await fetch(API.saleOrder, {
                 method: "POST",
                 headers: {
@@ -362,16 +405,12 @@ const Sales = ({ route }) => {
             const data = await response.json();
             // console.log(data)
             if (data.success) {
-                Alert.alert(
-                    "Success",
-                    data.message,
-                    [
-                        {
-                            text: "Okay",
-                            onPress: () => navigation.goBack()
-                        }
-                    ]
-                );
+                Alert.alert("Success", data.message, [
+                    {
+                        text: "Okay",
+                        onPress: () => navigation.goBack(),
+                    },
+                ]);
             } else {
                 throw new Error(data.message || "Failed to submit order");
             }
@@ -385,16 +424,23 @@ const Sales = ({ route }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image source={assetImages.backArrow} />
+                        <MaterialIcons
+                            name="arrow-back"
+                            size={25}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Sales Dashboard</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Sales Dashboard
+                    </Text>
                     <TouchableOpacity
                         style={styles.cartButton}
-                        onPress={() => setIsSummaryModalVisible(true)}
-                    >
+                        onPress={() => setIsSummaryModalVisible(true)}>
                         <Icon name="shopping-bag" color="white" size={25} />
                         {totalItems > 0 && (
                             <View style={styles.badge}>
@@ -408,10 +454,17 @@ const Sales = ({ route }) => {
 
                 <View style={styles.contentContainer}>
                     <ScrollView contentContainerStyle={styles.scrollContent}>
-
                         <View style={styles.filterSection}>
-                            <Text style={styles.label}>Retailer Name:
-                                <Text style={{ color: "#FF0000", fontWeight: "bold" }}> {item.Retailer_Name}</Text>
+                            <Text style={styles.label}>
+                                Retailer Name:
+                                <Text
+                                    style={{
+                                        color: "#FF0000",
+                                        fontWeight: "bold",
+                                    }}>
+                                    {" "}
+                                    {item.Retailer_Name}
+                                </Text>
                             </Text>
 
                             <Dropdown
@@ -434,14 +487,16 @@ const Sales = ({ route }) => {
                             <Dropdown
                                 style={[
                                     styles.dropdown,
-                                    !selectedBrand && styles.disabledDropdown
+                                    !selectedBrand && styles.disabledDropdown,
                                 ]}
                                 data={proGroupData}
                                 labelField="label"
                                 valueField="value"
-                                placeholder={selectedBrand
-                                    ? "Select Product Group"
-                                    : "Select Brand First"}
+                                placeholder={
+                                    selectedBrand
+                                        ? "Select Product Group"
+                                        : "Select Brand First"
+                                }
                                 value={selectedGroup}
                                 search
                                 searchPlaceholder="Search product group..."
@@ -460,8 +515,10 @@ const Sales = ({ route }) => {
                                 <Text style={styles.sectionTitle}>
                                     Products ({filteredProducts.length})
                                 </Text>
-                                {filteredProducts.map((product) => (
-                                    <View key={product.Product_Id} style={styles.productItem}>
+                                {filteredProducts.map(product => (
+                                    <View
+                                        key={product.Product_Id}
+                                        style={styles.productItem}>
                                         <Text style={styles.productName}>
                                             {product.Product_Name}
                                         </Text>
@@ -469,54 +526,109 @@ const Sales = ({ route }) => {
                                             <TextInput
                                                 style={styles.quantityInput}
                                                 keyboardType="numeric"
-                                                value={orderQuantities[product.Product_Id] || ''}
-                                                onChangeText={(quantity) =>
+                                                value={
+                                                    orderQuantities[
+                                                        product.Product_Id
+                                                    ] || ""
+                                                }
+                                                onChangeText={quantity =>
                                                     handleQuantityChange(
                                                         product.Product_Id,
                                                         quantity,
                                                         product.Item_Rate,
-                                                        product
+                                                        product,
                                                     )
                                                 }
                                                 placeholder="0"
-                                                placeholderTextColor={customColors.grey}
+                                                placeholderTextColor={
+                                                    customColors.grey
+                                                }
                                             />
 
                                             <Dropdown
                                                 style={styles.uomDropdown}
                                                 data={uomData.map(uom => ({
                                                     label: uom.Units,
-                                                    value: uom.Unit_Id
+                                                    value: uom.Unit_Id,
                                                 }))}
                                                 labelField="label"
                                                 valueField="value"
                                                 placeholder="UOM"
-                                                value={selectedUOMs[product.Product_Id] || product.UOM_Id}
-                                                onChange={(item) => handleUOMChange(product.Product_Id, item.value)}
-                                                containerStyle={styles.uomDropdownContainer}
-                                                placeholderStyle={styles.placeholderStyle}
-                                                selectedTextStyle={styles.selectedTextStyle}
-                                                itemTextStyle={styles.itemTextStyle}
+                                                value={
+                                                    selectedUOMs[
+                                                        product.Product_Id
+                                                    ] || product.UOM_Id
+                                                }
+                                                onChange={item =>
+                                                    handleUOMChange(
+                                                        product.Product_Id,
+                                                        item.value,
+                                                    )
+                                                }
+                                                containerStyle={
+                                                    styles.uomDropdownContainer
+                                                }
+                                                placeholderStyle={
+                                                    styles.placeholderStyle
+                                                }
+                                                selectedTextStyle={
+                                                    styles.selectedTextStyle
+                                                }
+                                                itemTextStyle={
+                                                    styles.itemTextStyle
+                                                }
                                             />
                                             <View style={styles.priceContainer}>
-                                                <Text style={styles.currencySymbol}>₹</Text>
+                                                <Text
+                                                    style={
+                                                        styles.currencySymbol
+                                                    }>
+                                                    ₹
+                                                </Text>
                                                 <TextInput
                                                     style={styles.priceInput}
                                                     keyboardType="numeric"
-                                                    value={priceInputValues[product.Product_Id] !== undefined
-                                                        ? priceInputValues[product.Product_Id]
-                                                        : String(editedPrices[product.Product_Id] || product.Item_Rate)}
-                                                    onChangeText={(price) => handlePriceChange(product.Product_Id, price)}
-                                                    onFocus={() => handlePriceFocus(
-                                                        product.Product_Id,
-                                                        editedPrices[product.Product_Id] || product.Item_Rate
-                                                    )}
-                                                    onBlur={() => handlePriceBlur(product.Product_Id)}
+                                                    value={
+                                                        priceInputValues[
+                                                            product.Product_Id
+                                                        ] !== undefined
+                                                            ? priceInputValues[
+                                                                  product
+                                                                      .Product_Id
+                                                              ]
+                                                            : String(
+                                                                  editedPrices[
+                                                                      product
+                                                                          .Product_Id
+                                                                  ] ||
+                                                                      product.Item_Rate,
+                                                              )
+                                                    }
+                                                    onChangeText={price =>
+                                                        handlePriceChange(
+                                                            product.Product_Id,
+                                                            price,
+                                                        )
+                                                    }
+                                                    onFocus={() =>
+                                                        handlePriceFocus(
+                                                            product.Product_Id,
+                                                            editedPrices[
+                                                                product
+                                                                    .Product_Id
+                                                            ] ||
+                                                                product.Item_Rate,
+                                                        )
+                                                    }
+                                                    onBlur={() =>
+                                                        handlePriceBlur(
+                                                            product.Product_Id,
+                                                        )
+                                                    }
                                                     placeholder="0.00"
-                                                    selectTextOnFocus={true}  // This will select all text when focused
+                                                    selectTextOnFocus={true} // This will select all text when focused
                                                 />
                                             </View>
-
                                         </View>
                                     </View>
                                 ))}
@@ -529,50 +641,76 @@ const Sales = ({ route }) => {
                     visible={isSummaryModalVisible}
                     transparent
                     animationType="slide"
-                    onRequestClose={() => setIsSummaryModalVisible(false)}
-                >
+                    onRequestClose={() => setIsSummaryModalVisible(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Order Summary</Text>
+                                <Text style={styles.modalTitle}>
+                                    Order Summary
+                                </Text>
                                 <TouchableOpacity
-                                    onPress={() => setIsSummaryModalVisible(false)}
-                                    style={styles.closeButton}
-                                >
-                                    <AntDesign name="closesquareo" color="red" size={25} />
+                                    onPress={() =>
+                                        setIsSummaryModalVisible(false)
+                                    }
+                                    style={styles.closeButton}>
+                                    <AntDesign
+                                        name="closesquareo"
+                                        color="red"
+                                        size={25}
+                                    />
                                 </TouchableOpacity>
                             </View>
 
                             <ScrollView style={styles.summaryList}>
-                                {initialValue.Product_Array.map((item) => {
+                                {initialValue.Product_Array.map(item => {
                                     const product = productData.find(
-                                        p => p.Product_Id === item.Item_Id
+                                        p => p.Product_Id === item.Item_Id,
                                     );
                                     const uom = uomData.find(
-                                        u => u.Unit_Id === item.UOM_Id
+                                        u => u.Unit_Id === item.UOM_Id,
                                     );
 
                                     return (
                                         <View
                                             key={item.Item_Id}
-                                            style={styles.summaryItem}
-                                        >
-                                            <View style={styles.summaryItemDetails}>
-                                                <Text style={styles.summaryItemName}>
+                                            style={styles.summaryItem}>
+                                            <View
+                                                style={
+                                                    styles.summaryItemDetails
+                                                }>
+                                                <Text
+                                                    style={
+                                                        styles.summaryItemName
+                                                    }>
                                                     {product?.Product_Name}
                                                 </Text>
-                                                <Text style={styles.summaryItemQty}>
+                                                <Text
+                                                    style={
+                                                        styles.summaryItemQty
+                                                    }>
                                                     {item.Bill_Qty} {uom?.Units}
                                                 </Text>
                                             </View>
-                                            <Text style={styles.summaryItemPrice}>
-                                                ₹{(item.Bill_Qty * item.Item_Rate).toFixed(2)}
+                                            <Text
+                                                style={styles.summaryItemPrice}>
+                                                ₹
+                                                {(
+                                                    item.Bill_Qty *
+                                                    item.Item_Rate
+                                                ).toFixed(2)}
                                             </Text>
                                             <TouchableOpacity
                                                 style={styles.deleteButton}
-                                                onPress={() => handleDeleteItem(item.Item_Id)}
-                                            >
-                                                <Icon name="delete" size={24} color="red" />
+                                                onPress={() =>
+                                                    handleDeleteItem(
+                                                        item.Item_Id,
+                                                    )
+                                                }>
+                                                <Icon
+                                                    name="delete"
+                                                    size={24}
+                                                    color="red"
+                                                />
                                             </TouchableOpacity>
                                         </View>
                                     );
@@ -581,7 +719,9 @@ const Sales = ({ route }) => {
 
                             <View style={styles.summaryFooter}>
                                 <View style={styles.totalRow}>
-                                    <Text style={styles.totalLabel}>Total Amount:</Text>
+                                    <Text style={styles.totalLabel}>
+                                        Total Amount:
+                                    </Text>
                                     <Text style={styles.totalAmount}>
                                         ₹{orderTotal.toFixed(2)}
                                     </Text>
@@ -590,11 +730,11 @@ const Sales = ({ route }) => {
                                 <TouchableOpacity
                                     style={[
                                         styles.submitButton,
-                                        isSubmitting && styles.submitButtonDisabled
+                                        isSubmitting &&
+                                            styles.submitButtonDisabled,
                                     ]}
                                     onPress={handleSubmitOrder}
-                                    disabled={isSubmitting}
-                                >
+                                    disabled={isSubmitting}>
                                     {isSubmitting ? (
                                         <ActivityIndicator color="white" />
                                     ) : (
@@ -644,7 +784,7 @@ const styles = StyleSheet.create({
         position: "absolute",
         top: 0,
         right: 0,
-        backgroundColor: '#FF4444',
+        backgroundColor: "#FF4444",
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -673,7 +813,7 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         color: customColors.black,
         textAlign: "center",
-        marginBottom: 10
+        marginBottom: 10,
     },
     dropdown: {
         height: 50,
@@ -747,7 +887,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        color: customColors.black
+        color: customColors.black,
     },
     quantityInput: {
         width: 60,
@@ -756,7 +896,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         padding: 6,
         textAlign: "center",
-        color: customColors.black
+        color: customColors.black,
     },
     uomDropdown: {
         width: 120,
