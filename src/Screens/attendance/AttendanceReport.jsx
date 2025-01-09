@@ -172,8 +172,8 @@ const AttendanceReport = () => {
 
                     <View style={styles.cardContainer}>
                         <SummaryCard
-                            icon="person-add"
-                            title="Day Count"
+                            icon="calendar"
+                            title="Day"
                             value={
                                 attendanceData
                                     ? countTotalAttendances(attendanceData)
