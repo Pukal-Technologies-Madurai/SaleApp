@@ -80,7 +80,7 @@ const AttendanceReport = () => {
     const fetchAttendance = async (fromDay, toDay, id, uid) => {
         try {
             const response = await fetch(
-                `${API.attendanceHistory}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`,
+                `${API.attendanceHistory()}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`,
                 {
                     method: "GET",
                     headers: {

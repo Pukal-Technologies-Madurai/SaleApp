@@ -45,7 +45,7 @@ const EndDay = () => {
 
     const getAttendanceInfo = async userId => {
         try {
-            const url = `${API.MyLastAttendance}${userId}`;
+            const url = `${API.MyLastAttendance()}${userId}`;
             const response = await fetch(url, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
@@ -95,7 +95,7 @@ const EndDay = () => {
                 type: "image/jpeg",
             });
 
-            const response = await fetch(API.attendance, {
+            const response = await fetch(API.attendance(), {
                 method: "PUT",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,

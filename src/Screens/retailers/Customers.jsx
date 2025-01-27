@@ -7,13 +7,13 @@ import {
     StyleSheet,
     TextInput,
     FlatList,
-    Image,
     ImageBackground,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Dropdown } from "react-native-element-dropdown";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
@@ -111,9 +111,9 @@ const Customers = () => {
     }, []);
 
     const fetchRetailersData = async id => {
-        // console.log(`${API.retailers}${id}`)
+        // console.log(`${API.retailers()}${id}`);
         try {
-            const response = await fetch(`${API.retailers}${id}`);
+            const response = await fetch(`${API.retailers()}${id}`);
             if (!response.ok) {
                 throw new Error(
                     `API request failed with status: ${response.status}`,
@@ -215,6 +215,14 @@ const Customers = () => {
                             />
                         </TouchableOpacity>
                         <Text style={styles.headerText}>Retailers</Text>
+                        <TouchableOpacity
+                            onPress={() => navigation.push("RetailerMapView")}>
+                            <MaterialCommunityIcons
+                                name="map-marker-right-outline"
+                                size={25}
+                                color={customColors.white}
+                            />
+                        </TouchableOpacity>
                     </View>
 
                     <View

@@ -59,10 +59,10 @@ const EditCustomer = ({ route }) => {
     const fetchDropdownData = useCallback(async () => {
         try {
             const endpoints = {
-                routes: API.routes,
-                areas: API.areas,
-                states: API.state,
-                distributors: API.distributors,
+                routes: API.routes(),
+                areas: API.areas(),
+                states: API.state(),
+                distributors: API.distributors(),
             };
 
             const results = await Promise.all(
@@ -116,7 +116,7 @@ const EditCustomer = ({ route }) => {
 
         try {
             const response = await fetch(
-                `${API.retailers}${item.Retailer_Id}`,
+                `${API.retailers()}${item.Retailer_Id}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "multipart/form-data" },

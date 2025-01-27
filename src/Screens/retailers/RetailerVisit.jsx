@@ -61,7 +61,7 @@ const RetailerVisit = () => {
 
     const fetchCustomersData = async companyId => {
         try {
-            const response = await fetch(`${API.retailerName}${companyId}`);
+            const response = await fetch(`${API.retailerName()}${companyId}`);
             if (!response.ok) {
                 throw new Error(
                     `API request failed with status: ${response.status}`,
@@ -150,7 +150,7 @@ const RetailerVisit = () => {
         }
 
         try {
-            const response = await fetch(API.visitedLog, {
+            const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,

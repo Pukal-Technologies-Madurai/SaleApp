@@ -1,13 +1,25 @@
-import { View, Text, StyleSheet, ToastAndroid, Alert, TextInput, TouchableOpacity, StatusBar, ImageBackground, Image, ScrollView } from "react-native"
-import React, { useState } from "react"
-import { useNavigation } from "@react-navigation/native"
+import {
+    View,
+    Text,
+    StyleSheet,
+    ToastAndroid,
+    Alert,
+    TextInput,
+    TouchableOpacity,
+    StatusBar,
+    ImageBackground,
+    Image,
+    ScrollView,
+} from "react-native";
+import React, { useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CryptoJS from "react-native-crypto-js";
 import Icon from "react-native-vector-icons/Fontisto";
 
-import { API } from '../../Config/Endpoint';
-import { storeInfo } from '../../Config/AuthContext';
-import { customColors, typography } from '../../Config/helper';
+import { API } from "../../Config/Endpoint";
+import { storeInfo } from "../../Config/AuthContext";
+import { customColors, typography } from "../../Config/helper";
 import assetImages from "../../Config/Image";
 
 const LoginScreen = () => {
@@ -19,22 +31,28 @@ const LoginScreen = () => {
     const loginFunction = async () => {
         if (loginId && password) {
             try {
-                const passHash = CryptoJS.AES.encrypt(password, "ly4@&gr$vnh905RyB>?%#@-(KSMT").toString();
+                const passHash = CryptoJS.AES.encrypt(
+                    password,
+                    "ly4@&gr$vnh905RyB>?%#@-(KSMT",
+                ).toString();
 
-                const response = await fetch(API.login, {
+                const response = await fetch(API.login(), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         username: loginId,
-                        password: passHash
-                    })
+                        password: passHash,
+                    }),
                 });
 
                 const data = await response.json();
                 // console.log(data)
 
                 if (data.success) {
-                    await AsyncStorage.setItem("userToken", data.user.Autheticate_Id);
+                    await AsyncStorage.setItem(
+                        "userToken",
+                        data.user.Autheticate_Id,
+                    );
                     await setData(data.user);
                     setAuthInfo(data.user);
                     navigation.replace("HomeScreen");
@@ -47,15 +65,14 @@ const LoginScreen = () => {
             }
         } else {
             if (!loginId) {
-                ToastAndroid.show("Enter valid user id", ToastAndroid.LONG)
-            }
-            else if (!password) {
-                ToastAndroid.show("Enter your Password", ToastAndroid.LONG)
+                ToastAndroid.show("Enter valid user id", ToastAndroid.LONG);
+            } else if (!password) {
+                ToastAndroid.show("Enter your Password", ToastAndroid.LONG);
             }
         }
-    }
+    };
 
-    const setData = async (data) => {
+    const setData = async data => {
         try {
             await AsyncStorage.setItem("userToken", data.Autheticate_Id);
             await AsyncStorage.setItem("UserId", data.UserId);
@@ -75,20 +92,27 @@ const LoginScreen = () => {
     return (
         <View style={styles.container}>
             <StatusBar backgroundColor={customColors.background} />
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
-                <Image
-                    source={assetImages.logo}
-                    style={styles.logo}
-                />
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
+                <Image source={assetImages.logo} style={styles.logo} />
 
                 <ScrollView style={styles.loginContainer}>
-                    <Text style={styles.title} maxFontSizeMultiplier={1.2}>WELCOME TO SALES APP</Text>
-                    <Text style={styles.subtitle} maxFontSizeMultiplier={1.2}>Let's start to manage your attendance more effectively with us!</Text>
+                    <Text style={styles.title} maxFontSizeMultiplier={1.2}>
+                        WELCOME TO SALES APP
+                    </Text>
+                    <Text style={styles.subtitle} maxFontSizeMultiplier={1.2}>
+                        Let's start to manage your attendance more effectively
+                        with us!
+                    </Text>
                     <View style={styles.inputContainer}>
-                        <Icon name="mobile-alt" size={20} color={customColors.primary} style={{ marginRight: 10 }} />
-                        <Image
-                            source={assetImages.line}
+                        <Icon
+                            name="mobile-alt"
+                            size={20}
+                            color={customColors.primary}
+                            style={{ marginRight: 10 }}
                         />
+                        <Image source={assetImages.line} />
                         <TextInput
                             maxFontSizeMultiplier={1.2}
                             style={styles.textInput}
@@ -96,37 +120,46 @@ const LoginScreen = () => {
                             placeholder="Enter your Mobile Number"
                             placeholderTextColor={customColors.accent}
                             value={loginId}
-                            onChangeText={(val) => setLoginId(val)}
+                            onChangeText={val => setLoginId(val)}
                             autoCapitalize="none"
                         />
                     </View>
 
                     <View style={styles.inputContainer}>
-                        <Icon name="key" size={20} color={customColors.primary} style={{ marginRight: 10 }} />
-                        <Image
-                            source={assetImages.line}
+                        <Icon
+                            name="key"
+                            size={20}
+                            color={customColors.primary}
+                            style={{ marginRight: 10 }}
                         />
+                        <Image source={assetImages.line} />
                         <TextInput
                             maxFontSizeMultiplier={1.2}
                             style={styles.textInput}
                             placeholder="Enter your Password"
                             placeholderTextColor={customColors.accent}
                             value={password}
-                            onChangeText={(val) => setPassword(val)}
+                            onChangeText={val => setPassword(val)}
                             secureTextEntry={true}
                             autoCapitalize="none"
                         />
                     </View>
-                    <TouchableOpacity style={styles.loginButton} onPressOut={loginFunction} >
-                        <Text style={styles.loginButtonText} maxFontSizeMultiplier={1.2}>Login</Text>
+                    <TouchableOpacity
+                        style={styles.loginButton}
+                        onPressOut={loginFunction}>
+                        <Text
+                            style={styles.loginButtonText}
+                            maxFontSizeMultiplier={1.2}>
+                            Login
+                        </Text>
                     </TouchableOpacity>
                 </ScrollView>
             </ImageBackground>
         </View>
-    )
-}
+    );
+};
 
-export default LoginScreen
+export default LoginScreen;
 
 const styles = StyleSheet.create({
     container: {
@@ -179,13 +212,13 @@ const styles = StyleSheet.create({
     inputIcon: {
         width: 20,
         height: 20,
-        marginRight: 10
+        marginRight: 10,
     },
     textInput: {
         flex: 1,
         ...typography.h6(),
         marginLeft: 2.5,
-        paddingLeft: 10
+        paddingLeft: 10,
     },
     loginButton: {
         backgroundColor: customColors.secondary,
@@ -194,11 +227,11 @@ const styles = StyleSheet.create({
         padding: 10,
         marginHorizontal: "30%",
         marginTop: 20,
-        borderRadius: 10
+        borderRadius: 10,
     },
     loginButtonText: {
         ...typography.h4(),
         color: customColors.black,
-        fontWeight: "bold"
-    }
+        fontWeight: "bold",
+    },
 });

@@ -1,11 +1,24 @@
-import { StyleSheet, TextInput, View, Text, TouchableOpacity, Modal, FlatList, Alert, StatusBar, ImageBackground, Image, ToastAndroid } from "react-native";
+import {
+    StyleSheet,
+    TextInput,
+    View,
+    Text,
+    TouchableOpacity,
+    Modal,
+    FlatList,
+    Alert,
+    StatusBar,
+    ImageBackground,
+    Image,
+    ToastAndroid,
+} from "react-native";
 import React, { useState } from "react";
 import CryptoJS from "react-native-crypto-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
-import { API } from "../../Config/Endpoint";
+import { API, setBaseUrl } from "../../Config/Endpoint";
 import { storeInfo } from "../../Config/AuthContext";
 import { customColors, typography } from "../../Config/helper";
 import assetImages from "../../Config/Image";
@@ -21,8 +34,9 @@ const LoginPortal = () => {
     const [modalVisible, setModalVisible] = useState(false);
 
     const handleContinue = async () => {
+        // console.log(`${API.userPortal()}${userName}`);
         try {
-            const response = await fetch(`${API.userPortal}${userName}`);
+            const response = await fetch(`${API.userPortal()}${userName}`);
             const jsonData = await response.json();
             // console.log("jsonData", jsonData)
             if (jsonData.success && jsonData.data) {
@@ -38,13 +52,12 @@ const LoginPortal = () => {
             } else {
                 ToastAndroid.show(jsonData.message, ToastAndroid.LONG);
             }
-
         } catch (err) {
-            console.log(err)
+            console.log(err);
         }
     };
 
-    const handleCompanySelect = (company) => {
+    const handleCompanySelect = company => {
         setSelectedCompany(company);
         setModalVisible(false);
     };
@@ -62,8 +75,12 @@ const LoginPortal = () => {
         }
 
         try {
-            const passHash = CryptoJS.AES.encrypt(password, "ly4@&gr$vnh905RyB>?%#@-(KSMT").toString();
-            const response = await fetch(API.userPortalLogin, {
+            const passHash = CryptoJS.AES.encrypt(
+                password,
+                "ly4@&gr$vnh905RyB>?%#@-(KSMT",
+            ).toString();
+
+            const response = await fetch(API.userPortalLogin(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -75,40 +92,48 @@ const LoginPortal = () => {
                     Global_Id: selectedCompany.Global_Id,
                     Local_Id: selectedCompany.Local_Id,
                     Web_Api: selectedCompany.Web_Api,
-                })
+                }),
             });
 
             const data = await response.json();
+            // console.log(data);
 
             if (data.success) {
-                getUserAuth(data.data.Autheticate_Id)
+                getUserAuth(data.data.Web_Api, data.data.Autheticate_Id);
             } else {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
             }
-
         } catch (err) {
-            console.log(err)
+            console.log(err);
             Alert.alert(data.message);
         }
     };
 
-    const getUserAuth = async (userAuth) => {
+    const getUserAuth = async (webAbi, userAuth) => {
+        // console.log(`${webAbi}api/authorization/userAuthmobile`);
+        console.log(webAbi);
         try {
-            const url = `${API.getUserAuthMob}`
+            setBaseUrl(webAbi);
+
+            const url = API.getUserAuthMob();
+            console.log(url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
-                    "Authorization": `${userAuth}`,
+                    Authorization: `${userAuth}`,
                 },
             });
 
             const data = await response.json();
-            // console.log(data)
+            console.log(data);
 
-            if(data.success) {
+            if (data.success) {
                 const authData = data.user;
 
-                await AsyncStorage.setItem("userToken", authData.Autheticate_Id);
+                await AsyncStorage.setItem(
+                    "userToken",
+                    authData.Autheticate_Id,
+                );
                 await setData(authData);
                 setAuthInfo(authData);
                 navigation.replace("HomeScreen");
@@ -116,12 +141,11 @@ const LoginPortal = () => {
             } else {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
             }
-
         } catch (err) {
-            console.error(err)
+            console.error(err);
         }
-    }
- 
+    };
+
     const handleLoginPortal = async () => {
         if (!selectedCompany) {
             ToastAndroid.show("Please select a company.", ToastAndroid.LONG);
@@ -129,19 +153,25 @@ const LoginPortal = () => {
         }
 
         try {
-            const passHash = CryptoJS.AES.encrypt(password, "ly4@&gr$vnh905RyB>?%#@-(KSMT").toString();
-            const response = await fetch(API.login, {
+            const passHash = CryptoJS.AES.encrypt(
+                password,
+                "ly4@&gr$vnh905RyB>?%#@-(KSMT",
+            ).toString();
+            const response = await fetch(API.login(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     username: userName,
                     password: passHash,
-                })
+                }),
             });
 
             const data = await response.json();
             if (data.success) {
-                await AsyncStorage.setItem("userToken", data.user.Autheticate_Id);
+                await AsyncStorage.setItem(
+                    "userToken",
+                    data.user.Autheticate_Id,
+                );
                 await setData(data.user);
                 setAuthInfo(data.user);
                 navigation.replace("HomeScreen");
@@ -149,14 +179,13 @@ const LoginPortal = () => {
             } else {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
             }
-
         } catch (err) {
-            console.log(err)
+            console.log(err);
             Alert.alert(data.message);
         }
-    }
+    };
 
-    const setData = async (data) => {
+    const setData = async data => {
         try {
             await AsyncStorage.setItem("userToken", data.Autheticate_Id);
             await AsyncStorage.setItem("UserId", data.UserId);
@@ -173,103 +202,135 @@ const LoginPortal = () => {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea} >
+        <SafeAreaView style={styles.safeArea}>
             <StatusBar backgroundColor={customColors.background} />
             <ImageBackground
                 source={assetImages.backgroundImage}
                 style={styles.backgroundImage}
-                resizeMode="cover"
-            >
+                resizeMode="cover">
                 <View style={styles.overlay}>
                     <View style={styles.container}>
                         <View style={styles.logoContainer}>
                             <Image source={assetImages.logo} />
                         </View>
 
+                        {step === 1 && (
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter your username"
+                                    placeholderTextColor="#a0a0a0"
+                                    value={userName}
+                                    onChangeText={setUserName}
+                                />
+                                <TouchableOpacity
+                                    style={styles.button}
+                                    onPress={handleContinue}>
+                                    <Text style={styles.buttonText}>
+                                        {" "}
+                                        Continue{" "}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
 
-                        {
-                            step === 1 && (
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Enter your username"
-                                        placeholderTextColor="#a0a0a0"
-                                        value={userName}
-                                        onChangeText={setUserName}
-                                    />
-                                    <TouchableOpacity style={styles.button} onPress={handleContinue} >
-                                        <Text style={styles.buttonText}> Continue </Text>
+                        {step === 2 && (
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter your username"
+                                    placeholderTextColor="#a0a0a0"
+                                    keyboardType="default"
+                                    value={userName}
+                                    onChangeText={setUserName}
+                                />
+                                {companies.length > 1 && (
+                                    <TouchableOpacity
+                                        style={styles.selectButton}
+                                        onPress={() => setModalVisible(true)}>
+                                        <Text style={styles.selectButtonText}>
+                                            {selectedCompany
+                                                ? selectedCompany.Company_Name
+                                                : "Select your company"}
+                                        </Text>
+                                        <Icon
+                                            name="chevron-down"
+                                            size={24}
+                                            color={customColors.white}
+                                        />
                                     </TouchableOpacity>
-                                </View>
-                            )
-                        }
+                                )}
 
-                        {
-                            step === 2 && (
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Enter your username"
-                                        placeholderTextColor="#a0a0a0"
-                                        keyboardType="default"
-                                        value={userName}
-                                        onChangeText={setUserName}
-                                    />
-                                    {companies.length > 1 && (
-                                        <TouchableOpacity style={styles.selectButton} onPress={() => setModalVisible(true)}>
-                                            <Text style={styles.selectButtonText}>
-                                                {selectedCompany ? selectedCompany.Company_Name : "Select your company"}
-                                            </Text>
-                                            <Icon name="chevron-down" size={24} color={customColors.white} />
-                                        </TouchableOpacity>
-                                    )}
-
-                                    < Modal
-                                        animationType="slide"
-                                        transparent={true}
-                                        visible={modalVisible}
-                                        onRequestClose={() => setModalVisible(false)}
-                                    >
-                                        <View style={styles.modalView}>
-                                            <Text style={styles.modalTitle}> Select Company </Text>
-                                            < FlatList
-                                                data={companies}
-                                                renderItem={({ item }) => <CompanyItem item={item} onSelect={handleCompanySelect} />}
-                                                keyExtractor={item => item.Global_Id.toString()}
-                                            />
-                                            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-                                                <Text style={styles.closeButtonText}> Close </Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    </Modal>
-
-                                    {
-                                        selectedCompany && (
-                                            <>
-                                                <TextInput
-                                                    style={styles.input}
-                                                    placeholder="Enter your password"
-                                                    placeholderTextColor="#a0a0a0"
-                                                    value={password}
-                                                    onChangeText={setPassword}
-                                                    secureTextEntry
+                                <Modal
+                                    animationType="slide"
+                                    transparent={true}
+                                    visible={modalVisible}
+                                    onRequestClose={() =>
+                                        setModalVisible(false)
+                                    }>
+                                    <View style={styles.modalView}>
+                                        <Text style={styles.modalTitle}>
+                                            {" "}
+                                            Select Company{" "}
+                                        </Text>
+                                        <FlatList
+                                            data={companies}
+                                            renderItem={({ item }) => (
+                                                <CompanyItem
+                                                    item={item}
+                                                    onSelect={
+                                                        handleCompanySelect
+                                                    }
                                                 />
-                                                <TouchableOpacity style={styles.button} onPress={handleLogin} >
-                                                    <Text style={styles.buttonText}> Login </Text>
-                                                </TouchableOpacity>
-                                            </>
-                                        )
-                                    }
-                                </View>
-                            )}
+                                            )}
+                                            keyExtractor={item =>
+                                                item.Global_Id.toString()
+                                            }
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.closeButton}
+                                            onPress={() =>
+                                                setModalVisible(false)
+                                            }>
+                                            <Text
+                                                style={styles.closeButtonText}>
+                                                {" "}
+                                                Close{" "}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </Modal>
+
+                                {selectedCompany && (
+                                    <>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Enter your password"
+                                            placeholderTextColor="#a0a0a0"
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            secureTextEntry
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.button}
+                                            onPress={handleLogin}>
+                                            <Text style={styles.buttonText}>
+                                                {" "}
+                                                Login{" "}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                            </View>
+                        )}
                     </View>
                 </View>
             </ImageBackground>
         </SafeAreaView>
-    )
-}
+    );
+};
 
-export default LoginPortal
+export default LoginPortal;
 
 const styles = StyleSheet.create({
     safeArea: {
@@ -341,11 +402,11 @@ const styles = StyleSheet.create({
         shadowColor: customColors.black,
         shadowOffset: {
             width: 0,
-            height: 2
+            height: 2,
         },
         shadowOpacity: 0.25,
         shadowRadius: 4,
-        elevation: 5
+        elevation: 5,
     },
     modalTitle: {
         ...typography.h5(),
@@ -375,4 +436,4 @@ const styles = StyleSheet.create({
         color: customColors.black,
         fontWeight: "bold",
     },
-})
+});

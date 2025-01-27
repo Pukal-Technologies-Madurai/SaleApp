@@ -1,30 +1,31 @@
-import React from "react"
+import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
+import { customColors } from "../Config/helper";
 import DrawerScreen from "./DrawerScreen";
 import AppStack from "./AppStack";
-import { customColors } from "../Config/helper";
 
 const Drawer = createDrawerNavigator();
 
 const AppDrawer = () => {
     return (
         <Drawer.Navigator
-            drawerContent={(props) => <DrawerScreen {...props} />}
+            drawerContent={props => <DrawerScreen {...props} />}
             screenOptions={{
                 drawerStyle: {
                     backgroundColor: customColors.background,
                     width: "65%",
                 },
                 // overlayColor: "transparent",
-            }}
-        >
-            <Drawer.Screen name="AppStack"
+            }}>
+            <Drawer.Screen
+                name="AppStack"
                 component={AppStack}
                 options={{
                     headerShown: false,
-                }} />
+                }}
+            />
         </Drawer.Navigator>
-    )
-}
+    );
+};
 
-export default AppDrawer
+export default AppDrawer;

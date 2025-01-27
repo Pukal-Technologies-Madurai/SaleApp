@@ -186,7 +186,7 @@ const AddCustomer = () => {
                 });
             }
 
-            const response = await fetch(`${API.retailers}${1}`, {
+            const response = await fetch(`${API.retailers()}${1}`, {
                 method: "POST",
                 body: formData,
             });

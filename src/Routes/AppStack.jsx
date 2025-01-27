@@ -26,6 +26,7 @@ import Sales from "../Screens/sales/Sales";
 import LoginPortal from "../Screens/login/LoginPortal";
 import DeliveryCheck from "../Screens/reports/DeliveryCheck";
 import RetailerHistory from "../Screens/retailers/RetailerHistory";
+import DeliveryReport from "../Screens/reports/DeliveryReport";
 
 const Stack = createStackNavigator();
 
@@ -69,6 +70,7 @@ const AppStack = () => {
             <Stack.Screen name="Sales" component={Sales} />
 
             <Stack.Screen name="DeliveryCheck" component={DeliveryCheck} />
+            <Stack.Screen name="DeliveryReport" component={DeliveryReport} />
 
             {/* Not Used */}
             <Stack.Screen name="LoginScreen" component={LoginScreen} />

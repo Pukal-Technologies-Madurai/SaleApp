@@ -104,7 +104,7 @@ const Attendance = locationData => {
                 type: "image/jpeg",
             });
 
-            const response = await fetch(API.attendance, {
+            const response = await fetch(API.attendance(), {
                 method: "POST",
                 headers: {
                     "Content-Type": "multipart/form-data",

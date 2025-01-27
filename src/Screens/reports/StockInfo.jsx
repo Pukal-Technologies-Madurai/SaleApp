@@ -47,10 +47,10 @@ const StockInfo = () => {
     }, [selectedDate]);
 
     const fetchStockLog = async (day, id) => {
-        console.log(`${API.closingStockReport}${id}&reqDate=${day}`);
+        console.log(`${API.closingStockReport()}${id}&reqDate=${day}`);
         try {
             const response = await fetch(
-                `${API.closingStockReport}${id}&reqDate=${day}`,
+                `${API.closingStockReport()}${id}&reqDate=${day}`,
                 {
                     method: "GET",
                     headers: {

@@ -1,4 +1,16 @@
-import { Alert, Image, ImageBackground, Modal, ScrollView, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native"
+import {
+    Alert,
+    Image,
+    ImageBackground,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    ToastAndroid,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import PagerView from "react-native-pager-view";
@@ -14,7 +26,7 @@ const SaleOrder = ({ route }) => {
     const pagerRef = useRef(null);
 
     const [selectedTab, setSelectedTab] = useState(0);
-    const [productData, setProductData] = useState([])
+    const [productData, setProductData] = useState([]);
     const initialStockValue = {
         So_Id: "",
         Company_Id: "",
@@ -26,9 +38,9 @@ const SaleOrder = ({ route }) => {
         Created_by: "",
         Product_Array: [],
         Sales_Person_Id: "",
-    }
-    const [stockInputValue, setStockInputValue] = useState(initialStockValue)
-    const [retailers, setRetailers] = useState([])
+    };
+    const [stockInputValue, setStockInputValue] = useState(initialStockValue);
+    const [retailers, setRetailers] = useState([]);
     const [selectedRetail, setSelectedRetail] = useState(null);
     const [quantities, setQuantities] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -36,9 +48,11 @@ const SaleOrder = ({ route }) => {
     const [isEdit, setIsEdit] = useState(false);
     const [saleOrderId, setSaleOrderId] = useState(null);
 
-    const [productPacks, setProductPacks] = useState([])
-    const [dropdownData, setDropdownData] = useState([])
-    const [selectedProductGroup, setSelectedProductGroup] = useState(dropdownData[0]?.Pack_Id || 0);
+    const [productPacks, setProductPacks] = useState([]);
+    const [dropdownData, setDropdownData] = useState([]);
+    const [selectedProductGroup, setSelectedProductGroup] = useState(
+        dropdownData[0]?.Pack_Id || 0,
+    );
     const [filteredProductData, setFilteredProductData] = useState([]);
     const [selectedProductPack, setSelectedProductPack] = useState(null);
 
@@ -48,13 +62,13 @@ const SaleOrder = ({ route }) => {
     useEffect(() => {
         const initialize = async () => {
             try {
-                const userId = await AsyncStorage.getItem('UserId');
-                const branchId = await AsyncStorage.getItem('branchId');
-                const companyId = await AsyncStorage.getItem('Company_Id');
+                const userId = await AsyncStorage.getItem("UserId");
+                const branchId = await AsyncStorage.getItem("branchId");
+                const companyId = await AsyncStorage.getItem("Company_Id");
 
                 fetchRetailers(companyId);
                 fetchGroupedproducts(companyId);
-                fetchproductPacks(companyId)
+                fetchproductPacks(companyId);
 
                 setStockInputValue(prev => ({
                     ...prev,
@@ -75,7 +89,7 @@ const SaleOrder = ({ route }) => {
                 setStockInputValue({
                     So_Id: item.So_Id,
                     Company_Id: item.Company_Id,
-                    ST_Date: new Date(item.So_Date).toISOString().split('T')[0],
+                    ST_Date: new Date(item.So_Date).toISOString().split("T")[0],
                     Retailer_Id: item.Retailer_Id,
                     Retailer_Name: item.Retailer_Name,
                     Branch_Id: item.Branch_Id,
@@ -84,51 +98,53 @@ const SaleOrder = ({ route }) => {
                     Product_Array: item.Products_List,
                     Sales_Person_Id: item.Sales_Person_Id,
                 });
-                setQuantities(item.Products_List.map(product => ({
-                    Item_Id: product.Item_Id,
-                    Bill_Qty: product.Bill_Qty.toString(),
-                    Item_Rate: product.Item_Rate.toString(),
-                })));
+                setQuantities(
+                    item.Products_List.map(product => ({
+                        Item_Id: product.Item_Id,
+                        Bill_Qty: product.Bill_Qty.toString(),
+                        Item_Rate: product.Item_Rate.toString(),
+                    })),
+                );
             }
         };
 
         initialize();
-    }, [])
+    }, []);
 
-    const fetchRetailers = async (id) => {
+    const fetchRetailers = async id => {
         try {
-            const response = await fetch(`${API.retailers}${id}`);
+            const response = await fetch(`${API.retailers()}${id}`);
             const jsonData = await response.json();
 
             if (jsonData.success) {
-                setRetailers(jsonData.data)
+                setRetailers(jsonData.data);
             }
-
         } catch (err) {
             console.error("Error fetching data:", err);
         }
-    }
+    };
 
-    const fetchGroupedproducts = async (id) => {
+    const fetchGroupedproducts = async id => {
         fetch(`${API.groupedProducts}${id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    setProductData(data.data)
-                    filterProductDataByPack(0, data.data)
+                    setProductData(data.data);
+                    filterProductDataByPack(0, data.data);
                 }
-            }).catch(e => console.error(e))
+            })
+            .catch(e => console.error(e));
     };
 
-    const fetchproductPacks = async (id) => {
+    const fetchproductPacks = async id => {
         try {
-            const response = await fetch(`${API.productPacks}${id}`);
+            const response = await fetch(`${API.productPacks()}${id}`);
             const jsonData = await response.json();
 
             if (jsonData.success) {
                 const dropdownOptions = [
                     { Pack: "All", Pack_Id: 0 },
-                    ...jsonData.data.filter(pack => pack.Pack_Id !== 0)
+                    ...jsonData.data.filter(pack => pack.Pack_Id !== 0),
                 ];
                 setDropdownData(dropdownOptions);
                 const initialPackId = dropdownOptions[0]?.Pack_Id || 0;
@@ -143,35 +159,43 @@ const SaleOrder = ({ route }) => {
     };
 
     const filterProductDataByPack = (packId, data) => {
-        const filteredData = (data || productData).map(group => {
-            const filteredGroup = {
-                ...group,
-                GroupedProductArray: group.GroupedProductArray.filter(product => product.Pack_Id === packId || packId === 0)
-            };
-            return filteredGroup.GroupedProductArray.length ? filteredGroup : null;
-        }).filter(group => group !== null);
+        const filteredData = (data || productData)
+            .map(group => {
+                const filteredGroup = {
+                    ...group,
+                    GroupedProductArray: group.GroupedProductArray.filter(
+                        product => product.Pack_Id === packId || packId === 0,
+                    ),
+                };
+                return filteredGroup.GroupedProductArray.length
+                    ? filteredGroup
+                    : null;
+            })
+            .filter(group => group !== null);
 
         // console.log("Filtered Data:", JSON.stringify(filteredData, null, 2)); // Debug log
         setFilteredProductData(filteredData);
     };
 
-    const handlePackSelection = (packId) => {
+    const handlePackSelection = packId => {
         setSelectedProductPack(packId);
         filterProductDataByPack(packId);
     };
 
-    const handleTabPress = (index) => {
+    const handleTabPress = index => {
         setSelectedTab(index);
         pagerRef.current.setPage(index);
     };
 
-    const onPageSelected = (e) => {
+    const onPageSelected = e => {
         setSelectedTab(e.nativeEvent.position);
     };
 
     const handleQuantityChange = (productId, value, rate) => {
         const updatedQuantities = [...quantities];
-        const productIndex = updatedQuantities.findIndex(item => item.Item_Id === productId);
+        const productIndex = updatedQuantities.findIndex(
+            item => item.Item_Id === productId,
+        );
 
         if (productIndex !== -1) {
             updatedQuantities[productIndex].Bill_Qty = value;
@@ -187,18 +211,66 @@ const SaleOrder = ({ route }) => {
     };
 
     function numberToWords(num) {
-        const under20 = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
-        const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-        const thousand = ['thousand', 'million', 'billion'];
+        const under20 = [
+            "zero",
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+            "six",
+            "seven",
+            "eight",
+            "nine",
+            "ten",
+            "eleven",
+            "twelve",
+            "thirteen",
+            "fourteen",
+            "fifteen",
+            "sixteen",
+            "seventeen",
+            "eighteen",
+            "nineteen",
+        ];
+        const tens = [
+            "",
+            "",
+            "twenty",
+            "thirty",
+            "forty",
+            "fifty",
+            "sixty",
+            "seventy",
+            "eighty",
+            "ninety",
+        ];
+        const thousand = ["thousand", "million", "billion"];
 
         if (num < 20) return under20[num];
-        if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 === 0 ? '' : ' ' + under20[num % 10]);
-        if (num < 1000) return under20[Math.floor(num / 100)] + ' hundred' + (num % 100 === 0 ? '' : ' ' + numberToWords(num % 100));
+        if (num < 100)
+            return (
+                tens[Math.floor(num / 10)] +
+                (num % 10 === 0 ? "" : " " + under20[num % 10])
+            );
+        if (num < 1000)
+            return (
+                under20[Math.floor(num / 100)] +
+                " hundred" +
+                (num % 100 === 0 ? "" : " " + numberToWords(num % 100))
+            );
 
         for (let i = 0; i < thousand.length; i++) {
             let decimal = Math.pow(1000, i + 1);
             if (num < decimal) {
-                return numberToWords(Math.floor(num / Math.pow(1000, i))) + ' ' + thousand[i - 1] + (num % Math.pow(1000, i) === 0 ? '' : ' ' + numberToWords(num % Math.pow(1000, i)));
+                return (
+                    numberToWords(Math.floor(num / Math.pow(1000, i))) +
+                    " " +
+                    thousand[i - 1] +
+                    (num % Math.pow(1000, i) === 0
+                        ? ""
+                        : " " + numberToWords(num % Math.pow(1000, i)))
+                );
             }
         }
         return num;
@@ -208,7 +280,9 @@ const SaleOrder = ({ route }) => {
         let newTotal = 0;
         productData.forEach(group => {
             group.GroupedProductArray.forEach(product => {
-                const quantityObj = quantities.find(item => item.Item_Id === product.Product_Id);
+                const quantityObj = quantities.find(
+                    item => item.Item_Id === product.Product_Id,
+                );
                 if (quantityObj && quantityObj.Bill_Qty > 0) {
                     const qty = parseFloat(quantityObj.Bill_Qty);
                     const rate = parseFloat(quantityObj.Item_Rate) || 0;
@@ -233,7 +307,7 @@ const SaleOrder = ({ route }) => {
         formData.append("EntryBy", stockInputValue.Created_by);
 
         try {
-            const response = await fetch(API.visitedLog, {
+            const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 body: formData,
             });
@@ -246,11 +320,10 @@ const SaleOrder = ({ route }) => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                navigation.navigate("HomeScreen")
+                navigation.navigate("HomeScreen");
             } else {
                 throw new Error(data.message);
             }
-
         } catch (err) {
             ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
             console.error("Error submitting form:", err);
@@ -258,13 +331,18 @@ const SaleOrder = ({ route }) => {
     };
 
     const handleSubmit = async () => {
-        handleVisitLog()
+        handleVisitLog();
         if (quantities.length <= 0 || !selectedRetail) {
-            Alert.alert("Error", "Please select a retailer and enter product quantities.");
+            Alert.alert(
+                "Error",
+                "Please select a retailer and enter product quantities.",
+            );
             return;
         }
 
-        const orderProducts = quantities.filter(q => parseFloat(q.Bill_Qty) > 0);
+        const orderProducts = quantities.filter(
+            q => parseFloat(q.Bill_Qty) > 0,
+        );
 
         if (orderProducts.length <= 0) {
             Alert.alert("Error", "Enter at least one product quantity.");
@@ -273,19 +351,19 @@ const SaleOrder = ({ route }) => {
 
         const orderDetails = {
             ...stockInputValue,
-            Product_Array: orderProducts
+            Product_Array: orderProducts,
         };
 
         // console.log("Final order details:", orderDetails);
 
         try {
             const method = isEdit ? "PUT" : "POST";
-            const response = await fetch(`${API.saleOrder}`, {
+            const response = await fetch(`${API.saleOrder()}`, {
                 method: method,
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify(orderDetails)
+                body: JSON.stringify(orderDetails),
             });
 
             const data = await response.json();
@@ -302,32 +380,35 @@ const SaleOrder = ({ route }) => {
                 Alert.alert("Error", data.message);
             }
         } catch (err) {
-            console.log(err)
+            console.log(err);
             Alert.alert("Error", err);
         }
-    }
+    };
 
-    const handleImagePress = (imageUrl) => {
+    const handleImagePress = imageUrl => {
         setCurrentImage(imageUrl);
         setImageModalVisible(true);
     };
 
     return (
         <View style={styles.container}>
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image
-                            source={assetImages.backArrow}
-                        />
+                        <Image source={assetImages.backArrow} />
                     </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>Sale Order</Text>
+                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
+                        Sale Order
+                    </Text>
                     <TouchableOpacity onPress={handlePreview}>
-                        <Text style={{
-                            textAlign: "center",
-                            ...typography.body1(),
-                            color: customColors.white
-                        }}>
+                        <Text
+                            style={{
+                                textAlign: "center",
+                                ...typography.body1(),
+                                color: customColors.white,
+                            }}>
                             PREVIEW
                         </Text>
                     </TouchableOpacity>
@@ -361,7 +442,7 @@ const SaleOrder = ({ route }) => {
 
                     <Dropdown
                         data={dropdownData}
-                        labelField='Pack'
+                        labelField="Pack"
                         valueField="Pack_Id"
                         placeholder="Select Pack"
                         value={selectedProductGroup}
@@ -377,24 +458,26 @@ const SaleOrder = ({ route }) => {
                     />
 
                     <View style={{}}>
-                        <ScrollView horizontal
+                        <ScrollView
+                            horizontal
                             contentContainerStyle={styles.tabContainer}
-                            showsHorizontalScrollIndicator={true}
-                        >
+                            showsHorizontalScrollIndicator={true}>
                             {filteredProductData.map((item, index) => (
                                 <TouchableOpacity
                                     key={index}
                                     style={[
                                         styles.tabButton,
-                                        selectedTab === index
-                                        && styles.activeTab
+                                        selectedTab === index &&
+                                            styles.activeTab,
                                     ]}
-                                    onPress={() => handleTabPress(index)}
-                                >
-                                    <Text style={{
-                                        ...typography.h6(),
-                                        fontWeight: "bold",
-                                    }}>{item.Pro_Group}</Text>
+                                    onPress={() => handleTabPress(index)}>
+                                    <Text
+                                        style={{
+                                            ...typography.h6(),
+                                            fontWeight: "bold",
+                                        }}>
+                                        {item.Pro_Group}
+                                    </Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
@@ -403,53 +486,98 @@ const SaleOrder = ({ route }) => {
                                 style={{ marginTop: 15, height: 1500 }}
                                 initialPage={selectedTab}
                                 ref={pagerRef}
-                                onPageSelected={onPageSelected}
-                            >
-
-
-                                {filteredProductData.map((group, groupIndex) => (
-                                    <View key={groupIndex}>
-                                        {group.GroupedProductArray.map((product, pIndex) => (
-                                            <View key={pIndex} style={styles.pagerViewContainer}>
-                                                <View style={{ flexDirection: 'row', }}>
-                                                    <TouchableOpacity style={{
-                                                        width: "50%",
-                                                        height: 100,
-                                                        aspectRatio: 1
-                                                    }} onPress={() => handleImagePress(product.productImageUrl)}>
-                                                        <Image
+                                onPageSelected={onPageSelected}>
+                                {filteredProductData.map(
+                                    (group, groupIndex) => (
+                                        <View key={groupIndex}>
+                                            {group.GroupedProductArray.map(
+                                                (product, pIndex) => (
+                                                    <View
+                                                        key={pIndex}
+                                                        style={
+                                                            styles.pagerViewContainer
+                                                        }>
+                                                        <View
                                                             style={{
-                                                                width: "100%",
-                                                                height: "100%",
-                                                                borderRadius: 8,
-                                                                marginRight: 10,
-                                                                resizeMode: 'contain'
-                                                            }}
-                                                            source={{ uri: product.productImageUrl }}
-                                                        />
-                                                    </TouchableOpacity>
-                                                    <View style={styles.card}>
-                                                        <Text style={styles.pagerViewContainerText}>{product.Product_Name}</Text>
-                                                        <Text style={styles.pagerViewContainerSubText}>{product.UOM}</Text>
-                                                        <TextInput
-                                                            style={styles.pagerViewContainerInputText}
-                                                            onChangeText={(text) =>
-                                                                handleQuantityChange(product.Product_Id, text, product.Item_Rate)
-                                                            }
-                                                            value={
-                                                                quantities.find(item => item.Item_Id === product.Product_Id)?.Bill_Qty || ''
-                                                            }
-                                                            placeholder="Quantity"
-                                                            keyboardType='number-pad'
-                                                        />
+                                                                flexDirection:
+                                                                    "row",
+                                                            }}>
+                                                            <TouchableOpacity
+                                                                style={{
+                                                                    width: "50%",
+                                                                    height: 100,
+                                                                    aspectRatio: 1,
+                                                                }}
+                                                                onPress={() =>
+                                                                    handleImagePress(
+                                                                        product.productImageUrl,
+                                                                    )
+                                                                }>
+                                                                <Image
+                                                                    style={{
+                                                                        width: "100%",
+                                                                        height: "100%",
+                                                                        borderRadius: 8,
+                                                                        marginRight: 10,
+                                                                        resizeMode:
+                                                                            "contain",
+                                                                    }}
+                                                                    source={{
+                                                                        uri: product.productImageUrl,
+                                                                    }}
+                                                                />
+                                                            </TouchableOpacity>
+                                                            <View
+                                                                style={
+                                                                    styles.card
+                                                                }>
+                                                                <Text
+                                                                    style={
+                                                                        styles.pagerViewContainerText
+                                                                    }>
+                                                                    {
+                                                                        product.Product_Name
+                                                                    }
+                                                                </Text>
+                                                                <Text
+                                                                    style={
+                                                                        styles.pagerViewContainerSubText
+                                                                    }>
+                                                                    {
+                                                                        product.UOM
+                                                                    }
+                                                                </Text>
+                                                                <TextInput
+                                                                    style={
+                                                                        styles.pagerViewContainerInputText
+                                                                    }
+                                                                    onChangeText={text =>
+                                                                        handleQuantityChange(
+                                                                            product.Product_Id,
+                                                                            text,
+                                                                            product.Item_Rate,
+                                                                        )
+                                                                    }
+                                                                    value={
+                                                                        quantities.find(
+                                                                            item =>
+                                                                                item.Item_Id ===
+                                                                                product.Product_Id,
+                                                                        )
+                                                                            ?.Bill_Qty ||
+                                                                        ""
+                                                                    }
+                                                                    placeholder="Quantity"
+                                                                    keyboardType="number-pad"
+                                                                />
+                                                            </View>
+                                                        </View>
                                                     </View>
-                                                </View>
-                                            </View>
-                                        ))}
-                                    </View>
-                                ))
-                                }
-
+                                                ),
+                                            )}
+                                        </View>
+                                    ),
+                                )}
                             </PagerView>
                         </ScrollView>
 
@@ -459,83 +587,171 @@ const SaleOrder = ({ route }) => {
                             visible={modalVisible}
                             onRequestClose={() => {
                                 setModalVisible(!modalVisible);
-                            }}
-                        >
+                            }}>
                             <View style={styles.modalOverlay}>
                                 <View style={styles.modalContent}>
-                                    <Text style={styles.modalTitle}>Order Summary</Text>
+                                    <Text style={styles.modalTitle}>
+                                        Order Summary
+                                    </Text>
                                     <Text>{stockInputValue.Retailer_Name}</Text>
                                     <ScrollView style={styles.tableContainer}>
                                         <View style={styles.tableHeader}>
-                                            <Text style={styles.headerModalTexts}></Text>
-                                            <Text style={styles.headerModalTexts}>Qty</Text>
-                                            <Text style={styles.headerModalTexts}>Rate</Text>
-                                            <Text style={styles.headerModalTexts}>Amount</Text>
+                                            <Text
+                                                style={
+                                                    styles.headerModalTexts
+                                                }></Text>
+                                            <Text
+                                                style={styles.headerModalTexts}>
+                                                Qty
+                                            </Text>
+                                            <Text
+                                                style={styles.headerModalTexts}>
+                                                Rate
+                                            </Text>
+                                            <Text
+                                                style={styles.headerModalTexts}>
+                                                Amount
+                                            </Text>
                                         </View>
-                                        {productData.map((group, groupIndex) => (
-                                            group.GroupedProductArray.map((product, pIndex) => {
-                                                const truncate = (str, maxLength) => {
-                                                    return str.length > maxLength ? str.substring(0, maxLength - 3) + '...' : str;
-                                                };
+                                        {productData.map((group, groupIndex) =>
+                                            group.GroupedProductArray.map(
+                                                (product, pIndex) => {
+                                                    const truncate = (
+                                                        str,
+                                                        maxLength,
+                                                    ) => {
+                                                        return str.length >
+                                                            maxLength
+                                                            ? str.substring(
+                                                                  0,
+                                                                  maxLength - 3,
+                                                              ) + "..."
+                                                            : str;
+                                                    };
 
-                                                const quantityObj = quantities.find(item => item.Item_Id === product.Product_Id);
-                                                if (quantityObj && quantityObj.Bill_Qty > 0) {
-                                                    // console.log(product.Product_Name)
-                                                    const qty = quantityObj.Bill_Qty;
-                                                    const rate = quantityObj.Item_Rate || 0;
-                                                    const amount = qty * rate;
-                                                    return (
-                                                        <View key={pIndex} style={styles.tableRow}>
+                                                    const quantityObj =
+                                                        quantities.find(
+                                                            item =>
+                                                                item.Item_Id ===
+                                                                product.Product_Id,
+                                                        );
+                                                    if (
+                                                        quantityObj &&
+                                                        quantityObj.Bill_Qty > 0
+                                                    ) {
+                                                        // console.log(product.Product_Name)
+                                                        const qty =
+                                                            quantityObj.Bill_Qty;
+                                                        const rate =
+                                                            quantityObj.Item_Rate ||
+                                                            0;
+                                                        const amount =
+                                                            qty * rate;
+                                                        return (
+                                                            <View
+                                                                key={pIndex}
+                                                                style={
+                                                                    styles.tableRow
+                                                                }>
+                                                                <View>
+                                                                    <Image
+                                                                        style={{
+                                                                            width: 50,
+                                                                            height: 50,
+                                                                            flex: 1,
+                                                                        }}
+                                                                        source={{
+                                                                            uri: product.productImageUrl,
+                                                                        }}
+                                                                    />
+                                                                    <Text
+                                                                        numberOfLines={
+                                                                            3
+                                                                        }
+                                                                        ellipsizeMode="tail"
+                                                                        style={{
+                                                                            width: 90,
+                                                                        }}>
+                                                                        {truncate(
+                                                                            product.Product_Name,
+                                                                            20,
+                                                                        )}
+                                                                    </Text>
+                                                                </View>
 
-                                                            <View>
-                                                                <Image
-                                                                    style={{
-                                                                        width: 50,
-                                                                        height: 50,
-                                                                        flex: 1,
-                                                                    }}
-                                                                    source={{ uri: product.productImageUrl }}
-
-                                                                />
-                                                                <Text numberOfLines={3} ellipsizeMode="tail" style={{
-                                                                    width: 90,
-                                                                }}>
-                                                                    {truncate(product.Product_Name, 20)}
+                                                                <Text
+                                                                    style={
+                                                                        styles.rowText
+                                                                    }>
+                                                                    {qty}
+                                                                </Text>
+                                                                {/* <Text style={styles.rowText}>{product.UOM}</Text> */}
+                                                                <Text
+                                                                    style={
+                                                                        styles.rowText
+                                                                    }>
+                                                                    {rate}
+                                                                </Text>
+                                                                <Text
+                                                                    style={
+                                                                        styles.rowText
+                                                                    }>
+                                                                    {amount.toFixed(
+                                                                        2,
+                                                                    )}
                                                                 </Text>
                                                             </View>
-
-                                                            <Text style={styles.rowText}>{qty}</Text>
-                                                            {/* <Text style={styles.rowText}>{product.UOM}</Text> */}
-                                                            <Text style={styles.rowText}>{rate}</Text>
-                                                            <Text style={styles.rowText}>{amount.toFixed(2)}</Text>
-                                                        </View>
-                                                    );
-                                                }
-                                            })
-                                        ))}
+                                                        );
+                                                    }
+                                                },
+                                            ),
+                                        )}
                                     </ScrollView>
                                     <View style={styles.totalContainer}>
-                                        <Text style={styles.totalText}>Total Amount: ₹{total.toFixed(2)}/-</Text>
-                                        <Text style={styles.totalText}>In Words: {numberToWords(total)} only.</Text>
+                                        <Text style={styles.totalText}>
+                                            Total Amount: ₹{total.toFixed(2)}/-
+                                        </Text>
+                                        <Text style={styles.totalText}>
+                                            In Words: {numberToWords(total)}{" "}
+                                            only.
+                                        </Text>
                                     </View>
                                     <TextInput
                                         maxFontSizeMultiplier={1.2}
-                                        style={styles.narrationContainerInputText}
-                                        placeholder='Narration'
-                                        onChangeText={(text) => setStockInputValue({ ...stockInputValue, Narration: text })}
+                                        style={
+                                            styles.narrationContainerInputText
+                                        }
+                                        placeholder="Narration"
+                                        onChangeText={text =>
+                                            setStockInputValue({
+                                                ...stockInputValue,
+                                                Narration: text,
+                                            })
+                                        }
                                     />
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 15 }}>
+                                    <View
+                                        style={{
+                                            flexDirection: "row",
+                                            justifyContent: "space-around",
+                                            marginVertical: 15,
+                                        }}>
                                         <TouchableOpacity
                                             style={styles.closeButton}
-                                            onPress={handleSubmit}
-                                        >
-                                            <Text style={styles.closeButtonText}>Submit</Text>
+                                            onPress={handleSubmit}>
+                                            <Text
+                                                style={styles.closeButtonText}>
+                                                Submit
+                                            </Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={styles.closeButton}
-                                            onPress={() => setModalVisible(!modalVisible)}
-                                        >
-                                            <Text style={styles.closeButtonText}>Close</Text>
+                                            onPress={() =>
+                                                setModalVisible(!modalVisible)
+                                            }>
+                                            <Text
+                                                style={styles.closeButtonText}>
+                                                Close
+                                            </Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -546,29 +762,41 @@ const SaleOrder = ({ route }) => {
                             animationType="slide"
                             transparent={true}
                             visible={isImageModalVisible}
-                            onRequestClose={() => setImageModalVisible(false)}
-                        >
-                            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
-                                <TouchableOpacity onPress={() => setImageModalVisible(false)} style={{ position: 'absolute', top: 40, right: 20 }}>
+                            onRequestClose={() => setImageModalVisible(false)}>
+                            <View
+                                style={{
+                                    flex: 1,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "rgba(0, 0, 0, 0.8)",
+                                }}>
+                                <TouchableOpacity
+                                    onPress={() => setImageModalVisible(false)}
+                                    style={{
+                                        position: "absolute",
+                                        top: 40,
+                                        right: 20,
+                                    }}>
                                     <Icon name="close" size={30} color="#fff" />
                                 </TouchableOpacity>
                                 <Image
                                     source={{ uri: currentImage }}
-                                    style={{ width: '90%', height: '80%', resizeMode: 'contain' }}
+                                    style={{
+                                        width: "90%",
+                                        height: "80%",
+                                        resizeMode: "contain",
+                                    }}
                                 />
                             </View>
                         </Modal>
-
                     </View>
                 </View>
-
             </ImageBackground>
-
         </View>
-    )
-}
+    );
+};
 
-export default SaleOrder
+export default SaleOrder;
 
 const styles = StyleSheet.create({
     container: {
@@ -597,7 +825,7 @@ const styles = StyleSheet.create({
         width: "100%",
         // height: "85%",
         backgroundColor: customColors.white,
-        borderRadius: 7.5
+        borderRadius: 7.5,
     },
     dropdown: {
         height: 45,
@@ -615,29 +843,29 @@ const styles = StyleSheet.create({
     },
     placeholderStyle: {
         ...typography.h6(),
-        fontWeight: '500'
+        fontWeight: "500",
     },
     selectedTextStyle: {
         ...typography.h6(),
-        fontWeight: '600'
+        fontWeight: "600",
     },
     inputSearchStyle: {
         ...typography.h6(),
-        fontWeight: '400'
+        fontWeight: "400",
     },
     tabContainer: {
         height: 55,
-        flexDirection: 'row',
+        flexDirection: "row",
         backgroundColor: customColors.white,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomColor: "#ccc",
         marginBottom: 20,
     },
     tabButton: {
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
+        borderBottomColor: "transparent",
     },
     activeTab: {
         borderBottomColor: customColors.primary,
@@ -648,7 +876,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 10,
         margin: 10,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 6,
@@ -660,32 +888,32 @@ const styles = StyleSheet.create({
     },
     pagerViewContainerText: {
         ...typography.body1(),
-        fontWeight: 'bold',
+        fontWeight: "bold",
         // color: '#ccc',
         marginBottom: 4,
     },
     pagerViewContainerSubText: {
         ...typography.body2(),
-        fontWeight: '500',
+        fontWeight: "500",
         marginBottom: 10,
     },
     pagerViewContainerInputText: {
         ...typography.body1(),
         padding: 8,
         borderWidth: 1,
-        borderColor: '#ccc',
+        borderColor: "#ccc",
         borderRadius: 4,
         marginTop: 5,
     },
     modalOverlay: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
         borderColor: customColors.background,
     },
     modalContent: {
-        width: '90%',
+        width: "90%",
         backgroundColor: customColors.white,
         padding: 20,
         borderRadius: 10,
@@ -699,41 +927,41 @@ const styles = StyleSheet.create({
         maxHeight: 300,
     },
     tableHeader: {
-        flexDirection: 'row',
+        flexDirection: "row",
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomColor: "#ccc",
     },
     headerModalTexts: {
         flex: 1, // Equal width columns
-        textAlign: 'center',
+        textAlign: "center",
         ...typography.body2(),
-        fontWeight: 'bold',
+        fontWeight: "bold",
         padding: 10,
     },
 
     tableRow: {
-        flexDirection: 'row',
+        flexDirection: "row",
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: "#eee",
     },
     rowText: {
         flex: 1,
-        textAlign: 'center',
+        textAlign: "center",
         ...typography.body2(),
         padding: 10,
     },
     totalContainer: {
         paddingVertical: 20,
         borderTopWidth: 1,
-        borderTopColor: '#ddd',  // Light grey border for a subtle separation
+        borderTopColor: "#ddd", // Light grey border for a subtle separation
         marginTop: 10,
         marginHorizontal: 10,
         backgroundColor: customColors.white,
-        alignItems: 'flex-end',
+        alignItems: "flex-end",
     },
     totalText: {
         ...typography.body1(),
-        fontWeight: 'bold',
+        fontWeight: "bold",
     },
     narrationContainerInputText: {
         ...typography.h6(),
@@ -754,7 +982,6 @@ const styles = StyleSheet.create({
     closeButtonText: {
         ...typography.h6(),
         fontWeight: "700",
-        color: customColors.black
-    }
-
-})
+        color: customColors.black,
+    },
+});

@@ -87,7 +87,7 @@ const Sales = ({ route }) => {
 
     const fetchProducts = async id => {
         try {
-            const response = await fetch(`${API.products}${id}`);
+            const response = await fetch(`${API.products()}${id}`);
             const jsonData = await response.json();
 
             if (jsonData.success) {
@@ -112,7 +112,7 @@ const Sales = ({ route }) => {
 
     const fetchUOMData = async () => {
         try {
-            const response = await fetch(API.uom);
+            const response = await fetch(API.uom());
             const jsonData = await response.json();
             if (jsonData.data) {
                 setUOMData(jsonData.data);
@@ -394,7 +394,7 @@ const Sales = ({ route }) => {
         setIsSubmitting(true);
         // console.log(initialValue)
         try {
-            const response = await fetch(API.saleOrder, {
+            const response = await fetch(API.saleOrder(), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

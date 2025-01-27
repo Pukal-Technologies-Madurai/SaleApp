@@ -86,7 +86,7 @@ const CustomersDetails = ({ route }) => {
     const handleUpdateLocation = async location => {
         console.log("location", location);
         try {
-            const response = await fetch(API.retailerLocation, {
+            const response = await fetch(API.retailerLocation(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

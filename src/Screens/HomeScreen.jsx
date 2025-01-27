@@ -205,7 +205,7 @@ const HomeScreen = () => {
         setTotalProductsSold(0);
 
         try {
-            let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
+            let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
             // console.log(url)
             const response = await fetch(url, {
                 method: "GET",
@@ -234,7 +234,7 @@ const HomeScreen = () => {
         setUserCount({}); // Also clear the user count
 
         try {
-            const url = `${API.visitedLog}?reqDate=${fromDate}&UserId=${id}`;
+            const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}`;
             // console.log(url)
 
             const response = await fetch(url, {
@@ -257,7 +257,7 @@ const HomeScreen = () => {
     const fetchDeliveryData = async today => {
         setIsLoading(true);
         try {
-            const url = `${API.todayDelivery}Fromdate=${today}&Todate=${today}`;
+            const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}`;
             // console.log(url);
 
             const response = await fetch(url, {
@@ -283,7 +283,7 @@ const HomeScreen = () => {
     const fetchAttendanceInfo = async (from, to, userTypeID) => {
         setIsLoading(true);
         try {
-            const url = `${API.attendanceHistory}From=${from}&To=${to}&UserTypeID=${userTypeID}`;
+            const url = `${API.attendanceHistory()}From=${from}&To=${to}&UserTypeID=${userTypeID}`;
             // console.log(url);
 
             const response = await fetch(url, {
@@ -583,7 +583,7 @@ const HomeScreen = () => {
                             item.DeliveryStatusName === "Pending",
                     ).length
                 }/${deliveryData.length || 0}`,
-                onPress: () => setDeliveryVisible(true),
+                onPress: () => navigation.navigate("DeliveryReport"),
             },
         ],
         [

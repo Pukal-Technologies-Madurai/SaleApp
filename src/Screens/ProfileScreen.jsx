@@ -45,7 +45,7 @@ const ProfileScreen = () => {
 
     const handleChangePassword = async () => {
         try {
-            const response = await fetch(`${API.changePassword}`, {
+            const response = await fetch(`${API.changePassword()}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

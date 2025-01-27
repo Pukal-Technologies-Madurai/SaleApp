@@ -45,7 +45,7 @@ const RetailerVisitLog = () => {
 
     const fetchVisitersLog = async (fromDate, id) => {
         try {
-            const url = `${API.visitedLog}?reqDate=${fromDate}&UserId=${id}`;
+            const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}`;
             const response = await fetch(url, {
                 method: "GET",
                 headers: {

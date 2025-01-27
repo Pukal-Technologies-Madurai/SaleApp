@@ -13,7 +13,7 @@ const SalesReportModal = ({
     totalProductsSold,
     logData,
     productSummary,
-    selectedDate
+    selectedDate,
 }) => {
     const styles = {
         modalBackground: {
@@ -118,7 +118,7 @@ const SalesReportModal = ({
         },
         productCell: {
             flex: 2,
-            ...typography.body2()
+            ...typography.body2(),
         },
         centerCell: {
             flex: 1,
@@ -157,14 +157,20 @@ const SalesReportModal = ({
     };
 
     const [visitLogLength, setVisitLogLength] = React.useState(0);
-    const totalQuantity = productSummary.reduce((sum, item) => sum + item.totalQty, 0);
-    const totalAmount = productSummary.reduce((sum, item) => sum + parseFloat(item.totalAmount), 0);
+    const totalQuantity = productSummary.reduce(
+        (sum, item) => sum + item.totalQty,
+        0,
+    );
+    const totalAmount = productSummary.reduce(
+        (sum, item) => sum + parseFloat(item.totalAmount),
+        0,
+    );
 
     const fromDate = new Date(selectedDate).toLocaleDateString().split("T")[0];
     const fromTime = new Date(selectedDate).toLocaleString("en-US", {
         hour: "numeric",
         minute: "numeric",
-        hour12: true
+        hour12: true,
     });
 
     React.useEffect(() => {
@@ -174,13 +180,16 @@ const SalesReportModal = ({
                     console.log("selectedDate is undefined");
                     return;
                 }
-                const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
+                const storeUserTypeId =
+                    await AsyncStorage.getItem("userTypeId");
                 const userId = await AsyncStorage.getItem("UserId");
-                const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
+                const formattedDate = new Date(selectedDate)
+                    .toISOString()
+                    .split("T")[0];
 
                 const isAdminUser = ["0", "1", "2"].includes(storeUserTypeId);
 
-                if (isAdminUser){
+                if (isAdminUser) {
                     await getVisitedLog(formattedDate);
                 } else {
                     await getVisitedLog(formattedDate, userId);
@@ -194,8 +203,8 @@ const SalesReportModal = ({
     const getVisitedLog = async (date, id = "") => {
         try {
             const userIdParam = id || "";
-            const url = `${API.visitedLog}?reqDate=${date}&UserId=${userIdParam}`;
-            console.log(url)
+            const url = `${API.visitedLog()}?reqDate=${date}&UserId=${userIdParam}`;
+            console.log(url);
 
             const response = await fetch(url, {
                 method: "GET",
@@ -220,12 +229,18 @@ const SalesReportModal = ({
     const totalVisitLogCount = visitLogLength + logData.length;
 
     return (
-        <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} >
+        <Modal
+            visible={visible}
+            animationType="slide"
+            transparent
+            onRequestClose={onClose}>
             <View style={styles.modalBackground}>
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalHeaderText}>Sales Report</Text>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <TouchableOpacity
+                            onPress={onClose}
+                            style={styles.closeButton}>
                             <Icon name="times" size={24} color="#6B7280" />
                         </TouchableOpacity>
                     </View>
@@ -233,8 +248,14 @@ const SalesReportModal = ({
                     <ScrollView style={styles.contentContainer}>
                         <View style={styles.statsContainer}>
                             <View style={styles.statRow}>
-                                <Icon name="calendar" size={20} color="#4A90E2" />
-                                <Text style={styles.statValue}>{fromDate} • {fromTime}</Text>
+                                <Icon
+                                    name="calendar"
+                                    size={20}
+                                    color="#4A90E2"
+                                />
+                                <Text style={styles.statValue}>
+                                    {fromDate} • {fromTime}
+                                </Text>
                             </View>
 
                             {/* <View style={styles.statRow}>
@@ -245,15 +266,27 @@ const SalesReportModal = ({
                             </View> */}
 
                             <View style={styles.checkOrderRow}>
-                                <Text style={styles.checkOrderText}>Check-Ins</Text>
-                                <Text style={styles.checkOrderText}>Orders</Text>
+                                <Text style={styles.checkOrderText}>
+                                    Check-Ins
+                                </Text>
+                                <Text style={styles.checkOrderText}>
+                                    Orders
+                                </Text>
                             </View>
                             <View style={[styles.statRow, { marginTop: -10 }]}>
-                                <MaterialCommunityIcons name="bike" size={24} color="#2ECC71" />
-                                <Text style={styles.statValue}>Check & Order Stats:&nbsp;
-                                    <Text style={{ color: "red", fontWeight: "bold" }}>
-                                        {totalVisitLogCount} (
-                                        {visitLogLength}
+                                <MaterialCommunityIcons
+                                    name="bike"
+                                    size={24}
+                                    color="#2ECC71"
+                                />
+                                <Text style={styles.statValue}>
+                                    Check & Order Stats:&nbsp;
+                                    <Text
+                                        style={{
+                                            color: "red",
+                                            fontWeight: "bold",
+                                        }}>
+                                        {totalVisitLogCount} ({visitLogLength}
                                         &nbsp;+&nbsp;
                                         {logData.length.toString()})
                                     </Text>
@@ -266,13 +299,19 @@ const SalesReportModal = ({
                                 {/* Header Labels Row */}
                                 <View style={styles.headerRow}>
                                     <View style={styles.productHeaderCell}>
-                                        <Text style={styles.headerText}>Product</Text>
+                                        <Text style={styles.headerText}>
+                                            Product
+                                        </Text>
                                     </View>
                                     <View style={styles.quantityHeaderCell}>
-                                        <Text style={styles.headerText}>Quantity</Text>
+                                        <Text style={styles.headerText}>
+                                            Quantity
+                                        </Text>
                                     </View>
                                     <View style={styles.amountHeaderCell}>
-                                        <Text style={styles.headerText}>Total</Text>
+                                        <Text style={styles.headerText}>
+                                            Total
+                                        </Text>
                                     </View>
                                 </View>
 
@@ -296,20 +335,38 @@ const SalesReportModal = ({
                             </View>
 
                             {productSummary.map((item, index) => (
-                                <View key={index}
+                                <View
+                                    key={index}
                                     style={[
                                         styles.tableRow,
-                                        index % 2 === 0 ? styles.evenRow : styles.oddRow,
-                                    ]}
-                                >
-                                    <Text style={[styles.tableCell, styles.productCell]} numberOfLines={3} >
+                                        index % 2 === 0
+                                            ? styles.evenRow
+                                            : styles.oddRow,
+                                    ]}>
+                                    <Text
+                                        style={[
+                                            styles.tableCell,
+                                            styles.productCell,
+                                        ]}
+                                        numberOfLines={3}>
                                         {item.productName}
                                     </Text>
-                                    <Text style={[styles.tableCell, styles.quantityCell]}>
+                                    <Text
+                                        style={[
+                                            styles.tableCell,
+                                            styles.quantityCell,
+                                        ]}>
                                         {item.totalQty}
                                     </Text>
-                                    <Text style={[styles.tableCell, styles.amountCell]}>
-                                        ₹ {parseFloat(item.totalAmount).toFixed(2)}
+                                    <Text
+                                        style={[
+                                            styles.tableCell,
+                                            styles.amountCell,
+                                        ]}>
+                                        ₹{" "}
+                                        {parseFloat(item.totalAmount).toFixed(
+                                            2,
+                                        )}
                                     </Text>
                                 </View>
                             ))}

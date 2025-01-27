@@ -90,7 +90,7 @@ const OrderPreview = () => {
 
     const fetchSalesPerson = async companyId => {
         try {
-            const url = `${API.salesPerson}${companyId}`;
+            const url = `${API.salesPerson()}${companyId}`;
             const response = await fetch(url, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
@@ -120,7 +120,7 @@ const OrderPreview = () => {
         try {
             const salesPersonIdParam = userId || "";
 
-            let url = `${API.saleOrder}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
+            let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
 
             const response = await fetch(url, {
                 method: "GET",
@@ -334,7 +334,7 @@ const OrderPreview = () => {
 
     const fetchRetailerInfo = async retailerId => {
         try {
-            const response = await fetch(`${API.retailerInfo}${retailerId}`);
+            const response = await fetch(`${API.retailerInfo()}${retailerId}`);
             const data = await response.json();
             if (data.success) {
                 setRetailerInfo(data.data[0]);

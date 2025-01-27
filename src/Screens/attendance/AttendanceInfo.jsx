@@ -72,7 +72,7 @@ const AttendanceInfo = () => {
 
     const getAttendanceHistory = async userId => {
         try {
-            const url = `${API.MyLastAttendance}${userId}`;
+            const url = `${API.MyLastAttendance()}${userId}`;
 
             const response = await fetch(url, {
                 method: "GET",

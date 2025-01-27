@@ -98,8 +98,8 @@ const StockClosing = ({ route }) => {
     }, [isEdit, item]);
 
     const fetchGroupedproducts = async company => {
-        console.log(`${API.groupedProducts}${company}`);
-        fetch(`${API.groupedProducts}${company}`)
+        // console.log(`${API.groupedProducts()}${company}`);
+        fetch(`${API.groupedProducts()}${company}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -111,7 +111,7 @@ const StockClosing = ({ route }) => {
     };
 
     const fetchProductClosingStock = async Retailer_Id => {
-        fetch(`${API.productClosingStock}${Retailer_Id}`)
+        fetch(`${API.productClosingStock()}${Retailer_Id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -123,7 +123,7 @@ const StockClosing = ({ route }) => {
 
     const fetchproductPacks = async id => {
         try {
-            const response = await fetch(`${API.productPacks}${id}`);
+            const response = await fetch(`${API.productPacks()}${id}`);
             const jsonData = await response.json();
 
             if (jsonData.success) {
@@ -247,7 +247,7 @@ const StockClosing = ({ route }) => {
         formData.append("EntryBy", stockInputValue.Created_by);
 
         try {
-            const response = await fetch(API.visitedLog, {
+            const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 body: formData,
             });
@@ -273,7 +273,7 @@ const StockClosing = ({ route }) => {
     const postClosingStock = async () => {
         if (closingStockValues.length > 0 && stockInputValue.Retailer_Id) {
             try {
-                const response = await fetch(API.closingStock, {
+                const response = await fetch(API.closingStock(), {
                     method: isEdit ? "PUT" : "POST",
                     headers: {
                         "Content-Type": "application/json",

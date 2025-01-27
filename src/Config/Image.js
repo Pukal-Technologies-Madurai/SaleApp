@@ -25,10 +25,11 @@ const assetImages = {
     salesOrder: require("../../assets/images/sale_order.png"),
     attendance: require("../../assets/images/attendance.png"),
     visitLog: require("../../assets/images/visit_log.png"),
+    mapViewPin: require("../../assets/images/pin.png"),
     gpayLogo: require("../../assets/images/gpayLogo.jpg"),
 
     closingStock: require("../../assets/images/closing_stock.png"),
     whatsapp: require("../../assets/images/whatsapp.png"),
-}
+};
 
-export default assetImages
+export default assetImages;

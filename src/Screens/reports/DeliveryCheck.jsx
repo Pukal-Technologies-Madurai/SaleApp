@@ -5,7 +5,6 @@ import {
     ImageBackground,
     TouchableOpacity,
     Image,
-    ScrollView,
     Modal,
     Alert,
     TextInput,
@@ -16,7 +15,6 @@ import {
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 import { API } from "../../Config/Endpoint";
@@ -86,11 +84,11 @@ const DeliveryCheck = () => {
 
     const fetchDelivery = async (from, to, userId, company) => {
         console.log(
-            `${API.delivery}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
+            `${API.delivery()}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
         );
         try {
             const response = await fetch(
-                `${API.delivery}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
+                `${API.delivery()}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
                 {
                     method: "GET",
                     headers: {
@@ -427,7 +425,7 @@ const DeliveryCheck = () => {
             };
 
             // Perform the PUT request with improved error handling
-            const response = await fetch(API.deliveryPut, {
+            const response = await fetch(API.deliveryPut(), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updatePayload),

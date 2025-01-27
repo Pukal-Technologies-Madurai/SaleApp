@@ -61,12 +61,24 @@ const DrawerScreen = ({ navigation }) => {
                 <DrawerItem
                     icon={
                         <IconAntDesign
+                            name="user"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    }
+                    label="Retailers"
+                    onPress={() => navigation.navigate("Customers")}
+                />
+
+                <DrawerItem
+                    icon={
+                        <IconAntDesign
                             name="adduser"
                             size={24}
                             color={customColors.white}
                         />
                     }
-                    label="Add Customer"
+                    label="Add Retailer"
                     onPress={() => navigation.navigate("AddCustomer")}
                 />
             </View>

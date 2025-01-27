@@ -37,7 +37,7 @@ const RetailerHistory = () => {
 
     const fetchRetailerInfo = async id => {
         try {
-            const url = `${API.retailers}${id}`;
+            const url = `${API.retailers()}${id}`;
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
