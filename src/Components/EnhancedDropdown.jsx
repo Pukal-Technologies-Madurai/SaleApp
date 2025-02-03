@@ -6,7 +6,7 @@ import {
     TouchableOpacity,
     FlatList,
     Modal,
-    StyleSheet
+    StyleSheet,
 } from "react-native";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import { customColors, typography } from "../Config/helper";
@@ -22,25 +22,24 @@ const EnhancedDropdown = ({
     iconName = "filter",
     iconSize = 24,
     iconColor = customColors.white,
-    iconOnly = false
+    iconOnly = false,
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const filteredData = data.filter(item =>
-        item[labelField].toLowerCase().includes(searchQuery.toLowerCase())
+        item[labelField].toLowerCase().includes(searchQuery.toLowerCase()),
     );
 
     const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.dropdownItem} onPress={() => {
-            onChange(item);
-            setModalVisible(false);
-            setSearchQuery("");
-        }}
-        >
-            <Text style={styles.dropdownItemText}>
-                {item[labelField]}
-            </Text>
+        <TouchableOpacity
+            style={styles.dropdownItem}
+            onPress={() => {
+                onChange(item);
+                setModalVisible(false);
+                setSearchQuery("");
+            }}>
+            <Text style={styles.dropdownItemText}>{item[labelField]}</Text>
         </TouchableOpacity>
     );
 
@@ -61,9 +60,12 @@ const EnhancedDropdown = ({
                 </TouchableOpacity>
             ) : (
                 <TouchableOpacity
-                    style={showIcon ? styles.dropdownButtonWithIcon : styles.dropdownButton}
-                    onPress={() => setModalVisible(true)}
-                >
+                    style={
+                        showIcon
+                            ? styles.dropdownButtonWithIcon
+                            : styles.dropdownButton
+                    }
+                    onPress={() => setModalVisible(true)}>
                     {showIcon && (
                         <FeatherIcon
                             name={iconName}
@@ -79,12 +81,11 @@ const EnhancedDropdown = ({
                 </TouchableOpacity>
             )}
 
-
-            <Modal transparent={true}
+            <Modal
+                transparent={true}
                 visible={modalVisible}
                 animationType="slide"
-                onRequestClose={() => setModalVisible(false)}
-            >
+                onRequestClose={() => setModalVisible(false)}>
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <TextInput
@@ -97,7 +98,7 @@ const EnhancedDropdown = ({
 
                         <FlatList
                             data={filteredData}
-                            keyExtractor={(item) => item[valueField].toString()}
+                            keyExtractor={item => item[valueField].toString()}
                             renderItem={renderItem}
                             ListEmptyComponent={
                                 <Text style={styles.noResultsText}>
@@ -108,8 +109,7 @@ const EnhancedDropdown = ({
 
                         <TouchableOpacity
                             style={styles.closeButton}
-                            onPress={() => setModalVisible(false)}
-                        >
+                            onPress={() => setModalVisible(false)}>
                             <Text style={styles.closeButtonText}>Close</Text>
                         </TouchableOpacity>
                     </View>
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: customColors.accent,
         marginHorizontal: 18,
-        marginVertical: 15
+        marginVertical: 15,
     },
     dropdownButtonText: {
         ...typography.body1(),
@@ -150,12 +150,16 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
 
-
     dropdownButtonWithIcon: {
         flexDirection: "row",
         alignItems: "center",
         paddingVertical: 12,
         paddingHorizontal: 16,
+        backgroundColor: customColors.lightGrey,
+        borderColor: customColors.grey,
+        borderWidth: 1,
+        borderRadius: 10,
+        marginVertical: 10,
     },
     searchInput: {
         ...typography.body1(),

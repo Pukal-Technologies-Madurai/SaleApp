@@ -10,8 +10,8 @@ import {
 import React, { useEffect, useState } from "react";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
-import DatePickerButton from "../../Components/DatePickerButton";
 import { customColors, typography } from "../../Config/helper";
+import DatePickerButton from "../../Components/DatePickerButton";
 import assetImages from "../../Config/Image";
 
 const DeliveryTable = ({ deliveryData }) => {
@@ -125,7 +125,7 @@ const DeliveryTable = ({ deliveryData }) => {
                                 item.DeliveryStatusName === "Delivered" &&
                                     styles.deliveredStatus,
                             ]}>
-                            {item.DeliveryStatusName} (
+                            {item.DeliveryStatusName} {"\n"} (
                             {item.Payment_Mode === 0
                                 ? "Pending"
                                 : item.Payment_Mode === 1
@@ -184,32 +184,6 @@ const DeliveryReport = () => {
         }
     };
 
-    const getDeliveryStats = () => {
-        const stats = {};
-
-        deliveryData.forEach(delivery => {
-            const personName = delivery.Delivery_Person_Name;
-            if (!stats[personName]) {
-                stats[personName] = {
-                    statusCounts: {},
-                    retailers: new Set(),
-                    totalDeliveries: 0,
-                };
-            }
-
-            // Count delivery statuses
-            const status = delivery.DeliveryStatusName;
-            stats[personName].statusCounts[status] =
-                (stats[personName].statusCounts[status] || 0) + 1;
-
-            // Add retailer
-            stats[personName].retailers.add(delivery.Retailer_Name);
-            stats[personName].totalDeliveries++;
-        });
-
-        return stats;
-    };
-
     const handleDateChange = async (event, date) => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
@@ -217,8 +191,6 @@ const DeliveryReport = () => {
             await fetchDeliveryData(formattedDate);
         }
     };
-
-    const deliveryStats = getDeliveryStats();
 
     return (
         <View style={styles.container}>
@@ -294,7 +266,6 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         marginHorizontal: 25,
     },
-
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
@@ -306,7 +277,6 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         color: "#666",
     },
-
     filterContainer: {
         flexDirection: "row",
         padding: 10,
@@ -333,10 +303,9 @@ const styles = StyleSheet.create({
     filterTextActive: {
         color: "#fff",
     },
-
     tableContainer: {
         flex: 1,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.primary,
         marginHorizontal: 15,
         borderRadius: 15,
     },
@@ -373,16 +342,11 @@ const styles = StyleSheet.create({
     },
     statusCell: {
         ...typography.body2(),
-        fontWeight: "500",
+        fontWeight: "600",
     },
     deliveredStatus: {
         ...typography.body2(),
-        fontWeight: "500",
+        fontWeight: "600",
         color: "#4CAF50",
-    },
-
-    pendingPayment: {
-        color: "#FF6B6B",
-        fontWeight: "500",
     },
 });

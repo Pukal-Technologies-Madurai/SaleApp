@@ -301,11 +301,13 @@ const OrderPreview = () => {
                         ))}
                     </View>
                     <View style={styles.buttonContainer}>
-                        {/* {currentDate === orderDate && (
-              <TouchableOpacity style={styles.button} onPress={() => editOption(item)}>
-                <Text style={styles.buttonText}>Edit</Text>
-              </TouchableOpacity>
-            )} */}
+                        {currentDate === orderDate && (
+                            <TouchableOpacity
+                                style={styles.button}
+                                onPress={() => editOption(item)}>
+                                <Text style={styles.buttonText}>Edit</Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             style={[
                                 styles.button,
@@ -567,7 +569,7 @@ const OrderPreview = () => {
 
     const editOption = item => {
         console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name);
-        navigation.navigate("Sales", {
+        navigation.navigate("Orders", {
             item: {
                 ...item,
                 Retailer_Id: item.Retailer_Id,

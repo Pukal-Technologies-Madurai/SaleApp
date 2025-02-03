@@ -4,38 +4,34 @@ import {
     Text,
     TouchableOpacity,
     View,
-    PermissionsAndroid,
     Alert,
     ToastAndroid,
     ScrollView,
     Image,
-    useColorScheme,
-    ActivityIndicator,
     Modal,
     ImageBackground,
-    TextInput,
+    Dimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import Geolocation from "@react-native-community/geolocation";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from "react-native-vector-icons/AntDesign";
+import IconMaterial from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
-import Icon from "react-native-vector-icons/AntDesign";
-import IconEntypo from "react-native-vector-icons/Entypo";
-import IconMaterial from "react-native-vector-icons/MaterialIcons";
 import LocationIndicator from "../../Components/LocationIndicator";
 import assetImages from "../../Config/Image";
 
 const CustomersDetails = ({ route }) => {
-    const navigation = useNavigation();
     const { item } = route.params;
-    const phoneNumber = item.Mobile_No;
+    const navigation = useNavigation();
+
     const [userId, setUserId] = useState("");
-    const [isImageModalVisible, setImageModalVisible] = useState(false);
-    const [currentImage, setCurrentImage] = useState(null);
-    const [isLocationModalVisible, setLocationModalVisible] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [showImageModal, setShowImageModal] = useState(false);
+
     const [location, setLocation] = useState(null);
+    const [showLocationModal, setShowLocationModal] = useState(false);
 
     useEffect(() => {
         const fetchUserId = async () => {
@@ -49,39 +45,6 @@ const CustomersDetails = ({ route }) => {
 
         fetchUserId();
     }, []);
-
-    const handleCall = () => {
-        if (phoneNumber) {
-            Linking.openURL(`tel:${phoneNumber}`);
-        } else {
-            ToastAndroid.show("Phone number not available", ToastAndroid.LONG);
-        }
-    };
-
-    const handleLocation = item => {
-        let latitude = item.Latitude;
-        let longitude = item.Longitude;
-
-        if (!latitude || !longitude) {
-            const location = item.AllLocations && item.AllLocations[0];
-            if (location) {
-                latitude = location.latitude;
-                longitude = location.longitude;
-            }
-        }
-
-        if (latitude && longitude) {
-            const url = `${API.google_map}${latitude},${longitude}`;
-            Linking.openURL(url);
-        } else {
-            ToastAndroid.show("Location not available", ToastAndroid.LONG);
-        }
-    };
-
-    const handleImagePress = imageUrl => {
-        setCurrentImage(imageUrl);
-        setImageModalVisible(true);
-    };
 
     const handleUpdateLocation = async location => {
         console.log("location", location);
@@ -117,323 +80,255 @@ const CustomersDetails = ({ route }) => {
         }
     };
 
+    const InfoRow = ({ icon, value, isPhone }) => (
+        <View style={styles.infoRow}>
+            <Icon
+                name={icon}
+                size={20}
+                color={customColors.primary}
+                style={styles.infoIcon}
+            />
+            {isPhone ? (
+                <TouchableOpacity
+                    onPress={() => {
+                        if (value && value !== "N/A") {
+                            Linking.openURL(`tel:${value}`);
+                        } else {
+                            ToastAndroid.show(
+                                "Phone number not available",
+                                ToastAndroid.LONG,
+                            );
+                        }
+                    }}>
+                    <Text style={styles.phoneText}>{value || "N/A"}</Text>
+                </TouchableOpacity>
+            ) : (
+                <Text style={styles.infoText}>{value || "N/A"}</Text>
+            )}
+        </View>
+    );
+
+    const openMap = () => {
+        const { Latitude, Longitude, AllLocations } = item;
+        const location = AllLocations?.[0];
+        const lat = Latitude || location?.latitude;
+        const lng = Longitude || location?.longitude;
+
+        if (lat && lng) {
+            Linking.openURL(`${API.google_map}${lat},${lng}`);
+        } else {
+            ToastAndroid.show("Location not available", ToastAndroid.SHORT);
+        }
+    };
+
+    const ActionButton = ({ icon, label, onPress }) => (
+        <TouchableOpacity style={styles.actionButton} onPress={onPress}>
+            <Image source={icon} style={styles.actionIcon} />
+            <Text style={styles.actionLabel}>{label}</Text>
+        </TouchableOpacity>
+    );
+
     return (
-        <ScrollView style={styles.container}>
+        <View style={styles.container}>
             <ImageBackground
                 source={assetImages.backgroundImage}
                 style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <IconMaterial
-                            name="arrow-back"
-                            size={25}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
-                        Retailer Info
-                    </Text>
-                </View>
-
-                <View style={styles.card}>
-                    <TouchableOpacity
-                        style={styles.cardImageContent}
-                        onPress={() => handleImagePress(item.imageUrl)}>
-                        <Image
-                            style={{
-                                width: "100%",
-                                height: "100%",
-                                borderRadius: 8,
-                                resizeMode: "contain",
-                            }}
-                            source={
-                                item.imageUrl
-                                    ? { uri: item.imageUrl }
-                                    : assetImages.photoFrame
-                            }
-                        />
-                    </TouchableOpacity>
-
-                    <View style={styles.retailersContainer}>
-                        <View style={styles.retailersInto}>
-                            <Image
-                                style={{
-                                    width: 17,
-                                    height: 17,
-                                }}
-                                source={assetImages.store}
+                <View style={styles.overlay}>
+                    <View style={styles.headerContainer}>
+                        <TouchableOpacity onPress={() => navigation.goBack()}>
+                            <IconMaterial
+                                name="arrow-back"
+                                size={25}
+                                color={customColors.white}
                             />
-                            <Text
-                                maxFontSizeMultiplier={1.2}
-                                style={[
-                                    styles.retailerText,
-                                    { marginTop: 15, fontWeight: "bold" },
-                                ]}>
-                                {item.Retailer_Name}
-                            </Text>
-                        </View>
-
-                        <View style={styles.retailersInto}>
-                            <Image
-                                style={{
-                                    width: 17,
-                                    height: 17,
-                                }}
-                                source={assetImages.contact}
-                            />
-                            <Text
-                                maxFontSizeMultiplier={1.2}
-                                style={styles.retailerText}>
-                                {item.Contact_Person
-                                    ? item.Contact_Person
-                                    : "N/A"}
-                            </Text>
-                        </View>
-
-                        <View style={styles.retailersInto}>
-                            <Image
-                                style={{
-                                    width: 17,
-                                    height: 17,
-                                }}
-                                source={assetImages.home}
-                            />
-                            <Text
-                                maxFontSizeMultiplier={1.2}
-                                style={
-                                    styles.retailerText
-                                }>{`${item.Reatailer_Address}, ${item.Reatailer_City}, ${item.StateGet} - ${item.PinCode}`}</Text>
-                        </View>
-
-                        <View style={styles.retailersInto}>
-                            <Image
-                                style={{
-                                    width: 22,
-                                    height: 22,
-                                }}
-                                source={assetImages.gst}
-                            />
-                            <Text
-                                maxFontSizeMultiplier={1.2}
-                                style={styles.retailerText}>
-                                {`GST: ${item.Gstno ? item.Gstno : "N/A"}`}
-                            </Text>
-                        </View>
-
-                        <View style={styles.retailersInto}>
-                            <Image
-                                style={{
-                                    width: 17,
-                                    height: 17,
-                                }}
-                                source={assetImages.call}
-                            />
-                            <TouchableOpacity onPressOut={handleCall}>
-                                <Text
-                                    maxFontSizeMultiplier={1.2}
-                                    style={[
-                                        styles.retailerText,
-                                        {
-                                            color: "blue",
-                                            textDecorationLine: "underline",
-                                        },
-                                    ]}>
-                                    {item.Mobile_No ? item.Mobile_No : "N/A"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => {
-                            navigation.navigate("StockClosing", { item });
-                        }}>
-                        <Image
-                            style={styles.tinyLogo}
-                            source={assetImages.closingStock}
-                        />
-                        <Text
-                            maxFontSizeMultiplier={1.2}
-                            style={styles.buttonText}>
-                            Closing Stock
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => {
-                            navigation.navigate("Sales", { item });
-                        }}>
-                        <Image
-                            style={styles.tinyLogo}
-                            source={assetImages.salesOrder}
-                        />
-                        <Text
-                            maxFontSizeMultiplier={1.2}
-                            style={styles.buttonText}>
-                            Order
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => {
-                            navigation.navigate("EditCustomer", { item });
-                        }}>
-                        <Image
-                            style={styles.tinyLogo}
-                            source={assetImages.edit}
-                        />
-                        <Text
-                            maxFontSizeMultiplier={1.2}
-                            style={styles.buttonText}>
-                            Edit
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => {
-                            Linking.openURL(
-                                `${API.whatsApp}${item.Mobile_No}/?text=Hi`,
-                            );
-                        }}>
-                        <Image
-                            style={styles.tinyLogo}
-                            source={assetImages.whatsapp}
-                        />
-                        <Text
-                            maxFontSizeMultiplier={1.2}
-                            style={styles.buttonText}>
-                            WhatsApp
-                        </Text>
-                    </TouchableOpacity>
-
-                    {(item.Latitude ||
-                        item.Longitude ||
-                        (item.AllLocations &&
-                            item.AllLocations[0] &&
-                            item.AllLocations[0].latitude &&
-                            item.AllLocations[0].longitude)) && (
-                        <TouchableOpacity
-                            style={styles.button}
-                            onPress={() => handleLocation(item)}>
-                            <Image
-                                style={styles.tinyLogo}
-                                source={assetImages.locationStatus}
-                            />
-                            <Text
-                                maxFontSizeMultiplier={1.2}
-                                style={styles.buttonText}>
-                                Maps
-                            </Text>
                         </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => setLocationModalVisible(true)}>
-                        <Image
-                            style={styles.tinyLogo}
-                            source={require("../../../assets/images/pin.png")}
-                        />
                         <Text
-                            maxFontSizeMultiplier={1.2}
-                            style={styles.buttonText}>
-                            Add Location
+                            style={styles.headerText}
+                            maxFontSizeMultiplier={1.2}>
+                            Retailer Details
                         </Text>
-                    </TouchableOpacity>
+                    </View>
+
+                    <ScrollView style={styles.contentContainer}>
+                        <View style={styles.card}>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setSelectedImage(item.imageUrl);
+                                    setShowImageModal(true);
+                                }}
+                                style={styles.imageContainer}>
+                                <Image
+                                    source={
+                                        item.imageUrl
+                                            ? { uri: item.imageUrl }
+                                            : assetImages.photoFrame
+                                    }
+                                    style={styles.retailerImage}
+                                    resizeMode="cover"
+                                />
+                            </TouchableOpacity>
+
+                            <View>
+                                <InfoRow
+                                    icon="home"
+                                    value={item.Retailer_Name}
+                                />
+                                <InfoRow
+                                    icon="user"
+                                    value={
+                                        item.Contact_Person
+                                            ? item.Contact_Person
+                                            : "N/A"
+                                    }
+                                />
+                                <InfoRow
+                                    icon="pushpino"
+                                    value={`${item.Reatailer_Address}, ${item.Reatailer_City}, ${item.StateGet} - ${item.PinCode}`}
+                                />
+                                <InfoRow
+                                    icon="infocirlceo"
+                                    value={`GST: ${item.Gstno ? item.Gstno : "N/A"}`}
+                                />
+                                <InfoRow
+                                    icon="phone"
+                                    value={item.Mobile_No}
+                                    isPhone
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.actionGrid}>
+                            <ActionButton
+                                label="Stock"
+                                icon={require("../../../assets/images/closing_stock.png")}
+                                onPress={() =>
+                                    navigation.navigate("StockClosing", {
+                                        item,
+                                    })
+                                }
+                            />
+                            <ActionButton
+                                label="Order"
+                                icon={require("../../../assets/images/sale_order.png")}
+                                onPress={() =>
+                                    navigation.navigate("Sales", {
+                                        item,
+                                    })
+                                }
+                            />
+
+                            <ActionButton
+                                label="Edit"
+                                icon={require("../../../assets/images/order_list.png")}
+                                onPress={() =>
+                                    navigation.navigate("EditCustomer", {
+                                        item,
+                                    })
+                                }
+                            />
+
+                            <ActionButton
+                                label="WhatsApp"
+                                icon={require("../../../assets/images/whatsapp.png")}
+                                onPress={() =>
+                                    Linking.openURL(
+                                        `${API.whatsApp}${item.Mobile_No}/?text=Hi`,
+                                    )
+                                }
+                            />
+
+                            {(item.Latitude ||
+                                item.Longitude ||
+                                (item.AllLocations &&
+                                    item.AllLocations[0] &&
+                                    item.AllLocations[0].latitude &&
+                                    item.AllLocations[0].longitude)) && (
+                                <ActionButton
+                                    label="Maps"
+                                    icon={require("../../../assets/images/location_status.png")}
+                                    onPress={openMap}
+                                />
+                            )}
+
+                            <ActionButton
+                                label="Update Location"
+                                icon={require("../../../assets/images/pin.png")}
+                                onPress={() => setShowLocationModal(true)}
+                            />
+                        </View>
+                    </ScrollView>
                 </View>
             </ImageBackground>
 
             <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isLocationModalVisible}
-                onRequestClose={() => setLocationModalVisible(false)}>
+                visible={showImageModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowImageModal(false)}>
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalHeading}>
-                            Are you sure you want to add the location!
-                        </Text>
+                    <TouchableOpacity
+                        onPress={() => setShowImageModal(false)}
+                        style={styles.closeButton}>
+                        <Icon name="close" size={30} color="white" />
+                    </TouchableOpacity>
+                    <Image
+                        source={{ uri: selectedImage }}
+                        style={styles.modalImage}
+                        resizeMode="contain"
+                    />
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showLocationModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowLocationModal(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.locationModalContent}>
+                        <Text style={styles.modalTitle}>Update Location</Text>
                         <LocationIndicator onLocationUpdate={setLocation} />
-                        <View style={styles.modalButtonGroup}>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                onPress={() => setShowLocationModal(false)}
+                                style={[
+                                    styles.modalButton,
+                                    styles.cancelButton,
+                                ]}>
+                                <Text style={styles.buttonText}>Cancel</Text>
+                            </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => handleUpdateLocation(location)}
                                 style={[
                                     styles.modalButton,
-                                    { backgroundColor: customColors.accent },
+                                    styles.updateButton,
                                 ]}>
-                                <Text
-                                    style={[
-                                        styles.buttonText,
-                                        { color: customColors.white },
-                                    ]}>
-                                    Update Location
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => setLocationModalVisible(false)}
-                                style={styles.modalButton}>
-                                <Text
-                                    style={[
-                                        styles.buttonText,
-                                        { color: customColors.white },
-                                    ]}>
-                                    Close
-                                </Text>
+                                <Text style={styles.buttonText}>Update</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
             </Modal>
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isImageModalVisible}
-                onRequestClose={() => setImageModalVisible(false)}>
-                <View
-                    style={{
-                        flex: 1,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: "rgba(0, 0, 0, 0.8)",
-                    }}>
-                    <TouchableOpacity
-                        onPress={() => setImageModalVisible(false)}
-                        style={{ position: "absolute", top: 40, right: 20 }}>
-                        <Icon name="close" size={30} color="#fff" />
-                    </TouchableOpacity>
-                    <Image
-                        source={{ uri: currentImage }}
-                        style={{
-                            width: "90%",
-                            height: "80%",
-                            resizeMode: "contain",
-                        }}
-                    />
-                </View>
-            </Modal>
-        </ScrollView>
+        </View>
     );
 };
 
 export default CustomersDetails;
 
+const { width } = Dimensions.get("window");
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
     },
     backgroundImage: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.background,
-        alignItems: "center",
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.2)",
     },
     headerContainer: {
         flexDirection: "row",
@@ -447,95 +342,115 @@ const styles = StyleSheet.create({
         color: customColors.white,
         marginHorizontal: 10,
     },
-    card: {
-        width: "90%",
+    contentContainer: {
+        width: "100%",
+        height: "100%",
         backgroundColor: customColors.white,
+        borderRadius: 7.5,
+    },
+    card: {
+        padding: 15,
+        marginHorizontal: 10,
+        marginBottom: 5,
+    },
+    imageContainer: {
+        width: "100%",
+        height: 200,
+        marginBottom: 15,
+    },
+    retailerImage: {
+        width: "100%",
+        height: "100%",
         borderRadius: 10,
     },
-    cardImageContent: {
-        width: "100%",
-        height: 175,
-    },
-    retailersContainer: {
-        width: "100%",
-        paddingHorizontal: 25,
-        paddingVertical: 15,
-    },
-    retailersInto: {
+    infoRow: {
         flexDirection: "row",
-        alignItems: "center",
-        marginVertical: 10,
+        marginBottom: 12,
     },
-    retailerText: {
-        ...typography.h6(),
-        color: customColors.primary,
-        marginLeft: 15,
+    infoIcon: {
+        textAlign: "center",
+        marginRight: 13,
     },
-    buttonContainer: {
+    infoText: {
         flex: 1,
+        ...typography.h6(),
+        color: customColors.black,
+    },
+    phoneText: {
+        ...typography.h6(),
+        color: "#2196F3",
+        textDecorationLine: "underline",
+    },
+    actionGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        justifyContent: "space-around",
-        alignItems: "center",
-        paddingVertical: 20,
-        marginHorizontal: 15,
+        justifyContent: "space-evenly",
     },
-    button: {
-        width: "30%",
+    actionButton: {
+        width: (width - 64) / 3,
         alignItems: "center",
-        paddingVertical: 15,
-        marginBottom: 20,
+        backgroundColor: customColors.white,
+        padding: 12,
+        margin: 8,
+        borderRadius: 8,
+        elevation: 2,
     },
-    buttonText: {
-        ...typography.body1(),
-        color: customColors.secondary,
+    actionIcon: {
+        width: 35,
+        height: 35,
+        marginBottom: 8,
+    },
+    actionLabel: {
         textAlign: "center",
-        fontWeight: "700",
-        marginTop: 10,
-    },
-    tinyLogo: {
-        width: 50,
-        height: 50,
+        ...typography.body1(),
+        color: "#333",
     },
     modalContainer: {
         flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
     },
-    modalContent: {
-        width: "90%",
-        backgroundColor: customColors.background,
-        padding: 20,
-        borderRadius: 10,
+    closeButton: {
+        position: "absolute",
+        top: 40,
+        right: 20,
+        zIndex: 1,
     },
-    modalButtonGroup: {
+    modalImage: {
+        width: width * 0.9,
+        height: width * 0.9,
+    },
+    locationModalContent: {
+        backgroundColor: "white",
+        width: width * 0.9,
+        borderRadius: 12,
+        padding: 16,
+    },
+    modalTitle: {
+        ...typography.h4(),
+        fontWeight: "600",
+        marginBottom: 16,
+    },
+    modalButtons: {
         flexDirection: "row",
-        justifyContent: "space-evenly",
-    },
-    modalHeading: {
-        ...typography.h6(),
-        textAlign: "left",
-        fontWeight: "bold",
-        marginHorizontal: 15,
-        marginBottom: 10,
-    },
-    textInput: {
-        ...typography.h6(),
-        // marginLeft: 2.5,
-        // paddingLeft: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: "white",
-        paddingVertical: 30,
-        color: "white",
+        justifyContent: "flex-end",
+        marginTop: 16,
     },
     modalButton: {
-        backgroundColor: customColors.primary,
-        borderRadius: 5,
-        alignItems: "center",
-        paddingHorizontal: 10,
-        paddingTop: 5,
-        paddingBottom: 10,
-        margin: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 6,
+        marginLeft: 12,
+    },
+    cancelButton: {
+        backgroundColor: "#9e9e9e",
+    },
+    updateButton: {
+        backgroundColor: "#2196F3",
+    },
+    buttonText: {
+        ...typography.h6(),
+        color: "white",
     },
 });

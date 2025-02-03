@@ -2,11 +2,11 @@ import { Dimensions } from "react-native";
 
 const deviceWidth = Dimensions.get("window").width;
 
-const responsiveFontSize = (baseFontSize) => {
+const responsiveFontSize = baseFontSize => {
     const baseWidth = 375;
     const size = baseFontSize * (deviceWidth / baseWidth);
     return baseFontSize * (deviceWidth / baseWidth);
-}
+};
 
 export const customFonts = {
     poppinsBlack: "Poppins-Black.ttf",
@@ -15,7 +15,7 @@ export const customFonts = {
     poppinsMedium: "Poppins-Medium.ttf",
     poppinsSemiBold: "Poppins-SemiBold.ttf",
     poppinsBold: "Poppins-Bold.ttf",
-}
+};
 
 export const customColors = {
     background: "#003BFF",
@@ -26,7 +26,7 @@ export const customColors = {
     white: "#ffffff",
     grey: "#808080",
     lightGrey: "#ddd",
-}
+};
 
 export const typography = {
     h1: () => ({

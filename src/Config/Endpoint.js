@@ -1,6 +1,6 @@
-// const baseURL = "http://shrifoods.erpsmt.in/"; // old live api
+// let baseURL = "http://shrifoods.erpsmt.in/api/"; // old live api
 let baseURL = "http://pukalfoods.erpsmt.in/"; // new live api
-// const baseURL = "http://192.168.0.108:9001/"; // localhost endpoint
+// let baseURL = "http://192.168.0.101:9001/api/"; // localhost endpoint
 
 export const setBaseUrl = url => {
     baseURL = url;
@@ -23,7 +23,7 @@ export const API = {
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
-    MyLastAttendance: () => baseURL + "api/empAttendance/attendance?UserId=",
+    MyLastAttendance: () => `${baseURL}api/empAttendance/attendance?UserId=`,
 
     retailers: () => `${baseURL}api/masters/retailers?Company_Id=`,
     retailerName: () => `${baseURL}api/masters/retailers/dropDown?Company_Id=`,

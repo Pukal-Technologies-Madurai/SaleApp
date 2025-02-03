@@ -13,10 +13,10 @@ import {
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Dropdown } from "react-native-element-dropdown";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import CameraComponent from "../../Components/CameraComponent";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import assetImages from "../../Config/Image";
 
 const EditCustomer = ({ route }) => {

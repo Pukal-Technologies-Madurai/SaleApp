@@ -38,7 +38,7 @@ const LoginPortal = () => {
         try {
             const response = await fetch(`${API.userPortal()}${userName}`);
             const jsonData = await response.json();
-            // console.log("jsonData", jsonData)
+            // console.log("jsonData", jsonData);
             if (jsonData.success && jsonData.data) {
                 const companies = jsonData.data;
                 setCompanies(companies);
@@ -80,6 +80,7 @@ const LoginPortal = () => {
                 "ly4@&gr$vnh905RyB>?%#@-(KSMT",
             ).toString();
 
+            // console.log("logg", API.userPortalLogin());
             const response = await fetch(API.userPortalLogin(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -109,14 +110,13 @@ const LoginPortal = () => {
         }
     };
 
-    const getUserAuth = async (webAbi, userAuth) => {
-        // console.log(`${webAbi}api/authorization/userAuthmobile`);
-        console.log(webAbi);
+    const getUserAuth = async (webApi, userAuth) => {
         try {
-            setBaseUrl(webAbi);
+            setBaseUrl(webApi);
 
-            const url = API.getUserAuthMob();
-            console.log(url);
+            const url = `${webApi}api/authorization/userAuthmobile`;
+            // console.log("Auth URL:", url);
+
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -125,7 +125,7 @@ const LoginPortal = () => {
             });
 
             const data = await response.json();
-            console.log(data);
+            // console.log("data", data);
 
             if (data.success) {
                 const authData = data.user;
@@ -146,7 +146,7 @@ const LoginPortal = () => {
         }
     };
 
-    const handleLoginPortal = async () => {
+    const handleLoginOld = async () => {
         if (!selectedCompany) {
             ToastAndroid.show("Please select a company.", ToastAndroid.LONG);
             return;

@@ -2,8 +2,6 @@ const assetImages = {
     backgroundImage: require("../../assets/images/background_img.png"),
     logo: require("../../assets/images/logo.png"),
 
-    mobile: require("../../assets/images/mobile.png"),
-    password: require("../../assets/images/password.png"),
     line: require("../../assets/images/line.png"),
     backArrow: require("../../assets/images/back-arrow.png"),
     locationStatus: require("../../assets/images/location_status.png"),

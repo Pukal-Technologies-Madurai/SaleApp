@@ -12,13 +12,13 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import Geolocation from "@react-native-community/geolocation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import assetImages from "../../Config/Image";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import FormField from "../../Components/FormField";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import LocationIndicator from "../../Components/LocationIndicator";
 
 const AddCustomer = () => {
     const navigation = useNavigation();
@@ -27,8 +27,8 @@ const AddCustomer = () => {
         Retailer_Name: "",
         Contact_Person: "",
         Mobile_No: "",
-        Route_Id: 0,
-        Area_Id: 43,
+        Route_Id: "",
+        Area_Id: "",
         Reatailer_Address: "",
         Reatailer_City: "",
         PinCode: "",
@@ -42,6 +42,16 @@ const AddCustomer = () => {
         Company_Id: "",
         Retailer_Class: "A",
         Retailer_Channel_Id: "0",
+    });
+
+    const [routes, setRoutes] = useState([]);
+    const [selectRoutes, setSelectRoutes] = useState(null);
+    const [areas, setAreas] = useState([]);
+    const [selectAreas, setSelectAreas] = useState(null);
+    const [isFocus, setIsFocus] = useState(false);
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
     });
 
     const [errors, setErrors] = useState({});
@@ -61,6 +71,9 @@ const AddCustomer = () => {
             const userId = await AsyncStorage.getItem("UserId");
             const companyId = await AsyncStorage.getItem("Company_Id");
 
+            fetchRoutes();
+            fetchAreas();
+
             setFormValues(prevState => ({
                 ...prevState,
                 Branch_Id: branchId || "",
@@ -72,20 +85,79 @@ const AddCustomer = () => {
         }
     };
 
-    const handleGeoData = async () => {
+    const fetchRoutes = async () => {
         try {
-            Geolocation.getCurrentPosition(position => {
-                const latitude = position.coords.latitude.toString();
-                const longitude = position.coords.longitude.toString();
-
-                setFormValues(prev => ({
-                    ...prev,
-                    Latitude: latitude,
-                    Longitude: longitude,
-                }));
+            const response = await fetch(API.routes(), {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
             });
+            const data = await response.json();
+
+            if (data.success === true) {
+                setRoutes(data.data);
+            } else {
+                console.log("Failed to fetch routes: ", data.message);
+            }
         } catch (error) {
-            console.error("Error fetching geolocation data:", error);
+            console.log("Error fetching routes:", error);
+        }
+    };
+
+    const fetchAreas = async () => {
+        try {
+            const response = await fetch(API.areas(), {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            const data = await response.json();
+
+            if (data.success === true) {
+                // console.log(data.data)
+                setAreas(data.data);
+            } else {
+                console.log("Failed to fetch routes:", data.message);
+            }
+        } catch (error) {
+            console.log("Error fetching routes:", error);
+        }
+    };
+
+    useEffect(() => {
+        if (location.latitude && location.longitude) {
+            setFormValues(prev => ({
+                ...prev,
+                Latitude: location.latitude.toString(),
+                Longitude: location.longitude.toString(),
+            }));
+        }
+    }, [location]);
+
+    const handleLocationUpdate = locationData => {
+        setLocation(locationData);
+    };
+
+    const handleGeoData = async () => {
+        if (location.latitude && location.longitude) {
+            setFormValues(prev => ({
+                ...prev,
+                Latitude: location.latitude.toString(),
+                Longitude: location.longitude.toString(),
+            }));
+
+            ToastAndroid.show(
+                "Location updated successfully!",
+                ToastAndroid.SHORT,
+            );
+        } else {
+            Alert.alert(
+                "Location Not Available",
+                "Please wait for the location to be detected or try refreshing.",
+                [{ text: "OK" }],
+            );
         }
     };
 
@@ -186,10 +258,13 @@ const AddCustomer = () => {
                 });
             }
 
-            const response = await fetch(`${API.retailers()}${1}`, {
-                method: "POST",
-                body: formData,
-            });
+            const response = await fetch(
+                `${API.retailers()}${formValues.Company_Id}`,
+                {
+                    method: "POST",
+                    body: formData,
+                },
+            );
 
             if (!response.ok) {
                 throw new Error(
@@ -246,6 +321,92 @@ const AddCustomer = () => {
 
                 <ScrollView style={styles.contentContainer}>
                     <View style={styles.formContainer}>
+                        <LocationIndicator
+                            onLocationUpdate={handleLocationUpdate}
+                            autoFetch={true}
+                            autoFetchOnMount={true}
+                        />
+
+                        <View style={styles.geoSection}>
+                            <Text style={styles.label}>Location Details</Text>
+                            <View style={styles.geoContainer}>
+                                <View style={styles.geoInputContainer}>
+                                    <TextInput
+                                        style={styles.geoInput}
+                                        value={formValues.Latitude}
+                                        placeholder="Latitude"
+                                        keyboardType="numeric"
+                                        editable={false}
+                                        // onChangeText={text =>
+                                        //     handleInputChange("Latitude", text)
+                                        // }
+                                    />
+                                    <TextInput
+                                        style={styles.geoInput}
+                                        value={formValues.Longitude}
+                                        placeholder="Longitude"
+                                        keyboardType="numeric"
+                                        editable={false}
+                                        // onChangeText={text =>
+                                        //     handleInputChange("Longitude", text)
+                                        // }
+                                    />
+
+                                    <TouchableOpacity
+                                        style={styles.geoButton}
+                                        onPress={() => handleGeoData()}>
+                                        <MaterialIcon
+                                            name="location-pin"
+                                            size={25}
+                                            color={customColors.white}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+
+                        <EnhancedDropdown
+                            data={routes}
+                            labelField="Route_Name"
+                            valueField="Route_Id"
+                            showIcon={true}
+                            iconName={"chevron-down"}
+                            iconColor={customColors.grey}
+                            placeholder={
+                                !isFocus ? "Please chosen the Route" : "..."
+                            }
+                            value={selectRoutes}
+                            onChange={value => {
+                                setSelectRoutes(value.Route_Id);
+                                setFormValues({
+                                    ...formValues,
+                                    Route_Id: value.Route_Id,
+                                });
+                                setIsFocus(false);
+                            }}
+                        />
+
+                        <EnhancedDropdown
+                            data={areas}
+                            labelField="Area_Name"
+                            valueField="Area_Id"
+                            showIcon={true}
+                            iconName={"chevron-down"}
+                            iconColor={customColors.grey}
+                            placeholder={
+                                !isFocus ? "Please chosen the area" : "..."
+                            }
+                            value={selectAreas}
+                            onChange={value => {
+                                setSelectAreas(value.Area_Id);
+                                setFormValues({
+                                    ...formValues,
+                                    Area_Id: value.Area_Id,
+                                });
+                                setIsFocus(false);
+                            }}
+                        />
+
                         <View style={styles.inputWrapper}>
                             <FormLabel label="Retailer Name" required />
                             <TextInput
@@ -335,40 +496,6 @@ const AddCustomer = () => {
                                     {imageUri ? "Retake Photo" : "Take Photo"}
                                 </Text>
                             </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.geoSection}>
-                            <Text style={styles.label}>Location Details</Text>
-                            <View style={styles.geoContainer}>
-                                <View style={styles.geoInputContainer}>
-                                    <TextInput
-                                        style={styles.geoInput}
-                                        value={formValues.Latitude}
-                                        placeholder="Latitude"
-                                        keyboardType="numeric"
-                                        onChangeText={text =>
-                                            handleInputChange("Latitude", text)
-                                        }
-                                    />
-                                    <TextInput
-                                        style={styles.geoInput}
-                                        value={formValues.Longitude}
-                                        placeholder="Longitude"
-                                        keyboardType="numeric"
-                                        onChangeText={text =>
-                                            handleInputChange("Longitude", text)
-                                        }
-                                    />
-                                </View>
-
-                                <TouchableOpacity
-                                    style={styles.geoButton}
-                                    onPress={handleGeoData}>
-                                    <Text style={styles.geoButtonText}>
-                                        Get Location
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
 
                         <View style={styles.inputWrapper}>
@@ -473,7 +600,8 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 10,
+        borderTopLeftRadius: 10,
+        borderTopRightRadius: 10,
     },
     formContainer: {
         padding: 20,
@@ -526,7 +654,7 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
     geoSection: {
-        marginBottom: 20,
+        marginVertical: 15,
     },
     geoContainer: {
         width: "100%",
@@ -538,17 +666,17 @@ const styles = StyleSheet.create({
     },
     geoInput: {
         flex: 1,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.lightGrey,
         color: customColors.black,
         borderWidth: 1,
-        borderColor: "#ddd",
+        borderColor: customColors.grey,
         borderRadius: 8,
         padding: 12,
         fontSize: 16,
         marginRight: 10,
     },
     geoButton: {
-        backgroundColor: customColors.secondary,
+        backgroundColor: customColors.primary,
         padding: 15,
         borderRadius: 8,
         alignItems: "center",

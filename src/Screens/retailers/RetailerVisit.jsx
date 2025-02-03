@@ -11,9 +11,10 @@ import {
     ImageBackground,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import Icon from "react-native-vector-icons/AntDesign";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from "react-native-vector-icons/AntDesign";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import CustomRadioButton from "../../Components/CustomRadioButton";
@@ -21,7 +22,6 @@ import LocationIndicator from "../../Components/LocationIndicator";
 import CameraComponent from "../../Components/CameraComponent";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import assetImages from "../../Config/Image";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 
 const RetailerVisit = () => {
     const navigation = useNavigation();
