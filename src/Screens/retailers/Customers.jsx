@@ -379,12 +379,6 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderRadius: 7.5,
     },
-    activityIndicator: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
     dropdown: {
         height: 50,
         marginVertical: 7.5,

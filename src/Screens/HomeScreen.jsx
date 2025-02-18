@@ -136,18 +136,6 @@ const HomeScreen = () => {
         };
     }, [isAdmin, isPollingActive, companyId, uIdT]);
 
-    const openModal = modalName => {
-        setActiveModal(modalName);
-        setIsPollingActive(false); // Pause polling when modal opens
-    };
-
-    const closeModal = () => {
-        setActiveModal(null);
-        setIsPollingActive(true); // Resume polling when modal closes
-        // Fetch latest data immediately when modal closes
-        fetchAllData();
-    };
-
     // Handle app state changes
     useEffect(() => {
         const subscription = AppState.addEventListener(
@@ -584,6 +572,14 @@ const HomeScreen = () => {
                     ).length
                 }/${deliveryData.length || 0}`,
                 onPress: () => navigation.navigate("DeliveryReport"),
+            },
+            {
+                icon: (
+                    <AntDesignIcons name="dropbox" size={40} color="#E74C3C" />
+                ),
+                label: "Stock",
+                // value: `₹ ${totalOrderAmount.toFixed(2)}`,
+                onPress: () => navigation.navigate("RetailerStock"),
             },
         ],
         [

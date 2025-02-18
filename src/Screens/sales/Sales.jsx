@@ -40,6 +40,7 @@ const Sales = ({ route }) => {
         Created_by: "",
         So_Id: "",
         TaxType: 0,
+        VoucherType: 0,
         Product_Array: [],
     });
 
@@ -392,7 +393,7 @@ const Sales = ({ route }) => {
         }
 
         setIsSubmitting(true);
-        // console.log(initialValue)
+        // console.log(initialValue);
         try {
             const response = await fetch(API.saleOrder(), {
                 method: "POST",
@@ -403,7 +404,7 @@ const Sales = ({ route }) => {
             });
 
             const data = await response.json();
-            // console.log(data)
+            // console.log("data", data);
             if (data.success) {
                 Alert.alert("Success", data.message, [
                     {

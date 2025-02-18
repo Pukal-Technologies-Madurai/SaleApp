@@ -1,6 +1,6 @@
-// let baseURL = "http://shrifoods.erpsmt.in/api/"; // old live api
-let baseURL = "http://pukalfoods.erpsmt.in/"; // new live api
-// let baseURL = "http://192.168.0.101:9001/api/"; // localhost endpoint
+let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
+// let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+// let baseURL = "http://192.168.0.101:9001/"; // Localhost endpoint
 
 export const setBaseUrl = url => {
     baseURL = url;
@@ -20,6 +20,7 @@ export const API = {
     areas: () => `${baseURL}api/masters/areas`,
     state: () => `${baseURL}api/masters/state`,
     uom: () => `${baseURL}api/masters/uom`,
+    district: () => `${baseURL}api/masters/district`,
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
@@ -49,6 +50,8 @@ export const API = {
     saleOrder: () => `${baseURL}api/sales/saleOrder`,
     salesPerson: () =>
         `${baseURL}api/masters/users/salesPerson/dropDown?Company_id=`,
+    closingStockAreaBased: () =>
+        `${baseURL}api/masters/retailers/closingStock/areaBased?Company_id=`,
 
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",
@@ -58,7 +61,6 @@ export const API = {
     distributors: () => `${baseURL}api/masters/distributors`,
     closingStockReturn: () =>
         `${baseURL}api/transaction/retailers/closingStock?Retailer_Id=`,
-    salesReturn: () => `${baseURL}api/sales/areaBasedReport?Company_id=`,
     productGroups: () =>
         `${baseURL}api/masters/products/productGroups?Company_Id=`,
     areaRetailers: () =>

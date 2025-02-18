@@ -121,7 +121,7 @@ const OrderPreview = () => {
             const salesPersonIdParam = userId || "";
 
             let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
-
+            // console.log(url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {

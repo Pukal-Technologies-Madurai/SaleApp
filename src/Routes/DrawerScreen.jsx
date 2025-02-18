@@ -61,18 +61,6 @@ const DrawerScreen = ({ navigation }) => {
                 <DrawerItem
                     icon={
                         <IconAntDesign
-                            name="user"
-                            size={24}
-                            color={customColors.white}
-                        />
-                    }
-                    label="Retailers"
-                    onPress={() => navigation.navigate("Customers")}
-                />
-
-                <DrawerItem
-                    icon={
-                        <IconAntDesign
                             name="adduser"
                             size={24}
                             color={customColors.white}
@@ -80,6 +68,18 @@ const DrawerScreen = ({ navigation }) => {
                     }
                     label="Add Retailer"
                     onPress={() => navigation.navigate("AddCustomer")}
+                />
+
+                <DrawerItem
+                    icon={
+                        <IconAntDesign
+                            name="setting"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    }
+                    label="Master Info"
+                    onPress={() => navigation.navigate("MasterData")}
                 />
             </View>
             <TouchableOpacity style={styles.logoutButton} onPress={logout}>

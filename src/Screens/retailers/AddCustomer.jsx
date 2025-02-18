@@ -9,6 +9,8 @@ import {
     Image,
     Alert,
     ImageBackground,
+    Pressable,
+    Share,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -158,6 +160,29 @@ const AddCustomer = () => {
                 "Please wait for the location to be detected or try refreshing.",
                 [{ text: "OK" }],
             );
+        }
+    };
+
+    const handleShare = async () => {
+        if (location.latitude && location.longitude) {
+            setFormValues(prev => ({
+                ...prev,
+                Latitude: location.latitude.toString(),
+                Longitude: location.longitude.toString(),
+            }));
+
+            const link = `https://www.google.com/maps/place/${location.latitude},${location.longitude}`;
+            const message = `${link}`;
+
+            try {
+                await Share.share({
+                    title: "Shared Location",
+                    message,
+                    url: link,
+                });
+            } catch (error) {
+                console.error(error);
+            }
         }
     };
 
@@ -317,6 +342,14 @@ const AddCustomer = () => {
                     <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
                         Retailers
                     </Text>
+                    <TouchableOpacity
+                        onPress={() => navigation.push("Customers")}>
+                        <MaterialIcon
+                            name="person-pin"
+                            size={25}
+                            color={customColors.white}
+                        />
+                    </TouchableOpacity>
                 </View>
 
                 <ScrollView style={styles.contentContainer}>
@@ -352,15 +385,26 @@ const AddCustomer = () => {
                                         // }
                                     />
 
-                                    <TouchableOpacity
-                                        style={styles.geoButton}
-                                        onPress={() => handleGeoData()}>
-                                        <MaterialIcon
-                                            name="location-pin"
-                                            size={25}
-                                            color={customColors.white}
-                                        />
-                                    </TouchableOpacity>
+                                    <View style={styles.geoButtonContainer}>
+                                        <TouchableOpacity
+                                            style={styles.geoButton}
+                                            onPress={() => handleGeoData()}>
+                                            <MaterialIcon
+                                                name="location-pin"
+                                                size={25}
+                                                color={customColors.white}
+                                            />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.geoButton}
+                                            onPress={() => handleShare()}>
+                                            <MaterialIcon
+                                                name="share"
+                                                size={25}
+                                                color={customColors.white}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
                         </View>
@@ -385,6 +429,19 @@ const AddCustomer = () => {
                                 setIsFocus(false);
                             }}
                         />
+
+                        <Pressable
+                            onPress={() => {
+                                navigation.navigate("MasterData");
+                            }}>
+                            <Text
+                                style={{
+                                    color: "red",
+                                    ...typography.body1(),
+                                }}>
+                                Master Info
+                            </Text>
+                        </Pressable>
 
                         <EnhancedDropdown
                             data={areas}
@@ -672,8 +729,13 @@ const styles = StyleSheet.create({
         borderColor: customColors.grey,
         borderRadius: 8,
         padding: 12,
-        fontSize: 16,
+        ...typography.h6(),
         marginRight: 10,
+    },
+    geoButtonContainer: {
+        flex: 1,
+        flexDirection: "row",
+        gap: 5,
     },
     geoButton: {
         backgroundColor: customColors.primary,

@@ -228,6 +228,16 @@ const CustomersDetails = ({ route }) => {
                             />
 
                             <ActionButton
+                                label="History"
+                                icon={require("../../../assets/images/retailer.png")}
+                                onPress={() =>
+                                    navigation.navigate("SaleHistory", {
+                                        item,
+                                    })
+                                }
+                            />
+
+                            <ActionButton
                                 label="WhatsApp"
                                 icon={require("../../../assets/images/whatsapp.png")}
                                 onPress={() =>

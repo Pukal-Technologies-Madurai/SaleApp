@@ -18,6 +18,7 @@ import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import CameraComponent from "../../Components/CameraComponent";
 import assetImages from "../../Config/Image";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const EditCustomer = ({ route }) => {
     const { item } = route.params;
@@ -53,7 +54,9 @@ const EditCustomer = ({ route }) => {
     const [showCamera, setShowCamera] = useState(false);
 
     const [currentPhoto, setCurrentPhoto] = useState(
-        item.Profile_Pic ? { uri: `file://${item.Profile_Pic}` } : null,
+        item.Profile_Pic
+            ? { uri: `${item.Profile_Pic.replace(/^file:\/\/+/, "")}` }
+            : null,
     );
 
     const fetchDropdownData = useCallback(async () => {
@@ -100,6 +103,7 @@ const EditCustomer = ({ route }) => {
     }, []);
 
     const handleSubmit = useCallback(async () => {
+        // console.log(currentPhoto.uri);
         const formDataToSubmit = new FormData();
 
         Object.entries(formData).forEach(([key, value]) => {
@@ -196,37 +200,6 @@ const EditCustomer = ({ route }) => {
 
                 <ScrollView style={styles.contentContainer}>
                     <View style={styles.formContainer}>
-                        {/* Basic input fields */}
-                        {[
-                            { label: "Retailer Name", field: "Retailer_Name" },
-                            {
-                                label: "Contact Person",
-                                field: "Contact_Person",
-                            },
-                            {
-                                label: "GST Number",
-                                field: "Gstno",
-                                autoCapitalize: "characters",
-                            },
-                        ].map(({ label, field, ...props }) => (
-                            <View key={field} style={styles.fieldContainer}>
-                                <Text style={styles.label}>
-                                    {label}{" "}
-                                    <Text style={styles.required}>*</Text>
-                                </Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={formData[field]}
-                                    onChangeText={text =>
-                                        handleInputChange(field, text)
-                                    }
-                                    placeholder={label}
-                                    {...props}
-                                />
-                            </View>
-                        ))}
-
-                        {/* Image Section */}
                         <View style={styles.imageSection}>
                             {showCamera ? (
                                 <CameraComponent
@@ -257,6 +230,44 @@ const EditCustomer = ({ route }) => {
                             )}
                         </View>
 
+                        {/* Basic input fields */}
+                        {[
+                            { label: "Retailer Name", field: "Retailer_Name" },
+                            {
+                                label: "Contact Person",
+                                field: "Contact_Person",
+                            },
+                            {
+                                label: "Mobile Number",
+                                field: "Mobile_No",
+                            },
+                            {
+                                label: "GST Number",
+                                field: "Gstno",
+                                autoCapitalize: "characters",
+                            },
+                            {
+                                label: "Retailer Address",
+                                field: "Reatailer_Address",
+                            },
+                        ].map(({ label, field, ...props }) => (
+                            <View key={field} style={styles.fieldContainer}>
+                                <Text style={styles.label}>
+                                    {label}{" "}
+                                    <Text style={styles.required}>*</Text>
+                                </Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formData[field]}
+                                    onChangeText={text =>
+                                        handleInputChange(field, text)
+                                    }
+                                    placeholder={label}
+                                    {...props}
+                                />
+                            </View>
+                        ))}
+
                         {/* Dropdowns */}
                         {[
                             {
@@ -283,12 +294,14 @@ const EditCustomer = ({ route }) => {
                                 valueField: "Distributor_Id",
                                 labelField: "distributor_Name",
                             },
-                        ].map(props =>
-                            renderDropdown({
-                                ...props,
-                                value: formData[props.valueField],
-                            }),
-                        )}
+                        ].map(props => (
+                            <View key={props.valueField}>
+                                {renderDropdown({
+                                    ...props,
+                                    value: formData[props.valueField],
+                                })}
+                            </View>
+                        ))}
 
                         <TouchableOpacity
                             style={styles.updateButton}
