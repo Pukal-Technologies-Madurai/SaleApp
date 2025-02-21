@@ -568,8 +568,8 @@ const OrderPreview = () => {
     };
 
     const editOption = item => {
-        console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name);
-        navigation.navigate("Orders", {
+        // console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name);
+        navigation.navigate("EditOrder", {
             item: {
                 ...item,
                 Retailer_Id: item.Retailer_Id,

@@ -1,5 +1,5 @@
-let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
-// let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+// let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
+let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
 // let baseURL = "http://192.168.0.101:9001/"; // Localhost endpoint
 
 export const setBaseUrl = url => {
@@ -45,6 +45,8 @@ export const API = {
         `${baseURL}api/delivery/deliveryOrderList?Delivery_Person_Id=`,
     todayDelivery: () => `${baseURL}api/delivery/deliveryOrderList?`,
     deliveryPut: () => `${baseURL}api/delivery/deliveryOrderMobile`,
+    deliveryTripSheet: () =>
+        `${baseURL}api/delivery/deliveryTripSheet?Fromdate=`,
 
     visitedLog: () => `${baseURL}api/empAttendance/visitLogs`,
     saleOrder: () => `${baseURL}api/sales/saleOrder`,

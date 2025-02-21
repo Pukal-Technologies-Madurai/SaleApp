@@ -18,7 +18,6 @@ import RetailerVisit from "../Screens/retailers/RetailerVisit";
 import RetailerVisitLog from "../Screens/reports/RetailerVisitLog";
 import AttendanceReport from "../Screens/attendance/AttendanceReport";
 import StockInfo from "../Screens/reports/StockInfo";
-import SaleOrder from "../Screens/sales/SaleOrder";
 import OrderPreview from "../Screens/reports/OrderPreview";
 import ProfileScreen from "../Screens/ProfileScreen";
 import RetailerMapView from "../Screens/RetailerMapView";
@@ -30,6 +29,8 @@ import DeliveryReport from "../Screens/reports/DeliveryReport";
 import RetailerStock from "../Screens/reports/RetailerStock";
 import MasterData from "../Screens/reports/MasterData";
 import SaleHistory from "../Screens/sales/SaleHistory";
+import TripSheet from "../Screens/reports/TripSheet";
+import EditSaleOrder from "../Screens/sales/EditSaleOrder";
 
 const Stack = createStackNavigator();
 
@@ -45,6 +46,7 @@ const AppStack = () => {
 
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+            <Stack.Screen name="EditCustomer" component={EditCustomer} />
 
             <Stack.Screen name="Customers" component={Customers} />
             <Stack.Screen
@@ -68,12 +70,13 @@ const AppStack = () => {
             <Stack.Screen name="OpenCamera" component={OpenCamera} />
             <Stack.Screen name="StockClosing" component={StockClosing} />
 
-            <Stack.Screen name="Orders" component={SaleOrder} />
+            <Stack.Screen name="EditOrder" component={EditSaleOrder} />
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="Sales" component={Sales} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
 
             <Stack.Screen name="DeliveryCheck" component={DeliveryCheck} />
+            <Stack.Screen name="TripSheet" component={TripSheet} />
             <Stack.Screen name="DeliveryReport" component={DeliveryReport} />
             <Stack.Screen name="RetailerStock" component={RetailerStock} />
             <Stack.Screen name="MasterData" component={MasterData} />
@@ -85,7 +88,6 @@ const AppStack = () => {
                 component={AddCustomer}
                 options={{ title: "Retailer Visit" }}
             />
-            <Stack.Screen name="EditCustomer" component={EditCustomer} />
             <Stack.Screen
                 name="RetailerMapView"
                 component={RetailerMapView}

@@ -21,40 +21,36 @@ import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import assetImages from "../../Config/Image";
 
-const SaleOrder = ({ route }) => {
+const EditSaleOrder = ({ route }) => {
     const navigation = useNavigation();
     const pagerRef = useRef(null);
+    const { item } = route.params;
 
     const [selectedTab, setSelectedTab] = useState(0);
     const [productData, setProductData] = useState([]);
     const initialStockValue = {
-        So_Id: "",
-        Company_Id: "",
+        So_Id: item.So_Id,
+        Company_Id: item.Company_Id,
         ST_Date: new Date().toISOString().split("T")[0],
-        Branch_Id: "",
-        Retailer_Id: "",
-        Retailer_Name: "",
-        Narration: "",
-        Created_by: "",
-        Product_Array: [],
-        Sales_Person_Id: "",
+        Branch_Id: item.Branch_Id,
+        Retailer_Id: item.Retailer_Id,
+        Retailer_Name: item.Retailer_Name,
+        Narration: item.Narration,
+        Created_by: item.Created_by,
+        VoucherType: item.VoucherType,
+        Product_Array: item.Products_List,
+        Sales_Person_Id: item.Sales_Person_Id,
     };
     const [stockInputValue, setStockInputValue] = useState(initialStockValue);
-    const [retailers, setRetailers] = useState([]);
-    const [selectedRetail, setSelectedRetail] = useState(null);
     const [quantities, setQuantities] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [total, setTotal] = useState(0);
-    const [isEdit, setIsEdit] = useState(false);
-    const [saleOrderId, setSaleOrderId] = useState(null);
 
-    const [productPacks, setProductPacks] = useState([]);
     const [dropdownData, setDropdownData] = useState([]);
     const [selectedProductGroup, setSelectedProductGroup] = useState(
         dropdownData[0]?.Pack_Id || 0,
     );
     const [filteredProductData, setFilteredProductData] = useState([]);
-    const [selectedProductPack, setSelectedProductPack] = useState(null);
 
     const [isImageModalVisible, setImageModalVisible] = useState(false);
     const [currentImage, setCurrentImage] = useState(null);
@@ -62,42 +58,11 @@ const SaleOrder = ({ route }) => {
     useEffect(() => {
         const initialize = async () => {
             try {
-                const userId = await AsyncStorage.getItem("UserId");
-                const branchId = await AsyncStorage.getItem("branchId");
                 const companyId = await AsyncStorage.getItem("Company_Id");
 
-                fetchRetailers(companyId);
                 fetchGroupedproducts(companyId);
                 fetchproductPacks(companyId);
 
-                setStockInputValue(prev => ({
-                    ...prev,
-                    Created_by: userId,
-                    Sales_Person_Id: userId,
-                    Branch_Id: branchId,
-                }));
-            } catch (err) {
-                console.log(err);
-            }
-
-            // Check if editing
-            if (route.params?.isEdit && route.params?.item) {
-                const { item } = route.params;
-                setIsEdit(true);
-                setSaleOrderId(item.Sales_Order_Id);
-                setSelectedRetail(item.Retailer_Id);
-                setStockInputValue({
-                    So_Id: item.So_Id,
-                    Company_Id: item.Company_Id,
-                    ST_Date: new Date(item.So_Date).toISOString().split("T")[0],
-                    Retailer_Id: item.Retailer_Id,
-                    Retailer_Name: item.Retailer_Name,
-                    Branch_Id: item.Branch_Id,
-                    Narration: item.Narration,
-                    Created_by: item.Created_by,
-                    Product_Array: item.Products_List,
-                    Sales_Person_Id: item.Sales_Person_Id,
-                });
                 setQuantities(
                     item.Products_List.map(product => ({
                         Item_Id: product.Item_Id,
@@ -105,27 +70,16 @@ const SaleOrder = ({ route }) => {
                         Item_Rate: product.Item_Rate.toString(),
                     })),
                 );
+            } catch (err) {
+                console.log(err);
             }
         };
 
         initialize();
     }, []);
 
-    const fetchRetailers = async id => {
-        try {
-            const response = await fetch(`${API.retailers()}${id}`);
-            const jsonData = await response.json();
-
-            if (jsonData.success) {
-                setRetailers(jsonData.data);
-            }
-        } catch (err) {
-            console.error("Error fetching data:", err);
-        }
-    };
-
     const fetchGroupedproducts = async id => {
-        fetch(`${API.groupedProducts}${id}`)
+        fetch(`${API.groupedProducts()}${id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -138,7 +92,8 @@ const SaleOrder = ({ route }) => {
 
     const fetchproductPacks = async id => {
         try {
-            const response = await fetch(`${API.productPacks()}${id}`);
+            const url = `${API.productPacks()}${id}`;
+            const response = await fetch(url);
             const jsonData = await response.json();
 
             if (jsonData.success) {
@@ -150,8 +105,6 @@ const SaleOrder = ({ route }) => {
                 const initialPackId = dropdownOptions[0]?.Pack_Id || 0;
                 setSelectedProductGroup(initialPackId);
                 filterProductDataByPack(initialPackId, productData);
-
-                setProductPacks(jsonData.data);
             }
         } catch (err) {
             console.error("Error fetching data:", err);
@@ -178,7 +131,6 @@ const SaleOrder = ({ route }) => {
     };
 
     const handlePackSelection = packId => {
-        setSelectedProductPack(packId);
         filterProductDataByPack(packId);
     };
 
@@ -199,11 +151,34 @@ const SaleOrder = ({ route }) => {
 
         if (productIndex !== -1) {
             updatedQuantities[productIndex].Bill_Qty = value;
-            updatedQuantities[productIndex].Item_Rate = rate;
+            // Only update rate if it's provided and not empty
+            if (rate) {
+                updatedQuantities[productIndex].Item_Rate = rate;
+            }
         } else {
             updatedQuantities.push({
                 Item_Id: productId,
                 Bill_Qty: value,
+                Item_Rate: rate || "",
+            });
+        }
+        setQuantities(updatedQuantities);
+    };
+
+    const handleRateChange = (productId, rate, qty) => {
+        const updatedQuantities = [...quantities];
+        const productIndex = updatedQuantities.findIndex(
+            item => item.Item_Id === productId,
+        );
+
+        if (productIndex !== -1) {
+            updatedQuantities[productIndex].Item_Rate = rate;
+            updatedQuantities[productIndex].Bill_Qty =
+                qty || updatedQuantities[productIndex].Bill_Qty;
+        } else {
+            updatedQuantities.push({
+                Item_Id: productId,
+                Bill_Qty: qty || "0",
                 Item_Rate: rate,
             });
         }
@@ -303,7 +278,7 @@ const SaleOrder = ({ route }) => {
         formData.append("Retailer_Id", stockInputValue.Retailer_Id);
         formData.append("Latitude", 0);
         formData.append("Longitude", 0);
-        formData.append("Narration", "Sale Order Entry");
+        formData.append("Narration", "The sales order has been updated.");
         formData.append("EntryBy", stockInputValue.Created_by);
 
         try {
@@ -332,7 +307,7 @@ const SaleOrder = ({ route }) => {
 
     const handleSubmit = async () => {
         handleVisitLog();
-        if (quantities.length <= 0 || !selectedRetail) {
+        if (quantities.length <= 0) {
             Alert.alert(
                 "Error",
                 "Please select a retailer and enter product quantities.",
@@ -357,7 +332,7 @@ const SaleOrder = ({ route }) => {
         // console.log("Final order details:", orderDetails);
 
         try {
-            const method = isEdit ? "PUT" : "POST";
+            const method = "PUT";
             const response = await fetch(`${API.saleOrder()}`, {
                 method: method,
                 headers: {
@@ -374,7 +349,6 @@ const SaleOrder = ({ route }) => {
                 // Alert.alert("Success", data.message);
                 setStockInputValue(initialStockValue);
                 setQuantities([]);
-                setSelectedRetail(null);
                 setModalVisible(false);
             } else {
                 Alert.alert("Error", data.message);
@@ -415,30 +389,7 @@ const SaleOrder = ({ route }) => {
                 </View>
 
                 <View style={styles.contentContainer}>
-                    <Dropdown
-                        data={retailers}
-                        labelField="Retailer_Name"
-                        valueField="Retailer_Id"
-                        placeholder="Select Retailer"
-                        value={selectedRetail}
-                        onChange={item => {
-                            setSelectedRetail(item.Retailer_Id);
-                            setStockInputValue(prevState => ({
-                                ...prevState,
-                                Retailer_Id: item.Retailer_Id,
-                                Retailer_Name: item.Retailer_Name,
-                                Company_Id: item.Company_Id,
-                            }));
-                        }}
-                        maxHeight={300}
-                        search
-                        searchPlaceholder="Search Retailer"
-                        style={styles.dropdown}
-                        containerStyle={styles.dropdownContainer}
-                        placeholderStyle={styles.placeholderStyle}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        inputSearchStyle={styles.inputSearchStyle}
-                    />
+                    <Text>{item.Retailer_Name}</Text>
 
                     <Dropdown
                         data={dropdownData}
@@ -481,9 +432,9 @@ const SaleOrder = ({ route }) => {
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
-                        <ScrollView>
+                        <ScrollView style={{}}>
                             <PagerView
-                                style={{ marginTop: 15, height: 1500 }}
+                                style={{ marginTop: 15, flex: 1 }}
                                 initialPage={selectedTab}
                                 ref={pagerRef}
                                 onPageSelected={onPageSelected}>
@@ -568,6 +519,35 @@ const SaleOrder = ({ route }) => {
                                                                         ""
                                                                     }
                                                                     placeholder="Quantity"
+                                                                    keyboardType="number-pad"
+                                                                />
+                                                                <TextInput
+                                                                    style={
+                                                                        styles.pagerViewContainerInputText
+                                                                    }
+                                                                    onChangeText={text =>
+                                                                        handleRateChange(
+                                                                            product.Product_Id,
+                                                                            text,
+                                                                            quantities.find(
+                                                                                item =>
+                                                                                    item.Item_Id ===
+                                                                                    product.Product_Id,
+                                                                            )
+                                                                                ?.Bill_Qty ||
+                                                                                "",
+                                                                        )
+                                                                    }
+                                                                    value={
+                                                                        quantities.find(
+                                                                            item =>
+                                                                                item.Item_Id ===
+                                                                                product.Product_Id,
+                                                                        )
+                                                                            ?.Item_Rate ||
+                                                                        ""
+                                                                    }
+                                                                    placeholder="Rate"
                                                                     keyboardType="number-pad"
                                                                 />
                                                             </View>
@@ -796,7 +776,7 @@ const SaleOrder = ({ route }) => {
     );
 };
 
-export default SaleOrder;
+export default EditSaleOrder;
 
 const styles = StyleSheet.create({
     container: {

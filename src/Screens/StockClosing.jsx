@@ -243,7 +243,7 @@ const StockClosing = ({ route }) => {
         formData.append("Retailer_Id", stockInputValue.Retailer_Id);
         formData.append("Latitude", 0);
         formData.append("Longitude", 0);
-        formData.append("Narration", "Stock Entry");
+        formData.append("Narration", "The stock entry has been updated.");
         formData.append("EntryBy", stockInputValue.Created_by);
 
         try {

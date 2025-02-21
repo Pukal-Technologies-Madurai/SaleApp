@@ -494,6 +494,11 @@ const HomeScreen = () => {
             icon: assetImages.attendance,
             navigate: "DeliveryCheck",
         },
+        {
+            title: "TripSheet",
+            icon: assetImages.attendance,
+            navigate: "TripSheet",
+        },
     ];
 
     const statsData = useMemo(

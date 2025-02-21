@@ -83,19 +83,15 @@ const DeliveryCheck = () => {
     }, [selectedFromDate, selectedToDate]);
 
     const fetchDelivery = async (from, to, userId, company) => {
-        console.log(
-            `${API.delivery()}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
-        );
+        // const url = `${API.delivery()}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`;
+        console.log(url);
         try {
-            const response = await fetch(
-                `${API.delivery()}${userId}&Fromdate=${from}&Todate=${to}&Company_Id=${company}`,
-                {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
                 },
-            );
+            });
             const data = await response.json();
 
             if (data.success === true) {
