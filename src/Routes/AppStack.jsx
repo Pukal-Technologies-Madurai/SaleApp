@@ -31,6 +31,8 @@ import MasterData from "../Screens/reports/MasterData";
 import SaleHistory from "../Screens/sales/SaleHistory";
 import TripSheet from "../Screens/reports/TripSheet";
 import EditSaleOrder from "../Screens/sales/EditSaleOrder";
+import TripReport from "../Screens/reports/TripReport";
+import TripDetails from "../Screens/reports/TripDetails";
 
 const Stack = createStackNavigator();
 
@@ -77,6 +79,8 @@ const AppStack = () => {
 
             <Stack.Screen name="DeliveryCheck" component={DeliveryCheck} />
             <Stack.Screen name="TripSheet" component={TripSheet} />
+            <Stack.Screen name="TripReport" component={TripReport} />
+            <Stack.Screen name="TripDetails" component={TripDetails} />
             <Stack.Screen name="DeliveryReport" component={DeliveryReport} />
             <Stack.Screen name="RetailerStock" component={RetailerStock} />
             <Stack.Screen name="MasterData" component={MasterData} />

@@ -40,6 +40,7 @@ const HomeScreen = () => {
     const [visitData, setVisitData] = useState([]);
     const [attendanceData, setAttendanceData] = useState([]);
     const [deliveryData, setDeliveryData] = useState([]);
+    const [tripSheetData, setTripSheetData] = useState([]);
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split("T")[0],
     );
@@ -76,6 +77,7 @@ const HomeScreen = () => {
                 fetchSaleOrder(today, today, companyId),
                 fetchAttendanceInfo(today, today, uIdT),
                 fetchDeliveryData(today),
+                fetchTripSheet(today, today),
             ]);
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -294,6 +296,32 @@ const HomeScreen = () => {
         }
     };
 
+    const fetchTripSheet = async (from, to) => {
+        setIsLoading(true);
+        try {
+            const url = `${API.deliveryTripSheet()}${from}&Todate=${to}`;
+            // console.log("Fetching from URL:", url);
+
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setTripSheetData(data.data || []);
+            } else {
+                setTripSheetData([]);
+            }
+            setIsLoading(false);
+        } catch (err) {
+            console.error("Error fetching trip sheet:", err);
+        }
+    };
+
     const calculateProductSummaryAndTotals = orders => {
         const summary = {};
         let totalAmount = 0;
@@ -456,6 +484,7 @@ const HomeScreen = () => {
                     fetchSaleOrder(formattedDate, formattedDate, companyId),
                     fetchAttendanceInfo(formattedDate, formattedDate, uIdT),
                     fetchDeliveryData(formattedDate),
+                    fetchTripSheet(formattedDate, formattedDate),
                 ]);
             }
         }
@@ -496,7 +525,7 @@ const HomeScreen = () => {
         },
         {
             title: "TripSheet",
-            icon: assetImages.attendance,
+            icon: assetImages.tripInfo,
             navigate: "TripSheet",
         },
     ];
@@ -580,9 +609,21 @@ const HomeScreen = () => {
             },
             {
                 icon: (
+                    <MaterialIcons
+                        name="directions-bike"
+                        size={40}
+                        color="#F39C12"
+                    />
+                ),
+                label: "Trip Count",
+                value: tripSheetData.length,
+                onPress: () => navigation.navigate("TripReport"),
+            },
+            {
+                icon: (
                     <AntDesignIcons name="dropbox" size={40} color="#E74C3C" />
                 ),
-                label: "Stock",
+                label: "Outlet Stock",
                 // value: `₹ ${totalOrderAmount.toFixed(2)}`,
                 onPress: () => navigation.navigate("RetailerStock"),
             },

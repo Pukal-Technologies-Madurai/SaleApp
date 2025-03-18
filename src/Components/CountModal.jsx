@@ -146,21 +146,23 @@ const CountModal = ({
                                                 {kilometersCount &&
                                                     kilometersCount[name] && (
                                                         <Text
-                                                            style={
-                                                                styles.kmText
-                                                            }>
-                                                            Route distance:{" "}
-                                                            <Text
-                                                                style={{
-                                                                    color: "#fc2105",
-                                                                }}>
+                                                            style={[
+                                                                styles.kmText,
                                                                 {
-                                                                    kilometersCount[
-                                                                        name
-                                                                    ].totalKm
-                                                                }{" "}
-                                                                KM
-                                                            </Text>
+                                                                    color:
+                                                                        kilometersCount[
+                                                                            name
+                                                                        ]
+                                                                            .totalKm ===
+                                                                            0 &&
+                                                                        "green",
+                                                                },
+                                                            ]}>
+                                                            {kilometersCount[
+                                                                name
+                                                            ].totalKm === 0
+                                                                ? "Present"
+                                                                : `Distance: ${kilometersCount[name].totalKm} KM`}
                                                         </Text>
                                                     )}
                                             </>

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import { useNavigation } from "@react-navigation/native";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
@@ -83,56 +84,76 @@ const DeliveryTable = ({ deliveryData }) => {
         </View>
     );
 
+    const totalDelivery = deliveryData.filter(
+        item => item.Delivery_Status === 7,
+    ).length;
+
+    const pendingDelivery = deliveryData.filter(
+        item => item.Delivery_Status === 1,
+    ).length;
+
     return (
         <View style={styles.tableContainer}>
+            {/* Statistics Cards */}
+            <View style={styles.statsContainer}>
+                <View style={styles.statsCard}>
+                    <Text style={styles.statsNumber}>
+                        {deliveryData.length}
+                    </Text>
+                    <Text style={styles.statsLabel}>Total Orders</Text>
+                </View>
+                <View style={styles.statsCard}>
+                    <Text style={styles.statsNumber}>{totalDelivery}</Text>
+                    <Text style={styles.statsLabel}>Delivered</Text>
+                </View>
+                <View style={styles.statsCard}>
+                    <Text style={styles.statsNumber}>{pendingDelivery}</Text>
+                    <Text style={styles.statsLabel}>Pending</Text>
+                </View>
+            </View>
+
             <FilterButtons />
 
             {/* Table Header */}
             <View style={styles.headerRow}>
-                <Text style={[styles.headerCell, { flex: 2 }]}>Sales Date</Text>
+                <Text style={[styles.headerCell, { flex: 1 }]}>SaleDt</Text>
                 <Text style={[styles.headerCell, { flex: 3 }]}>Retailer</Text>
                 <Text style={[styles.headerCell, { flex: 2 }]}>
-                    Delivery Person
+                    Delivery By
                 </Text>
-                <Text style={[styles.headerCell, { flex: 2 }]}>Status</Text>
+                <Text style={[styles.headerCell, { flex: 1.5 }]}>Status</Text>
             </View>
 
             {/* Table Body */}
-            <ScrollView>
+            <ScrollView style={styles.tableBody}>
                 {filteredData.map((item, index) => (
-                    <View
-                        key={item.Do_Id}
-                        style={[
-                            styles.row,
-                            index % 2 === 0 ? styles.evenRow : styles.oddRow,
-                        ]}>
-                        <Text style={[styles.cell, { flex: 2 }]}>
+                    <View key={item.Do_Id} style={styles.row}>
+                        <Text style={[styles.cell, { flex: 1 }]}>
                             {formatDate(item.SalesDate)}
                         </Text>
                         <Text
                             style={[styles.cell, { flex: 3 }]}
-                            numberOfLines={2}>
+                            numberOfLines={3}>
                             {item.Retailer_Name}
                         </Text>
                         <Text style={[styles.cell, { flex: 2 }]}>
                             {item.Delivery_Person_Name}
                         </Text>
-                        <Text
-                            style={[
-                                styles.cell,
-                                { flex: 2 },
-                                styles.statusCell,
-                                item.DeliveryStatusName === "Delivered" &&
-                                    styles.deliveredStatus,
-                            ]}>
-                            {item.DeliveryStatusName} {"\n"} (
-                            {item.Payment_Mode === 0
-                                ? "Pending"
-                                : item.Payment_Mode === 1
-                                  ? "Cash"
-                                  : "G-Pay"}
-                            )
-                        </Text>
+                        <View style={[styles.statusContainer, { flex: 2 }]}>
+                            <View
+                                style={[
+                                    styles.statusBadge,
+                                    item.DeliveryStatusName === "Delivered"
+                                        ? styles.deliveredBadge
+                                        : styles.pendingBadge,
+                                ]}>
+                                <Text style={styles.statusText}>
+                                    {item.DeliveryStatusName === "Delivered"
+                                        ? "Delivered"
+                                        : "Pending"}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 ))}
             </ScrollView>
@@ -141,6 +162,7 @@ const DeliveryTable = ({ deliveryData }) => {
 };
 
 const DeliveryReport = () => {
+    const navigation = useNavigation();
     const [deliveryData, setDeliveryData] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState(
@@ -209,7 +231,7 @@ const DeliveryReport = () => {
                         <Text
                             style={styles.headersText}
                             maxFontSizeMultiplier={1.2}>
-                            Delivery info
+                            Delivery Report
                         </Text>
                     </View>
                     <View style={styles.datePickerContainer}>
@@ -250,7 +272,7 @@ const styles = StyleSheet.create({
     },
     overlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
+        backgroundColor: "rgba(0, 0, 0, 0.1)",
     },
     headersContainer: {
         flexDirection: "row",
@@ -277,76 +299,110 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         color: "#666",
     },
+    tableContainer: {
+        flex: 1,
+        backgroundColor: customColors.white,
+        // marginHorizontal: 16,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        overflow: "hidden",
+        elevation: 2,
+    },
+    statsContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        padding: 16,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        margin: 16,
+        elevation: 2,
+    },
+    statsCard: {
+        alignItems: "center",
+        flex: 1,
+    },
+    statsNumber: {
+        ...typography.h4(),
+        color: customColors.primary,
+        fontWeight: "bold",
+    },
+    statsLabel: {
+        ...typography.body2(),
+        color: "#666",
+        marginTop: 4,
+    },
     filterContainer: {
         flexDirection: "row",
-        padding: 10,
-        backgroundColor: "#f5f5f5",
+        backgroundColor: customColors.white,
         justifyContent: "space-around",
+        marginBottom: 16,
+        // padding: 16,
+        // marginHorizontal: 16,
     },
     filterButton: {
         paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        backgroundColor: customColors.white,
-        borderWidth: 1,
-        borderColor: "#ddd",
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        backgroundColor: "#f5f5f5",
     },
     filterButtonActive: {
-        backgroundColor: "#007AFF",
-        borderColor: "#007AFF",
+        backgroundColor: customColors.primary,
     },
     filterText: {
+        ...typography.body2(),
         color: "#666",
-        ...typography.body1(),
         fontWeight: "500",
     },
     filterTextActive: {
-        color: "#fff",
-    },
-    tableContainer: {
-        flex: 1,
-        backgroundColor: customColors.primary,
-        marginHorizontal: 15,
-        borderRadius: 15,
+        color: customColors.white,
     },
     headerRow: {
         flexDirection: "row",
-        backgroundColor: customColors.secondary,
-        padding: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGrey,
-    },
-    headerCell: {
-        textAlign: "center",
-        ...typography.body1(),
-        fontWeight: "600",
-        color: "#333",
-    },
-    row: {
-        flexDirection: "row",
-        padding: 12,
+        backgroundColor: "#f8f9fa",
+        padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: "#eee",
     },
-    evenRow: {
+    headerCell: {
+        textAlign: "left",
+        ...typography.body2(),
+        fontWeight: "600",
+        color: "#444",
+        paddingHorizontal: 8,
+    },
+    tableBody: {
         backgroundColor: customColors.white,
     },
-    oddRow: {
-        backgroundColor: "#f9f9f9",
+    row: {
+        flexDirection: "row",
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: "#f0f0f0",
+        backgroundColor: customColors.white,
     },
     cell: {
         ...typography.body2(),
-        textAlign: "center",
-        fontSize: 13,
         color: "#444",
+        textAlign: "left",
+        paddingHorizontal: 8,
     },
-    statusCell: {
+    statusContainer: {
+        alignItems: "center",
+    },
+    statusBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    deliveredBadge: {
+        backgroundColor: "#e6f4ea",
+    },
+    pendingBadge: {
+        backgroundColor: "#fff3e0",
+    },
+    statusText: {
         ...typography.body2(),
         fontWeight: "600",
-    },
-    deliveredStatus: {
-        ...typography.body2(),
-        fontWeight: "600",
-        color: "#4CAF50",
+        color: "#1b5e20",
     },
 });

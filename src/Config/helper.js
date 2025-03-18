@@ -26,6 +26,8 @@ export const customColors = {
     white: "#ffffff",
     grey: "#808080",
     lightGrey: "#ddd",
+    success: "#2E7D32",
+    warning: "#ED6C02",
 };
 
 export const typography = {

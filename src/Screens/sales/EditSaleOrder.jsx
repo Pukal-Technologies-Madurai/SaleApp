@@ -434,7 +434,11 @@ const EditSaleOrder = ({ route }) => {
                         </ScrollView>
                         <ScrollView style={{}}>
                             <PagerView
-                                style={{ marginTop: 15, flex: 1 }}
+                                style={{
+                                    flex: 1,
+                                    marginTop: 10,
+                                    paddingBottom: 300,
+                                }}
                                 initialPage={selectedTab}
                                 ref={pagerRef}
                                 onPageSelected={onPageSelected}>

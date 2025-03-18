@@ -10,6 +10,7 @@ const assetImages = {
     locationPin: require("../../assets/images/location_pin.png"),
     photoFrame: require("../../assets/images/photo_frame.png"),
     edit: require("../../assets/images/order_list.png"),
+    tripInfo: require("../../assets/images/destination.png"),
 
     call: require("../../assets/images/call.png"),
     contact: require("../../assets/images/contact.png"),

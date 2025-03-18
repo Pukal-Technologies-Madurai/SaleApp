@@ -15,6 +15,7 @@ import assetImages from "../../Config/Image";
 import { customColors, typography } from "../../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
+import ProductStockModal from "../../Components/ProductStockModal";
 
 const RetailerStock = () => {
     const navigation = useNavigation();
@@ -22,6 +23,11 @@ const RetailerStock = () => {
     const [stockData, setStockData] = useState([]);
     const [expandedAreas, setExpandedAreas] = useState({});
     const [expandedRetailers, setExpandedRetailers] = useState({});
+    const [isProductModalVisible, setIsProductModalVisible] = useState(false);
+    const [lastUpdatedDate, setLastUpdatedDate] = useState("");
+    const [overallTotal, setOverallTotal] = useState(0);
+    const [viewMode, setViewMode] = useState("area"); // 'area' or 'brand'
+    const [brandData, setBrandData] = useState({});
 
     useEffect(() => {
         (async () => {
@@ -59,6 +65,37 @@ const RetailerStock = () => {
         }
     };
 
+    useEffect(() => {
+        if (stockData.length > 0) {
+            calculateOverallTotalAndLatestDate();
+            organizeBrandData();
+        }
+    }, [stockData]);
+
+    const calculateOverallTotalAndLatestDate = () => {
+        let total = 0;
+        let latestDate = "";
+
+        stockData.forEach(area => {
+            area.Retailer.forEach(retailer => {
+                retailer.Closing_Stock.forEach(stock => {
+                    total += stock.Previous_Balance * stock.Item_Rate;
+
+                    // Find the latest date
+                    if (
+                        !latestDate ||
+                        new Date(stock.Cl_Date) > new Date(latestDate)
+                    ) {
+                        latestDate = stock.Cl_Date;
+                    }
+                });
+            });
+        });
+
+        setOverallTotal(total);
+        setLastUpdatedDate(latestDate);
+    };
+
     const toggleArea = areaId => {
         setExpandedAreas(prev => ({
             ...prev,
@@ -91,6 +128,116 @@ const RetailerStock = () => {
         return total;
     };
 
+    const formatDate = dateString => {
+        if (!dateString) return "N/A";
+        const options = { year: "numeric", month: "short", day: "numeric" };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+    };
+
+    const organizeBrandData = () => {
+        const brands = {};
+
+        stockData.forEach(area => {
+            area.Retailer.forEach(retailer => {
+                retailer.Closing_Stock.forEach(stock => {
+                    if (!brands[stock.Brand]) {
+                        brands[stock.Brand] = {
+                            Brand_Name: stock.Brand_Name,
+                            products: {},
+                            totalAmount: 0,
+                        };
+                    }
+
+                    if (!brands[stock.Brand].products[stock.Item_Id]) {
+                        brands[stock.Brand].products[stock.Item_Id] = {
+                            Product_Name: stock.Product_Name,
+                            Item_Rate: stock.Item_Rate,
+                            totalQuantity: 0,
+                            totalValue: 0,
+                        };
+                    }
+
+                    brands[stock.Brand].products[stock.Item_Id].totalQuantity +=
+                        stock.Previous_Balance;
+                    brands[stock.Brand].products[stock.Item_Id].totalValue +=
+                        stock.Previous_Balance * stock.Item_Rate;
+                    brands[stock.Brand].totalAmount +=
+                        stock.Previous_Balance * stock.Item_Rate;
+                });
+            });
+        });
+
+        setBrandData(brands);
+    };
+
+    const renderBrandView = () => (
+        <ScrollView style={styles.container}>
+            <View style={styles.summaryContainer}>
+                <Text style={styles.lastUpdatedText}>
+                    Last Updated: {formatDate(lastUpdatedDate)}
+                </Text>
+                <Text style={styles.overallTotalText}>
+                    Overall Total: ₹{overallTotal.toFixed(2)}
+                </Text>
+            </View>
+
+            {Object.entries(brandData).map(([brandId, brand]) => (
+                <View key={brandId} style={styles.areaContainer}>
+                    <TouchableOpacity
+                        style={styles.areaHeader}
+                        onPress={() => toggleArea(brandId)}>
+                        <View style={styles.areaHeaderContent}>
+                            <Icon
+                                name={
+                                    expandedAreas[brandId]
+                                        ? "expand-less"
+                                        : "expand-more"
+                                }
+                                size={24}
+                                color="#333"
+                            />
+                            <Text style={styles.areaName}>
+                                {brand.Brand_Name}
+                            </Text>
+                            <Text style={styles.areaTotal}>
+                                ₹{brand.totalAmount.toFixed(2)}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    {expandedAreas[brandId] && (
+                        <View style={styles.stockList}>
+                            {Object.entries(brand.products).map(
+                                ([productId, product]) => (
+                                    <View
+                                        key={productId}
+                                        style={styles.stockItem}>
+                                        <Text style={styles.productName}>
+                                            {product.Product_Name}
+                                        </Text>
+                                        <View style={styles.stockDetails}>
+                                            <Text style={styles.stockText}>
+                                                Quantity:{" "}
+                                                {product.totalQuantity}
+                                            </Text>
+                                            <Text style={styles.stockText}>
+                                                Rate: ₹{product.Item_Rate}
+                                            </Text>
+                                            <Text style={styles.stockValue}>
+                                                Value: ₹
+                                                {product.totalValue.toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ),
+                            )}
+                        </View>
+                    )}
+                </View>
+            ))}
+        </ScrollView>
+    );
+
     return (
         <View style={styles.container}>
             <ImageBackground
@@ -108,19 +255,55 @@ const RetailerStock = () => {
                         <Text style={styles.headerText}>
                             Retailers Stock Info
                         </Text>
+                        <View style={styles.headerButtons}>
+                            <TouchableOpacity
+                                style={styles.viewToggle}
+                                onPress={() =>
+                                    setViewMode(
+                                        viewMode === "area" ? "brand" : "area",
+                                    )
+                                }>
+                                <Icon
+                                    name={
+                                        viewMode === "area"
+                                            ? "store"
+                                            : "local-offer"
+                                    }
+                                    size={25}
+                                    color={customColors.white}
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setIsProductModalVisible(true)}>
+                                <Icon
+                                    name="dashboard"
+                                    size={25}
+                                    color={customColors.white}
+                                />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <View
-                        style={styles.contentContainer}
-                        behavior={Platform.OS === "ios" ? "padding" : "height"}>
+                    <View style={styles.contentContainer}>
                         {loading ? (
                             <ActivityIndicator
                                 size="large"
                                 color={customColors.primary}
-                                style={{ flex: 1, justifyContent: "center" }}
+                                style={{ flex: 1 }}
                             />
-                        ) : (
+                        ) : viewMode === "area" ? (
                             <ScrollView style={styles.container}>
+                                <View style={styles.summaryContainer}>
+                                    <Text style={styles.lastUpdatedText}>
+                                        Last Updated:{" "}
+                                        {formatDate(lastUpdatedDate)}
+                                    </Text>
+                                    <Text style={styles.overallTotalText}>
+                                        Overall Total: ₹
+                                        {overallTotal.toFixed(2)}
+                                    </Text>
+                                </View>
+
                                 {stockData.map(area => (
                                     <View
                                         key={area.Area_Id}
@@ -288,10 +471,17 @@ const RetailerStock = () => {
                                     </View>
                                 ))}
                             </ScrollView>
+                        ) : (
+                            renderBrandView()
                         )}
                     </View>
                 </View>
             </ImageBackground>
+            <ProductStockModal
+                visible={isProductModalVisible}
+                onClose={() => setIsProductModalVisible(false)}
+                stockData={stockData}
+            />
         </View>
     );
 };
@@ -414,5 +604,32 @@ const styles = StyleSheet.create({
         ...typography.body2(),
         fontWeight: "500",
         color: "#666",
+    },
+
+    summaryContainer: {
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
+        borderRadius: 8,
+        padding: 12,
+        marginHorizontal: 16,
+        marginTop: 10,
+        marginBottom: 10,
+    },
+    lastUpdatedText: {
+        ...typography.body1(),
+        color: "#555",
+        marginBottom: 4,
+    },
+    overallTotalText: {
+        ...typography.h6(),
+        fontWeight: "bold",
+        color: customColors.primary,
+    },
+    headerButtons: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 15,
+    },
+    viewToggle: {
+        marginRight: 5,
     },
 });
