@@ -138,7 +138,7 @@ const RetailerVisit = () => {
         formData.append("Narration", formValues.Narration);
         formData.append("EntryBy", userId);
 
-        console.log(formData);
+        // console.log("formData", formData);
 
         if (capturedPhotoPath) {
             const photo = {
@@ -150,12 +150,15 @@ const RetailerVisit = () => {
         }
 
         try {
+            // console.log(API.visitedLog());
             const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,
             });
             const data = await response.json();
+            // console.log("data", data);
+            // console.log("formData", formData);
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
                 navigation.navigate("HomeScreen");
@@ -236,6 +239,7 @@ const RetailerVisit = () => {
                                 valueField="Retailer_Id"
                                 placeholder="Select Retailer"
                                 value={selectedRetail}
+                                containerStyle={styles.dropdownContainer}
                                 onChange={item => {
                                     setSelectedRetail(item.Retailer_Id);
                                     handleInputChange(
@@ -558,6 +562,10 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-around",
         marginVertical: 15,
+    },
+    dropdownContainer: {
+        marginVertical: 10,
+        paddingHorizontal: 15,
     },
     inputBox: {
         ...typography.body1(),

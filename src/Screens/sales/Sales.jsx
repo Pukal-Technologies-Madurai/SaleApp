@@ -89,6 +89,7 @@ const Sales = ({ route }) => {
     const fetchProducts = async id => {
         try {
             const response = await fetch(`${API.products()}${id}`);
+            // console.log(`${API.products()}${id}`);
             const jsonData = await response.json();
 
             if (jsonData.success) {
@@ -113,6 +114,7 @@ const Sales = ({ route }) => {
 
     const fetchUOMData = async () => {
         try {
+            // console.log(API.uom());
             const response = await fetch(API.uom());
             const jsonData = await response.json();
             if (jsonData.data) {
@@ -404,7 +406,7 @@ const Sales = ({ route }) => {
             });
 
             const data = await response.json();
-            // console.log("data", data);
+            console.log("data", data);
             if (data.success) {
                 Alert.alert("Success", data.message, [
                     {
@@ -522,6 +524,9 @@ const Sales = ({ route }) => {
                                         style={styles.productItem}>
                                         <Text style={styles.productName}>
                                             {product.Product_Name}
+                                            <Text style={{ color: "red" }}>
+                                                Availability: {product.CL_Qty}
+                                            </Text>
                                         </Text>
                                         <View style={styles.quantityContainer}>
                                             <TextInput

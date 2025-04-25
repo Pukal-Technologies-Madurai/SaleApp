@@ -18,6 +18,17 @@ const TripDetails = ({ route, navigation }) => {
     // Add state for filtering
     const [filterType, setFilterType] = useState(null); // null means show all
 
+    // Function to format time in 12-hour format
+    const formatTime = timeString => {
+        if (!timeString) return "Time not available";
+        const date = new Date(timeString);
+        return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
+    };
+
     // Calculate payment summaries using useMemo to optimize performance
     const paymentSummary = useMemo(() => {
         const summary = {
@@ -89,6 +100,39 @@ const TripDetails = ({ route, navigation }) => {
                     {item.location || "Location not available"}
                 </Text>
             </View>
+
+            <View style={styles.detailsRow}>
+                <Icon
+                    name="access-time"
+                    size={16}
+                    color={customColors.primary}
+                />
+                <Text style={styles.locationText}>
+                    Delivery Time: {formatTime(item.deliveryTime)}
+                </Text>
+            </View>
+
+            {/* Products List */}
+            {/* <View style={styles.productsContainer}>
+                {item.products?.map((product, index) => (
+                    <View key={product.DO_St_Id} style={styles.productItem}>
+                        <Text style={styles.productName}>
+                            {product.Product_Name}
+                        </Text>
+                        <View style={styles.productDetails}>
+                            <Text style={styles.productDetail}>
+                                Qty: {product.Bill_Qty} {product.Unit_Name}
+                            </Text>
+                            <Text style={styles.productDetail}>
+                                Rate: ₹{product.Item_Rate}
+                            </Text>
+                            <Text style={styles.productDetail}>
+                                Amount: ₹{product.Final_Amo}
+                            </Text>
+                        </View>
+                    </View>
+                ))}
+            </View> */}
 
             <View style={styles.statsRow}>
                 <View style={styles.stat}>
@@ -428,8 +472,34 @@ const styles = StyleSheet.create({
     },
     clearFilterText: {
         ...typography.caption(),
-        color: customColors.error,
+        color: customColors.warning,
         fontWeight: "500",
+    },
+    productsContainer: {
+        marginVertical: 10,
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
+        paddingTop: 10,
+    },
+    productItem: {
+        marginBottom: 8,
+        padding: 8,
+        backgroundColor: "#f8f8f8",
+        borderRadius: 6,
+    },
+    productName: {
+        ...typography.body2(),
+        color: customColors.primary,
+        marginBottom: 4,
+    },
+    productDetails: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+    },
+    productDetail: {
+        ...typography.caption(),
+        color: customColors.grey,
     },
 });
 

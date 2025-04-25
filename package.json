@@ -1,6 +1,6 @@
 {
     "name": "pukalvirpanai",
-    "version": "3.0.4",
+    "version": "3.0.6",
     "private": true,
     "scripts": {
         "android": "react-native run-android",
@@ -13,12 +13,14 @@
     "dependencies": {
         "@bam.tech/react-native-image-resizer": "^3.0.11",
         "@react-native-async-storage/async-storage": "^1.23.1",
+        "@react-native-community/checkbox": "^0.5.17",
         "@react-native-community/datetimepicker": "^8.0.0",
         "@react-native-community/geolocation": "^3.2.1",
         "@react-navigation/drawer": "^6.6.15",
         "@react-navigation/native": "^6.1.17",
         "@react-navigation/native-stack": "^6.9.26",
         "@react-navigation/stack": "^6.3.29",
+        "moment": "^2.30.1",
         "react": "18.2.0",
         "react-native": "0.73.6",
         "react-native-crypto-js": "^1.0.0",

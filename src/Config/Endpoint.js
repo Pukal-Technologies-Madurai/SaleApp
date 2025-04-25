@@ -55,6 +55,13 @@ export const API = {
     closingStockAreaBased: () =>
         `${baseURL}api/masters/retailers/closingStock/areaBased?Company_id=`,
 
+    getRetailersWhoHasBills: () =>
+        `${baseURL}api/receipt/getRetailersWhoHasBills`,
+    retailerPendingBills: () =>
+        `${baseURL}api/receipt/retailerBills?retailer_id=`,
+    paymentCollection: () => `${baseURL}api/receipt/collectionReceipts`,
+    receiptFilter: () => `${baseURL}api/receipt/filterValues`,
+
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",
 

@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native
 import React from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { customColors, typography } from "../Config/helper";
 
 const DatePickerButton = ({
@@ -30,7 +30,10 @@ const DatePickerButton = ({
     const showDatepicker = () => {
         if (!disabled) {
             setShow(true);
-            animatedScale.value = withTiming(0.95, { duration: 100 });
+            animatedScale.value = withSpring(0.95, { damping: 10 });
+            setTimeout(() => {
+                animatedScale.value = withSpring(1, { damping: 10 });
+            }, 100);
         }
     };
 
@@ -58,26 +61,35 @@ const DatePickerButton = ({
                 ]}
             >
                 <TouchableOpacity
-                    style={styles.button}
                     onPress={showDatepicker}
                     disabled={disabled}
+                    activeOpacity={0.9}
+                    style={[styles.button, disabled && styles.buttonDisabled]}
                 >
                     <View style={styles.contentContainer}>
-                        <Text
-                            style={[
-                                styles.dateText,
-                                disabled && styles.disabledText
-                            ]}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                        >
-                            {formatDate(date)}
-                        </Text>
+                        <View style={styles.dateContainer}>
+                            <Icon
+                                name="calendar-outline"
+                                color={disabled ? customColors.grey : customColors.white}
+                                size={18}
+                                style={styles.calendarIcon}
+                            />
+                            <Text
+                                style={[
+                                    styles.dateText,
+                                    disabled && styles.disabledText
+                                ]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                            >
+                                {formatDate(date)}
+                            </Text>
+                        </View>
                         <Icon
-                            name="calendar"
-                            color={disabled ? customColors.gray : customColors.white}
-                            size={20}
-                            strokeWidth={2}
+                            name="chevron-down-outline"
+                            color={disabled ? customColors.grey : customColors.white}
+                            size={16}
+                            style={styles.chevronIcon}
                         />
                     </View>
                 </TouchableOpacity>
@@ -112,28 +124,49 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         width: "100%",
+        backgroundColor: "transparent",
+    },
+    dateContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
+        backgroundColor: "transparent",
     },
     title: {
         color: customColors.white,
-        ...typography.body1(),
+        ...typography.body2(),
         fontWeight: "600",
         marginBottom: 8,
-        opacity: 0.8,
+        opacity: 0.9,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
     },
     button: {
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
         borderRadius: 12,
         paddingVertical: 12,
-        paddingHorizontal: 15,
+        paddingHorizontal: 16,
         borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.2)",
+        backgroundColor: "rgba(255, 255, 255, 0.12)",
+    },
+    buttonDisabled: {
+        backgroundColor: "rgba(255, 255, 255, 0.05)",
         borderColor: "rgba(255, 255, 255, 0.1)",
     },
     dateText: {
-        flex: 1,
-        marginRight: 10,
         color: customColors.white,
         ...typography.body1(),
         fontWeight: "500",
+        backgroundColor: "transparent",
+    },
+    calendarIcon: {
+        marginRight: 8,
+        opacity: 0.9,
+        backgroundColor: "transparent",
+    },
+    chevronIcon: {
+        opacity: 0.8,
+        backgroundColor: "transparent",
     },
     disabledButton: {
         opacity: 0.5,

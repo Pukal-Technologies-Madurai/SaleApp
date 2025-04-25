@@ -41,6 +41,7 @@ const HomeScreen = () => {
     const [attendanceData, setAttendanceData] = useState([]);
     const [deliveryData, setDeliveryData] = useState([]);
     const [tripSheetData, setTripSheetData] = useState([]);
+    const [receipts, setReceipts] = useState([]);
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split("T")[0],
     );
@@ -78,6 +79,7 @@ const HomeScreen = () => {
                 fetchAttendanceInfo(today, today, uIdT),
                 fetchDeliveryData(today),
                 fetchTripSheet(today, today),
+                fetchCollectionReceipts(today, today),
             ]);
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -267,6 +269,19 @@ const HomeScreen = () => {
             setIsLoading(false);
         } catch (err) {
             console.log(err);
+        }
+    };
+
+    const fetchCollectionReceipts = async (from, to) => {
+        try {
+            const url = `${API.paymentCollection()}?Fromdate=${from}&Todate=${to}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.success) {
+                setReceipts(data.data);
+            }
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -483,6 +498,7 @@ const HomeScreen = () => {
                     fetchVisitersLog(formattedDate),
                     fetchSaleOrder(formattedDate, formattedDate, companyId),
                     fetchAttendanceInfo(formattedDate, formattedDate, uIdT),
+                    fetchCollectionReceipts(formattedDate, formattedDate),
                     fetchDeliveryData(formattedDate),
                     fetchTripSheet(formattedDate, formattedDate),
                 ]);
@@ -521,12 +537,17 @@ const HomeScreen = () => {
         {
             title: "Delivery",
             icon: assetImages.attendance,
-            navigate: "DeliveryCheck",
+            navigate: "DeliveryUpdate",
         },
         {
             title: "TripSheet",
             icon: assetImages.tripInfo,
             navigate: "TripSheet",
+        },
+        {
+            title: "Bills Collection",
+            icon: assetImages.inventoryStore,
+            navigate: "BillSummary",
         },
     ];
 
@@ -582,12 +603,24 @@ const HomeScreen = () => {
                     <MaterialIcons
                         name="currency-rupee"
                         size={40}
-                        color="#2ECC71"
+                        color="#E74C3C"
                     />
                 ),
                 label: "Total Order Amount",
                 value: `₹ ${totalOrderAmount.toFixed(2)}`,
                 onPress: () => navigation.navigate("OrderPreview"),
+            },
+            {
+                icon: (
+                    <MaterialCommunityIcons
+                        name="currency-rupee"
+                        size={40}
+                        color="#2ECC71"
+                    />
+                ),
+                label: "Collection amount",
+                value: `₹ ${receipts.map(total => total.total_amount).reduce((acc, curr) => acc + curr, 0)}`,
+                onPress: () => navigation.navigate("BillAdminView"),
             },
             {
                 icon: (
@@ -917,15 +950,15 @@ const styles = StyleSheet.create({
         flexWrap: "wrap",
         justifyContent: "space-between",
         backgroundColor: customColors.white,
-        borderRadius: 15,
-        padding: 15,
+        borderRadius: 20,
+        padding: 20,
         marginHorizontal: 20,
         marginVertical: 10,
         shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowRadius: 8,
+        elevation: 5,
     },
     button: {
         width: "48%",
@@ -933,32 +966,40 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 15,
-        borderRadius: 12,
-        backgroundColor: "#ccc",
+        borderRadius: 16,
+        backgroundColor: "#F8F9FA",
+        borderWidth: 1,
+        borderColor: "#E9ECEF",
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     buttonText: {
         textAlign: "center",
-        ...typography.h6,
-        fontWeight: "bold",
-        color: customColors.black,
+        ...typography.h6(),
+        fontWeight: "600",
+        color: "#495057",
+        // marginTop: 8,
     },
     icon: {
-        width: 40,
-        height: 40,
+        width: 45,
+        height: 45,
     },
     iconContainer: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: customColors.white,
+        width: 70,
+        height: 70,
+        // borderRadius: 35,
+        // backgroundColor: customColors.white,
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 10,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2,
+        // marginBottom: 8,
+        // shadowColor: customColors.black,
+        // shadowOffset: { width: 0, height: 2 },
+        // shadowOpacity: 0.1,
+        // shadowRadius: 4,
+        // elevation: 3,
     },
     todayButton: {
         backgroundColor: customColors.primary,
@@ -968,8 +1009,8 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     todayButtonText: {
-        ...typography.h6,
-        color: "white",
+        ...typography.h6(),
+        color: customColors.white,
         fontWeight: "500",
     },
 });

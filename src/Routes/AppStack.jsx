@@ -23,7 +23,6 @@ import ProfileScreen from "../Screens/ProfileScreen";
 import RetailerMapView from "../Screens/RetailerMapView";
 import Sales from "../Screens/sales/Sales";
 import LoginPortal from "../Screens/login/LoginPortal";
-import DeliveryCheck from "../Screens/reports/DeliveryCheck";
 import RetailerHistory from "../Screens/retailers/RetailerHistory";
 import DeliveryReport from "../Screens/reports/DeliveryReport";
 import RetailerStock from "../Screens/reports/RetailerStock";
@@ -33,6 +32,10 @@ import TripSheet from "../Screens/reports/TripSheet";
 import EditSaleOrder from "../Screens/sales/EditSaleOrder";
 import TripReport from "../Screens/reports/TripReport";
 import TripDetails from "../Screens/reports/TripDetails";
+import BillPayment from "../Screens/reports/BillPayment";
+import BillSummary from "../Screens/reports/BillSummary";
+import BillAdminView from "../Screens/reports/BillAdminView";
+import DeliveryUpdate from "../Screens/reports/DeliveryUpdate";
 
 const Stack = createStackNavigator();
 
@@ -77,13 +80,16 @@ const AppStack = () => {
             <Stack.Screen name="Sales" component={Sales} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
 
-            <Stack.Screen name="DeliveryCheck" component={DeliveryCheck} />
             <Stack.Screen name="TripSheet" component={TripSheet} />
             <Stack.Screen name="TripReport" component={TripReport} />
             <Stack.Screen name="TripDetails" component={TripDetails} />
             <Stack.Screen name="DeliveryReport" component={DeliveryReport} />
             <Stack.Screen name="RetailerStock" component={RetailerStock} />
             <Stack.Screen name="MasterData" component={MasterData} />
+            <Stack.Screen name="BillPayment" component={BillPayment} />
+            <Stack.Screen name="BillSummary" component={BillSummary} />
+            <Stack.Screen name="BillAdminView" component={BillAdminView} />
+            <Stack.Screen name="DeliveryUpdate" component={DeliveryUpdate} />
 
             {/* Not Used */}
             <Stack.Screen name="LoginScreen" component={LoginScreen} />

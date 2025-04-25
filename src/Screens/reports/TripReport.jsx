@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     ImageBackground,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -12,8 +11,8 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
-import assetImages from "../../Config/Image";
 import { customColors, typography } from "../../Config/helper";
+import assetImages from "../../Config/Image";
 import DatePickerButton from "../../Components/DatePickerButton";
 
 const TripReport = () => {
@@ -65,9 +64,22 @@ const TripReport = () => {
         );
     };
 
+    const renderItem = useCallback(({ item }) => {
+        return <TripSummaryCard trip={item} />;
+    }, []);
+
     // Memoized Trip Summary Component
     const TripSummaryCard = useCallback(
         ({ trip }) => {
+            // Create a map of Trip_Details by Do_Id for quick lookup
+            const tripDetailsMap = useMemo(() => {
+                const map = new Map();
+                trip.Trip_Details?.forEach(detail => {
+                    map.set(detail.Do_Id, detail);
+                });
+                return map;
+            }, [trip.Trip_Details]);
+
             const totalInvoiceValue = useMemo(
                 () =>
                     trip.Trip_Details?.reduce(
@@ -84,7 +96,11 @@ const TripReport = () => {
                 let totalOrders = trip.Product_Array?.length || 0;
 
                 trip.Product_Array?.forEach(product => {
-                    if (Number(product.Delivery_Status) === 7) {
+                    const tripDetail = tripDetailsMap.get(product.Do_Id);
+                    if (
+                        tripDetail &&
+                        Number(tripDetail.Delivery_Status) === 7
+                    ) {
                         delivered++;
                     } else {
                         pending++;
@@ -92,7 +108,7 @@ const TripReport = () => {
                 });
 
                 return { delivered, pending, totalOrders };
-            }, [trip.Product_Array]);
+            }, [trip.Product_Array, tripDetailsMap]);
 
             const paymentStats = useMemo(() => {
                 let paid = 0;
@@ -100,17 +116,20 @@ const TripReport = () => {
                 let pending = 0;
 
                 trip.Product_Array?.forEach(product => {
-                    if (Number(product.Payment_Status) === 3) {
-                        paid++;
-                    } else if (Number(product.Payment_Status) === 1) {
-                        credit++;
-                    } else {
-                        pending++;
+                    const tripDetail = tripDetailsMap.get(product.Do_Id);
+                    if (tripDetail) {
+                        if (Number(tripDetail.Payment_Status) === 3) {
+                            paid++;
+                        } else if (Number(tripDetail.Payment_Status) === 1) {
+                            credit++;
+                        } else {
+                            pending++;
+                        }
                     }
                 });
 
                 return { paid, credit, pending };
-            }, [trip.Product_Array]);
+            }, [trip.Product_Array, tripDetailsMap]);
 
             // Get delivery person info from the first Trip_Detail
             const deliveryPerson = useMemo(() => {
@@ -122,15 +141,23 @@ const TripReport = () => {
             }, [trip.Trip_Details]);
 
             const handleCardPress = () => {
-                // Show retailer information in a modal or navigate to details screen
-                const retailers = trip.Product_Array?.map(product => ({
-                    name: product.Retailer_Name,
-                    id: product.Retailer_Id,
-                    location: product.Delivery_Location,
-                    orderValue: product.Total_Invoice_value,
-                    deliveryStatus: product.Delivery_Status,
-                    paymentStatus: product.Payment_Status,
-                }));
+                // Map retailers with their corresponding trip details
+                const retailers = trip.Product_Array?.map(product => {
+                    const tripDetail = tripDetailsMap.get(product.Do_Id);
+                    return {
+                        name: product.Retailer_Name,
+                        id: product.So_No,
+                        location: tripDetail?.Delivery_Location || "",
+                        orderValue: product.Products_List?.reduce(
+                            (acc, current) => acc + current.Final_Amo,
+                            0,
+                        ),
+                        deliveryTime: tripDetail?.Delivery_Time || 0,
+                        deliveryStatus: tripDetail?.Delivery_Status || 0,
+                        paymentStatus: tripDetail?.Payment_Status || 0,
+                        products: product.Products_List,
+                    };
+                });
 
                 navigation.navigate("TripDetails", {
                     tripNo: trip.Trip_No || trip.Challan_No,
@@ -229,7 +256,7 @@ const TripReport = () => {
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.info },
+                                                { color: customColors.warning },
                                             ]}>
                                             Credit
                                         </Text>
@@ -270,10 +297,6 @@ const TripReport = () => {
         [navigation],
     );
 
-    const renderItem = useCallback(({ item }) => {
-        return <TripSummaryCard trip={item} />;
-    }, []);
-
     const keyExtractor = useCallback(
         item => `trip-${item.Trip_Id}-${item.Trip_Date}`,
         [],
@@ -299,7 +322,7 @@ const TripReport = () => {
                     <View style={styles.datePickerContainer}>
                         <DatePickerButton
                             title="Select Date Range"
-                            date={new Date()}
+                            date={selectedFromDate}
                             onDateChange={handleDateChange}
                         />
                     </View>
@@ -370,7 +393,7 @@ const styles = StyleSheet.create({
         padding: 15,
         marginBottom: 15,
         elevation: 3,
-        shadowColor: "#000",
+        shadowColor: customColors.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,

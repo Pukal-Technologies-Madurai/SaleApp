@@ -229,6 +229,7 @@ const MasterData = () => {
                                     valueField="State_Id"
                                     placeholder="Select State"
                                     value={selectedState}
+                                    containerStyle={styles.dropdownContainer}
                                     onChange={item => {
                                         setSelectedState(item.State_Id);
                                     }}
@@ -239,6 +240,7 @@ const MasterData = () => {
                                     labelField="District_Name"
                                     valueField="District_Id"
                                     placeholder="Select State"
+                                    containerStyle={styles.dropdownContainer}
                                     value={selectedDistrict}
                                     onChange={item => {
                                         setSelectedDistrict(item.District_Id);
@@ -359,11 +361,14 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderRadius: 7.5,
     },
-
+    dropdownContainer: {
+        marginVertical: 10,
+        paddingHorizontal: 15,
+    },
     stateContainer: {
         width: "100%",
-        flexDirection: "row",
-        justifyContent: "space-between",
+        flexDirection: "column",
+        // justifyContent: "space-between",
     },
     actionSection: {
         flexDirection: "row",

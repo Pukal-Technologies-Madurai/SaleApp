@@ -7,7 +7,9 @@ import {
     FlatList,
     Modal,
     StyleSheet,
+    Animated,
 } from "react-native";
+import Icon from "react-native-vector-icons/Ionicons";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import { customColors, typography } from "../Config/helper";
 
@@ -23,35 +25,79 @@ const EnhancedDropdown = ({
     iconSize = 24,
     iconColor = customColors.white,
     iconOnly = false,
+    containerStyle,
+    searchPlaceholder = "Search...",
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [animation] = useState(new Animated.Value(0));
 
-    const filteredData = data.filter(item =>
-        item[labelField].toLowerCase().includes(searchQuery.toLowerCase()),
-    );
+    const filteredData =
+        data?.filter(item => {
+            if (!item || !item[labelField]) return false;
+            return item[labelField]
+                .toString()
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+        }) || [];
 
-    const renderItem = ({ item }) => (
-        <TouchableOpacity
-            style={styles.dropdownItem}
-            onPress={() => {
-                onChange(item);
-                setModalVisible(false);
-                setSearchQuery("");
-            }}>
-            <Text style={styles.dropdownItemText}>{item[labelField]}</Text>
-        </TouchableOpacity>
-    );
+    const toggleModal = () => {
+        setModalVisible(!modalVisible);
+        Animated.timing(animation, {
+            toValue: modalVisible ? 0 : 1,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const renderItem = ({ item }) => {
+        if (!item || !item[labelField]) return null;
+        return (
+            <TouchableOpacity
+                style={[
+                    styles.dropdownItem,
+                    value === item[valueField] && styles.selectedItem,
+                ]}
+                onPress={() => {
+                    onChange(item);
+                    toggleModal();
+                    setSearchQuery("");
+                }}>
+                <Text
+                    style={[
+                        styles.dropdownItemText,
+                        value === item[valueField] && styles.selectedItemText,
+                    ]}>
+                    {item[labelField]}
+                </Text>
+                {value === item[valueField] && (
+                    <Icon
+                        name="checkmark"
+                        size={22}
+                        color={customColors.primary}
+                    />
+                )}
+            </TouchableOpacity>
+        );
+    };
 
     const getSelectedLabel = () => {
-        const selectedItem = data.find(item => item[valueField] === value);
+        if (!data || !Array.isArray(data)) return placeholder;
+        const selectedItem = data.find(
+            item => item && item[valueField] === value,
+        );
         return selectedItem ? selectedItem[labelField] : placeholder;
     };
 
+    const modalTranslateY = animation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [300, 0],
+    });
+
     return (
-        <View>
+        <View style={[styles.container, containerStyle]}>
             {iconOnly ? (
-                <TouchableOpacity onPress={() => setModalVisible(true)}>
+                <TouchableOpacity onPress={toggleModal}>
                     <FeatherIcon
                         name={iconName}
                         size={iconSize}
@@ -60,12 +106,11 @@ const EnhancedDropdown = ({
                 </TouchableOpacity>
             ) : (
                 <TouchableOpacity
-                    style={
-                        showIcon
-                            ? styles.dropdownButtonWithIcon
-                            : styles.dropdownButton
-                    }
-                    onPress={() => setModalVisible(true)}>
+                    style={[
+                        styles.dropdownButton,
+                        showIcon && styles.dropdownButtonWithIcon,
+                    ]}
+                    onPress={toggleModal}>
                     {showIcon && (
                         <FeatherIcon
                             name={iconName}
@@ -74,45 +119,83 @@ const EnhancedDropdown = ({
                             style={styles.iconStyle}
                         />
                     )}
-
                     <Text style={styles.dropdownButtonText}>
                         {getSelectedLabel()}
                     </Text>
+                    <Icon
+                        name="chevron-down"
+                        size={20}
+                        color={customColors.grey}
+                    />
                 </TouchableOpacity>
             )}
 
             <Modal
                 transparent={true}
                 visible={modalVisible}
-                animationType="slide"
-                onRequestClose={() => setModalVisible(false)}>
+                animationType="fade"
+                onRequestClose={toggleModal}>
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search..."
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            placeholderTextColor={customColors.accent}
-                        />
+                    <TouchableOpacity
+                        style={styles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={toggleModal}
+                    />
+                    <Animated.View
+                        style={[
+                            styles.modalContent,
+                            {
+                                transform: [{ translateY: modalTranslateY }],
+                            },
+                        ]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{placeholder}</Text>
+                            <TouchableOpacity
+                                onPress={toggleModal}
+                                style={styles.closeButton}>
+                                <Icon
+                                    name="close"
+                                    size={24}
+                                    color={customColors.grey}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.searchContainer}>
+                            <Icon
+                                name="search"
+                                size={20}
+                                color={customColors.grey}
+                                style={styles.searchIcon}
+                            />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder={searchPlaceholder}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                placeholderTextColor={customColors.grey}
+                            />
+                        </View>
 
                         <FlatList
                             data={filteredData}
                             keyExtractor={item => item[valueField].toString()}
                             renderItem={renderItem}
+                            showsVerticalScrollIndicator={false}
                             ListEmptyComponent={
-                                <Text style={styles.noResultsText}>
-                                    No data found
-                                </Text>
+                                <View style={styles.emptyContainer}>
+                                    <Icon
+                                        name="search-outline"
+                                        size={40}
+                                        color={customColors.grey}
+                                    />
+                                    <Text style={styles.emptyText}>
+                                        No results found
+                                    </Text>
+                                </View>
                             }
                         />
-
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={() => setModalVisible(false)}>
-                            <Text style={styles.closeButtonText}>Close</Text>
-                        </TouchableOpacity>
-                    </View>
+                    </Animated.View>
                 </View>
             </Modal>
         </View>
@@ -120,84 +203,106 @@ const EnhancedDropdown = ({
 };
 
 const styles = StyleSheet.create({
+    container: {
+        width: "100%",
+    },
     dropdownButton: {
-        backgroundColor: customColors.lightGrey,
-        borderRadius: 10,
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 8,
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderWidth: 1,
-        borderColor: customColors.accent,
-        marginHorizontal: 18,
-        marginVertical: 15,
+        borderColor: customColors.lightGrey,
+        marginVertical: 8,
+    },
+    dropdownButtonWithIcon: {
+        paddingLeft: 12,
     },
     dropdownButtonText: {
-        ...typography.body1(),
-        color: customColors.black,
-    },
-    modalContainer: {
         flex: 1,
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
-        padding: 16,
-    },
-    modalContent: {
-        maxHeight: "70%",
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: 16,
+        ...typography.body1(),
+        color: customColors.dark,
     },
     iconStyle: {
         marginRight: 8,
     },
-
-    dropdownButtonWithIcon: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        backgroundColor: customColors.lightGrey,
-        borderColor: customColors.grey,
-        borderWidth: 1,
-        borderRadius: 10,
-        marginVertical: 10,
+    modalContainer: {
+        flex: 1,
+        justifyContent: "flex-end",
+        backgroundColor: "rgba(0,0,0,0.5)",
     },
-    searchInput: {
-        ...typography.body1(),
-        color: customColors.black,
-        backgroundColor: customColors.lightGrey,
-        borderRadius: 10,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: customColors.accent,
+    modalOverlay: {
+        ...StyleSheet.absoluteFillObject,
     },
-    dropdownItem: {
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.accent,
-    },
-    dropdownItemText: {
-        ...typography.body1(),
-        color: customColors.grey,
-    },
-    noResultsText: {
-        ...typography.body1(),
-        textAlign: "center",
-        color: customColors.accent,
+    modalContent: {
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
         padding: 16,
+        maxHeight: "80%",
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+    },
+    modalTitle: {
+        ...typography.h6(),
+        color: customColors.primary,
     },
     closeButton: {
-        backgroundColor: customColors.primary,
-        borderRadius: 10,
-        paddingVertical: 12,
-        marginTop: 12,
-        alignItems: "center",
+        padding: 4,
     },
-    closeButtonText: {
+    searchContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.lightGrey,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        marginBottom: 16,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
         ...typography.body1(),
-        color: customColors.white,
+        color: customColors.dark,
+        paddingVertical: 12,
+    },
+    dropdownItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.lightGrey,
+    },
+    selectedItem: {
+        backgroundColor: customColors.lightGrey,
+    },
+    dropdownItemText: {
+        flex: 1,
+        ...typography.body1(),
+        color: customColors.dark,
+    },
+    selectedItemText: {
+        color: customColors.primary,
         fontWeight: "600",
+    },
+    emptyContainer: {
+        alignItems: "center",
+        padding: 20,
+    },
+    emptyText: {
+        ...typography.body1(),
+        color: customColors.gray,
+        marginTop: 8,
     },
 });
 
