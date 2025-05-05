@@ -5,7 +5,6 @@ import {
     TouchableOpacity,
     View,
     ScrollView,
-    SafeAreaView,
     TextInput,
     Modal,
     Alert,
@@ -23,6 +22,7 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import assetImages from "../../Config/Image";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();

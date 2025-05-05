@@ -6,11 +6,11 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    SafeAreaView,
     ActivityIndicator,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const ProductStockModal = ({ visible, onClose, stockData }) => {
     const [loading, setLoading] = useState(true);

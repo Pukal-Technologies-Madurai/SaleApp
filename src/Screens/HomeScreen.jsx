@@ -198,7 +198,7 @@ const HomeScreen = () => {
 
         try {
             let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
-            // console.log(url)
+            // console.log(url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {

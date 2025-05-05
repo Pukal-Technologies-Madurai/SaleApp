@@ -1,4 +1,10 @@
-import { View, StyleSheet, StatusBar, ImageBackground, Image } from "react-native";
+import {
+    View,
+    StyleSheet,
+    StatusBar,
+    ImageBackground,
+    Image,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -13,7 +19,7 @@ const StartScreen = () => {
     useEffect(() => {
         setTimeout(() => {
             checkUserToken();
-        }, 2500)
+        }, 2500);
     }, []);
 
     const checkUserToken = async () => {
@@ -45,12 +51,12 @@ const StartScreen = () => {
     return (
         <View style={styles.container}>
             <StatusBar backgroundColor={customColors.background} />
-            <ImageBackground source={assetImages.backgroundImage} style={styles.backgroundImage}>
-                <Image
-                    source={assetImages.logo}
-                />
+            <ImageBackground
+                source={assetImages.backgroundImage}
+                style={styles.backgroundImage}>
+                <Image source={assetImages.logo} />
             </ImageBackground>
-        </View >
+        </View>
     );
 };
 
