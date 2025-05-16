@@ -205,7 +205,7 @@ const TripReport = () => {
                                     <Text
                                         style={[
                                             styles.statLabel,
-                                            { color: customColors.success },
+                                            { color: customColors.approved },
                                         ]}>
                                         Delivered
                                     </Text>
@@ -219,7 +219,7 @@ const TripReport = () => {
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.warning },
+                                                { color: customColors.pending },
                                             ]}>
                                             Pending
                                         </Text>
@@ -241,7 +241,9 @@ const TripReport = () => {
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.success },
+                                                {
+                                                    color: customColors.approved,
+                                                },
                                             ]}>
                                             Paid
                                         </Text>
@@ -256,7 +258,7 @@ const TripReport = () => {
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.warning },
+                                                { color: customColors.pending },
                                             ]}>
                                             Credit
                                         </Text>
@@ -271,7 +273,7 @@ const TripReport = () => {
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.warning },
+                                                { color: customColors.pending },
                                             ]}>
                                             Pending
                                         </Text>
@@ -284,7 +286,7 @@ const TripReport = () => {
                             <Icon
                                 name="account-balance-wallet"
                                 size={20}
-                                color={customColors.success}
+                                color={customColors.approved}
                             />
                             <Text style={styles.totalAmount}>
                                 Total Value: ₹{totalInvoiceValue.toFixed(2)}
@@ -451,7 +453,7 @@ const styles = StyleSheet.create({
     },
     totalAmount: {
         ...typography.h6(),
-        color: customColors.success,
+        color: customColors.approved,
         marginLeft: 5,
     },
     deliveryPersonContainer: {

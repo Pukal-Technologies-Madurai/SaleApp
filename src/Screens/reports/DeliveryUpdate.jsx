@@ -134,7 +134,7 @@ const DeliveryUpdate = () => {
                 <FontAwesome
                     name="edit"
                     size={20}
-                    color={customColors.warning}
+                    color={customColors.pending}
                 />
             </TouchableOpacity>
         </View>

@@ -1,191 +1,116 @@
-import { PermissionsAndroid, StyleSheet, Text, TouchableOpacity, View, Alert, Linking, Platform, ToastAndroid } from "react-native"
-import React, { useCallback, useEffect, useState } from "react"
+import { PermissionsAndroid, StyleSheet, Text, TouchableOpacity, View, Alert, Linking, Platform } from "react-native"
+import React, { useEffect, useState } from "react"
 import Geolocation from "@react-native-community/geolocation";
 import Icon from "react-native-vector-icons/Ionicons";
-import RefreshIcon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../Config/helper";
 
-const LocationIndicator = ({ onLocationUpdate, autoFetch = true, autoFetchOnMount = true }) => {
-    const [currentLocation, setCurrentLocation] = useState({
-        latitude: null,
-        longitude: null
-    });
+const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
+    const [location, setLocation] = useState({ latitude: null, longitude: null });
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const [locationStatus, setLocationStatus] = useState({
-        permission: false,
-        enabled: false,
-        positioning: false,
-        error: null
-    });
-
-    // Comprehensive location permission request with multiple strategies
-    const requestLocationPermission = useCallback(async () => {
+    const requestLocationPermission = async () => {
         try {
             if (Platform.OS === "android") {
-                // First, check location services
-                const serviceEnabled = await checkLocationServices();
-                if (!serviceEnabled) {
-                    return false;
-                }
-
-                // Request permission
                 const granted = await PermissionsAndroid.request(
                     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
                     {
                         title: "Location Access Required",
-                        message: "This app needs precise location to log retailer visits accurately.",
-                        buttonNeutral: "Ask Later",
-                        buttonNegative: "Cancel",
-                        buttonPositive: "Enable"
+                        message: "This app needs location access to function properly.",
+                        buttonPositive: "OK"
                     }
                 );
-
-                if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-                    setLocationStatus(prev => ({
-                        ...prev,
-                        permission: true,
-                        error: null
-                    }));
-
-                    // Auto fetch if enabled
-                    if (autoFetchOnMount && autoFetch) {
-                        fetchCurrentLocation();
-                    }
-
-                    return true;
-                } else {
-                    // Detailed location permission denied guidance
-                    showLocationPermissionAlert();
-                    return false;
-                }
+                return granted === PermissionsAndroid.RESULTS.GRANTED;
             }
-            return false;
+            return true;
         } catch (err) {
             console.error("Location Permission Error:", err);
-            ToastAndroid.show("Failed to get location permissions", ToastAndroid.LONG);
             return false;
         }
-    }, [autoFetch, autoFetchOnMount]);
+    };
 
-    // Check if location services are enabled
-    const checkLocationServices = () => {
-        return new Promise((resolve) => {
-            Geolocation.getCurrentPosition(
-                () => resolve(true),
-                (error) => {
-                    if (error.code === error.POSITION_UNAVAILABLE) {
-                        Alert.alert(
-                            "Location Services Disabled",
-                            "Please enable location services in your device settings.",
-                            [
-                                {
-                                    text: "Open Settings",
-                                    onPress: () => {
-                                        Platform.OS === "android"
-                                            ? Linking.openSettings()
-                                            : Linking.openURL("app-settings:")
-                                    }
-                                },
-                                { text: "Cancel", style: "cancel" }
-                            ]
-                        );
-                        resolve(false);
-                    }
-                },
-                {
-                    enableHighAccuracy: false,
+    const getLocation = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const hasPermission = await requestLocationPermission();
+            if (!hasPermission) {
+                setError("Location permission denied");
+                Alert.alert(
+                    "Location Access Denied",
+                    "Please enable location access in settings.",
+                    [
+                        {
+                            text: "Open Settings",
+                            onPress: () => Linking.openSettings()
+                        },
+                        { text: "Cancel", style: "cancel" }
+                    ]
+                );
+                return;
+            }
+
+            // Configure geolocation with optimized settings
+            Geolocation.setRNConfiguration({
+                skipPermissionRequests: false,
+                authorizationLevel: 'whenInUse',
+                locationProvider: 'auto',
+            });
+
+            // First try with high accuracy
+            try {
+                const position = await getPositionWithOptions({
+                    enableHighAccuracy: true,
                     timeout: 5000,
-                    maximumAge: 0
+                    maximumAge: 0,
+                    distanceFilter: 10
+                });
+                handleSuccessfulLocation(position);
+            } catch (highAccuracyError) {
+                // If high accuracy fails, try with lower accuracy
+                try {
+                    const position = await getPositionWithOptions({
+                        enableHighAccuracy: false,
+                        timeout: 10000,
+                        maximumAge: 30000,
+                        distanceFilter: 50
+                    });
+                    handleSuccessfulLocation(position);
+                } catch (lowAccuracyError) {
+                    throw lowAccuracyError;
                 }
+            }
+        } catch (error) {
+            console.error("Location Error:", error);
+            setError(getErrorMessage(error.code));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getPositionWithOptions = (options) => {
+        return new Promise((resolve, reject) => {
+            Geolocation.getCurrentPosition(
+                position => resolve(position),
+                error => reject(error),
+                options
             );
         });
     };
 
-    // Show detailed location permission alert
-    const showLocationPermissionAlert = () => {
-        Alert.alert(
-            "Location Access Denied",
-            "Retailer visit tracking requires location access. Please grant permissions in app settings.",
-            [
-                {
-                    text: "Open Settings",
-                    onPress: () => {
-                        Platform.OS === 'android'
-                            ? Linking.openSettings()
-                            : Linking.openURL('app-settings:')
-                    }
-                },
-                { text: "Cancel", style: "cancel" }
-            ]
-        );
+    const handleSuccessfulLocation = (position) => {
+        const { latitude, longitude } = position.coords;
+        if (isValidCoordinates(latitude, longitude)) {
+            setLocation({ latitude, longitude });
+            onLocationUpdate?.({ latitude, longitude });
+            setError(null);
+        } else {
+            throw new Error('Invalid coordinates received');
+        }
     };
 
-    // Fetch current location with multiple strategies
-    const fetchCurrentLocation = useCallback(() => {
-        const locationOptions = [
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-            { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
-        ];
-
-        const attemptLocationFetch = async (optionIndex = 0) => {
-            try {
-                // Try geolocation first
-                const position = await new Promise((resolve, reject) => {
-                    Geolocation.getCurrentPosition(resolve, reject, locationOptions[optionIndex]);
-                });
-
-                // Successful location
-                const { latitude, longitude } = position.coords;
-                setCurrentLocation({ latitude, longitude });
-
-                // Optional: Validate coordinates
-                if (isValidCoordinate(latitude, longitude)) {
-                    onLocationUpdate?.({ latitude, longitude });
-                } else {
-                    throw new Error('Invalid coordinates');
-                }
-            } catch (error) {
-                // Try alternative methods
-                if (optionIndex < locationOptions.length - 1) {
-                    attemptLocationFetch(optionIndex + 1);
-                    return;
-                }
-
-                // Additional fallback strategies
-                await tryAlternativeLocationMethods();
-            }
-        };
-
-        // Additional location retrieval methods
-        const tryAlternativeLocationMethods = async () => {
-            try {
-                // Network-based location retrieval
-                const networkLocation = await fetchNetworkLocation();
-
-                // IP geolocation as last resort
-                const ipLocation = await fetchIPGeolocation();
-
-                // Choose the most accurate location
-                const bestLocation = selectBestLocation(networkLocation, ipLocation);
-
-                if (bestLocation) {
-                    setCurrentLocation(bestLocation);
-                    onLocationUpdate?.(bestLocation);
-                }
-            } catch (error) {
-                // Handle complete location failure
-                setLocationStatus(prev => ({
-                    ...prev,
-                    error: "Location unavailable"
-                }));
-            }
-        };
-
-        attemptLocationFetch();
-    }, [onLocationUpdate]);
-
-    // Utility to validate coordinates
-    const isValidCoordinate = (lat, lon) => {
+    const isValidCoordinates = (lat, lon) => {
         return (
             typeof lat === 'number' &&
             typeof lon === 'number' &&
@@ -198,177 +123,114 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true, autoFetchOnMoun
         );
     };
 
-    // Automatic location fetch on mount
-    useEffect(() => {
-        if (autoFetchOnMount) {
-            requestLocationPermission();
+    const getErrorMessage = (code) => {
+        switch (code) {
+            case 1:
+                return "Location permission denied";
+            case 2:
+                return "Location unavailable";
+            case 3:
+                return "Location request timed out. Please try again.";
+            case 4:
+                return "Location service not available";
+            default:
+                return "Failed to get location";
         }
-    }, [requestLocationPermission, autoFetchOnMount]);
-
-    // Manual refresh handler
-    const handleManualRefresh = () => {
-        requestLocationPermission();
     };
 
-    // Determine status color and icon
-    const getStatusStyle = (status) => ({
-        backgroundColor: status ? "#4CAF50" : "#FF5722",
-        color: status ? customColors.white : customColors.white
-    });
-
-    // Request permission on component mount
     useEffect(() => {
-        requestLocationPermission();
-    }, []);
+        if (autoFetch) {
+            getLocation();
+        }
+    }, [autoFetch]);
 
     return (
         <View style={styles.container}>
-            <View style={styles.statusContainer}>
-                <View style={[
-                    styles.statusItem,
-                    getStatusStyle(locationStatus.permission)
-                ]}>
-                    <Icon
-                        name="shield-checkmark"
-                        size={20}
-                        color="white"
-                    />
-                    <Text style={styles.statusText}>Permission</Text>
-                </View>
-
-                <View style={[
-                    styles.statusItem,
-                    getStatusStyle(locationStatus.enabled)
-                ]}>
-                    <Icon
-                        name="location"
-                        size={20}
-                        color="white"
-                    />
-                    <Text style={styles.statusText}>Location</Text>
-                </View>
-
-                <View style={[
-                    styles.statusItem,
-                    getStatusStyle(!!currentLocation.latitude)
-                ]}>
-                    <Icon
-                        name="pin"
-                        size={20}
-                        color="white"
-                    />
-                    <Text style={styles.statusText}>Position</Text>
+            <View style={styles.locationInfo}>
+                <Icon 
+                    name={error ? "warning" : "location"} 
+                    size={20} 
+                    color={error ? customColors.accent2 : customColors.primary} 
+                />
+                <View style={styles.locationTextContainer}>
+                    {location.latitude ? (
+                        <>
+                            <Text style={styles.locationText}>
+                                Lat: {location.latitude.toFixed(4)}
+                            </Text>
+                            <Text style={styles.locationText}>
+                                Long: {location.longitude.toFixed(4)}
+                            </Text>
+                        </>
+                    ) : (
+                        <Text style={[styles.locationText, error && styles.errorText]}>
+                            {error || "Getting location..."}
+                        </Text>
+                    )}
                 </View>
             </View>
-
-            {locationStatus.error && (
-                <View style={styles.errorContainer}>
-                    <Icon name="warning" size={20} color="#FF5722" />
-                    <Text style={styles.errorText}>
-                        {locationStatus.error}
-                    </Text>
-                </View>
-            )}
-
-            {currentLocation.latitude && (
-                <View style={styles.locationDetails}>
-                    <Text style={styles.locationText}>
-                        Latitude: {currentLocation.latitude.toFixed(4)}
-                    </Text>
-                    <Text style={styles.locationText}>
-                        Longitude: {currentLocation.longitude.toFixed(4)}
-                    </Text>
-                </View>
-            )}
-
-            <View style={styles.actionContainer}>
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={handleManualRefresh}
-                >
-                    <RefreshIcon name="refresh" size={20} color="#333" />
-                    <Text style={styles.actionButtonText}>
-                        {locationStatus.permission ? "Update Location" : "Enable Location"}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            
+            <TouchableOpacity 
+                style={[
+                    styles.refreshButton, 
+                    isLoading && styles.refreshButtonDisabled,
+                    error && styles.refreshButtonError
+                ]}
+                onPress={getLocation}
+                disabled={isLoading}
+            >
+                <Icon 
+                    name={isLoading ? "sync" : "refresh"} 
+                    size={20} 
+                    color={error ? customColors.accent2 : customColors.primary} 
+                />
+            </TouchableOpacity>
         </View>
     );
-}
+};
 
-export default LocationIndicator
+export default LocationIndicator;
 
 const styles = StyleSheet.create({
     container: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: 10,
+        padding: 12,
+        borderRadius: 8,
+        marginVertical: 8,
         shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowRadius: 2,
+        elevation: 2,
     },
-    statusContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 12,
+    locationInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        gap: 8,
     },
-    statusItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-        gap: 6,
-    },
-    statusText: {
-        ...typography.body1(),
-        color: customColors.white,
-        fontWeight: "600",
-    },
-    locationDetails: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 10,
-        backgroundColor: "#F0F0F0",
-        padding: 7,
-        borderRadius: 8,
-    },
-    locationText: {
-        ...typography.body1(),
-        fontWeight: "500",
-        color: "#333",
-    },
-    actionContainer: {
-        flexDirection: "row",
-        justifyContent: "flex-end",
-    },
-    actionButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#E0E0E0",
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 25,
-        gap: 6,
-    },
-    actionButtonText: {
-        ...typography.body2(),
-        fontWeight: "bold",
-        color: '#333',
-    },
-    errorContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#FFF3E0",
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 16,
-    },
-    errorText: {
-        color: "#FF5722",
-        marginLeft: 10,
+    locationTextContainer: {
         flex: 1,
     },
-})
+    locationText: {
+        ...typography.body2(),
+        color: customColors.grey900,
+    },
+    errorText: {
+        color: customColors.accent2,
+    },
+    refreshButton: {
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: customColors.grey100,
+    },
+    refreshButtonDisabled: {
+        opacity: 0.5,
+    },
+    refreshButtonError: {
+        backgroundColor: customColors.accent2 + '20',
+    },
+});

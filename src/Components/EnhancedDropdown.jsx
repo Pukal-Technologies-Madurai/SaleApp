@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import FeatherIcon from "react-native-vector-icons/Feather";
-import { customColors, typography } from "../Config/helper";
+import { customColors, typography, spacing, shadows } from "../Config/helper";
 
 const EnhancedDropdown = ({
     data,
@@ -212,22 +212,23 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: customColors.white,
         borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         borderWidth: 1,
-        borderColor: customColors.lightGrey,
-        marginVertical: 8,
+        borderColor: customColors.grey300,
+        marginVertical: spacing.xs,
+        ...shadows.small,
     },
     dropdownButtonWithIcon: {
-        paddingLeft: 12,
+        paddingLeft: spacing.sm,
     },
     dropdownButtonText: {
         flex: 1,
         ...typography.body1(),
-        color: customColors.dark,
+        color: customColors.grey900,
     },
     iconStyle: {
-        marginRight: 8,
+        marginRight: spacing.sm,
     },
     modalContainer: {
         flex: 1,
@@ -241,55 +242,56 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        padding: 16,
+        padding: spacing.md,
         maxHeight: "80%",
+        ...shadows.medium,
     },
     modalHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
+        marginBottom: spacing.md,
     },
     modalTitle: {
         ...typography.h6(),
         color: customColors.primary,
     },
     closeButton: {
-        padding: 4,
+        padding: spacing.xs,
     },
     searchContainer: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: customColors.lightGrey,
+        backgroundColor: customColors.grey100,
         borderRadius: 8,
-        paddingHorizontal: 12,
-        marginBottom: 16,
+        paddingHorizontal: spacing.sm,
+        marginBottom: spacing.md,
     },
     searchIcon: {
-        marginRight: 8,
+        marginRight: spacing.sm,
     },
     searchInput: {
         flex: 1,
         ...typography.body1(),
-        color: customColors.dark,
-        paddingVertical: 12,
+        color: customColors.grey900,
+        paddingVertical: spacing.sm,
     },
     dropdownItem: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingVertical: 12,
-        paddingHorizontal: 8,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGrey,
+        borderBottomColor: customColors.grey200,
     },
     selectedItem: {
-        backgroundColor: customColors.lightGrey,
+        backgroundColor: customColors.grey100,
     },
     dropdownItemText: {
         flex: 1,
         ...typography.body1(),
-        color: customColors.dark,
+        color: customColors.grey900,
     },
     selectedItemText: {
         color: customColors.primary,
@@ -297,12 +299,12 @@ const styles = StyleSheet.create({
     },
     emptyContainer: {
         alignItems: "center",
-        padding: 20,
+        padding: spacing.md,
     },
     emptyText: {
         ...typography.body1(),
-        color: customColors.gray,
-        marginTop: 8,
+        color: customColors.grey500,
+        marginTop: spacing.sm,
     },
 });
 

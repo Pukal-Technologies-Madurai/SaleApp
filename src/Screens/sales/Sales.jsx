@@ -1,5 +1,4 @@
 import {
-    Image,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -8,21 +7,26 @@ import {
     TextInput,
     Modal,
     Alert,
-    ImageBackground,
     ActivityIndicator,
 } from "react-native";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Dropdown } from "react-native-element-dropdown";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Feather";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
-import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
-import assetImages from "../../Config/Image";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+} from "../../Config/helper";
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import { fetchUOM, fetchProducts } from "../../Api/product";
+import { createSaleOrder } from "../../Api/sales";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();
@@ -44,13 +48,13 @@ const Sales = ({ route }) => {
         Product_Array: [],
     });
 
-    const [productData, setProductData] = useState([]);
-    const [brandData, setBrandData] = useState([]);
+    const [uID, setUID] = useState([]);
+    // const [productData, setProductData] = useState([]);
+    // const [brandData, setBrandData] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
 
     const [proGroupData, setProGroupData] = useState([]);
     const [selectedGroup, setSelectedGroup] = useState(null);
-    const [uomData, setUOMData] = useState([]);
     const [selectedUOMs, setSelectedUOMs] = useState({});
 
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -68,6 +72,7 @@ const Sales = ({ route }) => {
                 const userId = await AsyncStorage.getItem("UserId");
                 const userName = await AsyncStorage.getItem("userName");
                 const branchId = await AsyncStorage.getItem("branchId");
+                setUID(userId);
                 if (companyId && userId) {
                     setInitialValue(prev => ({
                         ...prev,
@@ -77,8 +82,6 @@ const Sales = ({ route }) => {
                         Sales_Person_Name: userName,
                         Branch_Id: branchId,
                     }));
-                    await fetchProducts(companyId);
-                    await fetchUOMData();
                 }
             } catch (err) {
                 console.log("Error fetching data:", err);
@@ -86,17 +89,14 @@ const Sales = ({ route }) => {
         })();
     }, []);
 
-    const fetchProducts = async id => {
-        try {
-            const response = await fetch(`${API.products()}${id}`);
-            // console.log(`${API.products()}${id}`);
-            const jsonData = await response.json();
-
-            if (jsonData.success) {
-                setProductData(jsonData.data);
-
+    const { data: productQueryData = { productData: [], brandData: [] } } =
+        useQuery({
+            queryKey: ["product", uID],
+            queryFn: () => fetchProducts(uID),
+            enabled: !!uID,
+            select: data => {
                 const brands = Array.from(
-                    new Set(jsonData.data.map(item => item.Brand_Name)),
+                    new Set(data.map(item => item.Brand_Name)),
                 )
                     .filter(brand => brand)
                     .sort()
@@ -105,25 +105,20 @@ const Sales = ({ route }) => {
                         value: brand,
                     }));
 
-                setBrandData(brands);
-            }
-        } catch (err) {
-            console.error("Error fetching products:", err);
-        }
-    };
+                return {
+                    productData: data,
+                    brandData: brands,
+                };
+            },
+        });
 
-    const fetchUOMData = async () => {
-        try {
-            // console.log(API.uom());
-            const response = await fetch(API.uom());
-            const jsonData = await response.json();
-            if (jsonData.data) {
-                setUOMData(jsonData.data);
-            }
-        } catch (err) {
-            console.error("Error fetching UOM data:", err);
-        }
-    };
+    const productData = productQueryData.productData;
+    const brandData = productQueryData.brandData;
+
+    const { data: uomData = [] } = useQuery({
+        queryKey: ["uomData"],
+        queryFn: () => fetchUOM(),
+    });
 
     const handleBrandChange = item => {
         setSelectedBrand(item.value);
@@ -384,6 +379,21 @@ const Sales = ({ route }) => {
         [calculateOrderTotal],
     );
 
+    const mutation = useMutation({
+        mutationFn: createSaleOrder,
+        onSuccess: data => {
+            Alert.alert("Success", data.message, [
+                {
+                    text: "Okay",
+                    onPress: () => navigation.goBack(),
+                },
+            ]);
+        },
+        onError: error => {
+            Alert.alert("Error", error.message || "Failed to submit order");
+        },
+    });
+
     // Handle order submission
     const handleSubmitOrder = async () => {
         if (initialValue.Product_Array.length === 0) {
@@ -395,366 +405,314 @@ const Sales = ({ route }) => {
         }
 
         setIsSubmitting(true);
-        // console.log(initialValue);
-        try {
-            const response = await fetch(API.saleOrder(), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(initialValue),
-            });
-
-            const data = await response.json();
-            console.log("data", data);
-            if (data.success) {
-                Alert.alert("Success", data.message, [
-                    {
-                        text: "Okay",
-                        onPress: () => navigation.goBack(),
-                    },
-                ]);
-            } else {
-                throw new Error(data.message || "Failed to submit order");
-            }
-        } catch (error) {
-            Alert.alert("Error", error.message || "Failed to submit order");
-        } finally {
-            setIsSubmitting(false);
-            setIsSummaryModalVisible(false);
-        }
+        mutation.mutate(
+            { orderData: initialValue },
+            {
+                onSettled: () => setIsSubmitting(false),
+            },
+        );
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <MaterialIcons
-                            name="arrow-back"
-                            size={25}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
-                        Sales Dashboard
-                    </Text>
-                    <TouchableOpacity
-                        style={styles.cartButton}
-                        onPress={() => setIsSummaryModalVisible(true)}>
-                        <Icon name="shopping-bag" color="white" size={25} />
-                        {totalItems > 0 && (
-                            <View style={styles.badge}>
-                                <Text style={styles.badgeText}>
-                                    {totalItems}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                </View>
+        <View style={styles.container}>
+            <AppHeader
+                title="Sales Order"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconName="shopping-bag"
+                rightIconLibrary="FeatherIcon"
+                badgeValue={totalItems}
+                showBadge={true}
+                onRightPress={() => setIsSummaryModalVisible(true)}
+            />
 
-                <View style={styles.contentContainer}>
-                    <ScrollView contentContainerStyle={styles.scrollContent}>
-                        <View style={styles.filterSection}>
-                            <Text style={styles.label}>
-                                Retailer Name:
-                                <Text
-                                    style={{
-                                        color: "#FF0000",
-                                        fontWeight: "bold",
-                                    }}>
-                                    {" "}
-                                    {item.Retailer_Name}
-                                </Text>
+            <View style={styles.contentContainer}>
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.filterSection}>
+                        <Text style={styles.label}>
+                            Retailer Name:
+                            <Text
+                                style={{
+                                    ...typography.h6(),
+                                    color: customColors.accent2,
+                                    fontWeight: "bold",
+                                }}>
+                                {" "}
+                                {item.Retailer_Name}
                             </Text>
+                        </Text>
 
-                            <Dropdown
-                                style={styles.dropdown}
-                                data={brandData}
-                                labelField="label"
-                                valueField="value"
-                                placeholder="Select Brand"
-                                value={selectedBrand}
-                                search
-                                searchPlaceholder="Search brand..."
-                                onChange={handleBrandChange}
-                                containerStyle={styles.dropdownContainer}
-                                placeholderStyle={styles.placeholderStyle}
-                                selectedTextStyle={styles.selectedTextStyle}
-                                iconStyle={styles.iconStyle}
-                                itemTextStyle={styles.itemTextStyle}
-                            />
+                        <EnhancedDropdown
+                            data={brandData}
+                            labelField="label"
+                            valueField="value"
+                            placeholder="Select Brand"
+                            value={selectedBrand}
+                            onChange={handleBrandChange}
+                        />
 
-                            <Dropdown
-                                style={[
-                                    styles.dropdown,
-                                    !selectedBrand && styles.disabledDropdown,
-                                ]}
-                                data={proGroupData}
-                                labelField="label"
-                                valueField="value"
-                                placeholder={
-                                    selectedBrand
-                                        ? "Select Product Group"
-                                        : "Select Brand First"
-                                }
-                                value={selectedGroup}
-                                search
-                                searchPlaceholder="Search product group..."
-                                onChange={handleGroupChange}
-                                containerStyle={styles.dropdownContainer}
-                                placeholderStyle={styles.placeholderStyle}
-                                selectedTextStyle={styles.selectedTextStyle}
-                                iconStyle={styles.iconStyle}
-                                itemTextStyle={styles.itemTextStyle}
-                                disabled={!selectedBrand}
-                            />
-                        </View>
+                        <EnhancedDropdown
+                            data={proGroupData}
+                            labelField="label"
+                            valueField="value"
+                            placeholder={
+                                selectedBrand
+                                    ? "Select Product Group"
+                                    : "Select Brand First"
+                            }
+                            value={selectedGroup}
+                            onChange={handleGroupChange}
+                            // containerStyle={[
+                            //     !selectedBrand && styles.disabledDropdown,
+                            // ]}
+                        />
+                    </View>
 
-                        {selectedBrand && selectedGroup && (
-                            <View style={styles.productsContainer}>
-                                <Text style={styles.sectionTitle}>
-                                    Products ({filteredProducts.length})
-                                </Text>
-                                {filteredProducts.map(product => (
-                                    <View
-                                        key={product.Product_Id}
-                                        style={styles.productItem}>
-                                        <Text style={styles.productName}>
-                                            {product.Product_Name}
-                                            <Text style={{ color: "red" }}>
-                                                Availability: {product.CL_Qty}
-                                            </Text>
+                    {selectedBrand && selectedGroup && (
+                        <View style={styles.productsContainer}>
+                            <Text style={styles.sectionTitle}>
+                                Products ({filteredProducts.length})
+                            </Text>
+                            {filteredProducts.map(product => (
+                                <View
+                                    key={product.Product_Id}
+                                    style={styles.productItem}>
+                                    <Text style={styles.productName}>
+                                        {product.Product_Name}
+                                        <Text
+                                            style={{
+                                                ...typography.caption(),
+                                                color: customColors.accent2,
+                                                fontWeight: "bold",
+                                            }}>
+                                            Availability: {product.CL_Qty}
                                         </Text>
-                                        <View style={styles.quantityContainer}>
+                                    </Text>
+                                    <View style={styles.quantityContainer}>
+                                        <TextInput
+                                            style={styles.quantityInput}
+                                            keyboardType="numeric"
+                                            value={
+                                                orderQuantities[
+                                                    product.Product_Id
+                                                ] || ""
+                                            }
+                                            onChangeText={quantity =>
+                                                handleQuantityChange(
+                                                    product.Product_Id,
+                                                    quantity,
+                                                    product.Item_Rate,
+                                                    product,
+                                                )
+                                            }
+                                            placeholder="0"
+                                            placeholderTextColor={
+                                                customColors.grey
+                                            }
+                                        />
+
+                                        <EnhancedDropdown
+                                            data={uomData.map(uom => ({
+                                                label: uom.Units,
+                                                value: uom.Unit_Id,
+                                            }))}
+                                            labelField="label"
+                                            valueField="value"
+                                            placeholder="UOM"
+                                            value={
+                                                selectedUOMs[
+                                                    product.Product_Id
+                                                ] || product.UOM_Id
+                                            }
+                                            onChange={item =>
+                                                handleUOMChange(
+                                                    product.Product_Id,
+                                                    item.value,
+                                                )
+                                            }
+                                            containerStyle={
+                                                styles.uomDropdownContainer
+                                            }
+                                        />
+
+                                        {/* <Dropdown
+                                            style={styles.uomDropdown}
+                                            data={uomData.map(uom => ({
+                                                label: uom.Units,
+                                                value: uom.Unit_Id,
+                                            }))}
+                                            labelField="label"
+                                            valueField="value"
+                                            placeholder="UOM"
+                                            value={
+                                                selectedUOMs[
+                                                    product.Product_Id
+                                                ] || product.UOM_Id
+                                            }
+                                            onChange={item =>
+                                                handleUOMChange(
+                                                    product.Product_Id,
+                                                    item.value,
+                                                )
+                                            }
+                                            containerStyle={
+                                                styles.uomDropdownContainer
+                                            }
+                                            placeholderStyle={
+                                                styles.placeholderStyle
+                                            }
+                                            selectedTextStyle={
+                                                styles.selectedTextStyle
+                                            }
+                                            itemTextStyle={styles.itemTextStyle}
+                                        /> */}
+                                        <View style={styles.priceContainer}>
+                                            <Text style={styles.currencySymbol}>
+                                                ₹
+                                            </Text>
                                             <TextInput
-                                                style={styles.quantityInput}
+                                                style={styles.priceInput}
                                                 keyboardType="numeric"
                                                 value={
-                                                    orderQuantities[
+                                                    priceInputValues[
                                                         product.Product_Id
-                                                    ] || ""
-                                                }
-                                                onChangeText={quantity =>
-                                                    handleQuantityChange(
-                                                        product.Product_Id,
-                                                        quantity,
-                                                        product.Item_Rate,
-                                                        product,
-                                                    )
-                                                }
-                                                placeholder="0"
-                                                placeholderTextColor={
-                                                    customColors.grey
-                                                }
-                                            />
-
-                                            <Dropdown
-                                                style={styles.uomDropdown}
-                                                data={uomData.map(uom => ({
-                                                    label: uom.Units,
-                                                    value: uom.Unit_Id,
-                                                }))}
-                                                labelField="label"
-                                                valueField="value"
-                                                placeholder="UOM"
-                                                value={
-                                                    selectedUOMs[
-                                                        product.Product_Id
-                                                    ] || product.UOM_Id
-                                                }
-                                                onChange={item =>
-                                                    handleUOMChange(
-                                                        product.Product_Id,
-                                                        item.value,
-                                                    )
-                                                }
-                                                containerStyle={
-                                                    styles.uomDropdownContainer
-                                                }
-                                                placeholderStyle={
-                                                    styles.placeholderStyle
-                                                }
-                                                selectedTextStyle={
-                                                    styles.selectedTextStyle
-                                                }
-                                                itemTextStyle={
-                                                    styles.itemTextStyle
-                                                }
-                                            />
-                                            <View style={styles.priceContainer}>
-                                                <Text
-                                                    style={
-                                                        styles.currencySymbol
-                                                    }>
-                                                    ₹
-                                                </Text>
-                                                <TextInput
-                                                    style={styles.priceInput}
-                                                    keyboardType="numeric"
-                                                    value={
-                                                        priceInputValues[
-                                                            product.Product_Id
-                                                        ] !== undefined
-                                                            ? priceInputValues[
+                                                    ] !== undefined
+                                                        ? priceInputValues[
+                                                              product.Product_Id
+                                                          ]
+                                                        : String(
+                                                              editedPrices[
                                                                   product
                                                                       .Product_Id
-                                                              ]
-                                                            : String(
-                                                                  editedPrices[
-                                                                      product
-                                                                          .Product_Id
-                                                                  ] ||
-                                                                      product.Item_Rate,
-                                                              )
-                                                    }
-                                                    onChangeText={price =>
-                                                        handlePriceChange(
-                                                            product.Product_Id,
-                                                            price,
-                                                        )
-                                                    }
-                                                    onFocus={() =>
-                                                        handlePriceFocus(
-                                                            product.Product_Id,
-                                                            editedPrices[
-                                                                product
-                                                                    .Product_Id
-                                                            ] ||
-                                                                product.Item_Rate,
-                                                        )
-                                                    }
-                                                    onBlur={() =>
-                                                        handlePriceBlur(
-                                                            product.Product_Id,
-                                                        )
-                                                    }
-                                                    placeholder="0.00"
-                                                    selectTextOnFocus={true} // This will select all text when focused
-                                                />
-                                            </View>
+                                                              ] ||
+                                                                  product.Item_Rate,
+                                                          )
+                                                }
+                                                onChangeText={price =>
+                                                    handlePriceChange(
+                                                        product.Product_Id,
+                                                        price,
+                                                    )
+                                                }
+                                                onFocus={() =>
+                                                    handlePriceFocus(
+                                                        product.Product_Id,
+                                                        editedPrices[
+                                                            product.Product_Id
+                                                        ] || product.Item_Rate,
+                                                    )
+                                                }
+                                                onBlur={() =>
+                                                    handlePriceBlur(
+                                                        product.Product_Id,
+                                                    )
+                                                }
+                                                placeholder="0.00"
+                                                selectTextOnFocus={true} // This will select all text when focused
+                                            />
                                         </View>
                                     </View>
-                                ))}
-                            </View>
-                        )}
-                    </ScrollView>
-                </View>
-
-                <Modal
-                    visible={isSummaryModalVisible}
-                    transparent
-                    animationType="slide"
-                    onRequestClose={() => setIsSummaryModalVisible(false)}>
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>
-                                    Order Summary
-                                </Text>
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        setIsSummaryModalVisible(false)
-                                    }
-                                    style={styles.closeButton}>
-                                    <AntDesign
-                                        name="closesquareo"
-                                        color="red"
-                                        size={25}
-                                    />
-                                </TouchableOpacity>
-                            </View>
-
-                            <ScrollView style={styles.summaryList}>
-                                {initialValue.Product_Array.map(item => {
-                                    const product = productData.find(
-                                        p => p.Product_Id === item.Item_Id,
-                                    );
-                                    const uom = uomData.find(
-                                        u => u.Unit_Id === item.UOM_Id,
-                                    );
-
-                                    return (
-                                        <View
-                                            key={item.Item_Id}
-                                            style={styles.summaryItem}>
-                                            <View
-                                                style={
-                                                    styles.summaryItemDetails
-                                                }>
-                                                <Text
-                                                    style={
-                                                        styles.summaryItemName
-                                                    }>
-                                                    {product?.Product_Name}
-                                                </Text>
-                                                <Text
-                                                    style={
-                                                        styles.summaryItemQty
-                                                    }>
-                                                    {item.Bill_Qty} {uom?.Units}
-                                                </Text>
-                                            </View>
-                                            <Text
-                                                style={styles.summaryItemPrice}>
-                                                ₹
-                                                {(
-                                                    item.Bill_Qty *
-                                                    item.Item_Rate
-                                                ).toFixed(2)}
-                                            </Text>
-                                            <TouchableOpacity
-                                                style={styles.deleteButton}
-                                                onPress={() =>
-                                                    handleDeleteItem(
-                                                        item.Item_Id,
-                                                    )
-                                                }>
-                                                <Icon
-                                                    name="delete"
-                                                    size={24}
-                                                    color="red"
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                    );
-                                })}
-                            </ScrollView>
-
-                            <View style={styles.summaryFooter}>
-                                <View style={styles.totalRow}>
-                                    <Text style={styles.totalLabel}>
-                                        Total Amount:
-                                    </Text>
-                                    <Text style={styles.totalAmount}>
-                                        ₹{orderTotal.toFixed(2)}
-                                    </Text>
                                 </View>
+                            ))}
+                        </View>
+                    )}
+                </ScrollView>
+            </View>
 
-                                <TouchableOpacity
-                                    style={[
-                                        styles.submitButton,
-                                        isSubmitting &&
-                                            styles.submitButtonDisabled,
-                                    ]}
-                                    onPress={handleSubmitOrder}
-                                    disabled={isSubmitting}>
-                                    {isSubmitting ? (
-                                        <ActivityIndicator color="white" />
-                                    ) : (
-                                        <Text style={styles.submitButtonText}>
-                                            Submit Order
+            <Modal
+                visible={isSummaryModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setIsSummaryModalVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Order Summary</Text>
+                            <TouchableOpacity
+                                onPress={() => setIsSummaryModalVisible(false)}
+                                style={styles.closeButton}>
+                                <AntDesign
+                                    name="closesquareo"
+                                    color="red"
+                                    size={25}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.summaryList}>
+                            {initialValue.Product_Array.map(item => {
+                                const product = productData.find(
+                                    p => p.Product_Id === item.Item_Id,
+                                );
+                                const uom = uomData.find(
+                                    u => u.Unit_Id === item.UOM_Id,
+                                );
+
+                                return (
+                                    <View
+                                        key={item.Item_Id}
+                                        style={styles.summaryItem}>
+                                        <View style={styles.summaryItemDetails}>
+                                            <Text
+                                                style={styles.summaryItemName}>
+                                                {product?.Product_Name}
+                                            </Text>
+                                            <Text style={styles.summaryItemQty}>
+                                                {item.Bill_Qty} {uom?.Units}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.summaryItemPrice}>
+                                            ₹
+                                            {(
+                                                item.Bill_Qty * item.Item_Rate
+                                            ).toFixed(2)}
                                         </Text>
-                                    )}
-                                </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.deleteButton}
+                                            onPress={() =>
+                                                handleDeleteItem(item.Item_Id)
+                                            }>
+                                            <Icon
+                                                name="delete"
+                                                size={24}
+                                                color="red"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+
+                        <View style={styles.summaryFooter}>
+                            <View style={styles.totalRow}>
+                                <Text style={styles.totalLabel}>
+                                    Total Amount:
+                                </Text>
+                                <Text style={styles.totalAmount}>
+                                    ₹{orderTotal.toFixed(2)}
+                                </Text>
                             </View>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.submitButton,
+                                    isSubmitting && styles.submitButtonDisabled,
+                                ]}
+                                onPress={handleSubmitOrder}
+                                disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <ActivityIndicator color="white" />
+                                ) : (
+                                    <Text style={styles.submitButtonText}>
+                                        Submit Order
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
                         </View>
                     </View>
-                </Modal>
-            </ImageBackground>
-        </SafeAreaView>
+                </View>
+            </Modal>
+        </View>
     );
 };
 
@@ -763,77 +721,39 @@ export default Sales;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.primary,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 16,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
-    cartButton: {
-        position: "relative",
-        padding: 8,
-    },
-    badge: {
-        position: "absolute",
-        top: 0,
-        right: 0,
-        backgroundColor: "#FF4444",
-        borderRadius: 10,
-        minWidth: 20,
-        height: 20,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    badgeText: {
-        ...typography.caption(),
-        color: "white",
-        fontWeight: "bold",
     },
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 10,
-        borderTopRightRadius: 10,
+        ...shadows.small,
     },
     scrollContent: {
         flexGrow: 1,
-        padding: 20,
+        padding: spacing.md,
     },
     filterSection: {
-        marginBottom: 20,
+        marginBottom: spacing.lg,
+        backgroundColor: customColors.white,
+        borderRadius: 8,
+        padding: spacing.md,
+        ...shadows.small,
     },
     label: {
         ...typography.h6(),
-        color: customColors.black,
+        color: customColors.grey900,
         textAlign: "center",
-        marginBottom: 10,
+        marginBottom: spacing.sm,
     },
     dropdown: {
-        height: 50,
+        height: 48,
         backgroundColor: customColors.white,
-        borderColor: customColors.lightGrey,
+        borderColor: customColors.grey300,
         borderWidth: 1,
         borderRadius: 8,
-        paddingHorizontal: 12,
-        marginBottom: 16,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.md,
+        ...shadows.small,
     },
     disabledDropdown: {
         opacity: 0.5,
@@ -841,111 +761,100 @@ const styles = StyleSheet.create({
     dropdownContainer: {
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: "#ccc",
+        borderColor: customColors.grey300,
     },
     placeholderStyle: {
         ...typography.body1(),
-        color: "#666",
+        color: customColors.grey500,
     },
     selectedTextStyle: {
         ...typography.body1(),
-        color: "#333",
+        color: customColors.grey900,
     },
     iconStyle: {
         width: 20,
         height: 20,
     },
     itemTextStyle: {
-        color: customColors.black,
-        fontWeight: "400",
+        ...typography.body1(),
+        color: customColors.grey900,
     },
-
     productsContainer: {
         backgroundColor: customColors.white,
         borderRadius: 8,
-        padding: 12,
-        shadowColor: customColors.black,
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        padding: spacing.md,
+        ...shadows.small,
     },
     sectionTitle: {
-        color: "#333",
         ...typography.h5(),
-        fontWeight: "bold",
-        marginBottom: 12,
+        color: customColors.grey900,
+        marginBottom: spacing.sm,
     },
     productItem: {
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
-        paddingVertical: 12,
+        borderBottomColor: customColors.grey200,
+        paddingVertical: spacing.sm,
     },
     productName: {
         ...typography.h6(),
-        color: "#333",
-        marginBottom: 8,
+        color: customColors.grey900,
+        marginBottom: spacing.xs,
     },
     quantityContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        color: customColors.black,
+        gap: spacing.sm,
     },
     quantityInput: {
         width: 60,
+        height: 40,
         borderWidth: 1,
-        borderColor: "#ddd",
+        borderColor: customColors.grey300,
         borderRadius: 4,
-        padding: 6,
+        padding: spacing.xs,
         textAlign: "center",
-        color: customColors.black,
+        ...typography.body1(),
+        color: customColors.grey900,
     },
     uomDropdown: {
         width: 120,
         height: 40,
-        borderColor: "#ccc",
+        borderColor: customColors.grey300,
         borderWidth: 1,
         borderRadius: 4,
-        paddingHorizontal: 8,
-        marginRight: 10,
+        paddingHorizontal: spacing.sm,
         backgroundColor: customColors.white,
-        color: customColors.black,
     },
     uomDropdownContainer: {
-        color: customColors.black,
+        width: "40%",
+        color: customColors.grey900,
         borderRadius: 4,
     },
-
     priceContainer: {
         flexDirection: "row",
         alignItems: "center",
         borderWidth: 1,
-        borderColor: "#ccc",
+        borderColor: customColors.grey300,
         borderRadius: 4,
-        paddingHorizontal: 5,
+        paddingHorizontal: spacing.xs,
         backgroundColor: customColors.white,
         minWidth: 75,
+        height: 40,
     },
     currencySymbol: {
         ...typography.h6(),
-        color: "#333",
+        color: customColors.grey900,
         marginRight: 2,
     },
     priceInput: {
         flex: 1,
         textAlign: "center",
-        width: 40,
-        height: 40,
         ...typography.h6(),
-        color: "#333",
+        color: customColors.grey900,
         padding: 0,
         minWidth: 20,
     },
-
     modalOverlay: {
         flex: 1,
         backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -956,25 +865,24 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        padding: 16,
+        padding: spacing.md,
     },
     modalHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
-        paddingBottom: 16,
+        marginBottom: spacing.md,
+        paddingBottom: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        borderBottomColor: customColors.grey200,
     },
     modalTitle: {
         ...typography.h4(),
-        fontWeight: "bold",
+        color: customColors.grey900,
     },
     closeButton: {
-        padding: 8,
+        padding: spacing.xs,
     },
-
     summaryList: {
         maxHeight: "60%",
     },
@@ -982,65 +890,65 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 12,
+        paddingVertical: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        borderBottomColor: customColors.grey200,
     },
     summaryItemDetails: {
         flex: 1,
-        marginRight: 10,
+        marginRight: spacing.sm,
     },
     summaryItemName: {
         ...typography.body1(),
-        color: "#333",
-        marginBottom: 4,
+        color: customColors.grey900,
+        marginBottom: spacing.xs,
     },
     summaryItemQty: {
         ...typography.body2(),
-        color: "#666",
+        color: customColors.grey700,
     },
     summaryItemPrice: {
         ...typography.body1(),
         fontWeight: "bold",
-        marginLeft: 16,
+        marginLeft: spacing.md,
+        color: customColors.grey900,
     },
     deleteButton: {
-        padding: 8,
+        padding: spacing.xs,
     },
     summaryFooter: {
-        paddingTop: 16,
+        paddingTop: spacing.md,
         borderTopWidth: 1,
-        borderTopColor: "#eee",
+        borderTopColor: customColors.grey200,
     },
     totalRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
+        marginBottom: spacing.md,
     },
     totalLabel: {
         ...typography.h6(),
-        fontWeight: "600",
+        color: customColors.grey900,
     },
-
     totalAmount: {
         ...typography.h5(),
         fontWeight: "bold",
-        color: "#2196F3",
+        color: customColors.primary,
     },
     submitButton: {
-        backgroundColor: "#4CAF50",
+        backgroundColor: customColors.accent,
         borderRadius: 8,
-        padding: 16,
+        padding: spacing.md,
         alignItems: "center",
-        marginTop: 8,
+        marginTop: spacing.sm,
+        ...shadows.small,
     },
     submitButtonDisabled: {
         opacity: 0.7,
     },
     submitButtonText: {
-        ...typography.h6(),
-        color: "white",
-        fontWeight: "bold",
+        ...typography.button(),
+        color: customColors.white,
     },
 });

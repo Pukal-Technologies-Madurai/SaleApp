@@ -26,6 +26,7 @@ import assetImages from "../Config/Image";
 import DatePickerButton from "../Components/DatePickerButton";
 import CountModal from "../Components/CountModal";
 import SalesModal from "../Components/SalesModal";
+import AppHeader from "../Components/AppHeader";
 
 const HomeScreen = () => {
     const navigation = useNavigation();
@@ -92,7 +93,8 @@ const HomeScreen = () => {
                 const storeUserTypeId =
                     await AsyncStorage.getItem("userTypeId");
                 const userName = await AsyncStorage.getItem("Name");
-                const UserId = await AsyncStorage.getItem("UserId");
+                const UserId = await AsyncStorage.getItem("companyName");
+                // console.log(UserId);
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
 
                 setCompanyId(Company_Id);
@@ -681,44 +683,20 @@ const HomeScreen = () => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={customColors.background} />
             <ImageBackground
                 source={assetImages.backgroundImage}
                 style={styles.backgroundImage}>
                 <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity
-                            onPress={() => navigation.openDrawer()}>
-                            <Icon
-                                name="bars"
-                                color={customColors.white}
-                                size={23}
-                            />
-                        </TouchableOpacity>
-                        <Text
-                            style={styles.headerText}
-                            maxFontSizeMultiplier={1.2}>
-                            Welcome,
-                            <Text
-                                style={{
-                                    color: customColors.secondary,
-                                    fontWeight: "bold",
-                                }}>
-                                {" "}
-                                {name}!
-                            </Text>
-                        </Text>
-                        <TouchableOpacity
-                            onPress={() =>
-                                navigation.navigate("RetailerHistory")
-                            }>
-                            <AntDesignIcons
-                                name="bells"
-                                color={customColors.white}
-                                size={23}
-                            />
-                        </TouchableOpacity>
-                    </View>
+                    <AppHeader
+                        navigation={navigation}
+                        showDrawer={true}
+                        name={name}
+                        subtitle={AsyncStorage.getItem("companyName")}
+                        showRightIcon={true}
+                        rightIconName="bells"
+                        rightIconLibrary="AntDesign"
+                        onRightPress={() => navigation.navigate("TodayLog")}
+                    />
 
                     <ScrollView
                         refreshControl={

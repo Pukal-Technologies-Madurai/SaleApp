@@ -1,24 +1,43 @@
 import {
     Alert,
     Image,
-    ImageBackground,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     ToastAndroid,
     TouchableOpacity,
     View,
+    Modal,
+    Dimensions,
+    ActivityIndicator,
+    Linking,
 } from "react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { Dropdown } from "react-native-element-dropdown";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import {
+    customColors,
+    spacing,
+    typography,
+    shadows,
+    componentStyles,
+} from "../../Config/helper";
 import CameraComponent from "../../Components/CameraComponent";
-import assetImages from "../../Config/Image";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import AppHeader from "../../Components/AppHeader";
+import FormField from "../../Components/FormField";
+import Icon from "react-native-vector-icons/AntDesign";
+import { Camera } from "react-native-vision-camera";
+import {
+    fetchAreas,
+    fetchdistributors,
+    fetchRoutes,
+    fetchState,
+    putRetailer,
+} from "../../Api/retailers";
+
+const { width } = Dimensions.get("window");
 
 const EditCustomer = ({ route }) => {
     const { item } = route.params;
@@ -42,192 +61,166 @@ const EditCustomer = ({ route }) => {
         Distributor_Id: item.Distributor_Id || "",
         Gstno: item.Gstno || "",
         Created_By: item.Created_By || "",
+        Company_Id: item.Company_Id || "",
     });
 
-    const [dropdownData, setDropdownData] = useState({
-        routes: [],
-        areas: [],
-        states: [],
-        distributors: [],
-    });
-    const [isFocus, setIsFocus] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
+    const [showImagePreview, setShowImagePreview] = useState(false);
+    const [hasPermission, setHasPermission] = useState(null);
 
     const [currentPhoto, setCurrentPhoto] = useState(
         item.Profile_Pic
-            ? { uri: `${item.Profile_Pic.replace(/^file:\/\/+/, "")}` }
+            ? { uri: item.Profile_Pic }
             : null,
     );
 
-    const fetchDropdownData = useCallback(async () => {
-        try {
-            const endpoints = {
-                routes: API.routes(),
-                areas: API.areas(),
-                states: API.state(),
-                distributors: API.distributors(),
-            };
+    const { data: routes = [] } = useQuery({
+        queryKey: ["Route_Name"],
+        queryFn: fetchRoutes,
+    });
 
-            const results = await Promise.all(
-                Object.entries(endpoints).map(([key, url]) =>
-                    fetch(url).then(res => res.json()),
-                ),
-            );
+    const { data: areas = [] } = useQuery({
+        queryKey: ["Area_Name"],
+        queryFn: fetchAreas,
+    });
 
-            const newDropdownData = Object.fromEntries(
-                Object.keys(endpoints).map((key, index) => [
-                    key,
-                    results[index].success ? results[index].data : [],
-                ]),
-            );
+    const { data: states = [] } = useQuery({
+        queryKey: ["State_Name"],
+        queryFn: fetchState,
+    });
 
-            setDropdownData(newDropdownData);
-        } catch (error) {
-            console.error("Error fetching dropdown data:", error);
-            Alert.alert("Error", "Failed to load data. Please try again.");
-        }
-    }, []);
+    const { data: distributors = [] } = useQuery({
+        queryKey: ["Distributor_Name"],
+        queryFn: fetchdistributors,
+    });
 
     useEffect(() => {
-        fetchDropdownData();
-    }, [fetchDropdownData]);
+        (async () => {
+            const { status } = await Camera.requestCameraPermission();
+            setHasPermission(status === 'authorized');
+        })();
+    }, []);
 
     const handleInputChange = useCallback((field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     }, []);
 
     const handlePhotoCapture = useCallback(photoPath => {
-        setCurrentPhoto({ uri: `file://${photoPath}` });
+        setCurrentPhoto({ uri: photoPath });
         setFormData(prev => ({ ...prev, Profile_Pic: photoPath }));
         setShowCamera(false);
     }, []);
 
-    const handleSubmit = useCallback(async () => {
-        // console.log(currentPhoto.uri);
-        const formDataToSubmit = new FormData();
-
-        Object.entries(formData).forEach(([key, value]) => {
-            if (key === "Profile_Pic" && value !== item.Profile_Pic) {
-                formDataToSubmit.append(key, {
-                    uri: currentPhoto.uri,
-                    name: "photo.jpg",
-                    type: "image/jpeg",
-                });
-            } else {
-                formDataToSubmit.append(key, value);
-            }
-        });
-
-        try {
-            const response = await fetch(
-                `${API.retailers()}${item.Retailer_Id}`,
-                {
-                    method: "PUT",
-                    headers: { "Content-Type": "multipart/form-data" },
-                    body: formDataToSubmit,
-                },
-            );
-
-            if (!response.ok) throw new Error("Update failed");
-
+    const mutation = useMutation({
+        mutationFn: putRetailer,
+        onSuccess: data => {
             ToastAndroid.show(
-                "Retailer updated successfully.",
+                data.message || "Retailer updated successfully.",
                 ToastAndroid.LONG,
             );
             navigation.reset({
                 index: 0,
                 routes: [{ name: "HomeScreen" }],
             });
-        } catch (err) {
-            Alert.alert(
-                "Error",
-                "Failed to update retailer. Please try again.",
-            );
-        }
-    }, [currentPhoto, formData, navigation, item]);
-
-    const renderDropdown = useCallback(
-        ({ label, data, valueField, labelField, value }) => {
-            if (!data?.length) return null;
-
-            return (
-                <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>
-                        {label} <Text style={styles.required}>*</Text>
-                    </Text>
-                    <Dropdown
-                        style={styles.dropdown}
-                        data={data}
-                        search
-                        maxHeight={300}
-                        labelField={labelField}
-                        valueField={valueField}
-                        placeholder={!isFocus ? `Select ${label}` : "..."}
-                        searchPlaceholder="Search..."
-                        value={value}
-                        onFocus={() => setIsFocus(true)}
-                        onBlur={() => setIsFocus(false)}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        onChange={item => {
-                            handleInputChange(valueField, item[valueField]);
-                            setIsFocus(false);
-                        }}
-                        itemTextStyle={styles.itemTextStyle}
-                    />
-                </View>
-            );
         },
-        [isFocus, handleInputChange],
-    );
+        onError: err => {
+            console.error("Update error:", err);
+            Alert.alert("Error", err.message || "Failed to update retailer.");
+        },
+    });
+
+    const handleSubmit = useCallback(() => {
+        if (!formData.Company_Id) {
+            Alert.alert("Error", "Company ID is missing");
+            return;
+        }
+
+        // Prepare the photo data
+        const photoData = currentPhoto ? {
+            uri: currentPhoto.uri,
+            type: 'image/jpeg',
+            name: 'photo.jpg'
+        } : null;
+        
+        mutation.mutate({
+            formValues: formData,
+            currentPhoto: photoData,
+            originalPhoto: item.Profile_Pic,
+        });
+    }, [formData, currentPhoto, item.Profile_Pic]);
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <MaterialIcons
-                            name="arrow-back"
-                            size={25}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
-                        Edit Retailer
-                    </Text>
-                </View>
+            <AppHeader title="Edit Retailer" navigation={navigation} />
 
+            {showCamera ? (
+                <View style={styles.cameraContainer}>
+                    {hasPermission === null ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color={customColors.primary} />
+                            <Text style={styles.loadingText}>Requesting camera permission...</Text>
+                        </View>
+                    ) : hasPermission === false ? (
+                        <View style={styles.errorContainer}>
+                            <Icon name="error" size={40} color={customColors.accent2} />
+                            <Text style={styles.errorText}>Camera permission denied</Text>
+                            <TouchableOpacity
+                                style={styles.permissionButton}
+                                onPress={() => Linking.openSettings()}>
+                                <Text style={styles.permissionButtonText}>Open Settings</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <CameraComponent
+                            onPhotoCapture={handlePhotoCapture}
+                            showCamera={setShowCamera}
+                        />
+                    )}
+                </View>
+            ) : (
                 <ScrollView style={styles.contentContainer}>
                     <View style={styles.formContainer}>
                         <View style={styles.imageSection}>
-                            {showCamera ? (
-                                <CameraComponent
-                                    onPhotoCapture={handlePhotoCapture}
-                                />
-                            ) : (
-                                <View style={styles.photoContainer}>
-                                    {currentPhoto ? (
+                            <View style={styles.photoContainer}>
+                                {currentPhoto ? (
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            setShowImagePreview(true)
+                                        }
+                                        activeOpacity={0.9}>
                                         <Image
                                             source={currentPhoto}
                                             style={styles.previewImage}
                                         />
-                                    ) : (
-                                        <View style={styles.placeholderImage}>
-                                            <Text>No Photo</Text>
-                                        </View>
-                                    )}
-                                    <TouchableOpacity
-                                        style={styles.updatePhotoButton}
-                                        onPress={() => setShowCamera(true)}>
-                                        <Text style={styles.updatePhotoText}>
-                                            {currentPhoto
-                                                ? "Update Photo"
-                                                : "Add Photo"}
-                                        </Text>
                                     </TouchableOpacity>
-                                </View>
-                            )}
+                                ) : (
+                                    <View style={styles.placeholderImage}>
+                                        <Icon
+                                            name="camera-alt"
+                                            size={40}
+                                            color={customColors.grey500}
+                                        />
+                                        <Text style={styles.placeholderText}>
+                                            No Photo
+                                        </Text>
+                                    </View>
+                                )}
+                                <TouchableOpacity
+                                    style={styles.updatePhotoButton}
+                                    onPress={() => setShowCamera(true)}>
+                                    <Icon
+                                        name="camera-alt"
+                                        size={20}
+                                        color={customColors.white}
+                                        style={styles.buttonIcon}
+                                    />
+                                    <Text style={styles.updatePhotoText}>
+                                        {currentPhoto
+                                            ? "Update Photo"
+                                            : "Add Photo"}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         {/* Basic input fields */}
@@ -252,182 +245,317 @@ const EditCustomer = ({ route }) => {
                             },
                         ].map(({ label, field, ...props }) => (
                             <View key={field} style={styles.fieldContainer}>
-                                <Text style={styles.label}>
-                                    {label}{" "}
-                                    <Text style={styles.required}>*</Text>
-                                </Text>
-                                <TextInput
-                                    style={styles.input}
+                                <FormField
+                                    label={label}
+                                    required
+                                    // error={{}}
                                     value={formData[field]}
                                     onChangeText={text =>
                                         handleInputChange(field, text)
                                     }
                                     placeholder={label}
-                                    {...props}
                                 />
                             </View>
                         ))}
 
-                        {/* Dropdowns */}
-                        {[
-                            {
-                                label: "Routes",
-                                data: dropdownData.routes,
-                                valueField: "Route_Id",
-                                labelField: "Route_Name",
-                            },
-                            {
-                                label: "Areas",
-                                data: dropdownData.areas,
-                                valueField: "Area_Id",
-                                labelField: "Area_Name",
-                            },
-                            {
-                                label: "States",
-                                data: dropdownData.states,
-                                valueField: "State_Id",
-                                labelField: "State_Name",
-                            },
-                            {
-                                label: "Distributors",
-                                data: dropdownData.distributors,
-                                valueField: "Distributor_Id",
-                                labelField: "distributor_Name",
-                            },
-                        ].map(props => (
-                            <View key={props.valueField}>
-                                {renderDropdown({
-                                    ...props,
-                                    value: formData[props.valueField],
-                                })}
-                            </View>
-                        ))}
+                        <EnhancedDropdown
+                            data={routes}
+                            labelField="Route_Name"
+                            valueField="Route_Id"
+                            placeholder="Select Route"
+                            value={formData.Route_Id}
+                            onChange={item =>
+                                handleInputChange("Route_Id", item.Route_Id)
+                            }
+                        />
+
+                        <EnhancedDropdown
+                            data={areas}
+                            labelField="Area_Name"
+                            valueField="Area_Id"
+                            placeholder="Select Area"
+                            value={formData.Area_Id}
+                            onChange={item =>
+                                handleInputChange("Area_Id", item.Area_Id)
+                            }
+                        />
+
+                        <EnhancedDropdown
+                            data={states}
+                            labelField="State_Name"
+                            valueField="State_Id"
+                            placeholder="Select State"
+                            value={formData.State_Id}
+                            onChange={item =>
+                                handleInputChange("State_Id", item.State_Id)
+                            }
+                        />
+
+                        <EnhancedDropdown
+                            data={distributors}
+                            labelField="Distributor_Name"
+                            valueField="Distributor_Id"
+                            placeholder="Select Distributor"
+                            value={formData.Distributor_Id}
+                            onChange={item =>
+                                handleInputChange(
+                                    "Distributor_Id",
+                                    item.Distributor_Id,
+                                )
+                            }
+                        />
 
                         <TouchableOpacity
-                            style={styles.updateButton}
-                            onPress={handleSubmit}>
-                            <Text style={styles.updateButtonText}>Update</Text>
+                            style={[
+                                styles.updateButton,
+                                mutation.isPending && styles.disabledButton,
+                            ]}
+                            onPress={handleSubmit}
+                            disabled={mutation.isPending}>
+                            <Text style={styles.updateButtonText}>
+                                {mutation.isPending ? "Updating..." : "Update"}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
-            </ImageBackground>
+            )}
+
+            <Modal
+                visible={showImagePreview}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowImagePreview(false)}>
+                <View style={styles.modalContainer}>
+                    <TouchableOpacity
+                        onPress={() => setShowImagePreview(false)}
+                        style={styles.closeButton}>
+                        <Icon
+                            name="close"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    </TouchableOpacity>
+                    <Image
+                        source={currentPhoto}
+                        style={styles.modalImage}
+                        resizeMode="contain"
+                    />
+                    <View style={styles.modalActions}>
+                        <TouchableOpacity
+                            style={[styles.modalButton, styles.updateButton]}
+                            onPress={() => {
+                                setShowImagePreview(false);
+                                setShowCamera(true);
+                            }}>
+                            <Icon
+                                name="camera"
+                                size={20}
+                                color={customColors.white}
+                                style={styles.buttonIcon}
+                            />
+                            <Text style={styles.modalButtonText}>
+                                Update Photo
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.modalButton,
+                                styles.closeModalButton,
+                            ]}
+                            onPress={() => setShowImagePreview(false)}>
+                            <Text
+                                style={[
+                                    styles.modalButtonText,
+                                    styles.closeButtonText,
+                                ]}>
+                                Close
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
-
-export default EditCustomer;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: customColors.background,
     },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
-        backgroundColor: customColors.background,
-        alignItems: "center",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
     contentContainer: {
         flex: 1,
-        width: "100%",
-        backgroundColor: customColors.white,
-        borderRadius: 10,
+        padding: spacing.md,
     },
     formContainer: {
-        padding: 16,
-    },
-    fieldContainer: {
-        marginBottom: 16,
-    },
-    label: {
-        ...typography.h6(),
-        color: customColors.black,
-        fontWeight: "500",
-        marginBottom: 3,
-    },
-    required: {
-        color: "red",
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: customColors.grey,
-        borderRadius: 4,
-        padding: 12,
-        ...typography.h6(),
-        color: customColors.black,
-    },
-    dropdown: {
-        height: 50,
-        borderWidth: 1,
-        borderColor: customColors.grey,
-        borderRadius: 8,
-        paddingHorizontal: 8,
-        color: customColors.black,
-    },
-    selectedTextStyle: {
-        color: customColors.black, // Black text for selected items
-        fontWeight: "600",
-    },
-    itemTextStyle: {
-        color: customColors.black,
-        fontWeight: "400",
+        backgroundColor: customColors.white,
+        borderRadius: 16,
+        padding: spacing.lg,
+        ...shadows.medium,
     },
     imageSection: {
-        marginVertical: 20,
+        alignItems: "center",
+        marginBottom: spacing.xl,
     },
     photoContainer: {
-        alignItems: "center",
+        width: 150,
+        height: 150,
+        borderRadius: 75,
+        overflow: "hidden",
+        backgroundColor: customColors.grey100,
+        ...shadows.medium,
     },
     previewImage: {
-        width: 250,
-        height: 250,
-        borderRadius: 8,
-        marginBottom: 12,
+        width: "100%",
+        height: "100%",
+        resizeMode: "cover",
     },
     placeholderImage: {
-        width: 250,
-        height: 250,
-        borderRadius: 8,
-        backgroundColor: "#f0f0f0",
+        width: "100%",
+        height: "100%",
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 12,
+        backgroundColor: customColors.grey200,
+    },
+    placeholderText: {
+        ...typography.subtitle2(),
+        color: customColors.grey500,
+        marginTop: spacing.xs,
     },
     updatePhotoButton: {
-        backgroundColor: customColors.secondary,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 4,
-        marginTop: 8,
+        marginTop: spacing.md,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        backgroundColor: customColors.primary,
+        borderRadius: 8,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        ...shadows.small,
     },
     updatePhotoText: {
-        ...typography.h6(),
-        color: customColors.black,
-        fontWeight: "600",
+        ...typography.button(),
+        color: customColors.white,
+    },
+    fieldContainer: {
+        marginBottom: spacing.md,
+    },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.85)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    closeButton: {
+        position: "absolute",
+        top: spacing.xl,
+        right: spacing.xl,
+        zIndex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        borderRadius: 25,
+        width: 40,
+        height: 40,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.medium,
+    },
+    modalImage: {
+        width: width * 0.9,
+        height: width * 0.9,
+        borderRadius: 16,
+        ...shadows.large,
+    },
+    modalActions: {
+        position: "absolute",
+        bottom: spacing.xl,
+        left: spacing.lg,
+        right: spacing.lg,
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: spacing.md,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        padding: spacing.md,
+        borderRadius: 16,
+        ...shadows.medium,
+    },
+    modalButton: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        borderRadius: 8,
+        maxWidth: 200,
     },
     updateButton: {
-        backgroundColor: customColors.secondary,
-        padding: 16,
-        borderRadius: 4,
-        alignItems: "center",
-        marginTop: 24,
+        ...componentStyles.button.primary,
+        marginTop: spacing.xl,
+    },
+    disabledButton: {
+        backgroundColor: customColors.grey500,
+        opacity: 0.7,
     },
     updateButtonText: {
-        ...typography.h6(),
-        color: customColors.black,
-        fontWeight: "bold",
+        textAlign: "center",
+        ...typography.button(),
+        color: customColors.white,
+    },
+    closeModalButton: {
+        ...componentStyles.button.secondary,
+        backgroundColor: customColors.grey200,
+        marginTop: spacing.xl,
+    },
+    modalButtonText: {
+        ...typography.subtitle2(),
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    closeButtonText: {
+        color: customColors.grey900,
+    },
+    buttonIcon: {
+        marginRight: spacing.xs,
+    },
+    cameraContainer: {
+        flex: 1,
+        backgroundColor: customColors.black,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: customColors.black,
+    },
+    loadingText: {
+        ...typography.subtitle1(),
+        color: customColors.white,
+        marginTop: spacing.md,
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: customColors.black,
+        padding: spacing.xl,
+    },
+    errorText: {
+        ...typography.subtitle1(),
+        color: customColors.white,
+        marginTop: spacing.md,
+        textAlign: 'center',
+    },
+    permissionButton: {
+        marginTop: spacing.xl,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        backgroundColor: customColors.primary,
+        borderRadius: 8,
+    },
+    permissionButtonText: {
+        ...typography.button(),
+        color: customColors.white,
     },
 });
+
+export default EditCustomer;

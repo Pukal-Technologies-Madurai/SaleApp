@@ -317,7 +317,7 @@ const BillAdminView = () => {
                                                 <MaterialCommunityIcons
                                                     name="clock-outline"
                                                     size={20}
-                                                    color={customColors.warning}
+                                                    color={customColors.pending}
                                                 />
                                                 <Text
                                                     style={styles.pendingText}>
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     },
     pendingText: {
         ...typography.body2(),
-        color: customColors.warning,
+        color: customColors.pending,
         fontWeight: "500",
     },
     modalOverlay: {

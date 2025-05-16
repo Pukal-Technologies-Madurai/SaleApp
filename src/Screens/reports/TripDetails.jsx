@@ -148,8 +148,8 @@ const TripDetails = ({ route, navigation }) => {
                             {
                                 color:
                                     item.deliveryStatus === 7
-                                        ? customColors.success
-                                        : customColors.warning,
+                                        ? customColors.approved
+                                        : customColors.pending,
                             },
                         ]}>
                         {item.deliveryStatus === 7 ? "Delivered" : "Pending"}
@@ -164,10 +164,10 @@ const TripDetails = ({ route, navigation }) => {
                             {
                                 color:
                                     item.paymentStatus === 3
-                                        ? customColors.success
+                                        ? customColors.approved
                                         : item.paymentStatus === 1
                                           ? customColors.grey
-                                          : customColors.warning,
+                                          : customColors.pending,
                             },
                         ]}>
                         {item.paymentStatus === 3
@@ -224,7 +224,7 @@ const TripDetails = ({ route, navigation }) => {
                             <TouchableOpacity
                                 style={[
                                     styles.summaryCard,
-                                    { backgroundColor: customColors.success },
+                                    { backgroundColor: customColors.approved },
                                     filterType === "cash" &&
                                         styles.selectedCard,
                                 ]}
@@ -243,7 +243,7 @@ const TripDetails = ({ route, navigation }) => {
                             <TouchableOpacity
                                 style={[
                                     styles.summaryCard,
-                                    { backgroundColor: customColors.warning },
+                                    { backgroundColor: customColors.pending },
                                     filterType === "credit" &&
                                         styles.selectedCard,
                                 ]}
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     },
     clearFilterText: {
         ...typography.caption(),
-        color: customColors.warning,
+        color: customColors.pending,
         fontWeight: "500",
     },
     productsContainer: {

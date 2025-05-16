@@ -19,9 +19,10 @@ import CheckBox from "@react-native-community/checkbox";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import { customColors, spacing, typography, shadows } from "../../Config/helper";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import assetImages from "../../Config/Image";
+import AppHeader from "../../Components/AppHeader";
 
 const BillPayment = () => {
     const navigation = useNavigation();
@@ -276,16 +277,23 @@ const BillPayment = () => {
                         <View style={styles.checkboxContainer}>
                             <CheckBox
                                 value={isSelected}
-                                onValueChange={() =>
-                                    !isDisabled && handleCheckboxChange(item)
-                                }
+                                onValueChange={() => {
+                                    try {
+                                        if (!isDisabled) {
+                                            handleCheckboxChange(item);
+                                        }
+                                    } catch (error) {
+                                        console.error('Checkbox error:', error);
+                                    }
+                                }}
                                 disabled={isDisabled}
                                 tintColors={{
                                     true: customColors.primary,
-                                    false: isDisabled
-                                        ? customColors.lightGrey
-                                        : customColors.black,
+                                    false: isDisabled ? customColors.grey300 : customColors.grey700,
                                 }}
+                                style={styles.checkbox}
+                                boxType="square"
+                                animationDuration={0.2}
                             />
                         </View>
                         <View style={styles.billHeaderLeft}>
@@ -334,7 +342,9 @@ const BillPayment = () => {
     const renderPaymentScreen = () => (
         <View style={styles.paymentScreen}>
             <View style={styles.paymentHeader}>
-                <TouchableOpacity onPress={() => setShowPaymentScreen(false)}>
+                <TouchableOpacity 
+                    style={styles.backButton}
+                    onPress={() => setShowPaymentScreen(false)}>
                     <Icon
                         name="arrow-back"
                         size={25}
@@ -344,247 +354,243 @@ const BillPayment = () => {
                 <Text style={styles.paymentHeaderText}>Payment Details</Text>
             </View>
 
-            <ScrollView style={styles.paymentContent}>
-                <View style={styles.paymentSection}>
-                    <Text style={styles.sectionTitle}>Payment Mode</Text>
-                    <Dropdown
-                        data={paymentModes}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Select Payment Mode"
-                        value={paymentMode}
-                        onChange={item => setPaymentMode(item.value)}
-                        style={styles.paymentDropdown}
-                    />
-                </View>
-
-                <View style={styles.paymentSection}>
-                    <Text style={styles.sectionTitle}>Collection Date</Text>
-                    <TouchableOpacity
-                        style={styles.dateInput}
-                        onPress={() => setShowDatePicker(true)}>
-                        <Text style={styles.dateText}>
-                            {moment(collectionDate).format("DD/MM/YYYY")}
-                        </Text>
-                    </TouchableOpacity>
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={collectionDate}
-                            mode="date"
-                            display="default"
-                            onChange={(event, selectedDate) => {
-                                setShowDatePicker(false);
-                                if (selectedDate) {
-                                    setCollectionDate(selectedDate);
-                                }
-                            }}
+            <ScrollView 
+                style={styles.paymentContent}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.paymentContentContainer}>
+                <View style={styles.paymentCard}>
+                    <View style={styles.paymentSection}>
+                        <Text style={styles.sectionTitle}>Payment Mode</Text>
+                        <Dropdown
+                            data={paymentModes}
+                            labelField="label"
+                            valueField="value"
+                            placeholder="Select Payment Mode"
+                            value={paymentMode}
+                            onChange={item => setPaymentMode(item.value)}
+                            style={styles.paymentDropdown}
+                            containerStyle={styles.dropdownContainer}
+                            activeColor={customColors.primary}
+                            selectedTextStyle={styles.selectedText}
+                            placeholderStyle={styles.placeholderText}
                         />
-                    )}
-                </View>
+                    </View>
 
-                <View style={styles.paymentSection}>
-                    <Text style={styles.sectionTitle}>Selected Bills</Text>
-                    {selectedBills.map(billId => {
-                        const bill = pendingBills.find(b => b.Do_Id === billId);
-                        return (
-                            <View key={billId} style={styles.billAmountRow}>
-                                <View style={styles.billInfo}>
-                                    <Text style={styles.billNumber}>
-                                        DO No: {bill.Do_No}
-                                    </Text>
-                                    <Text style={styles.billTotal}>
-                                        Total: ₹{bill.Total_Invoice_value}
-                                    </Text>
-                                </View>
-                                <TextInput
-                                    style={styles.amountInput}
-                                    placeholder="Enter Amount"
-                                    keyboardType="numeric"
-                                    value={billAmounts[billId]}
-                                    onChangeText={amount =>
-                                        handleAmountChange(billId, amount)
+                    <View style={styles.paymentSection}>
+                        <Text style={styles.sectionTitle}>Collection Date</Text>
+                        <TouchableOpacity
+                            style={styles.dateInput}
+                            onPress={() => setShowDatePicker(true)}>
+                            <Text style={styles.dateText}>
+                                {moment(collectionDate).format("DD/MM/YYYY")}
+                            </Text>
+                            <Icon name="calendar-outline" size={20} color={customColors.primary} />
+                        </TouchableOpacity>
+                        {showDatePicker && (
+                            <DateTimePicker
+                                value={collectionDate}
+                                mode="date"
+                                display="default"
+                                onChange={(event, selectedDate) => {
+                                    setShowDatePicker(false);
+                                    if (selectedDate) {
+                                        setCollectionDate(selectedDate);
                                     }
-                                />
-                            </View>
-                        );
-                    })}
-                </View>
+                                }}
+                            />
+                        )}
+                    </View>
 
-                <View style={styles.paymentSection}>
-                    <Text style={styles.sectionTitle}>Narration</Text>
-                    <TextInput
-                        style={styles.narrationInput}
-                        placeholder="Enter Narration"
-                        value={narration}
-                        onChangeText={setNarration}
-                        multiline
-                        numberOfLines={3}
-                    />
-                </View>
+                    <View style={styles.paymentSection}>
+                        <Text style={styles.sectionTitle}>Selected Bills</Text>
+                        {selectedBills.map(billId => {
+                            const bill = pendingBills.find(b => b.Do_Id === billId);
+                            return (
+                                <View key={billId} style={styles.billAmountRow}>
+                                    <View style={styles.billInfo}>
+                                        <Text style={styles.billNumber}>
+                                            DO No: {bill.Do_No}
+                                        </Text>
+                                        <Text style={styles.billTotal}>
+                                            Total: ₹{bill.Total_Invoice_value}
+                                        </Text>
+                                    </View>
+                                    <TextInput
+                                        style={styles.amountInput}
+                                        placeholder="Enter Amount"
+                                        keyboardType="numeric"
+                                        value={billAmounts[billId]}
+                                        onChangeText={amount =>
+                                            handleAmountChange(billId, amount)
+                                        }
+                                    />
+                                </View>
+                            );
+                        })}
+                    </View>
 
-                <TouchableOpacity
-                    style={styles.submitButton}
-                    onPress={handlePaymentSubmit}>
-                    <Text style={styles.submitButtonText}>Submit Payment</Text>
-                </TouchableOpacity>
+                    <View style={styles.paymentSection}>
+                        <Text style={styles.sectionTitle}>Narration</Text>
+                        <TextInput
+                            style={styles.narrationInput}
+                            placeholder="Enter Narration"
+                            value={narration}
+                            onChangeText={setNarration}
+                            multiline
+                            numberOfLines={3}
+                        />
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.submitButton}
+                        onPress={handlePaymentSubmit}>
+                        <Text style={styles.submitButtonText}>Submit Payment</Text>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
         </View>
     );
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>Bill Collection</Text>
-                    </View>
-                    <View style={styles.Content}>
-                        {/* Summary Card */}
-                        <View style={styles.summaryCard}>
-                            <View style={styles.summaryRow}>
-                                <View style={styles.summaryItem}>
-                                    <View style={styles.summaryItemContent}>
-                                        <Icon
-                                            name="receipt-outline"
-                                            size={16}
-                                            color={customColors.primary}
-                                        />
-                                        <Text style={styles.summaryLabel}>
-                                            Total Bills
-                                        </Text>
-                                        <Text style={styles.summaryValue}>
-                                            {pendingBills.length}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.summaryDivider} />
-                                <View style={styles.summaryItem}>
-                                    <View style={styles.summaryItemContent}>
-                                        <Icon
-                                            name="cash-outline"
-                                            size={16}
-                                            color={customColors.primary}
-                                        />
-                                        <Text style={styles.summaryLabel}>
-                                            Total Amount
-                                        </Text>
-                                        <Text style={styles.summaryValue}>
-                                            ₹
-                                            {pendingBills
-                                                .reduce(
-                                                    (sum, bill) =>
-                                                        sum +
-                                                        parseFloat(
-                                                            bill.Total_Invoice_value,
-                                                        ),
-                                                    0,
-                                                )
-                                                .toFixed(2)}
-                                        </Text>
-                                    </View>
+            <AppHeader title="Retailer Receipts" navigation={navigation} />
+
+            <View style={styles.contentContainer}>
+                <View style={styles.content}>
+                    {/* Summary Card */}
+                    <View style={styles.summaryCard}>
+                        <View style={styles.summaryRow}>
+                            <View style={styles.summaryItem}>
+                                <View style={styles.summaryItemContent}>
+                                    <Icon
+                                        name="receipt-outline"
+                                        size={16}
+                                        color={customColors.primary}
+                                    />
+                                    <Text style={styles.summaryLabel}>
+                                        Total Bills
+                                    </Text>
+                                    <Text style={styles.summaryValue}>
+                                        {pendingBills.length}
+                                    </Text>
                                 </View>
                             </View>
-                            <View style={styles.summaryRow}>
-                                <View style={styles.summaryItem}>
-                                    <View style={styles.summaryItemContent}>
-                                        <Icon
-                                            name="checkmark-circle-outline"
-                                            size={16}
-                                            color={customColors.primary}
-                                        />
-                                        <Text style={styles.summaryLabel}>
-                                            Paid Bills
-                                        </Text>
-                                        <Text style={styles.summaryValue}>
-                                            {
-                                                pendingBills.filter(
-                                                    bill =>
-                                                        bill.pendingAmount <= 0,
-                                                ).length
-                                            }
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.summaryDivider} />
-                                <View style={styles.summaryItem}>
-                                    <View style={styles.summaryItemContent}>
-                                        <Icon
-                                            name="time-outline"
-                                            size={16}
-                                            color={customColors.primary}
-                                        />
-                                        <Text style={styles.summaryLabel}>
-                                            Pending Bills
-                                        </Text>
-                                        <Text style={styles.summaryValue}>
-                                            {
-                                                pendingBills.filter(
-                                                    bill =>
-                                                        bill.pendingAmount > 0,
-                                                ).length
-                                            }
-                                        </Text>
-                                    </View>
+                            <View style={styles.summaryDivider} />
+                            <View style={styles.summaryItem}>
+                                <View style={styles.summaryItemContent}>
+                                    <Icon
+                                        name="cash-outline"
+                                        size={16}
+                                        color={customColors.primary}
+                                    />
+                                    <Text style={styles.summaryLabel}>
+                                        Total Amount
+                                    </Text>
+                                    <Text style={styles.summaryValue}>
+                                        ₹
+                                        {pendingBills
+                                            .reduce(
+                                                (sum, bill) =>
+                                                    sum +
+                                                    parseFloat(
+                                                        bill.Total_Invoice_value,
+                                                    ),
+                                                0,
+                                            )
+                                            .toFixed(2)}
+                                    </Text>
                                 </View>
                             </View>
                         </View>
-
-                        <EnhancedDropdown
-                            data={filteredRetailers}
-                            labelField="Retailer_Name"
-                            valueField="Retailer_Id"
-                            placeholder="Select Retailer"
-                            value={selectedRetailer}
-                            onChange={handleRetailerSelect}
-                            containerStyle={styles.dropdownContainer}
-                            searchPlaceholder="Search retailers..."
-                        />
-
-                        {pendingBills.length > 0 ? (
-                            <>
-                                <FlatList
-                                    data={pendingBills}
-                                    renderItem={renderBillItem}
-                                    keyExtractor={keyExtractor}
-                                    getItemLayout={getItemLayout}
-                                    initialNumToRender={10}
-                                    maxToRenderPerBatch={10}
-                                    windowSize={5}
-                                    removeClippedSubviews={true}
-                                    contentContainerStyle={styles.billList}
-                                />
-                                <TouchableOpacity
-                                    style={[
-                                        styles.paymentButton,
-                                        selectedBills.length === 0 &&
-                                            styles.paymentButtonDisabled,
-                                    ]}
-                                    onPress={handlePaymentClick}
-                                    disabled={selectedBills.length === 0}>
-                                    <Text style={styles.paymentButtonText}>
-                                        Proceed to Payment
+                        <View style={styles.summaryRow}>
+                            <View style={styles.summaryItem}>
+                                <View style={styles.summaryItemContent}>
+                                    <Icon
+                                        name="checkmark-circle-outline"
+                                        size={16}
+                                        color={customColors.primary}
+                                    />
+                                    <Text style={styles.summaryLabel}>
+                                        Paid Bills
                                     </Text>
-                                </TouchableOpacity>
-                            </>
-                        ) : (
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyStateText}>
-                                    No pending bills found
-                                </Text>
+                                    <Text style={styles.summaryValue}>
+                                        {
+                                            pendingBills.filter(
+                                                bill => bill.pendingAmount <= 0,
+                                            ).length
+                                        }
+                                    </Text>
+                                </View>
                             </View>
-                        )}
+                            <View style={styles.summaryDivider} />
+                            <View style={styles.summaryItem}>
+                                <View style={styles.summaryItemContent}>
+                                    <Icon
+                                        name="time-outline"
+                                        size={16}
+                                        color={customColors.primary}
+                                    />
+                                    <Text style={styles.summaryLabel}>
+                                        Pending Bills
+                                    </Text>
+                                    <Text style={styles.summaryValue}>
+                                        {
+                                            pendingBills.filter(
+                                                bill => bill.pendingAmount > 0,
+                                            ).length
+                                        }
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
                     </View>
+
+                    <EnhancedDropdown
+                        data={filteredRetailers}
+                        labelField="Retailer_Name"
+                        valueField="Retailer_Id"
+                        placeholder="Select Retailer"
+                        value={selectedRetailer}
+                        onChange={handleRetailerSelect}
+                        containerStyle={styles.dropdownContainer}
+                        searchPlaceholder="Search retailers..."
+                    />
+
+                    {pendingBills.length > 0 ? (
+                        <>
+                            <FlatList
+                                data={pendingBills}
+                                renderItem={renderBillItem}
+                                keyExtractor={keyExtractor}
+                                getItemLayout={getItemLayout}
+                                initialNumToRender={10}
+                                maxToRenderPerBatch={10}
+                                windowSize={5}
+                                removeClippedSubviews={true}
+                                contentContainerStyle={styles.billList}
+                            />
+                            <TouchableOpacity
+                                style={[
+                                    styles.paymentButton,
+                                    selectedBills.length === 0 &&
+                                        styles.paymentButtonDisabled,
+                                ]}
+                                onPress={handlePaymentClick}
+                                disabled={selectedBills.length === 0}>
+                                <Text style={styles.paymentButtonText}>
+                                    Proceed to Payment
+                                </Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyStateText}>
+                                No pending bills found
+                            </Text>
+                        </View>
+                    )}
                 </View>
-            </ImageBackground>
+            </View>
             {showPaymentScreen && renderPaymentScreen()}
         </View>
     );
@@ -595,61 +601,40 @@ export default BillPayment;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
+        width: "100%",
+        backgroundColor: customColors.white,
     },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
-    Content: {
+    content: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-        overflow: "hidden",
+        padding: spacing.md,
     },
     dropdownContainer: {
-        marginVertical: 10,
-        paddingHorizontal: 15,
+        marginVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
     },
     billList: {
-        padding: 10,
+        padding: spacing.sm,
     },
     billItem: {
         backgroundColor: customColors.white,
-        borderRadius: 15,
-        padding: 15,
-        marginBottom: 15,
-        marginHorizontal: 10,
-        elevation: 3,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        borderRadius: 8,
+        padding: spacing.sm,
+        marginBottom: spacing.sm,
+        marginHorizontal: spacing.xs,
+        ...shadows.small,
     },
     billHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingBottom: 10,
+        paddingBottom: spacing.xs,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGrey,
+        borderBottomColor: customColors.grey200,
     },
     billHeaderLeft: {
         flex: 1,
@@ -658,59 +643,69 @@ const styles = StyleSheet.create({
         alignItems: "flex-end",
     },
     billNumber: {
-        ...typography.body1(),
-        fontWeight: "bold",
-        color: customColors.black,
+        ...typography.body2(),
+        fontWeight: "600",
+        color: customColors.primary,
     },
     billTotal: {
-        ...typography.body2(),
-        color: customColors.warning,
+        ...typography.caption(),
+        color: customColors.pending,
     },
     billDate: {
-        ...typography.body2(),
-        color: customColors.grey,
-        marginTop: 2,
+        ...typography.caption(),
+        color: customColors.grey700,
+        marginTop: spacing.xs,
     },
     billAmount: {
-        ...typography.h6(),
+        ...typography.body1(),
         color: customColors.primary,
-        fontWeight: "bold",
+        fontWeight: "600",
     },
     paymentButton: {
-        marginVertical: 20,
-        marginHorizontal: 75,
+        marginVertical: spacing.md,
+        marginHorizontal: spacing.xl,
         backgroundColor: customColors.primary,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         borderRadius: 25,
         flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
-        elevation: 2,
+        ...shadows.small,
     },
     paymentButtonText: {
         textAlign: "center",
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.white,
-        fontWeight: "500",
+        fontWeight: "600",
     },
     emptyState: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        padding: 20,
+        padding: spacing.md,
     },
     emptyStateText: {
-        ...typography.body1(),
-        color: customColors.grey,
+        ...typography.body2(),
+        color: customColors.grey700,
     },
     checkboxContainer: {
-        marginRight: 10,
+        marginRight: spacing.sm,
+        minWidth: 24,
+        minHeight: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        margin: 0,
+        padding: 0,
     },
     pendingAmount: {
-        ...typography.body2(),
-        color: customColors.warning,
-        marginTop: 4,
+        ...typography.caption(),
+        color: customColors.pending,
+        marginTop: spacing.xs,
     },
     paymentButtonDisabled: {
         opacity: 0.5,
@@ -721,103 +716,137 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.background,
     },
     paymentHeader: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 15,
+        padding: spacing.md,
         backgroundColor: customColors.primary,
+        elevation: 4,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
+    backButton: {
+        padding: spacing.xs,
     },
     paymentHeaderText: {
-        ...typography.h6(),
+        ...typography.subtitle1(),
         color: customColors.white,
-        marginLeft: 15,
+        marginLeft: spacing.md,
+        fontWeight: "600",
     },
     paymentContent: {
         flex: 1,
-        padding: 15,
+    },
+    paymentContentContainer: {
+        padding: spacing.md,
+    },
+    paymentCard: {
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.md,
+        ...shadows.medium,
     },
     paymentSection: {
-        marginBottom: 20,
+        marginBottom: spacing.lg,
     },
     sectionTitle: {
-        ...typography.body1(),
-        fontWeight: "bold",
-        marginBottom: 10,
+        ...typography.body2(),
+        fontWeight: "600",
+        marginBottom: spacing.sm,
         color: customColors.primary,
     },
     paymentDropdown: {
         borderWidth: 1,
-        borderColor: customColors.black,
+        borderColor: customColors.grey200,
         borderRadius: 8,
-        padding: 10,
+        padding: spacing.sm,
+        backgroundColor: customColors.white,
+    },
+    dropdownContainer: {
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    selectedText: {
+        color: customColors.primary,
+        fontWeight: "500",
+    },
+    placeholderText: {
+        color: customColors.grey500,
     },
     dateInput: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         borderWidth: 1,
-        borderColor: customColors.black,
+        borderColor: customColors.grey200,
         borderRadius: 8,
-        padding: 10,
+        padding: spacing.sm,
+        backgroundColor: customColors.white,
     },
     dateText: {
-        ...typography.body1(),
-        color: customColors.black,
+        ...typography.body2(),
+        color: customColors.grey900,
     },
     billAmountRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 10,
+        paddingVertical: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.border,
+        borderBottomColor: customColors.grey200,
     },
     billInfo: {
         flex: 1,
     },
     amountInput: {
         borderWidth: 1,
-        borderColor: customColors.black,
+        borderColor: customColors.grey200,
         borderRadius: 8,
-        padding: 10,
+        padding: spacing.sm,
         width: 120,
         textAlign: "right",
+        backgroundColor: customColors.white,
     },
     narrationInput: {
         borderWidth: 1,
-        borderColor: customColors.grey,
+        borderColor: customColors.grey200,
         borderRadius: 8,
-        padding: 10,
+        padding: spacing.sm,
         textAlignVertical: "top",
+        backgroundColor: customColors.white,
+        minHeight: 100,
     },
     submitButton: {
         backgroundColor: customColors.primary,
-        padding: 15,
+        padding: spacing.md,
         borderRadius: 8,
         alignItems: "center",
-        marginTop: 20,
+        marginTop: spacing.md,
+        ...shadows.small,
     },
     submitButtonText: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.white,
-        fontWeight: "500",
+        fontWeight: "600",
     },
     summaryCard: {
         backgroundColor: customColors.white,
         borderRadius: 8,
-        padding: 8,
-        margin: 10,
+        padding: spacing.sm,
+        margin: spacing.sm,
         marginBottom: 0,
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        ...shadows.small,
     },
     summaryRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 4,
+        paddingVertical: spacing.xs,
     },
     summaryItem: {
         flex: 1,
@@ -825,17 +854,17 @@ const styles = StyleSheet.create({
     },
     summaryItemContent: {
         alignItems: "center",
-        gap: 2,
+        gap: spacing.xs,
     },
     summaryDivider: {
         width: 1,
         height: 30,
-        backgroundColor: customColors.lightGrey,
-        marginHorizontal: 4,
+        backgroundColor: customColors.grey200,
+        marginHorizontal: spacing.xs,
     },
     summaryLabel: {
         ...typography.caption(),
-        color: customColors.black,
+        color: customColors.grey700,
     },
     summaryValue: {
         ...typography.body2(),
@@ -843,7 +872,7 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
     pendingAmountDisabled: {
-        color: customColors.lightGrey,
+        color: customColors.grey300,
         textDecorationLine: "line-through",
     },
 });

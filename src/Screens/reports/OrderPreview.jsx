@@ -4,9 +4,8 @@ import {
     TouchableOpacity,
     View,
     ScrollView,
-    ImageBackground,
-    Image,
     Alert,
+    Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -15,21 +14,22 @@ import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import Icon from "react-native-vector-icons/FontAwesome";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import {
+    customColors,
+    shadows,
+    spacing,
+    typography,
+} from "../../Config/helper";
 import Accordion from "../../Components/Accordion";
-import assetImages from "../../Config/Image";
-import SalesReportModal from "../../Components/SalesReportModal";
+import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-
+import SalesReportModal from "../../Components/SalesReportModal";
 const OrderPreview = () => {
     const navigation = useNavigation();
-
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [salesPersonData, setSalesPersonData] = useState([]);
-    const [selectedSalesPerson, setSelectedSalesPerson] = useState(null);
 
     const [logData, setLogData] = useState([]);
     const [companyId, setCompanyId] = useState([]);
@@ -43,11 +43,11 @@ const OrderPreview = () => {
     const [totalOrderAmount, setTotalOrderAmount] = useState(0);
     const [totalProductsSold, setTotalProductsSold] = useState(0);
 
+    const [visitLogLength, setVisitLogLength] = useState(0);
+
     useEffect(() => {
         (async () => {
             try {
-                const storeUserTypeId =
-                    await AsyncStorage.getItem("userTypeId");
                 const userId = await AsyncStorage.getItem("UserId");
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
 
@@ -55,24 +55,18 @@ const OrderPreview = () => {
                 const toDate = selectedToDate.toISOString().split("T")[0];
 
                 setCompanyId(Number(Company_Id));
-
-                const isAdminUser =
-                    storeUserTypeId === "0" ||
-                    storeUserTypeId === "1" ||
-                    storeUserTypeId === "2";
-                setIsAdmin(isAdminUser);
-
-                if (isAdminUser) {
-                    fetchSalesPerson(Company_Id);
-                    fetchSaleOrder(fromDate, toDate, Company_Id);
-                } else {
-                    fetchSaleOrder(fromDate, toDate, Company_Id, userId);
-                }
+                fetchSaleOrder(fromDate, toDate, Company_Id, userId);
             } catch (err) {
                 console.log(err);
             }
         })();
     }, [selectedFromDate, selectedToDate]);
+
+    useEffect(() => {
+        if (modalVisible && selectedFromDate) {
+            fetchVisitLog();
+        }
+    }, [modalVisible, selectedFromDate]);
 
     const handleFromDateChange = (event, date) => {
         if (date) {
@@ -88,40 +82,12 @@ const OrderPreview = () => {
         }
     };
 
-    const fetchSalesPerson = async companyId => {
-        try {
-            const url = `${API.salesPerson()}${companyId}`;
-            const response = await fetch(url, {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            });
-
-            const data = await response.json();
-
-            if (data.success === true) {
-                const dropdownData = [
-                    { label: "All", value: "all" },
-                    ...data.data.map(item => ({
-                        label: item.Name,
-                        value: item.UserId,
-                    })),
-                ];
-
-                setSalesPersonData(dropdownData);
-            } else {
-                console.log("Failed to fetch logs: ", data.message);
-            }
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     const fetchSaleOrder = async (from, to, company, userId = "") => {
         try {
             const salesPersonIdParam = userId || "";
 
             let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
-            // console.log(url);
+            console.log(url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -241,12 +207,14 @@ const OrderPreview = () => {
     const renderHeader = item => {
         return (
             <View style={styles.accordionHeader}>
-                <Text style={styles.accordionHeaderText}>
-                    {item.Retailer_Name} -{" "}
-                    <Text style={{ color: "#32cd32", fontWeight: "bold" }}>
+                <Text style={styles.retailerName} numberOfLines={1}>
+                    {item.Retailer_Name}
+                </Text>
+                <View style={styles.headerRight}>
+                    <Text style={styles.orderAmount}>
                         ₹{item.Total_Invoice_value}
                     </Text>
-                </Text>
+                </View>
             </View>
         );
     };
@@ -257,26 +225,23 @@ const OrderPreview = () => {
 
         return (
             <View style={styles.content}>
-                <View style={styles.invoiceContainer}>
-                    <View style={styles.invoiceHeader}>
-                        <Text style={styles.invoiceTitle}>Order Summary</Text>
-                        <Text style={styles.invoiceDate}>
-                            {" "}
-                            {new Date(item.So_Date).toLocaleDateString()}
-                        </Text>
-                    </View>
+                <View style={styles.invoiceHeader}>
+                    <Text style={styles.invoiceTitle}>Order #{item.So_Id}</Text>
+                    <Text style={styles.invoiceDate}>
+                        {new Date(item.So_Date).toLocaleDateString()}
+                    </Text>
                 </View>
 
                 <View style={styles.invoiceBody}>
-                    <View style={styles.invoiceRow}>
-                        {/* <Text style={styles.invoiceValue}>
-                            Total amount: ₹{item.Total_Invoice_value}
-                        </Text> */}
-                    </View>
-
                     <View style={styles.invoiceProducts}>
                         <View style={styles.productRowHeader}>
-                            <Text style={styles.invoiceCell}>Name</Text>
+                            <Text
+                                style={[
+                                    styles.invoiceCell,
+                                    styles.productNameCell,
+                                ]}>
+                                Product
+                            </Text>
                             <Text style={styles.invoiceCell}>Qty</Text>
                             <Text style={styles.invoiceCell}>Amount</Text>
                         </View>
@@ -285,9 +250,9 @@ const OrderPreview = () => {
                                 <Text
                                     style={[
                                         styles.invoiceCell,
-                                        { flex: 1, textAlign: "left" },
+                                        styles.productNameCell,
                                     ]}
-                                    numberOfLines={5}
+                                    numberOfLines={2}
                                     ellipsizeMode="tail">
                                     {product.Product_Name}
                                 </Text>
@@ -295,32 +260,29 @@ const OrderPreview = () => {
                                     {product.Bill_Qty}
                                 </Text>
                                 <Text style={styles.invoiceCell}>
-                                    ₹ {product.Amount}
+                                    ₹{product.Amount}
                                 </Text>
                             </View>
                         ))}
                     </View>
+                    <View style={styles.totalRow}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.totalValue}>
+                            ₹{item.Total_Invoice_value}
+                        </Text>
+                    </View>
                     <View style={styles.buttonContainer}>
                         {currentDate === orderDate && (
                             <TouchableOpacity
-                                style={styles.button}
+                                style={[styles.button, styles.editButton]}
                                 onPress={() => editOption(item)}>
                                 <Text style={styles.buttonText}>Edit</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity
-                            style={[
-                                styles.button,
-                                { backgroundColor: customColors.primary },
-                            ]}
+                            style={[styles.button, styles.shareButton]}
                             onPress={() => downloadItemPDF(item)}>
-                            <Text
-                                style={[
-                                    styles.buttonText,
-                                    { color: customColors.white },
-                                ]}>
-                                Share PDF
-                            </Text>
+                            <Text style={styles.buttonText}>Share</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -580,114 +542,120 @@ const OrderPreview = () => {
         });
     };
 
-    const handleSalesPersonChange = item => {
-        setSelectedSalesPerson(item);
+    const fetchVisitLog = async () => {
+        try {
+            const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
+            const userId = await AsyncStorage.getItem("UserId");
+            const formattedDate = new Date(selectedFromDate)
+                .toISOString()
+                .split("T")[0];
 
-        const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
-        const formattedToDate = selectedToDate.toISOString().split("T")[0];
+            const isAdminUser = ["0", "1", "2"].includes(storeUserTypeId);
+            const userIdParam = isAdminUser ? "" : userId;
 
-        // Check if "All" is selected
-        const salesPersonIdParam = item.value === "all" ? "" : item.value;
+            const url = `${API.visitedLog()}?reqDate=${formattedDate}&UserId=${userIdParam}`;
+            const response = await fetch(url, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
 
-        // Fetch Sale Order with the correct API parameters
-        fetchSaleOrder(
-            formattedFromDate,
-            formattedToDate,
-            companyId,
-            salesPersonIdParam,
-        );
+            const data = await response.json();
+            if (data.success) {
+                setVisitLogLength(data.data?.length || 0);
+            } else {
+                console.log("Failed to fetch logs:", data.message);
+                setVisitLogLength(0);
+            }
+        } catch (error) {
+            console.error("Error fetching logs:", error);
+            setVisitLogLength(0);
+        }
+    };
+
+    const totalVisitLogCount = visitLogLength + logData.length;
+    const totalQuantity = productSummary.reduce(
+        (sum, item) => sum + item.totalQty,
+        0,
+    );
+    const totalAmount = productSummary.reduce(
+        (sum, item) => sum + parseFloat(item.totalAmount),
+        0,
+    );
+
+    const fromDate = new Date(selectedFromDate)
+        .toLocaleDateString()
+        .split("T")[0];
+    const fromTime = new Date(selectedFromDate).toLocaleString("en-US", {
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
+    });
+
+    const handleSalesReportPress = () => {
+        navigation.navigate("SalesReport", {
+            logData,
+            productSummary,
+            selectedDate: selectedFromDate,
+        });
     };
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headersContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text
-                            style={styles.headersText}
-                            maxFontSizeMultiplier={1.2}>
-                            Sales Summary
-                        </Text>
+            <AppHeader
+                title="Order Summary"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="FeatherIcon"
+                rightIconName="arrow-up-right"
+                onRightPress={handleSalesReportPress}
+            />
 
-                        {isAdmin && (
-                            <View
-                                style={{
-                                    flex: 1,
-                                    alignItems: "flex-end",
-                                    justifyContent: "flex-end",
-                                }}>
-                                <EnhancedDropdown
-                                    data={salesPersonData}
-                                    labelField="label"
-                                    valueField="value"
-                                    // placeholder="Select Sales Person"
-                                    value={selectedSalesPerson}
-                                    onChange={item => {
-                                        setSelectedSalesPerson(item.value);
-                                        handleSalesPersonChange(item);
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="From Date"
+                        date={selectedFromDate}
+                        onDateChange={handleFromDateChange}
+                        containerStyle={{ width: "50%" }}
+                    />
+                    <DatePickerButton
+                        title="To Date"
+                        date={selectedToDate}
+                        onDateChange={handleToDateChange}
+                        containerStyle={{ width: "50%" }}
+                    />
+                </View>
 
-                                        const formattedFromDate =
-                                            selectedFromDate
-                                                .toISOString()
-                                                .split("T")[0];
-                                        const formattedToDate = selectedToDate
-                                            .toISOString()
-                                            .split("T")[0];
-
-                                        fetchSaleOrder(
-                                            formattedFromDate,
-                                            formattedToDate,
-                                            companyId,
-                                            item.value,
-                                        );
-                                    }}
-                                    // showIcon={true}              // Enable the icon
-                                    iconOnly={true}
-                                    iconName="filter" // Feather icon name
-                                    // iconSize={20}                // Icon size
-                                    // iconColor={customColors.white}
+                <View style={styles.countContainer}>
+                    <View style={styles.statsContainer}>
+                        <View style={styles.statItem}>
+                            <View style={styles.iconContainer}>
+                                <MaterialCommunityIcons
+                                    name="shopping"
+                                    size={24}
+                                    color={customColors.primary}
                                 />
                             </View>
-                        )}
-                    </View>
-
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            title="From Date"
-                            date={selectedFromDate}
-                            onDateChange={handleFromDateChange}
-                            containerStyle={{ width: "50%" }}
-                        />
-                        <DatePickerButton
-                            title="To Date"
-                            date={selectedToDate}
-                            onDateChange={handleToDateChange}
-                            // disabled={true}
-                            containerStyle={{ width: "50%" }}
-                            // style={{ backgroundColor: "rgba(0,0,0,0.1)" }}
-                        />
-                    </View>
-
-                    <View style={styles.countContainer}>
-                        <View style={styles.statsContainer}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statLabel}>Sales</Text>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statLabel}>Total Sales</Text>
                                 <Text style={styles.statValue}>
                                     {logData ? logData.length : "0"}
                                 </Text>
                             </View>
+                        </View>
 
-                            <View style={styles.statItem}>
-                                <Text style={styles.statLabel}>Amount</Text>
+                        <View style={styles.statDivider} />
+
+                        <View style={styles.statItem}>
+                            <View style={styles.iconContainer}>
+                                <MaterialCommunityIcons
+                                    name="currency-inr"
+                                    size={24}
+                                    color={customColors.success}
+                                />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statLabel}>Total Amount</Text>
                                 <Text style={styles.statValue}>
                                     {totalOrderAmount
                                         ? `₹${totalOrderAmount.toFixed(2)}`
@@ -695,41 +663,17 @@ const OrderPreview = () => {
                                 </Text>
                             </View>
                         </View>
-
-                        {isAdmin && selectedSalesPerson && (
-                            <Text style={{ color: "red", fontSize: 18 }}>
-                                {selectedSalesPerson.label}
-                            </Text>
-                        )}
-
-                        <TouchableOpacity onPress={() => setModalVisible(true)}>
-                            <FeatherIcon
-                                name="arrow-up-right"
-                                color={customColors.black}
-                                size={25}
-                            />
-                        </TouchableOpacity>
                     </View>
-
-                    <ScrollView style={styles.accordationScrollContainer}>
-                        <Accordion
-                            data={logData}
-                            renderHeader={renderHeader}
-                            renderContent={renderContent}
-                        />
-                    </ScrollView>
-
-                    <SalesReportModal
-                        visible={modalVisible}
-                        onClose={() => setModalVisible(false)}
-                        totalOrderAmount={totalOrderAmount}
-                        totalProductsSold={totalProductsSold}
-                        logData={logData}
-                        productSummary={productSummary}
-                        selectedDate={selectedFromDate.toISOString()}
-                    />
                 </View>
-            </ImageBackground>
+
+                <ScrollView style={styles.accordationScrollContainer}>
+                    <Accordion
+                        data={logData}
+                        renderHeader={renderHeader}
+                        renderContent={renderContent}
+                    />
+                </ScrollView>
+            </View>
         </View>
     );
 };
@@ -739,220 +683,193 @@ export default OrderPreview;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headersContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 20,
-    },
-    headersText: {
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+        width: "100%",
+        backgroundColor: customColors.white,
     },
     datePickerContainer: {
         flexDirection: "row",
-        marginHorizontal: 20,
+        marginHorizontal: spacing.md,
+        marginTop: spacing.md,
         justifyContent: "space-between",
-        gap: 10,
+        gap: spacing.sm,
     },
     countContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: customColors.secondary,
-        borderRadius: 5,
-        padding: 16,
-        marginHorizontal: 16,
-        marginVertical: 8,
+        marginHorizontal: spacing.md,
+        marginVertical: spacing.sm,
     },
     statsContainer: {
-        flex: 1,
         flexDirection: "row",
-        gap: 24,
+        backgroundColor: customColors.white,
+        borderRadius: 16,
+        padding: spacing.md,
+        ...shadows.medium,
     },
     statItem: {
-        flexDirection: "column",
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: spacing.sm,
+    },
+    iconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: customColors.grey50,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: spacing.sm,
+        ...shadows.small,
+    },
+    statContent: {
+        flex: 1,
     },
     statLabel: {
-        ...typography.h5(),
-        fontWeight: "700",
-        color: customColors.grey,
+        ...typography.caption(),
+        color: customColors.grey700,
+        marginBottom: spacing.xs,
     },
     statValue: {
-        ...typography.h6(),
-        textAlign: "center",
-        color: customColors.black,
-        fontWeight: "bold",
+        ...typography.h5(),
+        color: customColors.grey900,
+        fontWeight: "700",
     },
-
+    statDivider: {
+        width: 1,
+        backgroundColor: customColors.grey200,
+        marginHorizontal: spacing.sm,
+    },
     accordationScrollContainer: {
-        marginTop: 15,
+        marginTop: spacing.sm,
+        paddingHorizontal: spacing.sm,
     },
     accordionHeader: {
+        width: "70%",
         flexDirection: "row",
-        justifyContent: "space-between",
+        justifyContent: "flex-start",
         alignItems: "center",
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.white,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        backgroundColor: customColors.primary,
+        borderRadius: 8,
+        marginBottom: spacing.xs,
+        // ...shadows.small,
     },
-    accordionHeaderText: {
-        width: "90%",
-        flexWrap: "wrap",
-        textAlign: "left",
-        ...typography.h6(),
+    retailerName: {
+        ...typography.subtitle1(),
         color: customColors.white,
-        fontWeight: "500",
+        flex: 1,
+        marginRight: spacing.sm,
     },
-
+    headerRight: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    orderAmount: {
+        ...typography.subtitle1(),
+        color: customColors.white,
+    },
     content: {
-        margin: 10,
-        overflow: "hidden",
+        margin: spacing.xs,
         borderWidth: 1,
-        borderColor: customColors.grey,
-        borderRadius: 10,
-    },
-    invoiceContainer: {
-        paddingVertical: 5,
-        paddingHorizontal: 10,
+        borderColor: customColors.grey200,
+        borderRadius: 8,
+        backgroundColor: customColors.white,
     },
     invoiceHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        backgroundColor: customColors.grey50,
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
     },
     invoiceTitle: {
-        ...typography.h6(),
-        color: customColors.white,
-        fontWeight: "bold",
+        ...typography.subtitle2(),
+        color: customColors.grey900,
     },
     invoiceDate: {
-        ...typography.body1(),
-        color: customColors.white,
+        ...typography.body2(),
+        color: customColors.grey700,
     },
     invoiceBody: {
-        padding: 10,
-    },
-    invoiceRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    invoiceValue: {
-        ...typography.h6(),
-        color: customColors.white,
-        fontWeight: "700",
+        padding: spacing.sm,
     },
     invoiceProducts: {
-        marginTop: 10,
+        marginBottom: spacing.sm,
     },
     productRowHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
-        backgroundColor: customColors.secondary,
-        borderWidth: 1,
-        borderColor: customColors.secondary,
-        paddingVertical: 5,
-        paddingHorizontal: 10,
+        backgroundColor: customColors.grey50,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
     },
     invoiceCell: {
         flex: 1,
         textAlign: "center",
-        ...typography.body2(),
-        color: customColors.black,
-        fontWeight: "bold",
+        ...typography.caption(),
+    },
+    productNameCell: {
+        flex: 2,
+        flexWrap: "wrap",
+        textAlign: "left",
+        paddingRight: spacing.xs,
     },
     productRow: {
         flexDirection: "row",
         justifyContent: "space-between",
-        paddingVertical: 5,
-        borderWidth: 1,
-        borderColor: customColors.secondary,
-        padding: 10,
-        backgroundColor: customColors.white,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey100,
+    },
+    totalRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey200,
+    },
+    totalLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+    },
+    totalValue: {
+        ...typography.subtitle2(),
+        color: customColors.primary,
     },
     buttonContainer: {
         flexDirection: "row",
-        justifyContent: "space-between",
+        justifyContent: "flex-end",
+        gap: spacing.sm,
+        marginTop: spacing.sm,
     },
     button: {
-        backgroundColor: customColors.secondary,
-        alignItems: "center",
-        borderRadius: 5,
-        padding: 12,
-        marginTop: 10,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.md,
+        borderRadius: 6,
+        minWidth: 80,
+    },
+    editButton: {
+        backgroundColor: customColors.grey700,
+    },
+    shareButton: {
+        backgroundColor: customColors.primary,
     },
     buttonText: {
-        ...typography.h6(),
-        fontWeight: "700",
-    },
-
-    adminFilterContainer: {
-        paddingHorizontal: 15,
-        marginVertical: 10,
-    },
-    dropdownButton: {
-        backgroundColor: customColors.white,
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: customColors.primary,
-    },
-    dropdownButtonText: {
-        color: customColors.black,
-        textAlign: "center",
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
-    },
-    modalContent: {
-        backgroundColor: customColors.white,
-        margin: 20,
-        borderRadius: 10,
-        padding: 15,
-        maxHeight: "70%",
-    },
-    searchInput: {
-        borderWidth: 1,
-        borderColor: customColors.primary,
-        borderRadius: 8,
-        padding: 10,
-        marginBottom: 10,
-    },
-    dropdownItem: {
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGray,
-    },
-    dropdownItemText: {
-        color: customColors.black,
-    },
-    closeButton: {
-        marginTop: 10,
-        padding: 15,
-        backgroundColor: customColors.primary,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    closeButtonText: {
+        ...typography.caption(),
         color: customColors.white,
-        fontWeight: "bold",
-    },
-    noResultsText: {
         textAlign: "center",
-        color: customColors.accent,
-        padding: 15,
     },
 });

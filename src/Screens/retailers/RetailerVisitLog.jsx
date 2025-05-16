@@ -1,6 +1,5 @@
 import {
     Image,
-    ImageBackground,
     Linking,
     Modal,
     ScrollView,
@@ -8,21 +7,33 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Dimensions,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FeatherIcon from "react-native-vector-icons/Feather";
-import MaterialIconsIcon from "react-native-vector-icons/MaterialIcons";
-import { customColors, typography } from "../../Config/helper";
-import { API } from "../../Config/Endpoint";
-import assetImages from "../../Config/Image";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import {
+    customColors,
+    typography,
+    spacing,
+    shadows,
+    componentStyles,
+} from "../../Config/helper";
+import { visitEntryLog } from "../../Api/retailers";
 import DatePickerButton from "../../Components/DatePickerButton";
+import AppHeader from "../../Components/AppHeader";
+import { formatTime } from "../../Config/functions";
+
+const { width } = Dimensions.get("window");
 
 const RetailerVisitLog = () => {
     const navigation = useNavigation();
-    const [logData, setLogData] = useState(null);
+    const [userId, setUserId] = useState();
+
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [isImageModalVisible, setImageModalVisible] = useState(false);
     const [timeLineVisible, setTimeLineVisible] = useState(false);
@@ -30,39 +41,22 @@ const RetailerVisitLog = () => {
     const [expandedId, setExpandedId] = useState(null);
 
     useEffect(() => {
-        (async () => {
-            try {
-                const userId = await AsyncStorage.getItem("UserId");
-                fetchVisitersLog(
-                    selectedDate.toISOString().split("T")[0],
-                    userId,
-                );
-            } catch (err) {
-                console.log(err);
-            }
-        })();
-    }, [selectedDate]);
-
-    const fetchVisitersLog = async (fromDate, id) => {
-        try {
-            const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}`;
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+        AsyncStorage.getItem("UserId")
+            .then(uId => {
+                setUserId(uId);
+            })
+            .catch(err => {
+                console.error("Error reading UserId", err);
             });
-            const data = await response.json();
+    }, []);
 
-            if (data.success === true) {
-                setLogData(data.data);
-            } else {
-                console.log("Failed to fetch logs:", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching logs:", error);
-        }
-    };
+    const formattedDate = selectedDate.toISOString().split("T")[0];
+
+    const { data: logData = [] } = useQuery({
+        queryKey: ["logData", formattedDate, userId],
+        queryFn: () => visitEntryLog({ toDate: formattedDate, uId: userId }),
+        enabled: !!userId && !!formattedDate,
+    });
 
     const handleDateChange = (event, selectedDate) => {
         if (selectedDate) {
@@ -73,23 +67,6 @@ const RetailerVisitLog = () => {
     const handleImagePress = imageUrl => {
         setCurrentImage(imageUrl);
         setImageModalVisible(true);
-    };
-
-    const formatTime = dateString => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        });
-    };
-
-    const formatDate = date => {
-        return date.toLocaleDateString("en-US", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        });
     };
 
     const renderRetailerCard = (item, index) => {
@@ -123,7 +100,7 @@ const RetailerVisitLog = () => {
                             {formatTime(item.EntryAt)}
                         </Text>
                     </View>
-                    <MaterialIconsIcon
+                    <MaterialIcon
                         name={
                             expandedId === index
                                 ? "keyboard-arrow-up"
@@ -155,7 +132,7 @@ const RetailerVisitLog = () => {
 
                         <View style={styles.infoSection}>
                             <View style={styles.infoRow}>
-                                <MaterialIconsIcon
+                                <MaterialIcon
                                     name="phone"
                                     size={20}
                                     color={customColors.white}
@@ -174,7 +151,7 @@ const RetailerVisitLog = () => {
                             </View>
 
                             <View style={styles.infoRow}>
-                                <MaterialIconsIcon
+                                <MaterialIcon
                                     name="location-on"
                                     size={20}
                                     color={customColors.white}
@@ -186,7 +163,7 @@ const RetailerVisitLog = () => {
 
                             {item.Narration && (
                                 <View style={styles.narrationContainer}>
-                                    <MaterialIconsIcon
+                                    <MaterialIcon
                                         name="notes"
                                         size={20}
                                         color={customColors.white}
@@ -214,7 +191,7 @@ const RetailerVisitLog = () => {
                             <TouchableOpacity
                                 style={styles.mapButton}
                                 onPress={() => Linking.openURL(googleMapsUrl)}>
-                                <MaterialIconsIcon
+                                <MaterialIcon
                                     name="map"
                                     size={20}
                                     color={customColors.white}
@@ -232,68 +209,47 @@ const RetailerVisitLog = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headersContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIconsIcon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text
-                            style={styles.headersText}
-                            maxFontSizeMultiplier={1.2}>
-                            Retailers Log
+            <AppHeader
+                title="Log Entries"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="add"
+                onRightPress={() => navigation.navigate("RetailerVisit")}
+            />
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="Pick a Date"
+                        date={selectedDate}
+                        onDateChange={handleDateChange}
+                        containerStyle={styles.datePickerButton}
+                    />
+                    <View style={styles.countContainer}>
+                        <Text style={styles.countText}>
+                            {logData ? (
+                                <Text style={styles.countText}>
+                                    Total: {logData.length}
+                                </Text>
+                            ) : (
+                                <Text style={styles.countText}>
+                                    No logs available
+                                </Text>
+                            )}
                         </Text>
-                        <TouchableOpacity
-                            onPress={() =>
-                                navigation.navigate("RetailerVisit")
-                            }>
-                            <MaterialIconsIcon
-                                name="add"
-                                size={24}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
                     </View>
-
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            title="Pick a Date"
-                            date={selectedDate}
-                            onDateChange={handleDateChange}
-                            containerStyle={styles.datePickerButton}
-                        />
-                        <View style={styles.countContainer}>
-                            <Text style={styles.countText}>
-                                {logData ? (
-                                    <Text style={styles.countText}>
-                                        Total: {logData.length}
-                                    </Text>
-                                ) : (
-                                    <Text style={styles.countText}>
-                                        No logs available
-                                    </Text>
-                                )}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <ScrollView
-                        style={styles.scrollContainer}
-                        showsVerticalScrollIndicator={false}>
-                        {logData?.map((item, index) => (
-                            <View key={index} style={styles.cardWrapper}>
-                                {renderRetailerCard(item, index)}
-                            </View>
-                        ))}
-                    </ScrollView>
                 </View>
-            </ImageBackground>
+
+                <ScrollView
+                    style={styles.scrollContainer}
+                    showsVerticalScrollIndicator={false}>
+                    {logData?.map((item, index) => (
+                        <View key={index} style={styles.cardWrapper}>
+                            {renderRetailerCard(item, index)}
+                        </View>
+                    ))}
+                </ScrollView>
+            </View>
 
             <Modal
                 animationType="slide"
@@ -326,25 +282,19 @@ const RetailerVisitLog = () => {
                 transparent={true}
                 visible={isImageModalVisible}
                 onRequestClose={() => setImageModalVisible(false)}>
-                <View
-                    style={{
-                        flex: 1,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: "rgba(0, 0, 0, 0.8)",
-                    }}>
+                <View style={styles.modalContainer}>
                     <TouchableOpacity
                         onPress={() => setImageModalVisible(false)}
-                        style={{ position: "absolute", top: 40, right: 20 }}>
-                        <Icon name="close" size={30} color="#fff" />
+                        style={styles.closeButton}>
+                        <Icon
+                            name="close"
+                            size={20}
+                            color={customColors.white}
+                        />
                     </TouchableOpacity>
                     <Image
                         source={{ uri: currentImage }}
-                        style={{
-                            width: "90%",
-                            height: "80%",
-                            resizeMode: "contain",
-                        }}
+                        style={styles.modalImage}
                     />
                 </View>
             </Modal>
@@ -352,188 +302,180 @@ const RetailerVisitLog = () => {
     );
 };
 
-export default RetailerVisitLog;
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: customColors.background,
     },
-    backgroundImage: {
+    contentContainer: {
         flex: 1,
-        width: "100%",
+        padding: spacing.md,
         backgroundColor: customColors.background,
-        // justifyContent: "center",
-    },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headersContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-        width: "100%",
-    },
-    headersText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
-    cardContainer: {
-        flex: 1,
-        padding: 15,
     },
     datePickerContainer: {
         flexDirection: "row",
+        justifyContent: "space-between",
         alignItems: "center",
-        width: "100%",
-        paddingHorizontal: 10,
+        marginBottom: spacing.lg,
+        backgroundColor: customColors.primaryLight,
+        padding: spacing.md,
+        borderRadius: 12,
+        ...shadows.small,
     },
     datePickerButton: {
         flex: 1,
-        margin: 15,
+        marginRight: spacing.md,
     },
     countContainer: {
-        justifyContent: "center",
-        padding: 10,
-        marginTop: 30,
-        marginRight: 25,
-        backgroundColor: customColors.secondary,
-        borderRadius: 5,
+        backgroundColor: customColors.primary,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: 8,
+        ...shadows.small,
     },
     countText: {
-        flexWrap: "wrap",
-        textAlign: "center",
-        ...typography.h6(),
-        fontWeight: "bold",
-        color: customColors.primary,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.primary,
-    },
-    headerText: {
-        width: "90%",
-        flexWrap: "wrap",
-        textAlign: "left",
-        ...typography.h6(),
+        ...typography.subtitle2(),
         color: customColors.white,
-        fontWeight: "500",
+        fontWeight: "600",
     },
     scrollContainer: {
         flex: 1,
-        width: "100%",
-        paddingHorizontal: 10,
+        backgroundColor: customColors.background,
+    },
+    cardWrapper: {
+        marginBottom: spacing.md,
     },
     card: {
-        backgroundColor: customColors.primary,
-        borderBottomLeftRadius: 15,
-        borderBottomRightRadius: 15,
-        marginVertical: 5,
-        width: "100%",
+        backgroundColor: customColors.white,
+        borderRadius: 16,
+        overflow: "hidden",
+        ...shadows.medium,
     },
     cardHeader: {
         flexDirection: "row",
-        alignItems: "center",
         justifyContent: "space-between",
-        padding: 16,
+        alignItems: "center",
+        padding: spacing.md,
+        backgroundColor: customColors.primary,
     },
     headerContent: {
-        // flex: 1,
-        marginRight: 12,
+        flex: 1,
+        marginRight: spacing.sm,
     },
     retailerName: {
         ...typography.h6(),
         color: customColors.white,
         fontWeight: "600",
+        marginBottom: spacing.xs,
     },
     timestamp: {
-        ...typography.body1(),
-        color: "rgba(255, 255, 255, 0.7)",
-        marginTop: 2,
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.8,
     },
     cardContent: {
-        padding: 16,
-        borderTopWidth: 1,
-        borderTopColor: "rgba(255, 255, 255, 0.1)",
-        width: "100%",
+        padding: spacing.md,
+        backgroundColor: customColors.primaryLight,
     },
     statusBadge: {
-        marginBottom: 16,
+        backgroundColor: customColors.grey100,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: 6,
+        alignSelf: "flex-start",
+        marginBottom: spacing.md,
     },
     statusText: {
-        ...typography.h6(),
+        ...typography.caption(),
         fontWeight: "500",
     },
     infoSection: {
-        gap: 16,
+        marginBottom: spacing.md,
     },
     infoRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        marginBottom: spacing.sm,
     },
     phoneButton: {
-        flex: 1,
+        marginLeft: spacing.sm,
     },
     phoneText: {
-        color: "#64B5F6",
-        ...typography.h6(),
-        fontWeight: "500",
+        ...typography.body2(),
+        color: customColors.primary,
+        textDecorationLine: "underline",
     },
     infoText: {
+        ...typography.body2(),
+        color: customColors.grey900,
+        marginLeft: spacing.sm,
         flex: 1,
-        color: customColors.white,
-        ...typography.h6,
-        flexWrap: "wrap",
     },
     narrationContainer: {
         flexDirection: "row",
-        gap: 12,
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        padding: 12,
+        alignItems: "flex-start",
+        marginTop: spacing.sm,
+        backgroundColor: customColors.grey100,
+        padding: spacing.sm,
         borderRadius: 8,
     },
     narrationText: {
+        ...typography.body2(),
+        color: customColors.grey900,
+        marginLeft: spacing.sm,
         flex: 1,
-        color: customColors.white,
-        ...typography.h6,
-        lineHeight: 22,
-        flexWrap: "wrap",
     },
     imageContainer: {
-        width: "100%",
-        aspectRatio: 1,
-        maxWidth: 200,
-        maxHeight: 200,
-        marginTop: 10,
-        alignSelf: "center",
+        marginTop: spacing.md,
+        borderRadius: 12,
+        overflow: "hidden",
+        backgroundColor: customColors.grey100,
+        ...shadows.small,
     },
     cardImage: {
         width: "100%",
-        height: "100%",
-        borderRadius: 5,
+        height: 200,
+        borderRadius: 12,
     },
     mapButton: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        padding: 12,
+        backgroundColor: customColors.primary,
+        padding: spacing.sm,
         borderRadius: 8,
-        marginTop: 16,
-        gap: 8,
+        marginTop: spacing.md,
+        ...shadows.small,
     },
     mapButtonText: {
-        ...typography.h6(),
+        ...typography.button(),
         color: customColors.white,
-        fontWeight: "500",
+        marginLeft: spacing.xs,
+    },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.9)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modalImage: {
+        width: width * 0.9,
+        height: width * 0.9,
+        borderRadius: 16,
+        ...shadows.large,
+    },
+    closeButton: {
+        position: "absolute",
+        top: spacing.xl,
+        right: spacing.xl,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        borderRadius: 25,
+        width: 40,
+        height: 40,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.medium,
     },
 });
+
+export default RetailerVisitLog;

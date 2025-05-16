@@ -1,7 +1,6 @@
 import {
     Alert,
     Image,
-    ImageBackground,
     Modal,
     ScrollView,
     StyleSheet,
@@ -13,21 +12,21 @@ import {
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import PagerView from "react-native-pager-view";
+import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Dropdown } from "react-native-element-dropdown";
 import Icon from "react-native-vector-icons/AntDesign";
-import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
-import assetImages from "../../Config/Image";
+import { API } from "../../Config/Endpoint";
+import { fetchProducts } from "../../Api/product";
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import FormField from "../../Components/FormField";
 
 const EditSaleOrder = ({ route }) => {
     const navigation = useNavigation();
-    const pagerRef = useRef(null);
     const { item } = route.params;
+    console.log("item", item);
 
-    const [selectedTab, setSelectedTab] = useState(0);
-    const [productData, setProductData] = useState([]);
     const initialStockValue = {
         So_Id: item.So_Id,
         Company_Id: item.Company_Id,
@@ -41,16 +40,15 @@ const EditSaleOrder = ({ route }) => {
         Product_Array: item.Products_List,
         Sales_Person_Id: item.Sales_Person_Id,
     };
+    const [uID, setUID] = useState();
     const [stockInputValue, setStockInputValue] = useState(initialStockValue);
     const [quantities, setQuantities] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [total, setTotal] = useState(0);
 
-    const [dropdownData, setDropdownData] = useState([]);
-    const [selectedProductGroup, setSelectedProductGroup] = useState(
-        dropdownData[0]?.Pack_Id || 0,
-    );
-    const [filteredProductData, setFilteredProductData] = useState([]);
+    const [selectedBrand, setSelectedBrand] = useState(null);
+    const [selectedProductGroup, setSelectedProductGroup] = useState(null);
+    const [filteredProducts, setFilteredProducts] = useState([]);
 
     const [isImageModalVisible, setImageModalVisible] = useState(false);
     const [currentImage, setCurrentImage] = useState(null);
@@ -58,90 +56,75 @@ const EditSaleOrder = ({ route }) => {
     useEffect(() => {
         const initialize = async () => {
             try {
-                const companyId = await AsyncStorage.getItem("Company_Id");
+                const userId = await AsyncStorage.getItem("UserId");
+                setUID(userId);
 
-                fetchGroupedproducts(companyId);
-                fetchproductPacks(companyId);
-
-                setQuantities(
-                    item.Products_List.map(product => ({
-                        Item_Id: product.Item_Id,
+                if (item.Products_List && item.Products_List.length > 0) {
+                    const initialQuantities = item.Products_List.map(product => ({
+                        Item_Id: product.Item_Id.toString(),
                         Bill_Qty: product.Bill_Qty.toString(),
                         Item_Rate: product.Item_Rate.toString(),
-                    })),
-                );
+                        Amount: product.Amount,
+                    }));
+                    setQuantities(initialQuantities);
+
+                    const initialTotal = initialQuantities.reduce((sum, product) => {
+                        return sum + (parseFloat(product.Amount) || 0);
+                    }, 0);
+                    setTotal(initialTotal);
+                }
             } catch (err) {
                 console.log(err);
             }
         };
 
         initialize();
-    }, []);
+    }, [item.Products_List]);
 
-    const fetchGroupedproducts = async id => {
-        fetch(`${API.groupedProducts()}${id}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    setProductData(data.data);
-                    filterProductDataByPack(0, data.data);
-                }
-            })
-            .catch(e => console.error(e));
-    };
-
-    const fetchproductPacks = async id => {
-        try {
-            const url = `${API.productPacks()}${id}`;
-            const response = await fetch(url);
-            const jsonData = await response.json();
-
-            if (jsonData.success) {
-                const dropdownOptions = [
-                    { Pack: "All", Pack_Id: 0 },
-                    ...jsonData.data.filter(pack => pack.Pack_Id !== 0),
-                ];
-                setDropdownData(dropdownOptions);
-                const initialPackId = dropdownOptions[0]?.Pack_Id || 0;
-                setSelectedProductGroup(initialPackId);
-                filterProductDataByPack(initialPackId, productData);
-            }
-        } catch (err) {
-            console.error("Error fetching data:", err);
-        }
-    };
-
-    const filterProductDataByPack = (packId, data) => {
-        const filteredData = (data || productData)
-            .map(group => {
-                const filteredGroup = {
-                    ...group,
-                    GroupedProductArray: group.GroupedProductArray.filter(
-                        product => product.Pack_Id === packId || packId === 0,
-                    ),
+    const {
+        data: productQueryData = {
+            productData: [],
+            brandData: [],
+            productGroupData: [],
+        },
+    } = useQuery({
+        queryKey: ["product", uID],
+        queryFn: () => fetchProducts(uID),
+        enabled: !!uID,
+        select: data => {
+            if (!data)
+                return {
+                    productData: [],
+                    brandData: [],
+                    productGroupData: [],
                 };
-                return filteredGroup.GroupedProductArray.length
-                    ? filteredGroup
-                    : null;
-            })
-            .filter(group => group !== null);
+            const brands = Array.from(
+                new Set(data.map(item => item.Brand_Name)),
+            )
+                .filter(brand => brand)
+                .sort()
+                .map(brand => ({
+                    label: brand,
+                    value: brand,
+                }));
 
-        // console.log("Filtered Data:", JSON.stringify(filteredData, null, 2)); // Debug log
-        setFilteredProductData(filteredData);
-    };
+            const productGroups = Array.from(
+                new Set(data.map(item => item.Pro_Group)),
+            )
+                .filter(group => group)
+                .sort()
+                .map(group => ({
+                    label: group,
+                    value: group,
+                }));
 
-    const handlePackSelection = packId => {
-        filterProductDataByPack(packId);
-    };
-
-    const handleTabPress = index => {
-        setSelectedTab(index);
-        pagerRef.current.setPage(index);
-    };
-
-    const onPageSelected = e => {
-        setSelectedTab(e.nativeEvent.position);
-    };
+            return {
+                productData: data || [],
+                brandData: brands,
+                productGroupData: productGroups,
+            };
+        },
+    });
 
     const handleQuantityChange = (productId, value, rate) => {
         const updatedQuantities = [...quantities];
@@ -151,7 +134,6 @@ const EditSaleOrder = ({ route }) => {
 
         if (productIndex !== -1) {
             updatedQuantities[productIndex].Bill_Qty = value;
-            // Only update rate if it's provided and not empty
             if (rate) {
                 updatedQuantities[productIndex].Item_Rate = rate;
             }
@@ -185,92 +167,34 @@ const EditSaleOrder = ({ route }) => {
         setQuantities(updatedQuantities);
     };
 
-    function numberToWords(num) {
-        const under20 = [
-            "zero",
-            "one",
-            "two",
-            "three",
-            "four",
-            "five",
-            "six",
-            "seven",
-            "eight",
-            "nine",
-            "ten",
-            "eleven",
-            "twelve",
-            "thirteen",
-            "fourteen",
-            "fifteen",
-            "sixteen",
-            "seventeen",
-            "eighteen",
-            "nineteen",
-        ];
-        const tens = [
-            "",
-            "",
-            "twenty",
-            "thirty",
-            "forty",
-            "fifty",
-            "sixty",
-            "seventy",
-            "eighty",
-            "ninety",
-        ];
-        const thousand = ["thousand", "million", "billion"];
-
-        if (num < 20) return under20[num];
-        if (num < 100)
-            return (
-                tens[Math.floor(num / 10)] +
-                (num % 10 === 0 ? "" : " " + under20[num % 10])
-            );
-        if (num < 1000)
-            return (
-                under20[Math.floor(num / 100)] +
-                " hundred" +
-                (num % 100 === 0 ? "" : " " + numberToWords(num % 100))
-            );
-
-        for (let i = 0; i < thousand.length; i++) {
-            let decimal = Math.pow(1000, i + 1);
-            if (num < decimal) {
-                return (
-                    numberToWords(Math.floor(num / Math.pow(1000, i))) +
-                    " " +
-                    thousand[i - 1] +
-                    (num % Math.pow(1000, i) === 0
-                        ? ""
-                        : " " + numberToWords(num % Math.pow(1000, i)))
-                );
-            }
-        }
-        return num;
-    }
-
     useEffect(() => {
         let newTotal = 0;
-        productData.forEach(group => {
-            group.GroupedProductArray.forEach(product => {
-                const quantityObj = quantities.find(
-                    item => item.Item_Id === product.Product_Id,
-                );
-                if (quantityObj && quantityObj.Bill_Qty > 0) {
-                    const qty = parseFloat(quantityObj.Bill_Qty);
-                    const rate = parseFloat(quantityObj.Item_Rate) || 0;
-                    newTotal += qty * rate;
-                }
-            });
+        quantities.forEach(item => {
+            const qty = parseFloat(item.Bill_Qty) || 0;
+            const rate = parseFloat(item.Item_Rate) || 0;
+            newTotal += qty * rate;
         });
         setTotal(isNaN(newTotal) ? 0 : newTotal);
-    }, [quantities, productData]);
+    }, [quantities]);
 
     const handlePreview = () => {
         setModalVisible(true);
     };
+
+    useEffect(() => {
+        if (productQueryData?.productData) {
+            setFilteredProducts(
+                productQueryData.productData.filter(product => {
+                    const matchesBrand =
+                        !selectedBrand || product.Brand_Name === selectedBrand;
+                    const matchesGroup =
+                        !selectedProductGroup ||
+                        product.Pro_Group === selectedProductGroup;
+                    return matchesBrand && matchesGroup;
+                }),
+            );
+        }
+    }, [selectedBrand, selectedProductGroup, productQueryData?.productData]);
 
     const handleVisitLog = async () => {
         const formData = new FormData();
@@ -359,423 +283,279 @@ const EditSaleOrder = ({ route }) => {
         }
     };
 
-    const handleImagePress = imageUrl => {
+    function handleImagePress(imageUrl) {
         setCurrentImage(imageUrl);
         setImageModalVisible(true);
-    };
+    }
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Image source={assetImages.backArrow} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
-                        Sale Order
-                    </Text>
-                    <TouchableOpacity onPress={handlePreview}>
-                        <Text
-                            style={{
-                                textAlign: "center",
-                                ...typography.body1(),
-                                color: customColors.white,
-                            }}>
-                            PREVIEW
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
+            <AppHeader
+                title="Edit Order"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconName="update"
+                rightIconLibrary="MaterialCommunityIcons"
+                onRightPress={handlePreview}
+            />
+            <View style={styles.backgroundImage}>
                 <View style={styles.contentContainer}>
-                    <Text>{item.Retailer_Name}</Text>
+                    <Text style={styles.retailerName}>
+                        {item.Retailer_Name}
+                    </Text>
 
-                    <Dropdown
-                        data={dropdownData}
-                        labelField="Pack"
-                        valueField="Pack_Id"
-                        placeholder="Select Pack"
-                        value={selectedProductGroup}
-                        onChange={item => {
-                            setSelectedProductGroup(item.Pack_Id);
-                            handlePackSelection(item.Pack_Id);
-                        }}
-                        maxHeight={300}
-                        style={styles.dropdown}
-                        containerStyle={styles.dropdownContainer}
-                        placeholderStyle={styles.placeholderStyle}
-                        selectedTextStyle={styles.selectedTextStyle}
-                    />
+                    <View style={styles.dropdownsContainer}>
+                        <EnhancedDropdown
+                            data={productQueryData.brandData}
+                            labelField="label"
+                            valueField="value"
+                            placeholder="Select Brand"
+                            value={selectedBrand}
+                            onChange={item => {
+                                setSelectedBrand(item.value);
+                            }}
+                            containerStyle={styles.dropdown}
+                        />
 
-                    <View style={{}}>
-                        <ScrollView
-                            horizontal
-                            contentContainerStyle={styles.tabContainer}
-                            showsHorizontalScrollIndicator={true}>
-                            {filteredProductData.map((item, index) => (
-                                <TouchableOpacity
-                                    key={index}
-                                    style={[
-                                        styles.tabButton,
-                                        selectedTab === index &&
-                                            styles.activeTab,
-                                    ]}
-                                    onPress={() => handleTabPress(index)}>
-                                    <Text
-                                        style={{
-                                            ...typography.h6(),
-                                            fontWeight: "bold",
-                                        }}>
-                                        {item.Pro_Group}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                        <ScrollView style={{}}>
-                            <PagerView
-                                style={{
-                                    flex: 1,
-                                    marginTop: 10,
-                                    paddingBottom: 300,
-                                }}
-                                initialPage={selectedTab}
-                                ref={pagerRef}
-                                onPageSelected={onPageSelected}>
-                                {filteredProductData.map(
-                                    (group, groupIndex) => (
-                                        <View key={groupIndex}>
-                                            {group.GroupedProductArray.map(
-                                                (product, pIndex) => (
-                                                    <View
-                                                        key={pIndex}
-                                                        style={
-                                                            styles.pagerViewContainer
-                                                        }>
-                                                        <View
-                                                            style={{
-                                                                flexDirection:
-                                                                    "row",
-                                                            }}>
-                                                            <TouchableOpacity
-                                                                style={{
-                                                                    width: "50%",
-                                                                    height: 100,
-                                                                    aspectRatio: 1,
-                                                                }}
-                                                                onPress={() =>
-                                                                    handleImagePress(
-                                                                        product.productImageUrl,
-                                                                    )
-                                                                }>
-                                                                <Image
-                                                                    style={{
-                                                                        width: "100%",
-                                                                        height: "100%",
-                                                                        borderRadius: 8,
-                                                                        marginRight: 10,
-                                                                        resizeMode:
-                                                                            "contain",
-                                                                    }}
-                                                                    source={{
-                                                                        uri: product.productImageUrl,
-                                                                    }}
-                                                                />
-                                                            </TouchableOpacity>
-                                                            <View
-                                                                style={
-                                                                    styles.card
-                                                                }>
-                                                                <Text
-                                                                    style={
-                                                                        styles.pagerViewContainerText
-                                                                    }>
-                                                                    {
-                                                                        product.Product_Name
-                                                                    }
-                                                                </Text>
-                                                                <Text
-                                                                    style={
-                                                                        styles.pagerViewContainerSubText
-                                                                    }>
-                                                                    {
-                                                                        product.UOM
-                                                                    }
-                                                                </Text>
-                                                                <TextInput
-                                                                    style={
-                                                                        styles.pagerViewContainerInputText
-                                                                    }
-                                                                    onChangeText={text =>
-                                                                        handleQuantityChange(
-                                                                            product.Product_Id,
-                                                                            text,
-                                                                            product.Item_Rate,
-                                                                        )
-                                                                    }
-                                                                    value={
-                                                                        quantities.find(
-                                                                            item =>
-                                                                                item.Item_Id ===
-                                                                                product.Product_Id,
-                                                                        )
-                                                                            ?.Bill_Qty ||
-                                                                        ""
-                                                                    }
-                                                                    placeholder="Quantity"
-                                                                    keyboardType="number-pad"
-                                                                />
-                                                                <TextInput
-                                                                    style={
-                                                                        styles.pagerViewContainerInputText
-                                                                    }
-                                                                    onChangeText={text =>
-                                                                        handleRateChange(
-                                                                            product.Product_Id,
-                                                                            text,
-                                                                            quantities.find(
-                                                                                item =>
-                                                                                    item.Item_Id ===
-                                                                                    product.Product_Id,
-                                                                            )
-                                                                                ?.Bill_Qty ||
-                                                                                "",
-                                                                        )
-                                                                    }
-                                                                    value={
-                                                                        quantities.find(
-                                                                            item =>
-                                                                                item.Item_Id ===
-                                                                                product.Product_Id,
-                                                                        )
-                                                                            ?.Item_Rate ||
-                                                                        ""
-                                                                    }
-                                                                    placeholder="Rate"
-                                                                    keyboardType="number-pad"
-                                                                />
-                                                            </View>
-                                                        </View>
-                                                    </View>
-                                                ),
-                                            )}
-                                        </View>
-                                    ),
-                                )}
-                            </PagerView>
-                        </ScrollView>
+                        <EnhancedDropdown
+                            data={productQueryData.productGroupData}
+                            labelField="label"
+                            valueField="value"
+                            placeholder="Select Product Group"
+                            value={selectedProductGroup}
+                            onChange={item => {
+                                setSelectedProductGroup(item.value);
+                            }}
+                            containerStyle={styles.dropdown}
+                        />
+                    </View>
 
-                        <Modal
-                            animationType="slide"
-                            transparent={true}
-                            visible={modalVisible}
-                            onRequestClose={() => {
-                                setModalVisible(!modalVisible);
-                            }}>
-                            <View style={styles.modalOverlay}>
-                                <View style={styles.modalContent}>
-                                    <Text style={styles.modalTitle}>
-                                        Order Summary
-                                    </Text>
-                                    <Text>{stockInputValue.Retailer_Name}</Text>
-                                    <ScrollView style={styles.tableContainer}>
-                                        <View style={styles.tableHeader}>
-                                            <Text
-                                                style={
-                                                    styles.headerModalTexts
-                                                }></Text>
-                                            <Text
-                                                style={styles.headerModalTexts}>
-                                                Qty
-                                            </Text>
-                                            <Text
-                                                style={styles.headerModalTexts}>
-                                                Rate
-                                            </Text>
-                                            <Text
-                                                style={styles.headerModalTexts}>
-                                                Amount
-                                            </Text>
-                                        </View>
-                                        {productData.map((group, groupIndex) =>
-                                            group.GroupedProductArray.map(
-                                                (product, pIndex) => {
-                                                    const truncate = (
-                                                        str,
-                                                        maxLength,
-                                                    ) => {
-                                                        return str.length >
-                                                            maxLength
-                                                            ? str.substring(
-                                                                  0,
-                                                                  maxLength - 3,
-                                                              ) + "..."
-                                                            : str;
-                                                    };
-
-                                                    const quantityObj =
-                                                        quantities.find(
-                                                            item =>
-                                                                item.Item_Id ===
-                                                                product.Product_Id,
-                                                        );
-                                                    if (
-                                                        quantityObj &&
-                                                        quantityObj.Bill_Qty > 0
-                                                    ) {
-                                                        // console.log(product.Product_Name)
-                                                        const qty =
-                                                            quantityObj.Bill_Qty;
-                                                        const rate =
-                                                            quantityObj.Item_Rate ||
-                                                            0;
-                                                        const amount =
-                                                            qty * rate;
-                                                        return (
-                                                            <View
-                                                                key={pIndex}
-                                                                style={
-                                                                    styles.tableRow
-                                                                }>
-                                                                <View>
-                                                                    <Image
-                                                                        style={{
-                                                                            width: 50,
-                                                                            height: 50,
-                                                                            flex: 1,
-                                                                        }}
-                                                                        source={{
-                                                                            uri: product.productImageUrl,
-                                                                        }}
-                                                                    />
-                                                                    <Text
-                                                                        numberOfLines={
-                                                                            3
-                                                                        }
-                                                                        ellipsizeMode="tail"
-                                                                        style={{
-                                                                            width: 90,
-                                                                        }}>
-                                                                        {truncate(
-                                                                            product.Product_Name,
-                                                                            20,
-                                                                        )}
-                                                                    </Text>
-                                                                </View>
-
-                                                                <Text
-                                                                    style={
-                                                                        styles.rowText
-                                                                    }>
-                                                                    {qty}
-                                                                </Text>
-                                                                {/* <Text style={styles.rowText}>{product.UOM}</Text> */}
-                                                                <Text
-                                                                    style={
-                                                                        styles.rowText
-                                                                    }>
-                                                                    {rate}
-                                                                </Text>
-                                                                <Text
-                                                                    style={
-                                                                        styles.rowText
-                                                                    }>
-                                                                    {amount.toFixed(
-                                                                        2,
-                                                                    )}
-                                                                </Text>
-                                                            </View>
-                                                        );
-                                                    }
-                                                },
-                                            ),
-                                        )}
-                                    </ScrollView>
-                                    <View style={styles.totalContainer}>
-                                        <Text style={styles.totalText}>
-                                            Total Amount: ₹{total.toFixed(2)}/-
-                                        </Text>
-                                        <Text style={styles.totalText}>
-                                            In Words: {numberToWords(total)}{" "}
-                                            only.
-                                        </Text>
-                                    </View>
-                                    <TextInput
-                                        maxFontSizeMultiplier={1.2}
-                                        style={
-                                            styles.narrationContainerInputText
-                                        }
-                                        placeholder="Narration"
-                                        onChangeText={text =>
-                                            setStockInputValue({
-                                                ...stockInputValue,
-                                                Narration: text,
-                                            })
-                                        }
-                                    />
-                                    <View
-                                        style={{
-                                            flexDirection: "row",
-                                            justifyContent: "space-around",
-                                            marginVertical: 15,
-                                        }}>
+                    <ScrollView style={styles.productsContainer}>
+                        {filteredProducts.map((product, index) => {
+                            const existingQuantity = quantities.find(
+                                q => q.Item_Id === product.Product_Id.toString()
+                            );
+                            return (
+                                <View key={index} style={styles.productCard}>
+                                    <View style={styles.productRow}>
                                         <TouchableOpacity
-                                            style={styles.closeButton}
-                                            onPress={handleSubmit}>
-                                            <Text
-                                                style={styles.closeButtonText}>
-                                                Submit
-                                            </Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.closeButton}
+                                            style={styles.productImage}
                                             onPress={() =>
-                                                setModalVisible(!modalVisible)
+                                                handleImagePress(
+                                                    product.productImageUrl,
+                                                )
                                             }>
-                                            <Text
-                                                style={styles.closeButtonText}>
-                                                Close
-                                            </Text>
+                                            <Image
+                                                style={styles.image}
+                                                source={{
+                                                    uri: product.productImageUrl,
+                                                }}
+                                            />
                                         </TouchableOpacity>
+                                        <View style={styles.productDetails}>
+                                            <Text style={styles.productName}>
+                                                {product.Product_Name}
+                                            </Text>
+                                            <Text style={styles.productSubText}>
+                                                {product.Units || "N/A"}
+                                            </Text>
+                                            <FormField
+                                                value={existingQuantity?.Bill_Qty || ""}
+                                                onChangeText={text =>
+                                                    handleQuantityChange(
+                                                        product.Product_Id,
+                                                        text,
+                                                        existingQuantity?.Item_Rate || product.Item_Rate,
+                                                    )
+                                                }
+                                                placeholder="Quantity"
+                                                numbersOnly={true}
+                                            />
+                                            <FormField
+                                                value={existingQuantity?.Item_Rate || product.Item_Rate.toString()}
+                                                onChangeText={text =>
+                                                    handleRateChange(
+                                                        product.Product_Id,
+                                                        text,
+                                                    )
+                                                }
+                                                placeholder="Rate"
+                                                numbersOnly={true}
+                                            />
+                                        </View>
                                     </View>
                                 </View>
-                            </View>
-                        </Modal>
+                            );
+                        })}
+                    </ScrollView>
 
-                        <Modal
-                            animationType="slide"
-                            transparent={true}
-                            visible={isImageModalVisible}
-                            onRequestClose={() => setImageModalVisible(false)}>
-                            <View
-                                style={{
-                                    flex: 1,
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                }}>
-                                <TouchableOpacity
-                                    onPress={() => setImageModalVisible(false)}
-                                    style={{
-                                        position: "absolute",
-                                        top: 40,
-                                        right: 20,
-                                    }}>
-                                    <Icon name="close" size={30} color="#fff" />
-                                </TouchableOpacity>
-                                <Image
-                                    source={{ uri: currentImage }}
-                                    style={{
-                                        width: "90%",
-                                        height: "80%",
-                                        resizeMode: "contain",
-                                    }}
+                    <Modal
+                        animationType="slide"
+                        transparent={true}
+                        visible={modalVisible}
+                        onRequestClose={() => {
+                            setModalVisible(!modalVisible);
+                        }}>
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalContent}>
+                                <Text style={styles.modalTitle}>
+                                    Order Summary
+                                </Text>
+                                <Text>{stockInputValue.Retailer_Name}</Text>
+                                <ScrollView style={styles.tableContainer}>
+                                    <View style={styles.tableHeader}>
+                                        <Text
+                                            style={
+                                                styles.headerModalTexts
+                                            }></Text>
+                                        <Text style={styles.headerModalTexts}>
+                                            Qty
+                                        </Text>
+                                        <Text style={styles.headerModalTexts}>
+                                            Rate
+                                        </Text>
+                                        <Text style={styles.headerModalTexts}>
+                                            Amount
+                                        </Text>
+                                    </View>
+                                    {filteredProducts.map((product, index) => {
+                                        const quantityObj = quantities.find(
+                                            item =>
+                                                item.Item_Id ===
+                                                product.Product_Id,
+                                        );
+                                        if (
+                                            quantityObj &&
+                                            parseFloat(quantityObj.Bill_Qty) > 0
+                                        ) {
+                                            const qty = parseFloat(
+                                                quantityObj.Bill_Qty,
+                                            );
+                                            const rate =
+                                                parseFloat(
+                                                    quantityObj.Item_Rate,
+                                                ) || 0;
+                                            const amount = qty * rate;
+                                            return (
+                                                <View
+                                                    key={index}
+                                                    style={styles.tableRow}>
+                                                    <View>
+                                                        <Image
+                                                            style={{
+                                                                width: 50,
+                                                                height: 50,
+                                                                flex: 1,
+                                                            }}
+                                                            source={{
+                                                                uri: product.productImageUrl,
+                                                            }}
+                                                        />
+                                                        <Text
+                                                            numberOfLines={3}
+                                                            ellipsizeMode="tail"
+                                                            style={{
+                                                                width: 90,
+                                                            }}>
+                                                            {product
+                                                                .Product_Name
+                                                                .length > 20
+                                                                ? product.Product_Name.substring(
+                                                                      0,
+                                                                      17,
+                                                                  ) + "..."
+                                                                : product.Product_Name}
+                                                        </Text>
+                                                    </View>
+                                                    <Text
+                                                        style={styles.rowText}>
+                                                        {qty}
+                                                    </Text>
+                                                    <Text
+                                                        style={styles.rowText}>
+                                                        {rate}
+                                                    </Text>
+                                                    <Text
+                                                        style={styles.rowText}>
+                                                        {amount.toFixed(2)}
+                                                    </Text>
+                                                </View>
+                                            );
+                                        }
+                                        return null;
+                                    })}
+                                </ScrollView>
+                                <View style={styles.totalContainer}>
+                                    <Text style={styles.totalText}>
+                                        Total Amount: ₹{total.toFixed(2)}/-
+                                    </Text>
+                                </View>
+                                <TextInput
+                                    maxFontSizeMultiplier={1.2}
+                                    style={styles.narrationContainerInputText}
+                                    placeholder="Narration"
+                                    onChangeText={text =>
+                                        setStockInputValue({
+                                            ...stockInputValue,
+                                            Narration: text,
+                                        })
+                                    }
                                 />
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity
+                                        style={styles.closeButton}
+                                        onPress={handleSubmit}>
+                                        <Text style={styles.closeButtonText}>
+                                            Submit
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.closeButton}
+                                        onPress={() =>
+                                            setModalVisible(!modalVisible)
+                                        }>
+                                        <Text style={styles.closeButtonText}>
+                                            Close
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                        </Modal>
-                    </View>
+                        </View>
+                    </Modal>
+
+                    <Modal
+                        animationType="slide"
+                        transparent={true}
+                        visible={isImageModalVisible}
+                        onRequestClose={() => setImageModalVisible(false)}>
+                        <View
+                            style={{
+                                flex: 1,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: "rgba(0, 0, 0, 0.8)",
+                            }}>
+                            <TouchableOpacity
+                                onPress={() => setImageModalVisible(false)}
+                                style={{
+                                    position: "absolute",
+                                    top: 40,
+                                    right: 20,
+                                }}>
+                                <Icon name="close" size={30} color="#fff" />
+                            </TouchableOpacity>
+                            <Image
+                                source={{ uri: currentImage }}
+                                style={{
+                                    width: "90%",
+                                    height: "80%",
+                                    resizeMode: "contain",
+                                }}
+                            />
+                        </View>
+                    </Modal>
                 </View>
-            </ImageBackground>
+            </View>
         </View>
     );
 };
@@ -793,101 +573,68 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.background,
         alignItems: "center",
     },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
     contentContainer: {
+        flex: 1,
         width: "100%",
-        // height: "85%",
         backgroundColor: customColors.white,
         borderRadius: 7.5,
     },
-    dropdown: {
-        height: 45,
-        marginHorizontal: 20,
-        marginVertical: 15,
+    retailerName: {
+        ...typography.h5(),
+        fontWeight: "bold",
         padding: 15,
-        borderRadius: 10,
-        borderWidth: 0.5,
     },
-    dropdownContainer: {
-        backgroundColor: customColors.white,
-        borderColor: customColors.accent,
-        borderWidth: 0.5,
-        borderRadius: 10,
-    },
-    placeholderStyle: {
-        ...typography.h6(),
-        fontWeight: "500",
-    },
-    selectedTextStyle: {
-        ...typography.h6(),
-        fontWeight: "600",
-    },
-    inputSearchStyle: {
-        ...typography.h6(),
-        fontWeight: "400",
-    },
-    tabContainer: {
-        height: 55,
+    dropdownsContainer: {
         flexDirection: "row",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        marginBottom: 15,
+    },
+    dropdown: {
+        flex: 1,
+        marginHorizontal: 5,
+    },
+    productsContainer: {
+        flex: 1,
+        padding: 10,
+    },
+    productCard: {
         backgroundColor: customColors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: "#ccc",
-        marginBottom: 20,
-    },
-    tabButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderBottomWidth: 2,
-        borderBottomColor: "transparent",
-    },
-    activeTab: {
-        borderBottomColor: customColors.primary,
-    },
-    pagerViewContainer: {
-        backgroundColor: customColors.white,
-        // paddingHorizontal: 15,
-        paddingVertical: 10,
         borderRadius: 10,
-        margin: 10,
+        marginBottom: 10,
+        padding: 10,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 6,
         elevation: 5,
     },
-    card: {
-        flex: 1,
-        padding: 10,
+    productRow: {
+        flexDirection: "row",
     },
-    pagerViewContainerText: {
+    productImage: {
+        width: "40%",
+        aspectRatio: 1,
+    },
+    image: {
+        width: "100%",
+        height: "100%",
+        borderRadius: 8,
+        resizeMode: "contain",
+    },
+    productDetails: {
+        flex: 1,
+        marginLeft: 10,
+    },
+    productName: {
         ...typography.body1(),
         fontWeight: "bold",
-        // color: '#ccc',
         marginBottom: 4,
     },
-    pagerViewContainerSubText: {
+    productSubText: {
         ...typography.body2(),
         fontWeight: "500",
         marginBottom: 10,
-    },
-    pagerViewContainerInputText: {
-        ...typography.body1(),
-        padding: 8,
-        borderWidth: 1,
-        borderColor: "#ccc",
-        borderRadius: 4,
-        marginTop: 5,
     },
     modalOverlay: {
         flex: 1,
@@ -967,5 +714,10 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         fontWeight: "700",
         color: customColors.black,
+    },
+    modalButtonContainer: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        marginVertical: 15,
     },
 });

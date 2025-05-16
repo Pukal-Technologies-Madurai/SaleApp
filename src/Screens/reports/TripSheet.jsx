@@ -1,6 +1,5 @@
 import {
     FlatList,
-    ImageBackground,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -9,12 +8,18 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
-import assetImages from "../../Config/Image";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+} from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
+import AppHeader from "../../Components/AppHeader";
+import { useQuery } from "@tanstack/react-query";
 
 const TripSheet = () => {
     const navigation = useNavigation();
@@ -116,13 +121,11 @@ const TripSheet = () => {
         const tripTime = formatTime(item.Trip_Date);
         const retailerCount = item.Trip_Details ? item.Trip_Details.length : 0;
 
-        // Create a map of Trip_Details by Do_Id for quick lookup
         const tripDetailsMap = new Map();
         item.Trip_Details?.forEach(detail => {
             tripDetailsMap.set(detail.Do_Id, detail);
         });
 
-        // Calculate summary statistics
         const tripSummary = item.Product_Array?.reduce(
             (acc, product) => {
                 const tripDetail = tripDetailsMap.get(product.Do_Id);
@@ -148,104 +151,100 @@ const TripSheet = () => {
         );
 
         return (
-            <View
-                style={styles.tripCard}
-                key={`${item.Trip_Id}-${item.updateTimestamp || ""}`}>
+            <View style={styles.tripCard}>
                 <TouchableOpacity
                     style={styles.tripHeader}
                     onPress={() => toggleTripExpand(item.Trip_Id)}>
-                    <View style={styles.tripHeaderLeft}>
+                    <View style={styles.tripHeaderContent}>
                         <View style={styles.tripBasicInfo}>
                             <Text style={styles.tripId}>
                                 Trip #{item.Trip_No}
                             </Text>
                             <View style={styles.timeContainer}>
-                                <Icon
-                                    name="access-time"
-                                    size={14}
-                                    color={customColors.grey}
+                                <MaterialCommunityIcons
+                                    name="clock-outline"
+                                    size={16}
+                                    color={customColors.grey700}
                                 />
                                 <Text style={styles.tripDate}>{tripTime}</Text>
                             </View>
                         </View>
 
                         <View style={styles.tripMetricsContainer}>
-                            <View style={styles.amountContainer}>
-                                <Icon
-                                    name="account-balance-wallet"
-                                    size={16}
-                                    color={customColors.success}
+                            <View style={styles.metricItem}>
+                                <MaterialCommunityIcons
+                                    name="currency-inr"
+                                    size={20}
+                                    color={customColors.primary}
                                 />
-                                <Text style={styles.tripSummaryAmount}>
-                                    ₹{tripSummary.totalAmount.toFixed(2)}
+                                <Text style={styles.metricValue}>
+                                    {tripSummary.totalAmount.toFixed(2)}
                                 </Text>
                             </View>
 
-                            <View style={styles.statusMetrics}>
-                                <View style={styles.metricItem}>
-                                    <Icon
-                                        name="local-shipping"
-                                        size={16}
-                                        color={
-                                            tripSummary.deliveredCount ===
-                                            tripSummary.totalOrders
-                                                ? customColors.success
-                                                : customColors.warning
-                                        }
-                                    />
-                                    <Text
-                                        style={[
-                                            styles.tripStatValue,
-                                            {
-                                                color:
-                                                    tripSummary.deliveredCount ===
-                                                    tripSummary.totalOrders
-                                                        ? customColors.success
-                                                        : customColors.warning,
-                                            },
-                                        ]}>
-                                        {tripSummary.deliveredCount}/
-                                        {tripSummary.totalOrders}
-                                    </Text>
-                                </View>
+                            <View style={styles.metricItem}>
+                                <MaterialCommunityIcons
+                                    name="truck-delivery"
+                                    size={20}
+                                    color={
+                                        tripSummary.deliveredCount ===
+                                        tripSummary.totalOrders
+                                            ? customColors.success
+                                            : customColors.warning
+                                    }
+                                />
+                                <Text
+                                    style={[
+                                        styles.metricValue,
+                                        {
+                                            color:
+                                                tripSummary.deliveredCount ===
+                                                tripSummary.totalOrders
+                                                    ? customColors.success
+                                                    : customColors.warning,
+                                        },
+                                    ]}>
+                                    {tripSummary.deliveredCount}/
+                                    {tripSummary.totalOrders}
+                                </Text>
+                            </View>
 
-                                <View style={styles.metricItem}>
-                                    <Icon
-                                        name="payments"
-                                        size={16}
-                                        color={
-                                            tripSummary.paidCount ===
-                                            tripSummary.totalOrders
-                                                ? customColors.success
-                                                : customColors.warning
-                                        }
-                                    />
-                                    <Text
-                                        style={[
-                                            styles.tripStatValue,
-                                            {
-                                                color:
-                                                    tripSummary.paidCount ===
-                                                    tripSummary.totalOrders
-                                                        ? customColors.success
-                                                        : customColors.warning,
-                                            },
-                                        ]}>
-                                        {tripSummary.paidCount}/
-                                        {tripSummary.totalOrders}
-                                    </Text>
-                                </View>
+                            <View style={styles.metricItem}>
+                                <MaterialCommunityIcons
+                                    name="cash-multiple"
+                                    size={20}
+                                    color={
+                                        tripSummary.paidCount ===
+                                        tripSummary.totalOrders
+                                            ? customColors.success
+                                            : customColors.warning
+                                    }
+                                />
+                                <Text
+                                    style={[
+                                        styles.metricValue,
+                                        {
+                                            color:
+                                                tripSummary.paidCount ===
+                                                tripSummary.totalOrders
+                                                    ? customColors.success
+                                                    : customColors.warning,
+                                        },
+                                    ]}>
+                                    {tripSummary.paidCount}/
+                                    {tripSummary.totalOrders}
+                                </Text>
+                            </View>
 
-                                <View style={styles.metricItem}>
-                                    <Icon
-                                        name="shopping-cart-checkout"
-                                        size={16}
-                                        color={customColors.success}
-                                    />
-                                    <Text style={styles.tripSummaryAmount}>
-                                        {retailerCount} Shops
-                                    </Text>
-                                </View>
+                            <View style={styles.metricItem}>
+                                <MaterialCommunityIcons
+                                    name="store"
+                                    size={20}
+                                    color={customColors.primary}
+                                />
+                                <Text style={styles.metricValue}>
+                                    {retailerCount}
+                                </Text>
                             </View>
                         </View>
                     </View>
@@ -253,185 +252,213 @@ const TripSheet = () => {
 
                 {isExpanded && (
                     <View style={styles.tripDetails}>
-                        {item.Product_Array &&
-                            item.Product_Array.map(product => {
-                                const tripDetail = tripDetailsMap.get(
-                                    product.Do_Id,
-                                );
-                                const orderValue =
-                                    product.Products_List?.reduce(
-                                        (sum, item) => sum + item.Final_Amo,
-                                        0,
-                                    ) || 0;
+                        {item.Product_Array?.map(product => {
+                            const tripDetail = tripDetailsMap.get(
+                                product.Do_Id,
+                            );
+                            const orderValue =
+                                product.Products_List?.reduce(
+                                    (sum, item) => sum + item.Final_Amo,
+                                    0,
+                                ) || 0;
 
-                                return (
-                                    <View
-                                        key={`${product.Do_Id}-${product.updateTimestamp || ""}`}
-                                        style={styles.productCard}>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.productHeader,
-                                                {
-                                                    backgroundColor:
-                                                        tripDetail &&
-                                                        Number(
-                                                            tripDetail.Payment_Status,
-                                                        ) === 3 &&
-                                                        Number(
-                                                            tripDetail.Delivery_Status,
-                                                        ) === 7
-                                                            ? "#e8f5e9"
-                                                            : tripDetail &&
-                                                                (Number(
-                                                                    tripDetail.Payment_Status,
-                                                                ) === 3 ||
-                                                                    Number(
-                                                                        tripDetail.Delivery_Status,
-                                                                    ) === 7)
-                                                              ? "#fff3e0"
-                                                              : "#ffffff",
-                                                },
-                                            ]}
-                                            onPress={() =>
-                                                toggleProductExpand(
-                                                    product.Do_Id,
-                                                )
-                                            }>
-                                            <View
-                                                style={
-                                                    styles.productHeaderLeft
-                                                }>
+                            return (
+                                <View
+                                    key={product.Do_Id}
+                                    style={styles.productCard}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.productHeader,
+                                            {
+                                                backgroundColor:
+                                                    tripDetail &&
+                                                    Number(
+                                                        tripDetail.Payment_Status,
+                                                    ) === 3 &&
+                                                    Number(
+                                                        tripDetail.Delivery_Status,
+                                                    ) === 7
+                                                        ? customColors.success50
+                                                        : tripDetail &&
+                                                            (Number(
+                                                                tripDetail.Payment_Status,
+                                                            ) === 3 ||
+                                                                Number(
+                                                                    tripDetail.Delivery_Status,
+                                                                ) === 7)
+                                                          ? customColors.warning50
+                                                          : customColors.white,
+                                            },
+                                        ]}
+                                        onPress={() =>
+                                            toggleProductExpand(product.Do_Id)
+                                        }>
+                                        <View
+                                            style={styles.productHeaderContent}>
+                                            <View style={styles.productInfo}>
                                                 <Text
-                                                    style={styles.productTitle}>
+                                                    style={styles.retailerName}>
                                                     {product.Retailer_Name}
                                                 </Text>
-                                                <Text
-                                                    style={
-                                                        styles.invoiceNumber
-                                                    }>
-                                                    Order: #{product.Do_Id}
+                                                <Text style={styles.orderId}>
+                                                    Order #{product.Do_Id}
                                                 </Text>
                                                 <View
                                                     style={
                                                         styles.statusContainer
                                                     }>
-                                                    <Text
-                                                        style={[
-                                                            styles.statusText,
-                                                            {
-                                                                color:
-                                                                    tripDetail &&
-                                                                    Number(
-                                                                        tripDetail.Delivery_Status,
-                                                                    ) === 7
-                                                                        ? "green"
-                                                                        : "orange",
-                                                            },
-                                                        ]}>
-                                                        {tripDetail &&
-                                                        Number(
-                                                            tripDetail.Delivery_Status,
-                                                        ) === 7
-                                                            ? "✓ Delivered"
-                                                            : "⏳ Pending Delivery"}
-                                                    </Text>
-                                                    <Text
-                                                        style={[
-                                                            styles.statusText,
-                                                            {
-                                                                color:
-                                                                    tripDetail &&
-                                                                    Number(
-                                                                        tripDetail.Payment_Status,
-                                                                    ) === 3
-                                                                        ? "green"
-                                                                        : "orange",
-                                                            },
-                                                        ]}>
-                                                        {tripDetail &&
-                                                        Number(
-                                                            tripDetail.Payment_Status,
-                                                        ) === 3
-                                                            ? "✓ Paid"
-                                                            : "⏳ Payment Pending"}
-                                                    </Text>
+                                                    <View
+                                                        style={
+                                                            styles.statusBadge
+                                                        }>
+                                                        <MaterialCommunityIcons
+                                                            name="truck-delivery"
+                                                            size={14}
+                                                            color={
+                                                                tripDetail &&
+                                                                Number(
+                                                                    tripDetail.Delivery_Status,
+                                                                ) === 7
+                                                                    ? customColors.success
+                                                                    : customColors.warning
+                                                            }
+                                                        />
+                                                        <Text
+                                                            style={[
+                                                                styles.statusText,
+                                                                {
+                                                                    color:
+                                                                        tripDetail &&
+                                                                        Number(
+                                                                            tripDetail.Delivery_Status,
+                                                                        ) === 7
+                                                                            ? customColors.success
+                                                                            : customColors.warning,
+                                                                },
+                                                            ]}>
+                                                            {tripDetail &&
+                                                            Number(
+                                                                tripDetail.Delivery_Status,
+                                                            ) === 7
+                                                                ? "Delivered"
+                                                                : "Pending"}
+                                                        </Text>
+                                                    </View>
+                                                    <View
+                                                        style={
+                                                            styles.statusBadge
+                                                        }>
+                                                        <MaterialCommunityIcons
+                                                            name="cash-multiple"
+                                                            size={14}
+                                                            color={
+                                                                tripDetail &&
+                                                                Number(
+                                                                    tripDetail.Payment_Status,
+                                                                ) === 3
+                                                                    ? customColors.success
+                                                                    : customColors.warning
+                                                            }
+                                                        />
+                                                        <Text
+                                                            style={[
+                                                                styles.statusText,
+                                                                {
+                                                                    color:
+                                                                        tripDetail &&
+                                                                        Number(
+                                                                            tripDetail.Payment_Status,
+                                                                        ) === 3
+                                                                            ? customColors.success
+                                                                            : customColors.warning,
+                                                                },
+                                                            ]}>
+                                                            {tripDetail &&
+                                                            Number(
+                                                                tripDetail.Payment_Status,
+                                                            ) === 3
+                                                                ? "Paid"
+                                                                : "Pending"}
+                                                        </Text>
+                                                    </View>
                                                 </View>
                                             </View>
+                                            <Text style={styles.orderAmount}>
+                                                ₹{orderValue.toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    {expandedProduct === product.Do_Id && (
+                                        <View style={styles.productDetails}>
                                             <View
                                                 style={
-                                                    styles.productHeaderRight
+                                                    styles.productListHeader
                                                 }>
                                                 <Text
-                                                    style={styles.totalAmount}>
-                                                    ₹{orderValue}
+                                                    style={
+                                                        styles.productListTitle
+                                                    }>
+                                                    Products
                                                 </Text>
                                             </View>
-                                        </TouchableOpacity>
-
-                                        {expandedProduct === product.Do_Id && (
-                                            <View style={styles.productDetails}>
-                                                <View
-                                                    style={
-                                                        styles.productListContainer
-                                                    }>
-                                                    {product.Products_List &&
-                                                        product.Products_List.map(
-                                                            (item, index) => (
-                                                                <View
-                                                                    key={index}
-                                                                    style={
-                                                                        styles.productListItem
-                                                                    }>
-                                                                    <View
-                                                                        style={
-                                                                            styles.productInfo
-                                                                        }>
-                                                                        <Text
-                                                                            style={
-                                                                                styles.productName
-                                                                            }
-                                                                            numberOfLines={
-                                                                                2
-                                                                            }>
-                                                                            {
-                                                                                item.Product_Name
-                                                                            }
-                                                                        </Text>
-                                                                    </View>
-                                                                    <View
-                                                                        style={
-                                                                            styles.quantityInfo
-                                                                        }>
-                                                                        <Text
-                                                                            style={
-                                                                                styles.quantityText
-                                                                            }>
-                                                                            {
-                                                                                item.Bill_Qty
-                                                                            }{" "}
-                                                                            {
-                                                                                item.Unit_Name
-                                                                            }
-                                                                        </Text>
-                                                                        <Text
-                                                                            style={
-                                                                                styles.amountText
-                                                                            }>
-                                                                            ₹
-                                                                            {
-                                                                                item.Final_Amo
-                                                                            }
-                                                                        </Text>
-                                                                    </View>
-                                                                </View>
-                                                            ),
-                                                        )}
-                                                </View>
-                                            </View>
-                                        )}
-                                    </View>
-                                );
-                            })}
+                                            {product.Products_List?.map(
+                                                (item, index) => (
+                                                    <View
+                                                        key={index}
+                                                        style={
+                                                            styles.productListItem
+                                                        }>
+                                                        <View
+                                                            style={
+                                                                styles.productItemInfo
+                                                            }>
+                                                            <Text
+                                                                style={
+                                                                    styles.productName
+                                                                }
+                                                                numberOfLines={
+                                                                    2
+                                                                }>
+                                                                {
+                                                                    item.Product_Name
+                                                                }
+                                                            </Text>
+                                                            <Text
+                                                                style={
+                                                                    styles.productUnit
+                                                                }>
+                                                                {item.Unit_Name}
+                                                            </Text>
+                                                        </View>
+                                                        <View
+                                                            style={
+                                                                styles.productItemDetails
+                                                            }>
+                                                            <Text
+                                                                style={
+                                                                    styles.productQuantity
+                                                                }>
+                                                                {item.Bill_Qty}
+                                                            </Text>
+                                                            <Text
+                                                                style={
+                                                                    styles.productAmount
+                                                                }>
+                                                                ₹
+                                                                {item.Final_Amo.toFixed(
+                                                                    2,
+                                                                )}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                ),
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
                     </View>
                 )}
             </View>
@@ -440,49 +467,36 @@ const TripSheet = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>TripSheet Summary</Text>
-                    </View>
+            <AppHeader title="TripSheet Summary" navigation={navigation} />
 
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            title="Select the Date"
-                            date={selectedFromDate}
-                            onDateChange={handleDateChange}
-                        />
-                    </View>
-
-                    <View style={styles.tripContent}>
-                        {logData.length > 0 ? (
-                            <FlatList
-                                data={logData}
-                                renderItem={renderTripItem}
-                                keyExtractor={item => item.Trip_Id.toString()}
-                                contentContainerStyle={styles.flatListContent}
-                                onRefresh={refreshData}
-                                refreshing={false}
-                            />
-                        ) : (
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyText}>
-                                    No trips found for selected date
-                                </Text>
-                            </View>
-                        )}
-                    </View>
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="Select the Date"
+                        date={selectedFromDate}
+                        onDateChange={handleDateChange}
+                    />
                 </View>
-            </ImageBackground>
+
+                <View style={styles.tripContent}>
+                    {logData.length > 0 ? (
+                        <FlatList
+                            data={logData}
+                            renderItem={renderTripItem}
+                            keyExtractor={item => item.Trip_Id.toString()}
+                            contentContainerStyle={styles.flatListContent}
+                            onRefresh={refreshData}
+                            refreshing={false}
+                        />
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyText}>
+                                No trips found for selected date
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </View>
         </View>
     );
 };
@@ -492,241 +506,176 @@ export default TripSheet;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+        width: "100%",
+        backgroundColor: customColors.white,
     },
     datePickerContainer: {
-        flexDirection: "row",
-        marginHorizontal: 20,
-        justifyContent: "space-between",
-        gap: 10,
+        marginHorizontal: spacing.md,
+        marginTop: spacing.md,
     },
     tripContent: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-        overflow: "hidden",
     },
     flatListContent: {
-        padding: 15,
+        padding: spacing.sm,
     },
     tripCard: {
         backgroundColor: customColors.white,
-        borderRadius: 8,
-        marginBottom: 16,
-        overflow: "hidden",
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 1.5,
+        borderRadius: 12,
+        marginBottom: spacing.sm,
+        ...shadows.medium,
     },
     tripHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        padding: spacing.md,
     },
-    tripHeaderLeft: {
-        flex: 1,
-        gap: 8,
-    },
-    tripHeaderRight: {
-        flexDirection: "row",
-        alignItems: "center",
+    tripHeaderContent: {
+        gap: spacing.sm,
     },
     tripBasicInfo: {
         flexDirection: "row",
-        alignItems: "center",
         justifyContent: "space-between",
+        alignItems: "center",
+    },
+    tripId: {
+        ...typography.h6(),
+        color: customColors.grey900,
     },
     timeContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 4,
+        gap: spacing.xs,
+    },
+    tripDate: {
+        ...typography.caption(),
+        color: customColors.grey700,
     },
     tripMetricsContainer: {
         flexDirection: "row",
-        alignItems: "center",
         justifyContent: "space-between",
-    },
-    amountContainer: {
-        flexDirection: "row",
         alignItems: "center",
-        gap: 4,
-        backgroundColor: "rgba(0,0,0,0.03)",
-    },
-    statusMetrics: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
+        paddingTop: spacing.xs,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey200,
     },
     metricItem: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 4,
-        backgroundColor: "rgba(0,0,0,0.03)",
-        paddingHorizontal: 4,
-        borderRadius: 4,
+        gap: spacing.xs,
     },
-    tripId: {
-        ...typography.h6(),
-        fontWeight: "bold",
-        color: customColors.primary,
-    },
-    tripDate: {
-        ...typography.body2(),
-        color: customColors.grey,
-    },
-    tripSummaryAmount: {
-        ...typography.body1(),
-        color: customColors.success,
-        fontWeight: "600",
-    },
-    tripStatValue: {
-        ...typography.body1(),
-        fontWeight: "600",
+    metricValue: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
     },
     tripDetails: {
-        padding: 16,
-        backgroundColor: "#f9f9f9",
+        padding: spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey200,
     },
     productCard: {
         backgroundColor: customColors.white,
         borderRadius: 8,
-        marginVertical: 8,
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 1.5,
+        marginBottom: spacing.sm,
+        ...shadows.small,
     },
     productHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        padding: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        padding: spacing.md,
         borderRadius: 8,
     },
-    productHeaderLeft: {
-        flex: 1,
+    productHeaderContent: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
     },
-    productHeaderRight: {
+    productInfo: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    retailerName: {
+        ...typography.subtitle1(),
+        color: customColors.grey900,
+    },
+    orderId: {
+        ...typography.caption(),
+        color: customColors.grey700,
+    },
+    statusContainer: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    statusBadge: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 10,
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        backgroundColor: customColors.grey50,
+        borderRadius: 4,
     },
-    productTitle: {
+    statusText: {
+        ...typography.caption(),
+    },
+    orderAmount: {
         ...typography.h6(),
         color: customColors.primary,
-        fontWeight: "600",
-    },
-    invoiceNumber: {
-        ...typography.body2(),
-        color: customColors.grey,
-        marginTop: 4,
-    },
-    totalAmount: {
-        ...typography.h6(),
-        color: customColors.success,
-        fontWeight: "700",
     },
     productDetails: {
-        padding: 12,
-        backgroundColor: "#f9f9f9",
+        padding: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey200,
     },
-    productListContainer: {
-        gap: 8,
+    productListHeader: {
+        marginBottom: spacing.sm,
+    },
+    productListTitle: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
     },
     productListItem: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 8,
-        paddingHorizontal: 4,
+        paddingVertical: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        borderBottomColor: customColors.grey100,
     },
-    productInfo: {
+    productItemInfo: {
         flex: 1,
-        marginRight: 8,
+        gap: spacing.xs,
     },
     productName: {
         ...typography.body2(),
-        color: customColors.black,
-        fontWeight: "500",
+        color: customColors.grey900,
     },
-    brandText: {
+    productUnit: {
         ...typography.caption(),
-        color: customColors.grey,
-        marginTop: 2,
+        color: customColors.grey700,
     },
-    quantityInfo: {
+    productItemDetails: {
         alignItems: "flex-end",
+        gap: spacing.xs,
     },
-    quantityText: {
+    productQuantity: {
         ...typography.body2(),
+        color: customColors.grey900,
+    },
+    productAmount: {
+        ...typography.subtitle2(),
         color: customColors.primary,
-        fontWeight: "500",
-    },
-    amountText: {
-        ...typography.body2(),
-        color: customColors.success,
-        fontWeight: "600",
-        marginTop: 2,
     },
     emptyState: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        padding: spacing.xl,
     },
     emptyText: {
-        ...typography.h6(),
-        color: customColors.grey,
-    },
-    modalOverlay: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-    },
-    modalContent: {
-        width: "95%",
-        backgroundColor: customColors.white,
-        borderRadius: 15,
-        padding: 20,
-        maxHeight: "80%",
-    },
-    statusContainer: {
-        flexDirection: "row",
-        gap: 10,
-        marginTop: 4,
-    },
-    statusText: {
-        ...typography.caption(),
-        fontWeight: "600",
+        ...typography.body1(),
+        color: customColors.grey700,
+        textAlign: "center",
     },
 });

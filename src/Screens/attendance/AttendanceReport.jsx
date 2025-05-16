@@ -1,21 +1,22 @@
-import {
-    Image,
-    ImageBackground,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { useQuery } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { customColors, typography } from "../../Config/helper";
-import { API } from "../../Config/Endpoint";
-import assetImages from "../../Config/Image";
+import { customColors, typography, shadows } from "../../Config/helper";
+import { attendanceHistory } from "../../Api/employee";
+import AppHeader from "../../Components/AppHeader";
+import DatePickerButton from "../../Components/DatePickerButton";
+
+const SummaryCard = ({ icon, title, value, color }) => (
+    <View style={[styles.card, { backgroundColor: color }]}>
+        <Icon name={icon} size={28} color={customColors.white} />
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardValue}>{value}</Text>
+    </View>
+);
 
 const AttendanceReport = () => {
     const navigation = useNavigation();
@@ -32,72 +33,42 @@ const AttendanceReport = () => {
         -1,
     );
 
-    const [attendanceData, setAttendanceData] = useState(null);
-    const [show, setShow] = useState(false);
+    const [uID, setUID] = useState(null);
+    const [userType, setUserType] = useState(null);
+
     const [selectedFromDate, setSelectedFromDate] = useState(firstDayOfMonth);
     const [selectedToDate, setSelectedToDate] = useState(lastDayOfMonth);
-    const [isSelectingFromDate, setIsSelectingFromDate] = useState(true);
 
     useEffect(() => {
         (async () => {
             try {
                 const userTypeId = await AsyncStorage.getItem("userTypeId");
-                const UserId = await AsyncStorage.getItem("UserId");
-                fetchAttendance(
-                    selectedFromDate.toISOString(),
-                    selectedToDate.toISOString(),
-                    userTypeId,
-                    UserId,
-                );
+                const userId = await AsyncStorage.getItem("UserId");
+                setUID(userId);
+                setUserType(userTypeId);
             } catch (err) {
                 console.log(err);
             }
         })();
     }, [selectedFromDate, selectedToDate]);
 
-    const selectDateFn = (event, selectedDate) => {
-        setShow(Platform.OS === "ios");
-        if (selectedDate) {
-            if (isSelectingFromDate) {
-                setSelectedFromDate(selectedDate);
-                if (selectedDate > selectedToDate) {
-                    setSelectedToDate(selectedDate);
-                }
-            } else {
-                setSelectedToDate(selectedDate);
-                if (selectedDate < selectedFromDate) {
-                    setSelectedFromDate(selectedDate);
-                }
-            }
-        }
-    };
-
-    const showDatePicker = isFrom => {
-        setShow(true);
-        setIsSelectingFromDate(isFrom);
-    };
-
-    const fetchAttendance = async (fromDay, toDay, id, uid) => {
-        try {
-            const response = await fetch(
-                `${API.attendanceHistory()}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`,
-                {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                },
-            );
-            const data = await response.json();
-            if (data.success === true) {
-                setAttendanceData(data.data);
-            } else {
-                console.log("Failed to fetch logs: ", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching logs:", error);
-        }
-    };
+    const { data: attendanceData = [] } = useQuery({
+        queryKey: [
+            "attendance",
+            selectedFromDate.toISOString(),
+            selectedToDate.toISOString(),
+            userType,
+            uID,
+        ],
+        queryFn: () =>
+            attendanceHistory({
+                fromDay: selectedFromDate.toISOString(),
+                toDay: selectedToDate.toISOString(),
+                id: userType,
+                uid: uID,
+            }),
+        enabled: !!selectedFromDate && !!selectedToDate && !!userType && !!uID,
+    });
 
     const calculateDistance = (startKM, endKM) => {
         if (endKM !== null) {
@@ -125,81 +96,71 @@ const AttendanceReport = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headersContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text
-                            style={styles.headersText}
-                            maxFontSizeMultiplier={1.2}>
-                            Attendance Report
-                        </Text>
-                    </View>
+            <AppHeader title="Attendance Summary" navigation={navigation} />
 
-                    <View style={styles.datePickerContainer}>
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <View style={styles.datePickerWrapper}>
                         <DatePickerButton
-                            title="From"
+                            title="From Date"
                             date={selectedFromDate}
-                            onPress={() => showDatePicker(true)}
+                            style={styles.datePicker}
+                            containerStyle={styles.datePickerContainerStyle}
+                            titleStyle={styles.datePickerTitle}
+                            onDateChange={(event, date) =>
+                                setSelectedFromDate(date)
+                            }
                         />
+                    </View>
+                    <View style={styles.datePickerWrapper}>
                         <DatePickerButton
                             title="To"
                             date={selectedToDate}
-                            onPress={() => showDatePicker(false)}
-                        />
-                    </View>
-
-                    {show && (
-                        <DateTimePicker
-                            value={
-                                isSelectingFromDate
-                                    ? selectedFromDate
-                                    : selectedToDate
-                            }
-                            onChange={selectDateFn}
-                            mode="date"
-                            display="default"
-                        />
-                    )}
-
-                    <View style={styles.cardContainer}>
-                        <SummaryCard
-                            icon="calendar"
-                            title="Day"
-                            value={
-                                attendanceData
-                                    ? countTotalAttendances(attendanceData)
-                                    : "N/A"
-                            }
-                        />
-                        <SummaryCard
-                            icon="speedometer"
-                            title="Total KMs"
-                            value={
-                                attendanceData
-                                    ? calculateTotalKms(attendanceData)
-                                    : "N/A"
-                            }
-                        />
-                        <SummaryCard
-                            icon="alert-circle"
-                            title="Unclosed"
-                            value={
-                                attendanceData
-                                    ? countUnclosedAttendances(attendanceData)
-                                    : "N/A"
+                            style={styles.datePicker}
+                            containerStyle={styles.datePickerContainerStyle}
+                            titleStyle={styles.datePickerTitle}
+                            onDateChange={(event, date) =>
+                                setSelectedToDate(date)
                             }
                         />
                     </View>
+                </View>
 
+                <View style={styles.summarySection}>
+                    <SummaryCard
+                        icon="calendar"
+                        title="Total Days"
+                        value={
+                            attendanceData
+                                ? countTotalAttendances(attendanceData)
+                                : "N/A"
+                        }
+                        color={customColors.primary}
+                    />
+                    <SummaryCard
+                        icon="speedometer"
+                        title="Total KMs"
+                        value={
+                            attendanceData
+                                ? calculateTotalKms(attendanceData)
+                                : "N/A"
+                        }
+                        color={customColors.accent}
+                    />
+                    <SummaryCard
+                        icon="alert-circle"
+                        title="Unclosed"
+                        value={
+                            attendanceData
+                                ? countUnclosedAttendances(attendanceData)
+                                : "N/A"
+                        }
+                        color={customColors.accent2}
+                    />
+                </View>
+
+                <View style={styles.tableSection}>
+                    <Text style={styles.sectionTitle}>Attendance Details</Text>
                     <View style={styles.tableContainer}>
                         <View style={styles.tableHeader}>
                             <Text style={styles.headerCell}>Date</Text>
@@ -207,17 +168,24 @@ const AttendanceReport = () => {
                             <Text style={styles.headerCell}>End KM</Text>
                             <Text style={styles.headerCell}>Distance</Text>
                         </View>
-                        <ScrollView style={styles.tableBody}>
+                        <ScrollView
+                            style={styles.tableBody}
+                            showsVerticalScrollIndicator={false}>
                             {attendanceData && attendanceData.length > 0 ? (
-                                attendanceData.map(item => (
-                                    <View style={styles.tableRow} key={item.Id}>
+                                attendanceData.map((item, index) => (
+                                    <View
+                                        style={[
+                                            styles.tableRow,
+                                            index % 2 === 0 &&
+                                                styles.alternateRow,
+                                        ]}
+                                        key={item.Id}>
                                         <Text style={styles.cell}>
                                             {new Date(
                                                 item.Start_Date,
                                             ).toLocaleDateString("en-GB", {
                                                 day: "2-digit",
                                                 month: "2-digit",
-                                                year: "numeric",
                                             })}
                                         </Text>
                                         <Text style={styles.cell}>
@@ -228,7 +196,11 @@ const AttendanceReport = () => {
                                                 ? item.End_KM
                                                 : "N/A"}
                                         </Text>
-                                        <Text style={styles.cell}>
+                                        <Text
+                                            style={[
+                                                styles.cell,
+                                                styles.distanceCell,
+                                            ]}>
                                             {calculateDistance(
                                                 item.Start_KM,
                                                 item.End_KM,
@@ -237,154 +209,146 @@ const AttendanceReport = () => {
                                     </View>
                                 ))
                             ) : (
-                                <Text style={styles.noDataText}>
-                                    No attendance data available.
-                                </Text>
+                                <View style={styles.noDataContainer}>
+                                    <MaterialIcon
+                                        name="event-busy"
+                                        size={48}
+                                        color={customColors.grey500}
+                                    />
+                                    <Text style={styles.noDataText}>
+                                        No attendance data available
+                                    </Text>
+                                </View>
                             )}
                         </ScrollView>
                     </View>
                 </View>
-            </ImageBackground>
+            </View>
         </View>
     );
 };
-
-const DatePickerButton = ({ title, date, onPress }) => (
-    <View style={styles.datePickerWrapper}>
-        <Text style={styles.dateTitle}>{title}</Text>
-        <TouchableOpacity style={styles.datePicker} onPress={onPress}>
-            <Text style={styles.dateText}>
-                {date
-                    ? new Intl.DateTimeFormat("en-GB").format(date)
-                    : "Select Date"}
-            </Text>
-            <Icon name="calendar" color={customColors.white} size={20} />
-        </TouchableOpacity>
-    </View>
-);
-
-const SummaryCard = ({ icon, title, value }) => (
-    <View style={styles.card}>
-        <Icon name={icon} size={30} color={customColors.white} />
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardValue}>{value}</Text>
-    </View>
-);
 
 export default AttendanceReport;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headersContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 20,
-    },
-    headersText: {
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+        backgroundColor: customColors.white,
+        paddingTop: 20,
+        ...shadows.medium,
     },
     datePickerContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
-        marginHorizontal: 20,
+        paddingHorizontal: 20,
+        marginBottom: 20,
+        gap: 10,
     },
     datePickerWrapper: {
         flex: 1,
-        marginRight: 10,
-    },
-    dateTitle: {
-        ...typography.body2(),
-        color: customColors.white,
-        marginBottom: 5,
+        maxWidth: "48%",
     },
     datePicker: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        borderRadius: 8,
-        padding: 10,
+        width: "100%",
     },
-    dateText: {
-        ...typography.body1(),
-        color: customColors.white,
+    datePickerContainerStyle: {
+        backgroundColor: customColors.white,
     },
-    cardContainer: {
+    datePickerTitle: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        marginBottom: 8,
+    },
+    summarySection: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 20,
+        paddingHorizontal: 15,
+        marginBottom: 25,
     },
     card: {
         flex: 1,
         alignItems: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        borderRadius: 8,
+        borderRadius: 12,
         padding: 15,
-        margin: 15,
+        marginHorizontal: 5,
+        ...shadows.medium,
     },
     cardTitle: {
-        ...typography.body1(),
+        ...typography.subtitle2(),
         color: customColors.white,
+        marginTop: 8,
     },
     cardValue: {
-        ...typography.h6(),
+        ...typography.h5(),
         color: customColors.white,
-        marginTop: 5,
+        marginTop: 4,
+    },
+    tableSection: {
+        flex: 1,
+        paddingHorizontal: 20,
+    },
+    sectionTitle: {
+        ...typography.h6(),
+        color: customColors.grey900,
+        marginBottom: 15,
     },
     tableContainer: {
         flex: 1,
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        borderRadius: 8,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
         overflow: "hidden",
-        margin: 10,
+        ...shadows.small,
     },
     tableHeader: {
         flexDirection: "row",
-        backgroundColor: customColors.secondary,
-        padding: 10,
+        backgroundColor: customColors.grey100,
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
     },
     headerCell: {
         flex: 1,
         textAlign: "center",
-        ...typography.body1(),
-        fontWeight: "bold",
-        color: customColors.black,
+        ...typography.subtitle2(),
+        color: customColors.grey900,
     },
     tableBody: {
         flex: 1,
-        paddingBottom: 20,
     },
     tableRow: {
         flexDirection: "row",
+        paddingVertical: 12,
+        paddingHorizontal: 15,
         borderBottomWidth: 1,
-        borderBottomColor: "rgba(255, 255, 255, 0.1)",
-        padding: 10,
-        backgroundColor: customColors.white,
+        borderBottomColor: customColors.grey200,
+    },
+    alternateRow: {
+        backgroundColor: customColors.grey50,
     },
     cell: {
         flex: 1,
-        ...typography.body1(),
-        color: customColors.black,
+        ...typography.body2(),
+        color: customColors.grey900,
         textAlign: "center",
+    },
+    distanceCell: {
+        ...typography.subtitle2(),
+        color: customColors.primary,
+    },
+    noDataContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 40,
     },
     noDataText: {
         ...typography.body1(),
-        color: customColors.white,
-        textAlign: "center",
-        marginTop: 20,
+        color: customColors.grey500,
+        marginTop: 10,
     },
 });

@@ -1,5 +1,5 @@
-let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
-// let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+// let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
+let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
 
 export const setBaseUrl = url => {
@@ -19,7 +19,6 @@ export const API = {
     routes: () => `${baseURL}api/masters/routes`,
     areas: () => `${baseURL}api/masters/areas`,
     state: () => `${baseURL}api/masters/state`,
-    uom: () => `${baseURL}api/masters/uom`,
     district: () => `${baseURL}api/masters/district`,
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
@@ -31,6 +30,7 @@ export const API = {
     retailerLocation: () => `${baseURL}api/masters/retailers/location`,
     retailerInfo: () => `${baseURL}api/masters/retailers/info?Retailer_Id=`,
 
+    uom: () => `${baseURL}api/masters/uom`,
     groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
     productPacks: () => `${baseURL}api/masters/products/packs?Company_Id=`,
     closingStock: () => `${baseURL}api/masters/retailers/closingStock`,

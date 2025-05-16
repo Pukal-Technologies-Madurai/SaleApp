@@ -1,24 +1,22 @@
-import {
-    ImageBackground,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ScrollView,
-} from "react-native";
+import { StyleSheet, Text, View, ScrollView } from "react-native";
 import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/Ionicons";
-import AntDesignIcons from "react-native-vector-icons/AntDesign";
-import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
-import assetImages from "../../Config/Image";
+import { fetchPaymentReceipts } from "../../Api/payment";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+} from "../../Config/helper";
 
 const BillSummary = () => {
     const navigation = useNavigation();
-    const [logData, setLogData] = useState([]);
+    const [userId, setUserId] = useState(null);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
@@ -26,27 +24,24 @@ const BillSummary = () => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
-                const fromDate = selectedFromDate.toISOString().split("T")[0];
-                const toDate = selectedToDate.toISOString().split("T")[0];
-                fetchCollectionReceipts(fromDate, toDate, userId);
+                setUserId(userId);
             } catch (err) {
                 console.error(err);
             }
         })();
-    }, [selectedFromDate, selectedToDate]);
+    }, []);
 
-    const fetchCollectionReceipts = async (from, to, uid) => {
-        try {
-            const url = `${API.paymentCollection()}?Fromdate=${from}&Todate=${to}&collected_by=${uid}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data.success) {
-                setLogData(data.data);
-            }
-        } catch (err) {
-            console.error(err);
-        }
-    };
+    const { data: logData = [] } = useQuery({
+        queryKey: ["collectionReceipts", selectedFromDate, selectedToDate],
+        queryFn: async () =>
+            fetchPaymentReceipts({
+                from: selectedFromDate.toISOString().split("T")[0],
+                to: selectedToDate.toISOString().split("T")[0],
+                uId: userId,
+            }),
+        enabled: !!selectedFromDate && !!selectedToDate && !!userId,
+        // refetchOnWindowFocus: false,
+    });
 
     const handleFromDateChange = (event, date) => {
         if (date) {
@@ -67,208 +62,199 @@ const BillSummary = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>Bills Summary</Text>
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate("BillPayment")}>
-                            <AntDesignIcons
-                                name="addfile"
-                                color={customColors.white}
-                                size={23}
-                            />
-                        </TouchableOpacity>
-                    </View>
+            <AppHeader
+                title="Bills Summary"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialCommunityIcons"
+                rightIconName="file-plus"
+                onRightPress={() => navigation.navigate("BillPayment")}
+            />
 
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            title="From Date"
-                            date={selectedFromDate}
-                            onDateChange={handleFromDateChange}
-                            containerStyle={styles.datePicker}
-                        />
-                        <DatePickerButton
-                            title="To Date"
-                            date={selectedToDate}
-                            onDateChange={handleToDateChange}
-                            containerStyle={styles.datePicker}
-                        />
-                    </View>
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="From Date"
+                        date={selectedFromDate}
+                        onDateChange={handleFromDateChange}
+                        containerStyle={styles.datePicker}
+                    />
+                    <DatePickerButton
+                        title="To Date"
+                        date={selectedToDate}
+                        onDateChange={handleToDateChange}
+                        containerStyle={styles.datePicker}
+                    />
+                </View>
 
-                    <View style={styles.content}>
-                        <View style={styles.summaryBox}>
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>
-                                    Total Bills
-                                </Text>
-                                <Text style={styles.summaryValue}>
-                                    {logData.length}
-                                </Text>
-                            </View>
-                            <View style={styles.summaryDivider} />
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>
-                                    Total Amount
-                                </Text>
-                                <Text style={styles.summaryValue}>
-                                    ₹
-                                    {logData
-                                        .map(total => total.total_amount)
-                                        .reduce((acc, cur) => acc + cur, 0)}
-                                </Text>
-                            </View>
+                <View style={styles.content}>
+                    <View style={styles.summaryBox}>
+                        <View style={styles.summaryItem}>
+                            <MaterialCommunityIcons
+                                name="file-document-multiple"
+                                size={24}
+                                color={customColors.primary}
+                            />
+                            <Text style={styles.summaryLabel}>Total Bills</Text>
+                            <Text style={styles.summaryValue}>
+                                {logData.length}
+                            </Text>
                         </View>
-                        <ScrollView>
-                            {logData?.map((collection, index) => (
-                                <View key={index} style={styles.collectionCard}>
-                                    <View style={styles.cardTop}>
-                                        <View style={styles.topLeft}>
-                                            <View
-                                                style={styles.invoiceContainer}>
-                                                <Icon
-                                                    name="receipt-outline"
-                                                    size={18}
-                                                    color={customColors.primary}
-                                                />
-                                                <Text style={styles.invoiceNo}>
-                                                    #
-                                                    {
-                                                        collection.collection_inv_no
-                                                    }
-                                                </Text>
-                                            </View>
-                                            <View style={styles.dateContainer}>
-                                                <Icon
-                                                    name="calendar-outline"
-                                                    size={16}
-                                                    color={customColors.grey}
-                                                />
-                                                <Text style={styles.date}>
-                                                    {formatDate(
-                                                        collection.collection_date,
-                                                    )}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </View>
+                        <View style={styles.summaryDivider} />
+                        <View style={styles.summaryItem}>
+                            <MaterialCommunityIcons
+                                name="currency-inr"
+                                size={24}
+                                color={customColors.success}
+                            />
+                            <Text style={styles.summaryLabel}>
+                                Total Amount
+                            </Text>
+                            <Text
+                                style={[
+                                    styles.summaryValue,
+                                    { color: customColors.success },
+                                ]}>
+                                ₹
+                                {logData
+                                    .map(total => total.total_amount)
+                                    .reduce((acc, cur) => acc + cur, 0)
+                                    .toFixed(2)}
+                            </Text>
+                        </View>
+                    </View>
 
-                                    <View style={styles.cardMiddle}>
-                                        <View style={styles.retailerContainer}>
-                                            <Icon
-                                                name="storefront-outline"
-                                                size={18}
+                    <ScrollView style={styles.scrollView}>
+                        {logData?.map((collection, index) => (
+                            <View key={index} style={styles.collectionCard}>
+                                <View style={styles.cardHeader}>
+                                    <View style={styles.headerLeft}>
+                                        <View style={styles.invoiceContainer}>
+                                            <MaterialCommunityIcons
+                                                name="receipt"
+                                                size={20}
                                                 color={customColors.primary}
                                             />
-                                            <Text style={styles.retailerName}>
-                                                {collection.RetailerGet}
+                                            <Text style={styles.invoiceNo}>
+                                                #{collection.collection_inv_no}
                                             </Text>
                                         </View>
-                                        <View style={styles.paymentContainer}>
-                                            <Icon
-                                                name="card-outline"
-                                                size={16}
-                                                color={customColors.grey}
+                                        <View style={styles.dateContainer}>
+                                            <MaterialCommunityIcons
+                                                name="calendar"
+                                                size={18}
+                                                color={customColors.grey700}
                                             />
-                                            <Text style={styles.paymentType}>
-                                                {collection.collection_type}
+                                            <Text style={styles.date}>
+                                                {formatDate(
+                                                    collection.collection_date,
+                                                )}
                                             </Text>
                                         </View>
                                     </View>
+                                </View>
 
-                                    <View style={styles.receiptsContainer}>
-                                        {collection.Receipts?.map(
-                                            (receipt, rIndex) => (
+                                <View style={styles.cardBody}>
+                                    <View style={styles.retailerContainer}>
+                                        <MaterialCommunityIcons
+                                            name="store"
+                                            size={20}
+                                            color={customColors.primary}
+                                        />
+                                        <Text style={styles.retailerName}>
+                                            {collection.RetailerGet}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.paymentContainer}>
+                                        <MaterialCommunityIcons
+                                            name="credit-card"
+                                            size={18}
+                                            color={customColors.grey700}
+                                        />
+                                        <Text style={styles.paymentType}>
+                                            {collection.collection_type}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.receiptsContainer}>
+                                    {collection.Receipts?.map(
+                                        (receipt, rIndex) => (
+                                            <View
+                                                key={rIndex}
+                                                style={styles.receiptItem}>
                                                 <View
-                                                    key={rIndex}
-                                                    style={styles.receiptItem}>
+                                                    style={styles.receiptInfo}>
                                                     <View
                                                         style={
-                                                            styles.receiptInfo
+                                                            styles.receiptInvoiceContainer
                                                         }>
-                                                        <View
-                                                            style={
-                                                                styles.receiptInvoiceContainer
-                                                            }>
-                                                            <Icon
-                                                                name="document-text-outline"
-                                                                size={16}
-                                                                color={
-                                                                    customColors.primary
-                                                                }
-                                                            />
-                                                            <Text
-                                                                style={
-                                                                    styles.receiptInvoice
-                                                                }>
-                                                                #
-                                                                {
-                                                                    receipt.Do_Inv_No
-                                                                }
-                                                            </Text>
-                                                        </View>
-                                                        <View
-                                                            style={
-                                                                styles.receiptAmountContainer
-                                                            }>
-                                                            <Icon
-                                                                name="cash-outline"
-                                                                size={16}
-                                                                color={
-                                                                    customColors.primary
-                                                                }
-                                                            />
-                                                            <Text
-                                                                style={
-                                                                    styles.receiptAmount
-                                                                }>
-                                                                ₹
-                                                                {
-                                                                    receipt.bill_amount
-                                                                }
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                    <View
-                                                        style={
-                                                            styles.collectedContainer
-                                                        }>
-                                                        <Icon
-                                                            name="checkmark-circle-outline"
+                                                        <MaterialCommunityIcons
+                                                            name="file-document"
                                                             size={18}
                                                             color={
-                                                                customColors.success
+                                                                customColors.primary
                                                             }
                                                         />
                                                         <Text
                                                             style={
-                                                                styles.collectedAmount
+                                                                styles.receiptInvoice
                                                             }>
-                                                            Collected: ₹
+                                                            #{receipt.Do_Inv_No}
+                                                        </Text>
+                                                    </View>
+                                                    <View
+                                                        style={
+                                                            styles.receiptAmountContainer
+                                                        }>
+                                                        <MaterialCommunityIcons
+                                                            name="cash"
+                                                            size={18}
+                                                            color={
+                                                                customColors.primary
+                                                            }
+                                                        />
+                                                        <Text
+                                                            style={
+                                                                styles.receiptAmount
+                                                            }>
+                                                            ₹
                                                             {
-                                                                receipt.collected_amount
+                                                                receipt.bill_amount
                                                             }
                                                         </Text>
                                                     </View>
                                                 </View>
-                                            ),
-                                        )}
-                                    </View>
+                                                <View
+                                                    style={
+                                                        styles.collectedContainer
+                                                    }>
+                                                    <MaterialCommunityIcons
+                                                        name="check-circle"
+                                                        size={20}
+                                                        color={
+                                                            customColors.success
+                                                        }
+                                                    />
+                                                    <Text
+                                                        style={
+                                                            styles.collectedAmount
+                                                        }>
+                                                        Collected: ₹
+                                                        {
+                                                            receipt.collected_amount
+                                                        }
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        ),
+                                    )}
                                 </View>
-                            ))}
-                        </ScrollView>
-                    </View>
+                            </View>
+                        ))}
+                    </ScrollView>
                 </View>
-            </ImageBackground>
+            </View>
         </View>
     );
 };
@@ -278,202 +264,170 @@ export default BillSummary;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+        width: "100%",
+        backgroundColor: customColors.white,
     },
     content: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-        overflow: "hidden",
-        padding: 15,
+        padding: spacing.md,
     },
     datePickerContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        paddingHorizontal: 20,
-        marginBottom: 20,
+        paddingHorizontal: spacing.md,
+        marginTop: spacing.sm,
+        gap: spacing.xs,
     },
     datePicker: {
         width: "48%",
     },
+    summaryBox: {
+        flexDirection: "row",
+        backgroundColor: customColors.white,
+        marginHorizontal: spacing.xs,
+        borderRadius: 8,
+        padding: spacing.sm,
+        marginBottom: spacing.sm,
+        ...shadows.medium,
+    },
+    summaryItem: {
+        flex: 1,
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    summaryLabel: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    summaryValue: {
+        ...typography.body1(),
+        color: customColors.primary,
+        fontWeight: "800",
+    },
+    summaryDivider: {
+        width: 1,
+        height: "100%",
+        backgroundColor: customColors.grey200,
+        marginHorizontal: spacing.xs,
+    },
+    scrollView: {
+        flex: 1,
+    },
     collectionCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        margin: 10,
-        padding: 12,
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        borderRadius: 8,
+        marginBottom: spacing.sm,
+        ...shadows.small,
+        marginHorizontal: spacing.xs,
     },
-    cardTop: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-        paddingBottom: 12,
+    cardHeader: {
+        padding: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGray,
+        borderBottomColor: customColors.grey200,
     },
-    topLeft: {
-        flex: 1,
+    headerLeft: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        gap: 16,
     },
     invoiceContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: spacing.xs,
     },
     dateContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
-    },
-    amountContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        marginLeft: 16,
+        gap: spacing.xs,
     },
     invoiceNo: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.primary,
-        fontWeight: "800",
+        fontWeight: "600",
     },
     date: {
-        ...typography.body2(),
-        color: customColors.grey,
-        fontWeight: "800",
+        ...typography.caption(),
+        color: customColors.grey700,
     },
-    cardMiddle: {
-        // marginBottom: 12,
+    cardBody: {
+        padding: spacing.sm,
+        gap: spacing.xs,
     },
     retailerContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 8,
-        marginBottom: 6,
+        gap: spacing.xs,
     },
     retailerName: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.primary,
-        fontWeight: "800",
+        fontWeight: "600",
+        flex: 1,
+        flexWrap: "wrap",
     },
     paymentContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 8,
+        gap: spacing.xs,
     },
     paymentType: {
-        ...typography.body2(),
-        color: customColors.grey,
+        ...typography.caption(),
+        color: customColors.grey700,
     },
     receiptsContainer: {
-        backgroundColor: customColors.lightGrey,
-        borderRadius: 10,
-        padding: 8,
+        backgroundColor: customColors.grey50,
+        borderRadius: 6,
+        padding: spacing.xs,
+        margin: spacing.sm,
     },
     receiptItem: {
         backgroundColor: customColors.white,
         borderRadius: 6,
-        padding: 8,
-        marginBottom: 8,
+        padding: spacing.xs,
+        marginBottom: spacing.xs,
+        ...shadows.small,
     },
     receiptInfo: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 4,
+        marginBottom: spacing.xs,
     },
     receiptInvoiceContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: spacing.xs,
     },
     receiptAmountContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: spacing.xs,
     },
     receiptInvoice: {
         ...typography.caption(),
-        color: customColors.dark,
+        color: customColors.grey900,
         fontWeight: "600",
     },
     receiptAmount: {
         ...typography.caption(),
         color: customColors.primary,
-        fontWeight: "800",
+        fontWeight: "600",
     },
     collectedContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: spacing.xs,
         justifyContent: "flex-end",
     },
     collectedAmount: {
         ...typography.caption(),
         color: customColors.success,
-        fontWeight: "800",
-    },
-    summaryBox: {
-        flexDirection: "row",
-        backgroundColor: customColors.white,
-        borderRadius: 10,
-        padding: 15,
-        margin: 10,
-        marginBottom: 15,
-        elevation: 3,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        justifyContent: "space-around",
-        alignItems: "center",
-    },
-    summaryItem: {
-        alignItems: "center",
-        flex: 1,
-    },
-    summaryLabel: {
-        ...typography.body2(),
-        color: customColors.grey,
-        marginBottom: 5,
-    },
-    summaryValue: {
-        ...typography.h4(),
-        color: customColors.primary,
-        fontWeight: "bold",
-    },
-    summaryDivider: {
-        width: 1,
-        height: "100%",
-        backgroundColor: customColors.grey,
-        marginHorizontal: 10,
+        fontWeight: "600",
     },
 });
