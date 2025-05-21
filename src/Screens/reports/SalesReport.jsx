@@ -9,19 +9,48 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { customColors, typography, shadows, spacing } from "../../Config/helper";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+} from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import AppHeader from "../../Components/AppHeader";
 
 const SalesReport = ({ navigation, route }) => {
-    const { logData, productSummary, selectedDate } = route.params;
+    const {
+        logData,
+        productSummary,
+        selectedDate,
+        isNotAdmin = true,
+    } = route.params;
+
     const [visitLogLength, setVisitLogLength] = useState(0);
+    const [selectedBrand, setSelectedBrand] = useState("All");
+    const [brandOptions, setBrandOptions] = useState([]);
+
+    // console.log(
+    //     "Product Summary:",
+    //     logData.map(item => item.Products_List),
+    // );
 
     useEffect(() => {
         if (selectedDate) {
             fetchVisitLog();
         }
     }, [selectedDate]);
+
+    useEffect(() => {
+        if (logData && logData.length > 0) {
+            const allBrands = logData.flatMap(order =>
+                order.Products_List.map(p => p.BrandGet?.trim()),
+            );
+
+            const uniqueBrands = ["All", ...new Set(allBrands.filter(Boolean))];
+            setBrandOptions(uniqueBrands);
+        }
+    }, [logData]);
 
     const fetchVisitLog = async () => {
         try {
@@ -33,7 +62,7 @@ const SalesReport = ({ navigation, route }) => {
 
             const isAdminUser = ["0", "1", "2"].includes(storeUserTypeId);
             const userIdParam = isAdminUser ? "" : userId;
-            
+
             const url = `${API.visitedLog()}?reqDate=${formattedDate}&UserId=${userIdParam}`;
             const response = await fetch(url, {
                 method: "GET",
@@ -70,6 +99,27 @@ const SalesReport = ({ navigation, route }) => {
         hour12: true,
     });
 
+    const filteredSummary = productSummary.filter(item =>
+        selectedBrand === "All"
+            ? true
+            : logData.some(order =>
+                  order.Products_List.some(
+                      p =>
+                          p.Product_Name.trim() === item.productName.trim() &&
+                          p.BrandGet?.trim() === selectedBrand,
+                  ),
+              ),
+    );
+
+    const filteredQuantity = filteredSummary.reduce(
+        (sum, item) => sum + item.totalQty,
+        0,
+    );
+    const filteredAmount = filteredSummary.reduce(
+        (sum, item) => sum + parseFloat(item.totalAmount),
+        0,
+    );
+
     return (
         <View style={styles.container}>
             <AppHeader
@@ -91,32 +141,89 @@ const SalesReport = ({ navigation, route }) => {
                         </Text>
                     </View>
 
-                    <View style={styles.checkOrderRow}>
-                        <Text style={styles.checkOrderText}>
-                            Check-Ins: {visitLogLength}
-                        </Text>
+                    {isNotAdmin === true ? (
+                        <View>
+                            <View style={styles.checkOrderRow}>
+                                <Text style={styles.checkOrderText}>
+                                    Check-Ins:{" "}
+                                    <Text
+                                        style={{
+                                            color: customColors.warning,
+                                            fontWeight: "700",
+                                        }}>
+                                        {" "}
+                                        {visitLogLength}
+                                    </Text>
+                                </Text>
+                                <Text style={styles.checkOrderText}>
+                                    Orders:{" "}
+                                    <Text
+                                        style={{
+                                            color: customColors.success,
+                                            fontWeight: "700",
+                                        }}>
+                                        {logData.length}
+                                    </Text>
+                                </Text>
+                            </View>
+                            <View style={styles.statRow}>
+                                <MaterialCommunityIcons
+                                    name="bike"
+                                    size={24}
+                                    color={customColors.success}
+                                />
+                                <Text style={styles.statValue}>
+                                    Total Visits:{" "}
+                                    <Text
+                                        style={{
+                                            color: customColors.error,
+                                            fontWeight: "bold",
+                                        }}>
+                                        {totalVisitLogCount}
+                                    </Text>
+                                </Text>
+                            </View>
+                        </View>
+                    ) : (
                         <Text style={styles.checkOrderText}>
                             Orders: {logData.length}
                         </Text>
-                    </View>
-                    <View style={styles.statRow}>
-                        <MaterialCommunityIcons
-                            name="bike"
-                            size={24}
-                            color={customColors.success}
-                        />
-                        <Text style={styles.statValue}>
-                            Total Visits:{" "}
+                    )}
+                </View>
+
+                <ScrollView
+                    horizontal
+                    style={{
+                        paddingHorizontal: spacing.md,
+                        marginVertical: spacing.sm,
+                    }}>
+                    {brandOptions.map((brand, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            style={{
+                                paddingVertical: spacing.xs,
+                                paddingHorizontal: spacing.md,
+                                marginRight: spacing.sm,
+                                borderRadius: 20,
+                                backgroundColor:
+                                    selectedBrand === brand
+                                        ? customColors.primary
+                                        : customColors.grey200,
+                            }}
+                            onPress={() => setSelectedBrand(brand)}>
                             <Text
                                 style={{
-                                    color: customColors.error,
-                                    fontWeight: "bold",
+                                    color:
+                                        selectedBrand === brand
+                                            ? customColors.white
+                                            : customColors.grey800,
+                                    ...typography.caption(),
                                 }}>
-                                {totalVisitLogCount}
+                                {brand}
                             </Text>
-                        </Text>
-                    </View>
-                </View>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
                 <View style={styles.tableContainer}>
                     <View style={styles.tableHeader}>
@@ -135,23 +242,71 @@ const SalesReport = ({ navigation, route }) => {
                         <View style={styles.summaryRow}>
                             <View style={styles.productHeaderCell}>
                                 <Text style={styles.summaryText}>
-                                    {productSummary.length} Products
+                                    {filteredSummary.length} Products
                                 </Text>
                             </View>
                             <View style={styles.quantityHeaderCell}>
                                 <Text style={styles.summaryText}>
-                                    {totalQuantity}
+                                    {filteredQuantity}
                                 </Text>
                             </View>
                             <View style={styles.amountHeaderCell}>
                                 <Text style={styles.summaryText}>
-                                    ₹{totalAmount.toFixed(2)}
+                                    ₹{filteredAmount.toFixed(2)}
                                 </Text>
                             </View>
                         </View>
                     </View>
 
-                    {productSummary.map((item, index) => (
+                    {productSummary
+                        .filter(item =>
+                            selectedBrand === "All"
+                                ? true
+                                : logData.some(order =>
+                                      order.Products_List.some(
+                                          p =>
+                                              p.Product_Name.trim() ===
+                                                  item.productName.trim() &&
+                                              p.BrandGet?.trim() ===
+                                                  selectedBrand,
+                                      ),
+                                  ),
+                        )
+                        .map((item, index) => (
+                            <View
+                                key={index}
+                                style={[
+                                    styles.tableRow,
+                                    index % 2 === 0
+                                        ? styles.evenRow
+                                        : styles.oddRow,
+                                ]}>
+                                <Text
+                                    style={[
+                                        styles.tableCell,
+                                        styles.productCell,
+                                    ]}
+                                    numberOfLines={2}>
+                                    {item.productName}
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.tableCell,
+                                        styles.quantityCell,
+                                    ]}>
+                                    {item.totalQty}
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.tableCell,
+                                        styles.amountCell,
+                                    ]}>
+                                    ₹{parseFloat(item.totalAmount).toFixed(2)}
+                                </Text>
+                            </View>
+                        ))}
+
+                    {/* {productSummary.map((item, index) => (
                         <View
                             key={index}
                             style={[
@@ -161,30 +316,21 @@ const SalesReport = ({ navigation, route }) => {
                                     : styles.oddRow,
                             ]}>
                             <Text
-                                style={[
-                                    styles.tableCell,
-                                    styles.productCell,
-                                ]}
+                                style={[styles.tableCell, styles.productCell]}
                                 numberOfLines={2}>
                                 {item.productName}
                             </Text>
                             <Text
-                                style={[
-                                    styles.tableCell,
-                                    styles.quantityCell,
-                                ]}>
+                                style={[styles.tableCell, styles.quantityCell]}>
                                 {item.totalQty}
                             </Text>
-                            <Text
-                                style={[
-                                    styles.tableCell,
-                                    styles.amountCell,
-                                ]}>
+                            <Text style={[styles.tableCell, styles.amountCell]}>
                                 ₹{parseFloat(item.totalAmount).toFixed(2)}
                             </Text>
                         </View>
-                    ))}
+                    ))} */}
                 </View>
+                <View style={styles.bottomSpacer} />
             </ScrollView>
         </View>
     );
@@ -197,13 +343,14 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        padding: spacing.md,
+        padding: spacing.sm,
     },
     statsContainer: {
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
         backgroundColor: customColors.white,
         borderRadius: 12,
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
         ...shadows.small,
     },
     statRow: {
@@ -214,7 +361,7 @@ const styles = StyleSheet.create({
         borderBottomColor: customColors.grey200,
     },
     statValue: {
-        ...typography.subtitle1(),
+        ...typography.subtitle2(),
         color: customColors.grey900,
         fontWeight: "600",
         paddingHorizontal: spacing.md,
@@ -294,8 +441,8 @@ const styles = StyleSheet.create({
     checkOrderRow: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "flex-end",
-        marginRight: spacing.xl,
+        justifyContent: "flex-start",
+        marginRight: spacing.sm,
         marginTop: spacing.sm,
     },
     checkOrderText: {
@@ -304,6 +451,9 @@ const styles = StyleSheet.create({
         marginLeft: spacing.md,
         fontWeight: "600",
     },
+    bottomSpacer: {
+        height: spacing.xxl * 2,
+    },
 });
 
-export default SalesReport; 
+export default SalesReport;

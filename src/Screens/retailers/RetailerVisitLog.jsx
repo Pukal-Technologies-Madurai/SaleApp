@@ -14,14 +14,12 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
-import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import {
     customColors,
     typography,
     spacing,
     shadows,
-    componentStyles,
 } from "../../Config/helper";
 import { visitEntryLog } from "../../Api/retailers";
 import DatePickerButton from "../../Components/DatePickerButton";
@@ -35,9 +33,7 @@ const RetailerVisitLog = () => {
     const [userId, setUserId] = useState();
 
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [isImageModalVisible, setImageModalVisible] = useState(false);
     const [timeLineVisible, setTimeLineVisible] = useState(false);
-    const [currentImage, setCurrentImage] = useState(null);
     const [expandedId, setExpandedId] = useState(null);
 
     useEffect(() => {
@@ -64,11 +60,6 @@ const RetailerVisitLog = () => {
         }
     };
 
-    const handleImagePress = imageUrl => {
-        setCurrentImage(imageUrl);
-        setImageModalVisible(true);
-    };
-
     const renderRetailerCard = (item, index) => {
         const latitude = item.Latitude;
         const longitude = item.Longitude;
@@ -91,7 +82,7 @@ const RetailerVisitLog = () => {
                                     color:
                                         item.IsExistingRetailer === 1
                                             ? customColors.white
-                                            : "#4CAF50",
+                                            : customColors.accent2,
                                 },
                             ]}>
                             {item.Reatailer_Name}
@@ -120,7 +111,7 @@ const RetailerVisitLog = () => {
                                     {
                                         color:
                                             item.IsExistingRetailer === 1
-                                                ? customColors.white
+                                                ? customColors.primaryLight
                                                 : "#4CAF50",
                                     },
                                 ]}>
@@ -176,15 +167,13 @@ const RetailerVisitLog = () => {
                         </View>
 
                         {item.imageUrl && (
-                            <TouchableOpacity
-                                onPress={() => handleImagePress(item.imageUrl)}
-                                style={styles.imageContainer}>
+                            <View style={styles.imageContainer}>
                                 <Image
                                     source={{ uri: item.imageUrl }}
                                     style={styles.cardImage}
                                     resizeMode="cover"
                                 />
-                            </TouchableOpacity>
+                            </View>
                         )}
 
                         {isValidCoordinates && (
@@ -274,28 +263,6 @@ const RetailerVisitLog = () => {
                             </Text>
                         </View>
                     )}
-                </View>
-            </Modal>
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isImageModalVisible}
-                onRequestClose={() => setImageModalVisible(false)}>
-                <View style={styles.modalContainer}>
-                    <TouchableOpacity
-                        onPress={() => setImageModalVisible(false)}
-                        style={styles.closeButton}>
-                        <Icon
-                            name="close"
-                            size={20}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    <Image
-                        source={{ uri: currentImage }}
-                        style={styles.modalImage}
-                    />
                 </View>
             </Modal>
         </View>
@@ -402,7 +369,7 @@ const styles = StyleSheet.create({
     },
     phoneText: {
         ...typography.body2(),
-        color: customColors.primary,
+        color: customColors.primaryDark,
         textDecorationLine: "underline",
     },
     infoText: {
@@ -414,10 +381,6 @@ const styles = StyleSheet.create({
     narrationContainer: {
         flexDirection: "row",
         alignItems: "flex-start",
-        marginTop: spacing.sm,
-        backgroundColor: customColors.grey100,
-        padding: spacing.sm,
-        borderRadius: 8,
     },
     narrationText: {
         ...typography.body2(),
@@ -426,16 +389,19 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     imageContainer: {
-        marginTop: spacing.md,
+        marginTop: spacing.xxs,
         borderRadius: 12,
         overflow: "hidden",
-        backgroundColor: customColors.grey100,
-        ...shadows.small,
+        // backgroundColor: customColors.grey100,
+        // ...shadows.small,
+        justifyContent: "center",
+        alignItems: "center",
     },
     cardImage: {
-        width: "100%",
-        height: 200,
+        width: "50%",
+        height: 100,
         borderRadius: 12,
+        resizeMode: "cover",
     },
     mapButton: {
         flexDirection: "row",
@@ -477,5 +443,4 @@ const styles = StyleSheet.create({
         ...shadows.medium,
     },
 });
-
 export default RetailerVisitLog;

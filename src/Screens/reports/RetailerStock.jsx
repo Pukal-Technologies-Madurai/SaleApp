@@ -1,7 +1,5 @@
 import {
     ActivityIndicator,
-    ImageBackground,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -11,11 +9,10 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import assetImages from "../../Config/Image";
 import { customColors, typography } from "../../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
-import ProductStockModal from "../../Components/ProductStockModal";
+import AppHeader from "../../Components/AppHeader";
 
 const RetailerStock = () => {
     const navigation = useNavigation();
@@ -23,7 +20,6 @@ const RetailerStock = () => {
     const [stockData, setStockData] = useState([]);
     const [expandedAreas, setExpandedAreas] = useState({});
     const [expandedRetailers, setExpandedRetailers] = useState({});
-    const [isProductModalVisible, setIsProductModalVisible] = useState(false);
     const [lastUpdatedDate, setLastUpdatedDate] = useState("");
     const [overallTotal, setOverallTotal] = useState(0);
     const [viewMode, setViewMode] = useState("area"); // 'area' or 'brand'
@@ -240,248 +236,195 @@ const RetailerStock = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>
-                            Retailers Stock Info
-                        </Text>
-                        <View style={styles.headerButtons}>
-                            <TouchableOpacity
-                                style={styles.viewToggle}
-                                onPress={() =>
-                                    setViewMode(
-                                        viewMode === "area" ? "brand" : "area",
-                                    )
-                                }>
-                                <Icon
-                                    name={
-                                        viewMode === "area"
-                                            ? "store"
-                                            : "local-offer"
-                                    }
-                                    size={25}
-                                    color={customColors.white}
-                                />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => setIsProductModalVisible(true)}>
-                                <Icon
-                                    name="dashboard"
-                                    size={25}
-                                    color={customColors.white}
-                                />
-                            </TouchableOpacity>
+            <AppHeader
+                navigation={navigation}
+                title="Retailers Stock Info"
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName={viewMode === "area" ? "store" : "local-offer"}
+                onRightPress={() =>
+                    setViewMode(viewMode === "area" ? "brand" : "area")
+                }
+            />
+
+            <View style={styles.contentContainer}>
+                {loading ? (
+                    <ActivityIndicator
+                        size="large"
+                        color={customColors.primary}
+                        style={{ flex: 1 }}
+                    />
+                ) : viewMode === "area" ? (
+                    <ScrollView style={styles.container}>
+                        <View style={styles.summaryContainer}>
+                            <Text style={styles.lastUpdatedText}>
+                                Last Updated: {formatDate(lastUpdatedDate)}
+                            </Text>
+                            <Text style={styles.overallTotalText}>
+                                Overall Total: ₹{overallTotal.toFixed(2)}
+                            </Text>
                         </View>
-                    </View>
 
-                    <View style={styles.contentContainer}>
-                        {loading ? (
-                            <ActivityIndicator
-                                size="large"
-                                color={customColors.primary}
-                                style={{ flex: 1 }}
-                            />
-                        ) : viewMode === "area" ? (
-                            <ScrollView style={styles.container}>
-                                <View style={styles.summaryContainer}>
-                                    <Text style={styles.lastUpdatedText}>
-                                        Last Updated:{" "}
-                                        {formatDate(lastUpdatedDate)}
-                                    </Text>
-                                    <Text style={styles.overallTotalText}>
-                                        Overall Total: ₹
-                                        {overallTotal.toFixed(2)}
-                                    </Text>
-                                </View>
+                        {stockData.map(area => (
+                            <View
+                                key={area.Area_Id}
+                                style={styles.areaContainer}>
+                                <TouchableOpacity
+                                    style={styles.areaHeader}
+                                    onPress={() => toggleArea(area.Area_Id)}>
+                                    <View style={styles.areaHeaderContent}>
+                                        <Icon
+                                            name={
+                                                expandedAreas[area.Area_Id]
+                                                    ? "expand-less"
+                                                    : "expand-more"
+                                            }
+                                            size={24}
+                                            color="#333"
+                                        />
+                                        <Text style={styles.areaName}>
+                                            {area.Area_Name ||
+                                                `Area ${area.Area_Id}`}
+                                        </Text>
+                                        <Text style={styles.areaTotal}>
+                                            ₹
+                                            {calculateAreaTotal(area).toFixed(
+                                                2,
+                                            )}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
 
-                                {stockData.map(area => (
-                                    <View
-                                        key={area.Area_Id}
-                                        style={styles.areaContainer}>
-                                        <TouchableOpacity
-                                            style={styles.areaHeader}
-                                            onPress={() =>
-                                                toggleArea(area.Area_Id)
-                                            }>
+                                {expandedAreas[area.Area_Id] && (
+                                    <View style={styles.retailersList}>
+                                        {area.Retailer.map(retailer => (
                                             <View
+                                                key={retailer.Retailer_Id}
                                                 style={
-                                                    styles.areaHeaderContent
+                                                    styles.retailerContainer
                                                 }>
-                                                <Icon
-                                                    name={
-                                                        expandedAreas[
-                                                            area.Area_Id
-                                                        ]
-                                                            ? "expand-less"
-                                                            : "expand-more"
+                                                <TouchableOpacity
+                                                    style={
+                                                        styles.retailerHeader
                                                     }
-                                                    size={24}
-                                                    color="#333"
-                                                />
-                                                <Text style={styles.areaName}>
-                                                    {area.Area_Name ||
-                                                        `Area ${area.Area_Id}`}
-                                                </Text>
-                                                <Text style={styles.areaTotal}>
-                                                    ₹
-                                                    {calculateAreaTotal(
-                                                        area,
-                                                    ).toFixed(2)}
-                                                </Text>
-                                            </View>
-                                        </TouchableOpacity>
-
-                                        {expandedAreas[area.Area_Id] && (
-                                            <View style={styles.retailersList}>
-                                                {area.Retailer.map(retailer => (
+                                                    onPress={() =>
+                                                        toggleRetailer(
+                                                            retailer.Retailer_Id,
+                                                        )
+                                                    }>
                                                     <View
-                                                        key={
-                                                            retailer.Retailer_Id
-                                                        }
                                                         style={
-                                                            styles.retailerContainer
+                                                            styles.retailerHeaderContent
                                                         }>
-                                                        <TouchableOpacity
-                                                            style={
-                                                                styles.retailerHeader
+                                                        <Icon
+                                                            name={
+                                                                expandedRetailers[
+                                                                    retailer
+                                                                        .Retailer_Id
+                                                                ]
+                                                                    ? "remove"
+                                                                    : "add"
                                                             }
-                                                            onPress={() =>
-                                                                toggleRetailer(
-                                                                    retailer.Retailer_Id,
-                                                                )
+                                                            size={20}
+                                                            color="#666"
+                                                        />
+                                                        <Text
+                                                            style={
+                                                                styles.retailerName
                                                             }>
-                                                            <View
-                                                                style={
-                                                                    styles.retailerHeaderContent
-                                                                }>
-                                                                <Icon
-                                                                    name={
-                                                                        expandedRetailers[
-                                                                            retailer
-                                                                                .Retailer_Id
-                                                                        ]
-                                                                            ? "remove"
-                                                                            : "add"
-                                                                    }
-                                                                    size={20}
-                                                                    color="#666"
-                                                                />
-                                                                <Text
-                                                                    style={
-                                                                        styles.retailerName
-                                                                    }>
-                                                                    {
-                                                                        retailer.Retailer_Name
-                                                                    }
-                                                                </Text>
-                                                                <Text
-                                                                    style={
-                                                                        styles.retailerTotal
-                                                                    }>
-                                                                    ₹
-                                                                    {calculateRetailerTotal(
-                                                                        retailer,
-                                                                    ).toFixed(
-                                                                        2,
-                                                                    )}
-                                                                </Text>
-                                                            </View>
-                                                        </TouchableOpacity>
+                                                            {
+                                                                retailer.Retailer_Name
+                                                            }
+                                                        </Text>
+                                                        <Text
+                                                            style={
+                                                                styles.retailerTotal
+                                                            }>
+                                                            ₹
+                                                            {calculateRetailerTotal(
+                                                                retailer,
+                                                            ).toFixed(2)}
+                                                        </Text>
+                                                    </View>
+                                                </TouchableOpacity>
 
-                                                        {expandedRetailers[
-                                                            retailer.Retailer_Id
-                                                        ] && (
-                                                            <View
-                                                                style={
-                                                                    styles.stockList
-                                                                }>
-                                                                {retailer.Closing_Stock.map(
-                                                                    stock => (
-                                                                        <View
-                                                                            key={
-                                                                                stock.Item_Id
-                                                                            }
+                                                {expandedRetailers[
+                                                    retailer.Retailer_Id
+                                                ] && (
+                                                    <View
+                                                        style={
+                                                            styles.stockList
+                                                        }>
+                                                        {retailer.Closing_Stock.map(
+                                                            stock => (
+                                                                <View
+                                                                    key={
+                                                                        stock.Item_Id
+                                                                    }
+                                                                    style={
+                                                                        styles.stockItem
+                                                                    }>
+                                                                    <Text
+                                                                        style={
+                                                                            styles.productName
+                                                                        }>
+                                                                        {
+                                                                            stock.Product_Name
+                                                                        }
+                                                                    </Text>
+                                                                    <View
+                                                                        style={
+                                                                            styles.stockDetails
+                                                                        }>
+                                                                        <Text
                                                                             style={
-                                                                                styles.stockItem
+                                                                                styles.stockText
                                                                             }>
-                                                                            <Text
-                                                                                style={
-                                                                                    styles.productName
-                                                                                }>
-                                                                                {
-                                                                                    stock.Product_Name
-                                                                                }
-                                                                            </Text>
-                                                                            <View
-                                                                                style={
-                                                                                    styles.stockDetails
-                                                                                }>
-                                                                                <Text
-                                                                                    style={
-                                                                                        styles.stockText
-                                                                                    }>
-                                                                                    Balance:{" "}
-                                                                                    {
-                                                                                        stock.Previous_Balance
-                                                                                    }
-                                                                                </Text>
-                                                                                <Text
-                                                                                    style={
-                                                                                        styles.stockText
-                                                                                    }>
-                                                                                    Rate:
-                                                                                    ₹
-                                                                                    {
-                                                                                        stock.Item_Rate
-                                                                                    }
-                                                                                </Text>
-                                                                                <Text
-                                                                                    style={
-                                                                                        styles.stockValue
-                                                                                    }>
-                                                                                    Value:
-                                                                                    ₹
-                                                                                    {(
-                                                                                        stock.Previous_Balance *
-                                                                                        stock.Item_Rate
-                                                                                    ).toFixed(
-                                                                                        2,
-                                                                                    )}
-                                                                                </Text>
-                                                                            </View>
-                                                                        </View>
-                                                                    ),
-                                                                )}
-                                                            </View>
+                                                                            Balance:{" "}
+                                                                            {
+                                                                                stock.Previous_Balance
+                                                                            }
+                                                                        </Text>
+                                                                        <Text
+                                                                            style={
+                                                                                styles.stockText
+                                                                            }>
+                                                                            Rate:
+                                                                            ₹
+                                                                            {
+                                                                                stock.Item_Rate
+                                                                            }
+                                                                        </Text>
+                                                                        <Text
+                                                                            style={
+                                                                                styles.stockValue
+                                                                            }>
+                                                                            Value:
+                                                                            ₹
+                                                                            {(
+                                                                                stock.Previous_Balance *
+                                                                                stock.Item_Rate
+                                                                            ).toFixed(
+                                                                                2,
+                                                                            )}
+                                                                        </Text>
+                                                                    </View>
+                                                                </View>
+                                                            ),
                                                         )}
                                                     </View>
-                                                ))}
+                                                )}
                                             </View>
-                                        )}
+                                        ))}
                                     </View>
-                                ))}
-                            </ScrollView>
-                        ) : (
-                            renderBrandView()
-                        )}
-                    </View>
-                </View>
-            </ImageBackground>
-            <ProductStockModal
-                visible={isProductModalVisible}
-                onClose={() => setIsProductModalVisible(false)}
-                stockData={stockData}
-            />
+                                )}
+                            </View>
+                        ))}
+                    </ScrollView>
+                ) : (
+                    renderBrandView()
+                )}
+            </View>
         </View>
     );
 };
@@ -492,34 +435,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
-        backgroundColor: customColors.background,
-    },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
     contentContainer: {
         width: "100%",
         height: "100%",
         backgroundColor: customColors.white,
         borderRadius: 7.5,
     },
-
     areaContainer: {
         marginBottom: 8,
         backgroundColor: customColors.white,

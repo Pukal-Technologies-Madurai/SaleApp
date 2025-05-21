@@ -19,16 +19,31 @@ import {
 } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
-import { useQuery } from "@tanstack/react-query";
 
 const TripSheet = () => {
     const navigation = useNavigation();
     const [logData, setLogData] = useState([]);
-
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [expandedTrip, setExpandedTrip] = useState(null);
     const [expandedProduct, setExpandedProduct] = useState(null);
+
+    // Status constants
+    const DELIVERY_STATUS = {
+        5: "Pending",
+        7: "Delivered",
+    };
+
+    const PAYMENT_STATUS = {
+        0: "Pending",
+        3: "Completed",
+    };
+
+    const PAYMENT_MODE = {
+        1: "Cash",
+        2: "G-Pay",
+        3: "Credit",
+    };
 
     useEffect(() => {
         refreshData();
@@ -42,14 +57,14 @@ const TripSheet = () => {
             await fetchTripSheet(fromDate, toDate, userId);
         } catch (error) {
             console.error("Error refreshing data:", error);
+            Alert.alert("Error", "Failed to refresh data");
         }
     };
 
     const fetchTripSheet = async (from, to, uId) => {
         try {
             const url = `${API.deliveryTripSheet()}${from}&Todate=${to}&User_Id=${uId}`;
-            // console.log("Fetching from URL:", url);
-
+            console.log("Fetching trip sheet from URL:", url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -63,12 +78,14 @@ const TripSheet = () => {
                 const filteredData = await filterTripsByUserId(data.data);
                 setLogData(filteredData);
             } else {
-                // console.log("Failed to fetch logs: ", data.message);
-                Alert.alert("Error", data.message);
+                Alert.alert(
+                    "Error",
+                    data.message || "Failed to fetch trip data",
+                );
             }
         } catch (err) {
             console.error("Error fetching trip sheet:", err);
-            Alert.alert("Error", "Failed to refresh data");
+            Alert.alert("Error", "Failed to fetch trip data");
         }
     };
 
@@ -79,27 +96,27 @@ const TripSheet = () => {
 
             return trips.filter(trip =>
                 trip.Trip_Details?.some(
-                    detail => Number(detail.User_Id) === numericUserId,
+                    detail =>
+                        Number(detail.Delivery_Person_Id) === numericUserId,
                 ),
             );
         } catch (error) {
             console.error("Error filtering trips:", error);
-            return trips; // Return unfiltered data if there's an error
+            return trips;
         }
     };
 
-    const handleDateChange = (event, date) => {
-        setSelectedFromDate(date);
-        setSelectedToDate(date);
-        fetchTripSheet(
-            date.toISOString().split("T")[0],
-            date.toISOString().split("T")[0],
-        );
+    const handleDateChange = (date, isFromDate) => {
+        if (isFromDate) {
+            setSelectedFromDate(date);
+        } else {
+            setSelectedToDate(date);
+        }
     };
 
     const toggleTripExpand = tripId => {
         setExpandedTrip(expandedTrip === tripId ? null : tripId);
-        setExpandedProduct(null); // Reset product expansion when toggling trip
+        setExpandedProduct(null);
     };
 
     const toggleProductExpand = productId => {
@@ -336,12 +353,10 @@ const TripSheet = () => {
                                                                             : customColors.warning,
                                                                 },
                                                             ]}>
-                                                            {tripDetail &&
-                                                            Number(
-                                                                tripDetail.Delivery_Status,
-                                                            ) === 7
-                                                                ? "Delivered"
-                                                                : "Pending"}
+                                                            {DELIVERY_STATUS[
+                                                                tripDetail
+                                                                    ?.Delivery_Status
+                                                            ] || "Pending"}
                                                         </Text>
                                                     </View>
                                                     <View
@@ -373,14 +388,35 @@ const TripSheet = () => {
                                                                             : customColors.warning,
                                                                 },
                                                             ]}>
-                                                            {tripDetail &&
-                                                            Number(
-                                                                tripDetail.Payment_Status,
-                                                            ) === 3
-                                                                ? "Paid"
-                                                                : "Pending"}
+                                                            {PAYMENT_STATUS[
+                                                                tripDetail
+                                                                    ?.Payment_Status
+                                                            ] || "Pending"}
                                                         </Text>
                                                     </View>
+                                                    {tripDetail && (
+                                                        <View
+                                                            style={
+                                                                styles.statusBadge
+                                                            }>
+                                                            <MaterialCommunityIcons
+                                                                name="credit-card"
+                                                                size={14}
+                                                                color={
+                                                                    customColors.primary
+                                                                }
+                                                            />
+                                                            <Text
+                                                                style={
+                                                                    styles.statusText
+                                                                }>
+                                                                {PAYMENT_MODE[
+                                                                    tripDetail
+                                                                        ?.Payment_Mode
+                                                                ] || "N/A"}
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </View>
                                             </View>
                                             <Text style={styles.orderAmount}>
@@ -472,9 +508,18 @@ const TripSheet = () => {
             <View style={styles.contentContainer}>
                 <View style={styles.datePickerContainer}>
                     <DatePickerButton
-                        title="Select the Date"
+                        title="From Date"
                         date={selectedFromDate}
-                        onDateChange={handleDateChange}
+                        onDateChange={(_, date) => handleDateChange(date, true)}
+                        containerStyle={styles.datePicker}
+                    />
+                    <DatePickerButton
+                        title="To Date"
+                        date={selectedToDate}
+                        onDateChange={(_, date) =>
+                            handleDateChange(date, false)
+                        }
+                        containerStyle={styles.datePicker}
                     />
                 </View>
 
@@ -487,6 +532,7 @@ const TripSheet = () => {
                             contentContainerStyle={styles.flatListContent}
                             onRefresh={refreshData}
                             refreshing={false}
+                            showsVerticalScrollIndicator={false}
                         />
                     ) : (
                         <View style={styles.emptyState}>
@@ -512,10 +558,22 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        ...shadows.small,
     },
     datePickerContainer: {
-        marginHorizontal: spacing.md,
-        marginTop: spacing.md,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        backgroundColor: customColors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
+    },
+    datePicker: {
+        width: "48%",
+        backgroundColor: customColors.white,
     },
     tripContent: {
         flex: 1,
@@ -605,6 +663,7 @@ const styles = StyleSheet.create({
     },
     statusContainer: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.sm,
     },
     statusBadge: {

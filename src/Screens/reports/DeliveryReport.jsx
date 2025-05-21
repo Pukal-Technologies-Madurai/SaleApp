@@ -14,6 +14,7 @@ import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
 import assetImages from "../../Config/Image";
+import AppHeader from "../../Components/AppHeader";
 
 const DeliveryTable = ({ deliveryData }) => {
     const [selectedFilter, setSelectedFilter] = useState("all");
@@ -133,7 +134,7 @@ const DeliveryTable = ({ deliveryData }) => {
                         </Text>
                         <Text
                             style={[styles.cell, { flex: 3 }]}
-                            numberOfLines={3}>
+                            numberOfLines={4}>
                             {item.Retailer_Name}
                         </Text>
                         <Text style={[styles.cell, { flex: 2 }]}>
@@ -216,45 +217,29 @@ const DeliveryReport = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headersContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text
-                            style={styles.headersText}
-                            maxFontSizeMultiplier={1.2}>
-                            Delivery Report
-                        </Text>
-                    </View>
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            date={new Date(selectedDate)}
-                            onDateChange={(event, date) => {
-                                handleDateChange(event, date);
-                            }}
-                            mode="date"
-                            title="Select Date"
-                        />
-                    </View>
+            <AppHeader title="Delivery Status" navigation={navigation} />
 
-                    {isLoading ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#0000ff" />
-                            <Text style={styles.loadingText}>Loading...</Text>
-                        </View>
-                    ) : (
-                        <DeliveryTable deliveryData={deliveryData} />
-                    )}
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        date={new Date(selectedDate)}
+                        onDateChange={(event, date) => {
+                            handleDateChange(event, date);
+                        }}
+                        mode="date"
+                        title="Select Date"
+                    />
                 </View>
-            </ImageBackground>
+
+                {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#0000ff" />
+                        <Text style={styles.loadingText}>Loading...</Text>
+                    </View>
+                ) : (
+                    <DeliveryTable deliveryData={deliveryData} />
+                )}
+            </View>
         </View>
     );
 };
@@ -264,29 +249,17 @@ export default DeliveryReport;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: customColors.primary,
     },
-    backgroundImage: {
+    contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.background,
-    },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.1)",
-    },
-    headersContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 20,
-    },
-    headersText: {
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+        backgroundColor: customColors.white,
     },
     datePickerContainer: {
         ...typography.h6(),
         marginHorizontal: 25,
+        marginVertical: 10,
     },
     loadingContainer: {
         flex: 1,
@@ -365,7 +338,7 @@ const styles = StyleSheet.create({
     },
     headerCell: {
         textAlign: "left",
-        ...typography.body2(),
+        ...typography.caption(),
         fontWeight: "600",
         color: "#444",
         paddingHorizontal: 8,
@@ -381,7 +354,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
     },
     cell: {
-        ...typography.body2(),
+        ...typography.label(),
         color: "#444",
         textAlign: "left",
         paddingHorizontal: 8,
@@ -401,7 +374,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff3e0",
     },
     statusText: {
-        ...typography.body2(),
+        ...typography.caption(),
         fontWeight: "600",
         color: "#1b5e20",
     },

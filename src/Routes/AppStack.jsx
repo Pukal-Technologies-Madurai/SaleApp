@@ -37,6 +37,9 @@ import BillPayment from "../Screens/reports/BillPayment";
 import BillSummary from "../Screens/reports/BillSummary";
 import BillAdminView from "../Screens/reports/BillAdminView";
 import DeliveryUpdate from "../Screens/reports/DeliveryUpdate";
+import Dashboard from "../Screens/Dashboard";
+import StatisticsScreen from "../Screens/StatisticsScreen";
+import SalesAdmin from "../Screens/reports/SalesAdmin";
 
 const Stack = createStackNavigator();
 
@@ -92,6 +95,9 @@ const AppStack = () => {
             <Stack.Screen name="BillSummary" component={BillSummary} />
             <Stack.Screen name="BillAdminView" component={BillAdminView} />
             <Stack.Screen name="DeliveryUpdate" component={DeliveryUpdate} />
+            <Stack.Screen name="Dashboard" component={Dashboard} />
+            <Stack.Screen name="Statistics" component={StatisticsScreen} />
+            <Stack.Screen name="SalesAdmin" component={SalesAdmin} />
 
             {/* Not Used */}
             <Stack.Screen name="LoginScreen" component={LoginScreen} />

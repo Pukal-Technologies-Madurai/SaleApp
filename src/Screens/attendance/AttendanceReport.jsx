@@ -37,7 +37,7 @@ const AttendanceReport = () => {
     const [userType, setUserType] = useState(null);
 
     const [selectedFromDate, setSelectedFromDate] = useState(firstDayOfMonth);
-    const [selectedToDate, setSelectedToDate] = useState(lastDayOfMonth);
+    const [selectedToDate, setSelectedToDate] = useState(currentDate);
 
     useEffect(() => {
         (async () => {

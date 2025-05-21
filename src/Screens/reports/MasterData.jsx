@@ -1,24 +1,19 @@
 import {
     ActivityIndicator,
     Alert,
-    Button,
-    ImageBackground,
-    Modal,
-    Platform,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import assetImages from "../../Config/Image";
-import { customColors, typography } from "../../Config/helper";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { customColors, typography, shadows, spacing } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import AddDataModal from "../../Components/AddDataModal";
 import { useNavigation } from "@react-navigation/native";
+import AppHeader from "../../Components/AppHeader";
 
 const MasterData = () => {
     const navigation = useNavigation();
@@ -27,10 +22,8 @@ const MasterData = () => {
     const [selectedDistrict, setSelectedDistrict] = useState(1);
     const [stateData, setStateData] = useState([]);
     const [selectedState, setSelectedState] = useState(1);
-
     const [routeData, setRouteData] = useState([]);
     const [areaData, setAreaData] = useState([]);
-
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState(null);
 
@@ -196,134 +189,98 @@ const MasterData = () => {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#841584" />
+                <ActivityIndicator size="large" color={customColors.primary} />
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>Master Data</Text>
-                    </View>
+            <AppHeader title="Master Data" navigation={navigation} />
 
-                    <View
-                        style={styles.contentContainer}
-                        behavior={Platform.OS === "ios" ? "padding" : "height"}>
-                        <View>
-                            <View style={styles.stateContainer}>
-                                <EnhancedDropdown
-                                    data={stateData}
-                                    labelField="State_Name"
-                                    valueField="State_Id"
-                                    placeholder="Select State"
-                                    value={selectedState}
-                                    containerStyle={styles.dropdownContainer}
-                                    onChange={item => {
-                                        setSelectedState(item.State_Id);
-                                    }}
-                                />
+            <View style={styles.contentContainer}>
+                <View style={styles.dropdownSection}>
+                    <View style={styles.dropdownCard}>
+                        <Text style={styles.sectionTitle}>Location Details</Text>
+                        <EnhancedDropdown
+                            data={stateData}
+                            labelField="State_Name"
+                            valueField="State_Id"
+                            placeholder="Select State"
+                            value={selectedState}
+                            containerStyle={styles.dropdownContainer}
+                            onChange={item => {
+                                setSelectedState(item.State_Id);
+                            }}
+                        />
 
-                                <EnhancedDropdown
-                                    data={districtData}
-                                    labelField="District_Name"
-                                    valueField="District_Id"
-                                    placeholder="Select State"
-                                    containerStyle={styles.dropdownContainer}
-                                    value={selectedDistrict}
-                                    onChange={item => {
-                                        setSelectedDistrict(item.District_Id);
-                                    }}
-                                />
-                            </View>
-
-                            <View style={styles.actionSection}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.actionButton,
-                                        styles.routeButton,
-                                    ]}
-                                    onPress={() => {
-                                        if (!selectedDistrict) {
-                                            Alert.alert(
-                                                "Error",
-                                                "Please select a district first",
-                                            );
-                                            return;
-                                        }
-                                        setModalType("route");
-                                    }}>
-                                    <Icon
-                                        name="add-road"
-                                        size={24}
-                                        color="#fff"
-                                    />
-                                    <Text style={styles.actionButtonText}>
-                                        Add Route
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[
-                                        styles.actionButton,
-                                        styles.areaButton,
-                                    ]}
-                                    onPress={() => {
-                                        if (!selectedDistrict) {
-                                            Alert.alert(
-                                                "Error",
-                                                "Please select a district first",
-                                            );
-                                            return;
-                                        }
-                                        setModalType("area");
-                                    }}>
-                                    <Icon
-                                        name="add-location"
-                                        size={24}
-                                        color="#fff"
-                                    />
-                                    <Text style={styles.actionButtonText}>
-                                        Add Area
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <AddDataModal
-                                visible={modalType !== null}
-                                onClose={() => setModalType(null)}
-                                onSubmit={handleAddData}
-                                title={
-                                    modalType === "route"
-                                        ? "Add New Route"
-                                        : "Add New Area"
-                                }
-                                placeholder={
-                                    modalType === "route"
-                                        ? "Enter route name"
-                                        : "Enter area name"
-                                }
-                                existingItems={
-                                    modalType === "route" ? routeData : areaData
-                                }
-                                selectedDistrict={selectedDistrict}
-                                modalType={modalType} // Pass the modalType
-                            />
-                        </View>
+                        <EnhancedDropdown
+                            data={districtData}
+                            labelField="District_Name"
+                            valueField="District_Id"
+                            placeholder="Select District"
+                            containerStyle={styles.dropdownContainer}
+                            value={selectedDistrict}
+                            onChange={item => {
+                                setSelectedDistrict(item.District_Id);
+                            }}
+                        />
                     </View>
                 </View>
-            </ImageBackground>
+
+                <View style={styles.actionSection}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.routeButton]}
+                        onPress={() => {
+                            if (!selectedDistrict) {
+                                Alert.alert(
+                                    "Error",
+                                    "Please select a district first",
+                                );
+                                return;
+                            }
+                            setModalType("route");
+                        }}>
+                        <MaterialCommunityIcons 
+                            name="road-variant" 
+                            size={24} 
+                            color={customColors.white} 
+                        />
+                        <Text style={styles.actionButtonText}>Add Route</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.areaButton]}
+                        onPress={() => {
+                            if (!selectedDistrict) {
+                                Alert.alert(
+                                    "Error",
+                                    "Please select a district first",
+                                );
+                                return;
+                            }
+                            setModalType("area");
+                        }}>
+                        <MaterialCommunityIcons 
+                            name="map-marker-plus" 
+                            size={24} 
+                            color={customColors.white} 
+                        />
+                        <Text style={styles.actionButtonText}>Add Area</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <AddDataModal
+                    visible={modalType !== null}
+                    onClose={() => setModalType(null)}
+                    onSubmit={handleAddData}
+                    title={modalType === "route" ? "Add New Route" : "Add New Area"}
+                    placeholder={modalType === "route" ? "Enter route name" : "Enter area name"}
+                    existingItems={modalType === "route" ? routeData : areaData}
+                    selectedDistrict={selectedDistrict}
+                    modalType={modalType}
+                />
+            </View>
         </View>
     );
 };
@@ -333,68 +290,65 @@ export default MasterData;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
     contentContainer: {
+        flex: 1,
         width: "100%",
-        height: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 7.5,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        ...shadows.small,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+    },
+    dropdownSection: {
+        padding: spacing.md,
+    },
+    dropdownCard: {
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.md,
+        ...shadows.small,
+    },
+    sectionTitle: {
+        ...typography.h6(),
+        color: customColors.primary,
+        marginBottom: spacing.md,
+        fontWeight: "600",
     },
     dropdownContainer: {
-        marginVertical: 10,
-        paddingHorizontal: 15,
-    },
-    stateContainer: {
-        width: "100%",
-        flexDirection: "column",
-        // justifyContent: "space-between",
+        marginBottom: spacing.md,
     },
     actionSection: {
         flexDirection: "row",
         justifyContent: "space-between",
-        margin: 15,
-        gap: 15,
+        padding: spacing.md,
+        gap: spacing.md,
     },
     actionButton: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: spacing.md,
         borderRadius: 8,
-        elevation: 2,
-        gap: 8,
+        gap: spacing.sm,
+        ...shadows.small,
     },
     routeButton: {
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primary,
     },
     areaButton: {
-        backgroundColor: customColors.primary,
+        backgroundColor: customColors.secondary,
     },
     actionButtonText: {
         color: customColors.white,
-        ...typography.h6(),
+        ...typography.subtitle1(),
         fontWeight: "600",
     },
 });

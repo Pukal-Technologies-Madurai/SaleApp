@@ -15,6 +15,8 @@ import { useNavigation } from "@react-navigation/native";
 import { WebView } from "react-native-webview";
 import { Dropdown } from "react-native-element-dropdown";
 import assetImages from "../Config/Image";
+import AppHeader from "../Components/AppHeader";
+import EnhancedDropdown from "../Components/EnhancedDropdown";
 
 const RetailerMapView = () => {
     const navigation = useNavigation();
@@ -184,48 +186,27 @@ const RetailerMapView = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>Map View</Text>
-                    </View>
-                    <Dropdown
+            <AppHeader title="Store Locator Map" navigation={navigation} />
+
+            <View style={styles.contentContainer}>
+                <View style={styles.dropdownContainer}>
+                    <EnhancedDropdown
                         data={data}
                         labelField="Area_Name"
                         valueField="Area_Id"
                         placeholder="Select Area"
-                        maxHeight={300}
-                        search
                         value={selectedArea}
                         onChange={item => handleAreaChange(item)}
-                        style={styles.dropdown}
-                        placeholderStyle={styles.placeholderStyle}
-                        containerStyle={styles.dropdownContainer}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        inputSearchStyle={{
-                            borderColor: customColors.black,
-                            borderRadius: 10,
-                        }}
-                        searchPlaceholder="Search area..."
-                    />
-
-                    <WebView
-                        // pullToRefreshEnabled={true}
-                        originWhitelist={["*"]}
-                        source={{ html: htmlContent }}
-                        style={styles.webview}
                     />
                 </View>
-            </ImageBackground>
+
+                <WebView
+                    // pullToRefreshEnabled={true}
+                    originWhitelist={["*"]}
+                    source={{ html: htmlContent }}
+                    style={styles.webview}
+                />
+            </View>
         </View>
     );
 };
@@ -235,57 +216,17 @@ export default RetailerMapView;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primary,
     },
-    backgroundImage: {
+    contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.white,
     },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+    dropdownContainer: {
+        margin: 10,
     },
     webview: {
         flex: 1,
-    },
-    dropdown: {
-        // width: "45%",
-        // height: 50,
-        // paddingHorizontal: 8,
-        backgroundColor: customColors.white,
-
-        margin: 20,
-        paddingHorizontal: 15,
-        paddingVertical: 5,
-        borderColor: "#ddd",
-        borderWidth: 1,
-        borderRadius: 30,
-    },
-    dropdownContainer: {
-        backgroundColor: customColors.white,
-        borderColor: customColors.text,
-        borderWidth: 1,
-        borderRadius: 10,
-    },
-    placeholderStyle: {
-        ...typography.body1(),
-    },
-    selectedTextStyle: {
-        // borderColor: colors.black,
-        // borderWidth: 1,
-        ...typography.body1(),
     },
 });

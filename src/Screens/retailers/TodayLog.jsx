@@ -99,7 +99,14 @@ const TodayLog = () => {
 
     return (
         <View style={styles.container}>
-            <AppHeader title="Today's Log" navigation={navigation} />
+            <AppHeader
+                title="Today's Log"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialCommunityIcons"
+                rightIconName="sale"
+                onRightPress={() => navigation.navigate("SalesAdmin")}
+            />
 
             <View style={styles.contentContainer}>
                 <View style={styles.headerContainer}>

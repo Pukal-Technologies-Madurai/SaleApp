@@ -16,7 +16,7 @@ import { customColors, typography } from "../Config/helper";
 import ImageResizer from "@bam.tech/react-native-image-resizer";
 import RNFS from 'react-native-fs';
 
-const OpenCamera = ({ onPhotoCapture, enableCompression = false }) => {
+const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     const navigation = useNavigation();
     const device = useCameraDevice('back');
     const camera = useRef(null);
@@ -118,7 +118,10 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false }) => {
         setIsSaving(true);
         try {
             if (onPhotoCapture) {
-                onPhotoCapture(photoPath);
+                await onPhotoCapture(photoPath);
+                if (onClose) {
+                    onClose();
+                }
             } else {
                 navigation.navigate('AddCustomer', { imageUri: photoPath });
             }
@@ -146,6 +149,18 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false }) => {
 
     return (
         <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity 
+                    style={styles.closeButton}
+                    onPress={() => {
+                        if (onClose) {
+                            onClose();
+                        }
+                    }}>
+                    <Icon name="close" size={24} color={customColors.white} />
+                </TouchableOpacity>
+            </View>
+
             <Camera
                 ref={camera}
                 photo={true}
@@ -296,5 +311,23 @@ const styles = StyleSheet.create({
         ...typography.body2(),
         color: customColors.accent2,
         flex: 1,
+    },
+    header: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        padding: 16,
+        zIndex: 1,
+    },
+    closeButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

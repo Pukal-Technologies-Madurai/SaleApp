@@ -407,9 +407,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         flex: 1,
         minWidth: "45%",
-        backgroundColor: customColors.grey50,
+        // backgroundColor: customColors.grey50,
         padding: spacing.xs,
-        borderRadius: 6,
+        // borderRadius: 6,
     },
     detailIconContainer: {
         width: 24,

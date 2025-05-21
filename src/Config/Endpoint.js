@@ -1,5 +1,5 @@
-// let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
-let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
+// let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
 
 export const setBaseUrl = url => {

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
-    ImageBackground,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -12,8 +11,8 @@ import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
-import assetImages from "../../Config/Image";
 import DatePickerButton from "../../Components/DatePickerButton";
+import AppHeader from "../../Components/AppHeader";
 
 const TripReport = () => {
     const navigation = useNavigation();
@@ -22,31 +21,20 @@ const TripReport = () => {
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
     useEffect(() => {
-        (async () => {
-            const fromDate = selectedFromDate.toISOString().split("T")[0];
-            const toDate = selectedToDate.toISOString().split("T")[0];
-            fetchTripSheet(fromDate, toDate);
-        })();
+        const fromDate = selectedFromDate.toISOString().split("T")[0];
+        const toDate = selectedToDate.toISOString().split("T")[0];
+        fetchTripSheet(fromDate, toDate);
     }, []);
 
     const fetchTripSheet = async (from, to) => {
         try {
             const url = `${API.deliveryTripSheet()}${from}&Todate=${to}`;
-            // console.log("Fetching from URL:", url);
-
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
+            const response = await fetch(url);
             const data = await response.json();
 
             if (data.success) {
                 setLogData(data.data);
             } else {
-                console.log("Failed to fetch logs: ", data.message);
                 Alert.alert("Error", "Failed to fetch updated data");
             }
         } catch (err) {
@@ -68,10 +56,8 @@ const TripReport = () => {
         return <TripSummaryCard trip={item} />;
     }, []);
 
-    // Memoized Trip Summary Component
     const TripSummaryCard = useCallback(
         ({ trip }) => {
-            // Create a map of Trip_Details by Do_Id for quick lookup
             const tripDetailsMap = useMemo(() => {
                 const map = new Map();
                 trip.Trip_Details?.forEach(detail => {
@@ -131,7 +117,6 @@ const TripReport = () => {
                 return { paid, credit, pending };
             }, [trip.Product_Array, tripDetailsMap]);
 
-            // Get delivery person info from the first Trip_Detail
             const deliveryPerson = useMemo(() => {
                 const firstDetail = trip.Trip_Details?.[0];
                 return {
@@ -141,7 +126,6 @@ const TripReport = () => {
             }, [trip.Trip_Details]);
 
             const handleCardPress = () => {
-                // Map retailers with their corresponding trip details
                 const retailers = trip.Product_Array?.map(product => {
                     const tripDetail = tripDetailsMap.get(product.Do_Id);
                     return {
@@ -168,7 +152,7 @@ const TripReport = () => {
             };
 
             return (
-                <TouchableOpacity onPress={() => handleCardPress()}>
+                <TouchableOpacity onPress={handleCardPress}>
                     <View style={styles.tripCard}>
                         <View style={styles.tripHeader}>
                             <Text style={styles.tripTitle}>
@@ -179,7 +163,6 @@ const TripReport = () => {
                             </Text>
                         </View>
 
-                        {/* Add Delivery Person Info */}
                         <View style={styles.deliveryPersonContainer}>
                             <Icon
                                 name="person"
@@ -192,34 +175,41 @@ const TripReport = () => {
                         </View>
 
                         <View style={styles.statsContainer}>
-                            {/* Delivery Stats */}
                             <View style={styles.statBox}>
                                 <Text style={styles.statTitle}>
                                     Delivery Status
                                 </Text>
                                 <View style={styles.statDetails}>
-                                    <Text style={styles.statValue}>
+                                    <Text
+                                        style={[
+                                            styles.statValue,
+                                            { color: customColors.success },
+                                        ]}>
                                         ✓ {deliveryStats.delivered}/
                                         {deliveryStats.totalOrders}
                                     </Text>
                                     <Text
                                         style={[
                                             styles.statLabel,
-                                            { color: customColors.approved },
+                                            { color: customColors.success },
                                         ]}>
                                         Delivered
                                     </Text>
                                 </View>
                                 {deliveryStats.pending > 0 && (
                                     <View style={styles.statDetails}>
-                                        <Text style={styles.statValue}>
+                                        <Text
+                                            style={[
+                                                styles.statValue,
+                                                { color: customColors.warning },
+                                            ]}>
                                             ⏳ {deliveryStats.pending}/
                                             {deliveryStats.totalOrders}
                                         </Text>
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.pending },
+                                                { color: customColors.warning },
                                             ]}>
                                             Pending
                                         </Text>
@@ -227,23 +217,24 @@ const TripReport = () => {
                                 )}
                             </View>
 
-                            {/* Payment Stats */}
                             <View style={styles.statBox}>
                                 <Text style={styles.statTitle}>
                                     Payment Status
                                 </Text>
                                 {paymentStats.paid > 0 && (
                                     <View style={styles.statDetails}>
-                                        <Text style={styles.statValue}>
+                                        <Text
+                                            style={[
+                                                styles.statValue,
+                                                { color: customColors.success },
+                                            ]}>
                                             ✓ {paymentStats.paid}/
                                             {deliveryStats.totalOrders}
                                         </Text>
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                {
-                                                    color: customColors.approved,
-                                                },
+                                                { color: customColors.success },
                                             ]}>
                                             Paid
                                         </Text>
@@ -251,14 +242,18 @@ const TripReport = () => {
                                 )}
                                 {paymentStats.credit > 0 && (
                                     <View style={styles.statDetails}>
-                                        <Text style={styles.statValue}>
+                                        <Text
+                                            style={[
+                                                styles.statValue,
+                                                { color: customColors.warning },
+                                            ]}>
                                             📝 {paymentStats.credit}/
                                             {deliveryStats.totalOrders}
                                         </Text>
                                         <Text
                                             style={[
                                                 styles.statLabel,
-                                                { color: customColors.pending },
+                                                { color: customColors.warning },
                                             ]}>
                                             Credit
                                         </Text>
@@ -286,7 +281,7 @@ const TripReport = () => {
                             <Icon
                                 name="account-balance-wallet"
                                 size={20}
-                                color={customColors.approved}
+                                color={customColors.success}
                             />
                             <Text style={styles.totalAmount}>
                                 Total Value: ₹{totalInvoiceValue.toFixed(2)}
@@ -306,128 +301,103 @@ const TripReport = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>Trip Report</Text>
-                    </View>
-
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            title="Select Date Range"
-                            date={selectedFromDate}
-                            onDateChange={handleDateChange}
-                        />
-                    </View>
-
-                    <View style={styles.content}>
-                        <FlatList
-                            data={logData}
-                            renderItem={renderItem}
-                            keyExtractor={keyExtractor}
-                            contentContainerStyle={styles.listContainer}
-                            removeClippedSubviews={true}
-                            maxToRenderPerBatch={10}
-                            windowSize={5}
-                        />
-                    </View>
+            <AppHeader title="TripSheet Summary" navigation={navigation} />
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="Select Date Range"
+                        date={selectedFromDate}
+                        onDateChange={handleDateChange}
+                        containerStyle={styles.datePicker}
+                    />
                 </View>
-            </ImageBackground>
+
+                <View style={styles.content}>
+                    <FlatList
+                        data={logData}
+                        renderItem={renderItem}
+                        keyExtractor={keyExtractor}
+                        contentContainerStyle={styles.listContainer}
+                        removeClippedSubviews={true}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                    />
+                </View>
+            </View>
         </View>
     );
 };
 
-export default TripReport;
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
+        backgroundColor: customColors.white,
     },
     datePickerContainer: {
-        flexDirection: "row",
-        marginHorizontal: 20,
-        justifyContent: "space-between",
-        gap: 10,
+        padding: 16,
+    },
+    datePicker: {
+        width: "100%",
     },
     content: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-        overflow: "hidden",
     },
     listContainer: {
-        padding: 15,
+        padding: 16,
     },
     tripCard: {
-        backgroundColor: customColors.white,
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 15,
-        elevation: 3,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        backgroundColor: customColors.grey200,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        ...customColors.shadow,
     },
     tripHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 15,
+        marginBottom: 12,
     },
     tripTitle: {
         ...typography.h6(),
         color: customColors.primary,
-        fontWeight: "bold",
+        fontWeight: "600",
     },
     tripDate: {
         ...typography.body2(),
         color: customColors.grey,
     },
+    deliveryPersonContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 12,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
+    },
+    deliveryPersonText: {
+        ...typography.body2(),
+        color: customColors.primary,
+        marginLeft: 8,
+    },
     statsContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 15,
+        marginBottom: 12,
     },
     statBox: {
         flex: 1,
-        marginHorizontal: 5,
+        marginHorizontal: 4,
     },
     statTitle: {
         ...typography.caption(),
         color: customColors.grey,
-        marginBottom: 5,
+        marginBottom: 4,
     },
     statDetails: {
         flexDirection: "row",
@@ -437,8 +407,8 @@ const styles = StyleSheet.create({
     statValue: {
         ...typography.body2(),
         color: customColors.grey,
-        fontWeight: "600",
-        marginRight: 5,
+        fontWeight: "700",
+        marginRight: 4,
     },
     statLabel: {
         ...typography.caption(),
@@ -448,25 +418,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "flex-end",
         borderTopWidth: 1,
-        borderTopColor: "#eee",
-        paddingTop: 10,
+        borderTopColor: customColors.grey200,
+        paddingTop: 12,
     },
     totalAmount: {
         ...typography.h6(),
-        color: customColors.approved,
-        marginLeft: 5,
-    },
-    deliveryPersonContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 10,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: "#eee",
-    },
-    deliveryPersonText: {
-        ...typography.body2(),
-        color: customColors.primary,
-        marginLeft: 8,
+        color: customColors.success,
+        marginLeft: 4,
     },
 });
+
+export default TripReport;

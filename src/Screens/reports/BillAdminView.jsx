@@ -1,22 +1,20 @@
 import {
-    ImageBackground,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
-    Modal,
     FlatList,
+    Animated,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
-import assetImages from "../../Config/Image";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import AppHeader from "../../Components/AppHeader";
 
 const BillAdminView = () => {
     const navigation = useNavigation();
@@ -25,59 +23,60 @@ const BillAdminView = () => {
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [selectedCollector, setSelectedCollector] = useState(null);
-
     const [drowDownValues, setDropDownValues] = useState({
         paymentStatus: [],
         collectedBy: [],
     });
+    const slideAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        (async () => {
-            try {
-                const fromDate = selectedFromDate.toISOString().split("T")[0];
-                const toDate = selectedToDate.toISOString().split("T")[0];
-                if (selectedCollector) {
-                    fetchCollectionReceipts(
-                        fromDate,
-                        toDate,
-                        selectedCollector.value,
-                    );
-                } else {
-                    fetchCollectionReceipts(fromDate, toDate);
-                }
-                filterData();
-            } catch (err) {
-                console.error(err);
-            }
-        })();
+        fetchData();
     }, [selectedFromDate, selectedToDate, selectedCollector]);
 
-    const fetchCollectionReceipts = async (from, to, uid) => {
-        try {
-            let url = `${API.paymentCollection()}?Fromdate=${from}&Todate=${to}`;
-            if (uid) {
-                url += `&collected_by=${uid}`;
-            }
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data.success) {
-                setLogData(data.data);
-            }
-        } catch (err) {
-            console.error(err);
+    useEffect(() => {
+        if (isFilterModalVisible) {
+            Animated.timing(slideAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }).start();
+        } else {
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }).start();
         }
-    };
+    }, [isFilterModalVisible]);
 
-    const filterData = async () => {
+    const fetchData = async () => {
         try {
-            const url = API.receiptFilter();
-            const response = await fetch(url);
-            const data = await response.json();
+            if (!selectedFromDate || !selectedToDate) return;
 
-            if (data.success) {
+            const fromDate = selectedFromDate.toISOString().split("T")[0];
+            const toDate = selectedToDate.toISOString().split("T")[0];
+            const url = selectedCollector
+                ? `${API.paymentCollection()}?Fromdate=${fromDate}&Todate=${toDate}&collected_by=${selectedCollector.value}`
+                : `${API.paymentCollection()}?Fromdate=${fromDate}&Todate=${toDate}`;
+            // console.log("URL", url);
+
+            const [receiptsResponse, filterResponse] = await Promise.all([
+                fetch(url),
+                fetch(API.receiptFilter()),
+            ]);
+
+            const [receiptsData, filterData] = await Promise.all([
+                receiptsResponse.json(),
+                filterResponse.json(),
+            ]);
+
+            if (receiptsData.success) {
+                setLogData(receiptsData.data);
+            }
+            if (filterData.success) {
                 setDropDownValues({
-                    paymentStatus: data.others.paymentStatus || [],
-                    collectedBy: data.others.collectedBy || [],
+                    paymentStatus: filterData.others.paymentStatus || [],
+                    collectedBy: filterData.others.collectedBy || [],
                 });
             }
         } catch (err) {
@@ -85,39 +84,56 @@ const BillAdminView = () => {
         }
     };
 
-    const handleFromDateChange = (event, date) => {
-        setSelectedFromDate(date);
-    };
+    useEffect(() => {
+        if (selectedToDate < selectedFromDate) {
+            setSelectedToDate(selectedFromDate); // auto-correct
+        }
+    }, [selectedFromDate]);
 
-    const handleToDateChange = (event, date) => {
-        setSelectedToDate(date);
-    };
+    useEffect(() => {
+        if (selectedFromDate > selectedToDate) {
+            setSelectedFromDate(selectedToDate); // auto-correct
+        }
+    }, [selectedToDate]);
 
     const formatDate = dateString => {
         if (!dateString) return "";
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-GB", {
+        return new Date(dateString).toLocaleDateString("en-GB", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
         });
     };
 
-    const renderFilterModal = () => (
-        <Modal
-            visible={isFilterModalVisible}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setIsFilterModalVisible(false)}>
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Select Collector</Text>
+    const renderFilterScreen = () => {
+        if (!isFilterModalVisible) return null;
+
+        return (
+            <Animated.View
+                style={[
+                    styles.filterScreen,
+                    {
+                        transform: [
+                            {
+                                translateY: slideAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [600, 0],
+                                }),
+                            },
+                        ],
+                    },
+                ]}>
+                <View style={styles.filterScreenContent}>
+                    <View style={styles.filterScreenHeader}>
+                        <Text style={styles.filterScreenTitle}>
+                            Select Collector
+                        </Text>
                         <TouchableOpacity
-                            onPress={() => setIsFilterModalVisible(false)}>
+                            onPress={() => setIsFilterModalVisible(false)}
+                            style={styles.closeButton}>
                             <Icon
                                 name="close"
-                                size={25}
+                                size={24}
                                 color={customColors.black}
                             />
                         </TouchableOpacity>
@@ -149,331 +165,220 @@ const BillAdminView = () => {
                         )}
                     />
                 </View>
-            </View>
-        </Modal>
-    );
+            </Animated.View>
+        );
+    };
+
+    const handleFromDateChange = (event, date) => {
+        if (date) setSelectedFromDate(date);
+    };
+
+    const handleToDateChange = (event, date) => {
+        if (date) setSelectedToDate(date);
+    };
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>
-                            Collection Information
+            <AppHeader navigation={navigation} title="Collection Information" />
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="From Date"
+                        date={selectedFromDate}
+                        onDateChange={handleFromDateChange}
+                        containerStyle={styles.datePicker}
+                    />
+                    <DatePickerButton
+                        title="To Date"
+                        date={selectedToDate}
+                        onDateChange={handleToDateChange}
+                        containerStyle={styles.datePicker}
+                    />
+                </View>
+
+                <View style={styles.summaryContainer}>
+                    <View style={styles.summaryItem}>
+                        <Text style={styles.summaryLabel}>Total Bills</Text>
+                        <Text style={styles.summaryValue}>
+                            {logData.length}
                         </Text>
                     </View>
-
-                    <View style={styles.datePickerContainer}>
-                        <View style={styles.datePickerWrapper}>
-                            <DatePickerButton
-                                title="From Date"
-                                date={selectedFromDate}
-                                onDateChange={handleFromDateChange}
-                            />
-                        </View>
-                        <View style={styles.datePickerWrapper}>
-                            <DatePickerButton
-                                title="To Date"
-                                date={selectedToDate}
-                                onDateChange={handleToDateChange}
-                            />
-                        </View>
+                    <View style={styles.summaryItem}>
+                        <Text style={styles.summaryLabel}>Total Amount</Text>
+                        <Text style={styles.summaryValue}>
+                            ₹
+                            {logData.reduce(
+                                (acc, cur) => acc + cur.total_amount,
+                                0,
+                            )}
+                        </Text>
                     </View>
-
-                    <View style={styles.content}>
-                        <View style={styles.summaryContainer}>
-                            <View style={styles.summaryBox}>
-                                <View style={styles.summaryItem}>
-                                    <Text style={styles.summaryLabel}>
-                                        Total Bills
-                                    </Text>
-                                    <Text style={styles.summaryValue}>
-                                        {logData.length}
-                                    </Text>
-                                </View>
-                                <View style={styles.summaryDivider} />
-                                <View style={styles.summaryItem}>
-                                    <Text style={styles.summaryLabel}>
-                                        Total Amount
-                                    </Text>
-                                    <Text style={styles.summaryValue}>
-                                        ₹
-                                        {logData
-                                            .map(total => total.total_amount)
-                                            .reduce((acc, cur) => acc + cur, 0)}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.filterContainer}>
-                                {selectedCollector && (
-                                    <View style={styles.selectedFilterLabel}>
-                                        <MaterialCommunityIcons
-                                            name="account"
-                                            size={20}
-                                            color={customColors.primary}
-                                        />
-                                        <Text style={styles.selectedFilterText}>
-                                            {selectedCollector.label}
-                                        </Text>
-                                    </View>
-                                )}
-                                <TouchableOpacity
-                                    style={styles.filterButton}
-                                    onPress={() =>
-                                        setIsFilterModalVisible(true)
-                                    }>
-                                    <View style={styles.filterButtonContent}>
-                                        <Icon
-                                            name="filter"
-                                            size={24}
-                                            color={customColors.white}
-                                        />
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        <ScrollView>
-                            {logData?.map((collection, index) => (
-                                <View key={index} style={styles.collectionCard}>
-                                    <View style={styles.cardHeader}>
-                                        <View style={styles.invoiceContainer}>
-                                            <MaterialIcons
-                                                name="receipt"
-                                                size={20}
-                                                color={customColors.primary}
-                                            />
-                                            <Text style={styles.invoiceNo}>
-                                                {collection.collection_inv_no}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.dateContainer}>
-                                            <MaterialIcons
-                                                name="calendar-today"
-                                                size={16}
-                                                color={customColors.grey}
-                                            />
-                                            <Text style={styles.date}>
-                                                {formatDate(
-                                                    collection.collection_date,
-                                                )}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    <View style={styles.cardContent}>
-                                        <View style={styles.infoRow}>
-                                            <View style={styles.infoItem}>
-                                                <MaterialCommunityIcons
-                                                    name="store"
-                                                    size={20}
-                                                    color={customColors.primary}
-                                                />
-                                                <Text
-                                                    style={styles.infoText}
-                                                    numberOfLines={1}>
-                                                    {collection.RetailerGet}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        <View style={styles.infoRow}>
-                                            <View style={styles.infoItem}>
-                                                <MaterialCommunityIcons
-                                                    name="cash-multiple"
-                                                    size={20}
-                                                    color={customColors.primary}
-                                                />
-                                                <Text style={styles.amountText}>
-                                                    ₹{collection.total_amount}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.infoItem}>
-                                                <MaterialCommunityIcons
-                                                    name="credit-card-outline"
-                                                    size={20}
-                                                    color={customColors.primary}
-                                                />
-                                                <Text style={styles.infoText}>
-                                                    {collection.collection_type}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        <View style={styles.infoRow}>
-                                            <View
-                                                style={[
-                                                    styles.infoItem,
-                                                    styles.pendingItem,
-                                                ]}>
-                                                <MaterialCommunityIcons
-                                                    name="clock-outline"
-                                                    size={20}
-                                                    color={customColors.pending}
-                                                />
-                                                <Text
-                                                    style={styles.pendingText}>
-                                                    Pending: ₹
-                                                    {collection.pending_amount ||
-                                                        0}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                </View>
-                            ))}
-                        </ScrollView>
-                    </View>
+                    <TouchableOpacity
+                        style={styles.filterButton}
+                        onPress={() => setIsFilterModalVisible(true)}>
+                        <Icon
+                            name="filter"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    </TouchableOpacity>
                 </View>
-            </ImageBackground>
-            {renderFilterModal()}
+
+                <ScrollView style={styles.scrollView}>
+                    {logData?.map((collection, index) => (
+                        <View key={index} style={styles.collectionCard}>
+                            <View style={styles.cardHeader}>
+                                <Text style={styles.invoiceNo}>
+                                    {collection.collection_inv_no}
+                                </Text>
+                                <Text style={styles.date}>
+                                    {formatDate(collection.collection_date)}
+                                </Text>
+                            </View>
+                            <View style={styles.cardContent}>
+                                <Text style={styles.retailerName}>
+                                    {collection.RetailerGet}
+                                </Text>
+                                <View style={styles.amountContainer}>
+                                    <Text style={styles.paymentType}>
+                                        {collection.CollectedByGet}
+                                    </Text>
+                                    <Text style={styles.amount}>
+                                        ₹{collection.total_amount}
+                                    </Text>
+                                    <Text style={styles.paymentType}>
+                                        {collection.collection_type}
+                                    </Text>
+                                </View>
+                                {collection.pending_amount > 0 && (
+                                    <Text style={styles.pendingAmount}>
+                                        Pending: ₹{collection.pending_amount}
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
+                    ))}
+                </ScrollView>
+            </View>
+            {renderFilterScreen()}
         </View>
     );
 };
 
-export default BillAdminView;
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
         padding: 16,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
     },
     datePickerContainer: {
         flexDirection: "row",
-        marginHorizontal: 16,
-        alignItems: "center",
         justifyContent: "space-between",
-        paddingVertical: 8,
+        marginBottom: 16,
     },
-    datePickerWrapper: {
+    datePicker: {
         flex: 1,
-        marginHorizontal: 4,
-    },
-    content: {
-        flex: 1,
-        backgroundColor: customColors.white,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        overflow: "hidden",
+        width: "48%",
     },
     summaryContainer: {
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        margin: 16,
-        marginBottom: 8,
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    summaryBox: {
         flexDirection: "row",
-        justifyContent: "space-around",
+        justifyContent: "space-between",
         alignItems: "center",
-        padding: 12,
+        backgroundColor: customColors.white,
+        padding: 16,
+        borderRadius: 8,
+        marginBottom: 16,
+        ...customColors.shadow,
     },
     summaryItem: {
-        alignItems: "center",
         flex: 1,
     },
     summaryLabel: {
         ...typography.body2(),
-        color: customColors.gray,
+        color: customColors.grey,
         marginBottom: 4,
     },
     summaryValue: {
-        ...typography.h5(),
+        ...typography.h6(),
         color: customColors.primary,
         fontWeight: "600",
-    },
-    summaryDivider: {
-        width: 1,
-        height: "100%",
-        backgroundColor: customColors.lightGrey,
-    },
-    filterContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 12,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: customColors.lightGrey,
-    },
-    selectedFilterLabel: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "#F8F9FA",
-        padding: 8,
-        borderRadius: 8,
-    },
-    selectedFilterText: {
-        ...typography.body2(),
-        color: customColors.primary,
-        fontWeight: "500",
     },
     filterButton: {
         backgroundColor: customColors.primary,
         padding: 8,
         borderRadius: 8,
-        alignItems: "center",
-        justifyContent: "center",
-        width: 40,
-        height: 40,
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        marginLeft: 16,
     },
-    filterButtonContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
+    scrollView: {
+        flex: 1,
     },
     collectionCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: 12,
-        marginHorizontal: 16,
-        marginBottom: 8,
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 12,
+        ...customColors.shadow,
     },
     cardHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 12,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey300,
+    },
+    invoiceNo: {
+        ...typography.h6(),
+        color: customColors.primary,
+    },
+    date: {
+        ...typography.body2(),
+        color: customColors.grey,
+    },
+    cardContent: {
+        gap: 8,
+    },
+    retailerName: {
+        ...typography.body1(),
+        color: customColors.black,
+    },
+    amountContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    amount: {
+        ...typography.h6(),
+        color: customColors.primary,
+        fontWeight: "600",
+    },
+    paymentType: {
+        ...typography.body2(),
+        color: customColors.grey,
+    },
+    pendingAmount: {
+        ...typography.body2(),
+        color: customColors.pending,
+    },
+    filterScreen: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: "60%",
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        ...customColors.shadow,
+    },
+    filterScreenContent: {
+        flex: 1,
+        padding: 16,
+    },
+    filterScreenHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
@@ -482,89 +387,15 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: customColors.lightGrey,
     },
-    invoiceContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    invoiceNo: {
+    filterScreenTitle: {
         ...typography.h6(),
-        color: customColors.primary,
-        fontWeight: "600",
-    },
-    dateContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-    },
-    date: {
-        ...typography.body2(),
-        color: customColors.grey,
-    },
-    cardContent: {
-        gap: 12,
-    },
-    infoRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        gap: 8,
-    },
-    infoItem: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: "#F8F9FA",
-        padding: 12,
-        borderRadius: 8,
-    },
-    infoText: {
-        ...typography.body1(),
-        fontWeight: "600",
         color: customColors.black,
-        flex: 1,
     },
-    amountText: {
-        ...typography.h6(),
-        color: customColors.primary,
-        fontWeight: "600",
-    },
-    pendingItem: {
-        backgroundColor: "#FFF3E0",
-    },
-    pendingText: {
-        ...typography.body2(),
-        color: customColors.pending,
-        fontWeight: "500",
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    modalContent: {
-        backgroundColor: customColors.white,
-        borderRadius: 10,
-        width: "80%",
-        maxHeight: "60%",
-        padding: 20,
-    },
-    modalHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGrey,
-        paddingBottom: 10,
-    },
-    modalTitle: {
-        ...typography.h5(),
-        color: customColors.grey,
+    closeButton: {
+        padding: 4,
     },
     filterItem: {
-        padding: 15,
+        padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: customColors.lightGrey,
     },
@@ -572,11 +403,13 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.accent,
     },
     filterItemText: {
-        ...typography.body2(),
-        color: customColors.accent,
+        ...typography.body1(),
+        color: customColors.grey,
     },
     selectedFilterItemText: {
         color: customColors.primary,
-        fontWeight: "bold",
+        fontWeight: "600",
     },
 });
+
+export default BillAdminView;

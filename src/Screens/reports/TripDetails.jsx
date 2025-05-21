@@ -148,8 +148,8 @@ const TripDetails = ({ route, navigation }) => {
                             {
                                 color:
                                     item.deliveryStatus === 7
-                                        ? customColors.approved
-                                        : customColors.pending,
+                                        ? customColors.success
+                                        : customColors.warning,
                             },
                         ]}>
                         {item.deliveryStatus === 7 ? "Delivered" : "Pending"}
@@ -164,10 +164,10 @@ const TripDetails = ({ route, navigation }) => {
                             {
                                 color:
                                     item.paymentStatus === 3
-                                        ? customColors.approved
+                                        ? customColors.success
                                         : item.paymentStatus === 1
                                           ? customColors.grey
-                                          : customColors.pending,
+                                          : customColors.warning,
                             },
                         ]}>
                         {item.paymentStatus === 3
@@ -183,131 +183,124 @@ const TripDetails = ({ route, navigation }) => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <Icon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
+            <View style={styles.overlay}>
+                <View style={styles.headerContainer}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <Icon
+                            name="arrow-back"
+                            size={24}
+                            color={customColors.white}
+                        />
+                    </TouchableOpacity>
+                    <Text style={styles.headerText}>
+                        Trip #{tripNo} Details
+                    </Text>
+                </View>
+
+                <View style={styles.content}>
+                    {/* Payment Summary Cards */}
+                    <View style={styles.summaryContainer}>
+                        <TouchableOpacity
+                            style={[
+                                styles.summaryCard,
+                                { backgroundColor: customColors.primary },
+                                filterType === null && styles.selectedCard,
+                            ]}
+                            onPress={() => handleSummaryCardTap(null)}>
+                            <Text style={styles.summaryTitle}>
+                                Total Collection
+                            </Text>
+                            <Text style={styles.summaryAmount}>
+                                ₹{paymentSummary.totalAmount}
+                            </Text>
+                            <Text style={styles.summaryCount}>
+                                {retailers.length} Orders
+                            </Text>
                         </TouchableOpacity>
-                        <Text style={styles.headerText}>
-                            Trip #{tripNo} Details
+
+                        <TouchableOpacity
+                            style={[
+                                styles.summaryCard,
+                                { backgroundColor: customColors.success },
+                                filterType === "cash" && styles.selectedCard,
+                            ]}
+                            onPress={() => handleSummaryCardTap("cash")}>
+                            <Text style={styles.summaryTitle}>
+                                Cash Collected
+                            </Text>
+                            <Text style={styles.summaryAmount}>
+                                ₹{paymentSummary.cashPaidAmount}
+                            </Text>
+                            <Text style={styles.summaryCount}>
+                                {paymentSummary.cashPaidCount} Orders
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.summaryCard,
+                                { backgroundColor: customColors.warning },
+                                filterType === "credit" && styles.selectedCard,
+                            ]}
+                            onPress={() => handleSummaryCardTap("credit")}>
+                            <Text style={styles.summaryTitle}>
+                                Credit/Other
+                            </Text>
+                            <Text style={styles.summaryAmount}>
+                                ₹{paymentSummary.creditAmount}
+                            </Text>
+                            <Text style={styles.summaryCount}>
+                                {paymentSummary.creditCount} Orders
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Filter indicator */}
+                    {filterType && (
+                        <View style={styles.filterIndicator}>
+                            <Text style={styles.filterText}>
+                                Showing{" "}
+                                {filterType === "cash"
+                                    ? "Cash Collected"
+                                    : filterType === "credit"
+                                      ? "Credit/Other"
+                                      : "All"}{" "}
+                                Orders
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.clearFilter}
+                                onPress={() => setFilterType(null)}>
+                                <Text style={styles.clearFilterText}>
+                                    Clear Filter
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    <View style={styles.tripInfoContainer}>
+                        <View style={styles.deliveryPersonInfo}>
+                            <Icon
+                                name="person"
+                                size={20}
+                                color={customColors.primary}
+                            />
+                            <Text style={styles.deliveryPersonText}>
+                                {deliveryPerson.name} (ID: {deliveryPerson.id})
+                            </Text>
+                        </View>
+                        <Text style={styles.tripDate}>
+                            {new Date(tripDate).toLocaleDateString()}
                         </Text>
                     </View>
 
-                    <View style={styles.content}>
-                        {/* Payment Summary Cards */}
-                        <View style={styles.summaryContainer}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.summaryCard,
-                                    { backgroundColor: customColors.primary },
-                                    filterType === null && styles.selectedCard,
-                                ]}
-                                onPress={() => handleSummaryCardTap(null)}>
-                                <Text style={styles.summaryTitle}>
-                                    Total Collection
-                                </Text>
-                                <Text style={styles.summaryAmount}>
-                                    ₹{paymentSummary.totalAmount}
-                                </Text>
-                                <Text style={styles.summaryCount}>
-                                    {retailers.length} Orders
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.summaryCard,
-                                    { backgroundColor: customColors.approved },
-                                    filterType === "cash" &&
-                                        styles.selectedCard,
-                                ]}
-                                onPress={() => handleSummaryCardTap("cash")}>
-                                <Text style={styles.summaryTitle}>
-                                    Cash Collected
-                                </Text>
-                                <Text style={styles.summaryAmount}>
-                                    ₹{paymentSummary.cashPaidAmount}
-                                </Text>
-                                <Text style={styles.summaryCount}>
-                                    {paymentSummary.cashPaidCount} Orders
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.summaryCard,
-                                    { backgroundColor: customColors.pending },
-                                    filterType === "credit" &&
-                                        styles.selectedCard,
-                                ]}
-                                onPress={() => handleSummaryCardTap("credit")}>
-                                <Text style={styles.summaryTitle}>
-                                    Credit/Other
-                                </Text>
-                                <Text style={styles.summaryAmount}>
-                                    ₹{paymentSummary.creditAmount}
-                                </Text>
-                                <Text style={styles.summaryCount}>
-                                    {paymentSummary.creditCount} Orders
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Filter indicator */}
-                        {filterType && (
-                            <View style={styles.filterIndicator}>
-                                <Text style={styles.filterText}>
-                                    Showing{" "}
-                                    {filterType === "cash"
-                                        ? "Cash Collected"
-                                        : filterType === "credit"
-                                          ? "Credit/Other"
-                                          : "All"}{" "}
-                                    Orders
-                                </Text>
-                                <TouchableOpacity
-                                    style={styles.clearFilter}
-                                    onPress={() => setFilterType(null)}>
-                                    <Text style={styles.clearFilterText}>
-                                        Clear Filter
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        <View style={styles.tripInfoContainer}>
-                            <View style={styles.deliveryPersonInfo}>
-                                <Icon
-                                    name="person"
-                                    size={20}
-                                    color={customColors.primary}
-                                />
-                                <Text style={styles.deliveryPersonText}>
-                                    {deliveryPerson.name} (ID:{" "}
-                                    {deliveryPerson.id})
-                                </Text>
-                            </View>
-                            <Text style={styles.tripDate}>
-                                {new Date(tripDate).toLocaleDateString()}
-                            </Text>
-                        </View>
-
-                        <FlatList
-                            data={filteredRetailers}
-                            renderItem={renderRetailerItem}
-                            keyExtractor={item => `${item.id}-${item.name}`}
-                            contentContainerStyle={styles.listContainer}
-                        />
-                    </View>
+                    <FlatList
+                        data={filteredRetailers}
+                        renderItem={renderRetailerItem}
+                        keyExtractor={item => `${item.id}-${item.name}`}
+                        contentContainerStyle={styles.listContainer}
+                    />
                 </View>
-            </ImageBackground>
+            </View>
         </View>
     );
 };
@@ -316,36 +309,31 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
-        backgroundColor: customColors.background,
-    },
     overlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
+        backgroundColor: customColors.primary,
     },
     headerContainer: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 20,
+        padding: 16,
     },
     headerText: {
         ...typography.h4(),
         color: customColors.white,
-        marginLeft: 10,
+        marginLeft: 8,
     },
     content: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
         overflow: "hidden",
     },
     tripInfoContainer: {
-        padding: 15,
+        padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        borderBottomColor: customColors.grey200,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
@@ -364,24 +352,22 @@ const styles = StyleSheet.create({
         color: customColors.grey,
     },
     listContainer: {
-        padding: 15,
+        padding: 16,
     },
     retailerCard: {
         backgroundColor: customColors.white,
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 15,
-        elevation: 3,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        borderRadius: 12,
+        borderColor: customColors.grey300,
+        borderWidth: 1,
+        padding: 16,
+        marginBottom: 16,
+        ...customColors.shadow,
     },
     retailerHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 10,
+        marginBottom: 12,
     },
     retailerName: {
         ...typography.h6(),
@@ -395,19 +381,19 @@ const styles = StyleSheet.create({
     detailsRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 10,
+        marginBottom: 12,
     },
     locationText: {
         ...typography.body2(),
         color: customColors.grey,
-        marginLeft: 5,
+        marginLeft: 8,
     },
     statsRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         borderTopWidth: 1,
-        borderTopColor: "#eee",
-        paddingTop: 10,
+        borderTopColor: customColors.grey200,
+        paddingTop: 12,
     },
     stat: {
         alignItems: "center",
@@ -420,18 +406,18 @@ const styles = StyleSheet.create({
         ...typography.body2(),
         color: customColors.grey,
         fontWeight: "600",
-        marginTop: 2,
+        marginTop: 4,
     },
     summaryContainer: {
         flexDirection: "row",
-        padding: 15,
+        padding: 16,
         backgroundColor: "rgba(255, 255, 255, 0.9)",
-        gap: 10,
+        gap: 12,
     },
     summaryCard: {
         flex: 1,
-        borderRadius: 10,
-        padding: 12,
+        borderRadius: 12,
+        padding: 16,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -443,7 +429,7 @@ const styles = StyleSheet.create({
     summaryAmount: {
         ...typography.h6(),
         color: customColors.white,
-        fontWeight: "bold",
+        fontWeight: "600",
     },
     summaryCount: {
         ...typography.caption(),
@@ -458,9 +444,9 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        backgroundColor: "rgba(0,0,0,0.05)",
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: customColors.grey100,
     },
     filterText: {
         ...typography.body2(),
@@ -468,11 +454,11 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     clearFilter: {
-        padding: 5,
+        padding: 8,
     },
     clearFilterText: {
         ...typography.caption(),
-        color: customColors.pending,
+        color: customColors.warning,
         fontWeight: "500",
     },
     productsContainer: {

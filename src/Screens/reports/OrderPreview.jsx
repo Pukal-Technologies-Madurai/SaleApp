@@ -44,6 +44,8 @@ const OrderPreview = () => {
     const [totalProductsSold, setTotalProductsSold] = useState(0);
 
     const [visitLogLength, setVisitLogLength] = useState(0);
+    const [selectedBrand, setSelectedBrand] = useState("All");
+    const [brandList, setBrandList] = useState([]);
 
     useEffect(() => {
         (async () => {
@@ -87,7 +89,7 @@ const OrderPreview = () => {
             const salesPersonIdParam = userId || "";
 
             let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
-            console.log(url);
+            // console.log(url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -106,6 +108,21 @@ const OrderPreview = () => {
             console.log("Error fetching logs: ", error);
         }
     };
+
+    useEffect(() => {
+        if (logData.length > 0) {
+            const brands = new Set();
+            logData.forEach(order => {
+                order.Products_List.forEach(p => {
+                    if (p.BrandGet) {
+                        brands.add(p.BrandGet.trim());
+                    }
+                });
+            });
+
+            setBrandList(["All", ...Array.from(brands)]);
+        }
+    }, [logData]);
 
     const calculateProductSummaryAndTotals = orders => {
         const summary = {};
@@ -207,7 +224,7 @@ const OrderPreview = () => {
     const renderHeader = item => {
         return (
             <View style={styles.accordionHeader}>
-                <Text style={styles.retailerName} numberOfLines={1}>
+                <Text style={styles.retailerName} numberOfLines={2}>
                     {item.Retailer_Name}
                 </Text>
                 <View style={styles.headerRight}>
@@ -596,6 +613,7 @@ const OrderPreview = () => {
             logData,
             productSummary,
             selectedDate: selectedFromDate,
+            isNotAdmin: true,
         });
     };
 
@@ -627,6 +645,40 @@ const OrderPreview = () => {
                 </View>
 
                 <View style={styles.countContainer}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{
+                            paddingHorizontal: spacing.md,
+                            marginVertical: spacing.sm,
+                        }}>
+                        {brandList.map((brand, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={{
+                                    paddingVertical: spacing.xs,
+                                    paddingHorizontal: spacing.md,
+                                    marginRight: spacing.sm,
+                                    borderRadius: 20,
+                                    backgroundColor:
+                                        selectedBrand === brand
+                                            ? customColors.primary
+                                            : customColors.grey200,
+                                }}
+                                onPress={() => setSelectedBrand(brand)}>
+                                <Text
+                                    style={{
+                                        color:
+                                            selectedBrand === brand
+                                                ? customColors.white
+                                                : customColors.grey900,
+                                        ...typography.caption(),
+                                    }}>
+                                    {brand}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                     <View style={styles.statsContainer}>
                         <View style={styles.statItem}>
                             <View style={styles.iconContainer}>
@@ -637,7 +689,9 @@ const OrderPreview = () => {
                                 />
                             </View>
                             <View style={styles.statContent}>
-                                <Text style={styles.statLabel}>Total Sales</Text>
+                                <Text style={styles.statLabel}>
+                                    Total Sales
+                                </Text>
                                 <Text style={styles.statValue}>
                                     {logData ? logData.length : "0"}
                                 </Text>
@@ -655,7 +709,9 @@ const OrderPreview = () => {
                                 />
                             </View>
                             <View style={styles.statContent}>
-                                <Text style={styles.statLabel}>Total Amount</Text>
+                                <Text style={styles.statLabel}>
+                                    Total Amount
+                                </Text>
                                 <Text style={styles.statValue}>
                                     {totalOrderAmount
                                         ? `₹${totalOrderAmount.toFixed(2)}`
@@ -668,7 +724,13 @@ const OrderPreview = () => {
 
                 <ScrollView style={styles.accordationScrollContainer}>
                     <Accordion
-                        data={logData}
+                        data={logData.filter(order =>
+                            selectedBrand === "All"
+                                ? true
+                                : order.Products_List.some(
+                                      p => p.BrandGet?.trim() === selectedBrand,
+                                  ),
+                        )}
                         renderHeader={renderHeader}
                         renderContent={renderContent}
                     />
@@ -693,13 +755,13 @@ const styles = StyleSheet.create({
     datePickerContainer: {
         flexDirection: "row",
         marginHorizontal: spacing.md,
-        marginTop: spacing.md,
+        marginTop: spacing.sm,
         justifyContent: "space-between",
         gap: spacing.sm,
     },
     countContainer: {
-        marginHorizontal: spacing.md,
-        marginVertical: spacing.sm,
+        marginHorizontal: spacing.sm,
+        marginVertical: spacing.xs,
     },
     statsContainer: {
         flexDirection: "row",
@@ -712,7 +774,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.xs,
     },
     iconContainer: {
         width: 48,
@@ -733,7 +795,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xs,
     },
     statValue: {
-        ...typography.h5(),
+        ...typography.body1(),
         color: customColors.grey900,
         fontWeight: "700",
     },
@@ -752,7 +814,7 @@ const styles = StyleSheet.create({
         justifyContent: "flex-start",
         alignItems: "center",
         paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.xs,
         backgroundColor: customColors.primary,
         borderRadius: 8,
         marginBottom: spacing.xs,
@@ -766,7 +828,8 @@ const styles = StyleSheet.create({
     },
     headerRight: {
         flexDirection: "row",
-        alignItems: "center",
+        justifyContent: "flex-end",
+        alignItems: "flex-end",
         gap: spacing.sm,
     },
     orderAmount: {
@@ -786,7 +849,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        backgroundColor: customColors.grey50,
+        backgroundColor: customColors.primaryLight,
         borderTopLeftRadius: 8,
         borderTopRightRadius: 8,
     },

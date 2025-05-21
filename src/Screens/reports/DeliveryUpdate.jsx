@@ -1,13 +1,13 @@
 import {
     Alert,
     FlatList,
-    ImageBackground,
     Modal,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
+    ScrollView,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -15,9 +15,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
-import assetImages from "../../Config/Image";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+} from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
+import AppHeader from "../../Components/AppHeader";
 
 const DeliveryUpdate = () => {
     const navigation = useNavigation();
@@ -25,7 +30,7 @@ const DeliveryUpdate = () => {
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
-    const [modalVisible, setModalVisible] = useState(false);
+    const [showUpdateScreen, setShowUpdateScreen] = useState(false);
     const [selectedDelivery, setSelectedDelivery] = useState(null);
     const [loading, setLoading] = useState(false);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState("0");
@@ -78,10 +83,10 @@ const DeliveryUpdate = () => {
         });
     };
 
-    const openUpdateModal = item => {
+    const openUpdateScreen = item => {
         setSelectedDelivery(item);
         setSelectedPaymentMode(item.Payment_Mode?.toString() || "1");
-        setModalVisible(true);
+        setShowUpdateScreen(true);
     };
 
     const renderDeliveryItem = ({ item }) => (
@@ -130,7 +135,7 @@ const DeliveryUpdate = () => {
             </View>
             <TouchableOpacity
                 style={styles.updateButton}
-                onPress={() => openUpdateModal(item)}>
+                onPress={() => openUpdateScreen(item)}>
                 <FontAwesome
                     name="edit"
                     size={20}
@@ -269,226 +274,208 @@ const DeliveryUpdate = () => {
             );
         } finally {
             setLoading(false);
-            setModalVisible(false);
+            setShowUpdateScreen(false);
             setPartialAmount("");
         }
     };
 
+    const renderUpdateScreen = () => (
+        <View style={styles.updateScreen}>
+            <View style={styles.updateHeader}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => setShowUpdateScreen(false)}>
+                    <MaterialIcon
+                        name="arrow-back"
+                        size={24}
+                        color={customColors.white}
+                    />
+                </TouchableOpacity>
+                <Text style={styles.updateHeaderText}>
+                    Update Delivery Status
+                </Text>
+            </View>
+
+            <ScrollView
+                style={styles.updateContent}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.updateContentContainer}>
+                <View style={styles.updateCard}>
+                    {selectedDelivery && (
+                        <View style={styles.updateBody}>
+                            <Text style={styles.updateInvoice}>
+                                {selectedDelivery.Do_Inv_No}
+                            </Text>
+                            <Text style={styles.updateAmount}>
+                                Amount: ₹
+                                {selectedDelivery.Total_Invoice_value.toFixed(
+                                    2,
+                                )}
+                            </Text>
+
+                            <View style={styles.paymentModeSection}>
+                                <Text style={styles.sectionTitle}>
+                                    Payment Mode:
+                                </Text>
+                                <View style={styles.paymentOptions}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.paymentOption,
+                                            selectedPaymentMode === "3" &&
+                                                styles.selectedPaymentOption,
+                                        ]}
+                                        onPress={() =>
+                                            setSelectedPaymentMode("3")
+                                        }>
+                                        <Text
+                                            style={[
+                                                styles.paymentOptionText,
+                                                selectedPaymentMode === "3" &&
+                                                    styles.selectedPaymentOptionText,
+                                            ]}>
+                                            Credit
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.paymentOption,
+                                            selectedPaymentMode === "1" &&
+                                                styles.selectedPaymentOption,
+                                        ]}
+                                        onPress={() =>
+                                            setSelectedPaymentMode("1")
+                                        }>
+                                        <Text
+                                            style={[
+                                                styles.paymentOptionText,
+                                                selectedPaymentMode === "1" &&
+                                                    styles.selectedPaymentOptionText,
+                                            ]}>
+                                            Cash
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.paymentOption,
+                                            selectedPaymentMode === "2" &&
+                                                styles.selectedPaymentOption,
+                                        ]}
+                                        onPress={() =>
+                                            setSelectedPaymentMode("2")
+                                        }>
+                                        <Text
+                                            style={[
+                                                styles.paymentOptionText,
+                                                selectedPaymentMode === "2" &&
+                                                    styles.selectedPaymentOptionText,
+                                            ]}>
+                                            G-Pay
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {selectedPaymentMode === "1" && (
+                                <View style={styles.partialPaymentSection}>
+                                    <Text style={styles.sectionTitle}>
+                                        Enter Amount Received:
+                                    </Text>
+                                    <TextInput
+                                        style={styles.amountInput}
+                                        placeholder="Enter amount"
+                                        keyboardType="numeric"
+                                        value={partialAmount}
+                                        onChangeText={setPartialAmount}
+                                    />
+                                    <Text style={styles.partialPaymentNote}>
+                                        Leave empty for full payment (₹
+                                        {selectedDelivery.Total_Invoice_value.toFixed(
+                                            2,
+                                        )}
+                                        )
+                                    </Text>
+                                </View>
+                            )}
+
+                            <View style={styles.buttonGroup}>
+                                {selectedPaymentMode === "3" ? (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.updateActionButton,
+                                            styles.deliveredButton,
+                                        ]}
+                                        onPress={() =>
+                                            handleUpdateDelivery(true, false)
+                                        }
+                                        disabled={loading}>
+                                        <Text style={styles.buttonText}>
+                                            Delivered Only
+                                        </Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.updateActionButton,
+                                            styles.deliveredPaidButton,
+                                        ]}
+                                        onPress={() =>
+                                            handleUpdateDelivery(true, true)
+                                        }
+                                        disabled={loading}>
+                                        <Text style={styles.buttonText}>
+                                            Delivered & Paid
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+                    )}
+                </View>
+            </ScrollView>
+        </View>
+    );
+
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.headerText}>Delivery Summary</Text>
-                    </View>
+            <AppHeader title="Delivery Update" navigation={navigation} />
 
-                    <View style={styles.datePickerContainer}>
-                        <DatePickerButton
-                            title="From"
-                            date={selectedFromDate}
-                            onDateChange={(_, date) =>
-                                handleDateChange(date, true)
-                            }
-                            containerStyle={styles.datePicker}
-                        />
-                        <DatePickerButton
-                            title="To"
-                            date={selectedToDate}
-                            onDateChange={(_, date) =>
-                                handleDateChange(date, false)
-                            }
-                            containerStyle={styles.datePicker}
-                        />
-                    </View>
-
-                    <View style={styles.content}>
-                        {deliveryData.length > 0 ? (
-                            <FlatList
-                                data={deliveryData}
-                                renderItem={renderDeliveryItem}
-                                keyExtractor={item => item.Delivery_Order_id}
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={styles.listContent}
-                            />
-                        ) : (
-                            <View style={styles.noDataContainer}>
-                                <Text style={styles.noDataText}>
-                                    No delivery data available
-                                </Text>
-                            </View>
-                        )}
-                    </View>
+            <View style={styles.contentContainer}>
+                <View style={styles.datePickerContainer}>
+                    <DatePickerButton
+                        title="From"
+                        date={selectedFromDate}
+                        onDateChange={(_, date) => handleDateChange(date, true)}
+                        containerStyle={styles.datePicker}
+                    />
+                    <DatePickerButton
+                        title="To"
+                        date={selectedToDate}
+                        onDateChange={(_, date) =>
+                            handleDateChange(date, false)
+                        }
+                        containerStyle={styles.datePicker}
+                    />
                 </View>
-            </ImageBackground>
 
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>
-                                Update Delivery Status
+                <View style={styles.content}>
+                    {deliveryData.length > 0 ? (
+                        <FlatList
+                            data={deliveryData}
+                            renderItem={renderDeliveryItem}
+                            keyExtractor={item => item.Delivery_Order_id}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.listContent}
+                        />
+                    ) : (
+                        <View style={styles.noDataContainer}>
+                            <Text style={styles.noDataText}>
+                                No delivery data available
                             </Text>
-                            <TouchableOpacity
-                                onPress={() => setModalVisible(false)}>
-                                <MaterialIcon
-                                    name="close"
-                                    size={24}
-                                    color="#000"
-                                />
-                            </TouchableOpacity>
                         </View>
-
-                        {selectedDelivery && (
-                            <View style={styles.modalBody}>
-                                <Text style={styles.modalInvoice}>
-                                    {selectedDelivery.Do_Inv_No}
-                                </Text>
-                                <Text style={styles.modalAmount}>
-                                    Amount: ₹
-                                    {selectedDelivery.Total_Invoice_value.toFixed(
-                                        2,
-                                    )}
-                                </Text>
-
-                                <View style={styles.paymentModeSection}>
-                                    <Text style={styles.sectionTitle}>
-                                        Payment Mode:
-                                    </Text>
-                                    <View style={styles.paymentOptions}>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                selectedPaymentMode === "3" &&
-                                                    styles.selectedPaymentOption,
-                                            ]}
-                                            onPress={() =>
-                                                setSelectedPaymentMode("3")
-                                            }>
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    selectedPaymentMode ===
-                                                        "3" &&
-                                                        styles.selectedPaymentOptionText,
-                                                ]}>
-                                                Credit
-                                            </Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                selectedPaymentMode === "1" &&
-                                                    styles.selectedPaymentOption,
-                                            ]}
-                                            onPress={() =>
-                                                setSelectedPaymentMode("1")
-                                            }>
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    selectedPaymentMode ===
-                                                        "1" &&
-                                                        styles.selectedPaymentOptionText,
-                                                ]}>
-                                                Cash
-                                            </Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                selectedPaymentMode === "2" &&
-                                                    styles.selectedPaymentOption,
-                                            ]}
-                                            onPress={() =>
-                                                setSelectedPaymentMode("2")
-                                            }>
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    selectedPaymentMode ===
-                                                        "2" &&
-                                                        styles.selectedPaymentOptionText,
-                                                ]}>
-                                                G-Pay
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                {selectedPaymentMode === "1" && (
-                                    <View style={styles.partialPaymentSection}>
-                                        <Text style={styles.sectionTitle}>
-                                            Enter Amount Received:
-                                        </Text>
-                                        <TextInput
-                                            style={styles.amountInput}
-                                            placeholder="Enter amount"
-                                            keyboardType="numeric"
-                                            value={partialAmount}
-                                            onChangeText={setPartialAmount}
-                                        />
-                                        <Text style={styles.partialPaymentNote}>
-                                            Leave empty for full payment (₹
-                                            {selectedDelivery.Total_Invoice_value.toFixed(
-                                                2,
-                                            )}
-                                            )
-                                        </Text>
-                                    </View>
-                                )}
-
-                                <View style={styles.buttonGroup}>
-                                    {selectedPaymentMode === "3" ? (
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.updateActionButton,
-                                                styles.deliveredButton,
-                                            ]}
-                                            onPress={() =>
-                                                handleUpdateDelivery(
-                                                    true,
-                                                    false,
-                                                )
-                                            }
-                                            disabled={loading}>
-                                            <Text style={styles.buttonText}>
-                                                Delivered Only
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ) : (
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.updateActionButton,
-                                                styles.deliveredPaidButton,
-                                            ]}
-                                            onPress={() =>
-                                                handleUpdateDelivery(true, true)
-                                            }
-                                            disabled={loading}>
-                                            <Text style={styles.buttonText}>
-                                                Delivered & Paid
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            </View>
-                        )}
-                    </View>
+                    )}
                 </View>
-            </Modal>
+            </View>
+            {showUpdateScreen && renderUpdateScreen()}
         </View>
     );
 };
@@ -498,87 +485,75 @@ export default DeliveryUpdate;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.3)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 20,
-    },
-    headerText: {
-        ...typography.h4(),
-        color: customColors.white,
-        marginLeft: 15,
+        width: "100%",
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        ...shadows.small,
     },
     datePickerContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        paddingHorizontal: 20,
-        marginBottom: 20,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        backgroundColor: customColors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
     },
     datePicker: {
         width: "48%",
+        backgroundColor: customColors.white,
     },
     content: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-        overflow: "hidden",
-        padding: 15,
+        padding: spacing.md,
     },
     listContent: {
-        paddingVertical: 16,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xs,
     },
     deliveryItem: {
         flexDirection: "row",
         backgroundColor: customColors.white,
         borderRadius: 8,
-        padding: 16,
-        marginHorizontal: 10,
-        marginBottom: 12,
-        elevation: 2,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
+        padding: spacing.md,
+        marginHorizontal: spacing.xs,
+        marginBottom: spacing.sm,
+        ...shadows.small,
     },
     deliveryDetails: {
         flex: 1,
     },
     invoiceNumber: {
-        ...typography.body1(),
-        fontWeight: "bold",
-        color: customColors.grey,
-        marginBottom: 4,
+        ...typography.body2(),
+        fontWeight: "600",
+        color: customColors.grey700,
+        marginBottom: spacing.xs,
     },
     dateText: {
-        ...typography.body1(),
-        color: customColors.grey,
-        marginBottom: 4,
+        ...typography.body2(),
+        color: customColors.grey600,
+        marginBottom: spacing.xs,
     },
     amountText: {
         ...typography.h6(),
-        fontWeight: "bold",
+        fontWeight: "600",
         color: customColors.primary,
-        marginBottom: 8,
+        marginBottom: spacing.sm,
     },
     statusContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 4,
+        marginBottom: spacing.xs,
     },
     statusLabel: {
         ...typography.body2(),
-        color: customColors.grey,
+        color: customColors.grey600,
     },
     statusValue: {
         ...typography.body2(),
@@ -593,125 +568,140 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        padding: spacing.xl,
     },
     noDataText: {
-        ...typography.h6(),
-        color: customColors.white,
+        ...typography.body1(),
+        color: customColors.grey700,
+        textAlign: "center",
     },
-    modalContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
+    updateScreen: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: customColors.background,
     },
-    modalContent: {
-        width: "90%",
-        backgroundColor: customColors.white,
-        borderRadius: 8,
-        padding: 20,
-        elevation: 5,
-    },
-    modalHeader: {
+    updateHeader: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: "#eee",
-        paddingBottom: 12,
+        padding: spacing.md,
+        backgroundColor: customColors.primary,
+        elevation: 4,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
     },
-    modalTitle: {
-        ...typography.h5(),
-        fontWeight: "bold",
+    backButton: {
+        padding: spacing.xs,
+    },
+    updateHeaderText: {
+        ...typography.subtitle1(),
+        color: customColors.white,
+        marginLeft: spacing.md,
+        fontWeight: "600",
+    },
+    updateContent: {
+        flex: 1,
+    },
+    updateContentContainer: {
+        padding: spacing.md,
+    },
+    updateCard: {
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.md,
+        ...shadows.medium,
+    },
+    updateBody: {
+        paddingTop: spacing.sm,
+    },
+    updateInvoice: {
+        ...typography.h6(),
+        fontWeight: "600",
+        marginBottom: spacing.sm,
         color: customColors.primary,
     },
-    modalBody: {
-        paddingTop: 8,
-    },
-    modalInvoice: {
-        ...typography.h6(),
-        fontWeight: "bold",
-        marginBottom: 8,
-    },
-    modalAmount: {
+    updateAmount: {
         ...typography.body1(),
-        color: customColors.grey,
-        marginBottom: 16,
+        color: customColors.grey700,
+        marginBottom: spacing.lg,
     },
     paymentModeSection: {
-        marginVertical: 16,
+        marginVertical: spacing.md,
     },
     sectionTitle: {
         ...typography.body1(),
         fontWeight: "600",
-        marginBottom: 8,
+        marginBottom: spacing.sm,
+        color: customColors.primary,
     },
     paymentOptions: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 24,
+        marginBottom: spacing.lg,
     },
     paymentOption: {
         flex: 1,
-        padding: 12,
+        padding: spacing.sm,
         alignItems: "center",
         borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: 4,
-        marginHorizontal: 4,
+        borderColor: customColors.grey300,
+        borderRadius: 8,
+        marginHorizontal: spacing.xs,
     },
     selectedPaymentOption: {
         backgroundColor: customColors.primary,
         borderColor: customColors.primary,
     },
     paymentOptionText: {
-        color: customColors.grey,
+        ...typography.body2(),
+        color: customColors.grey700,
     },
     selectedPaymentOptionText: {
         color: customColors.white,
     },
-    buttonGroup: {
-        marginTop: 8,
-    },
-    updateActionButton: {
-        padding: 14,
-        borderRadius: 6,
-        alignItems: "center",
-        marginBottom: 10,
-    },
-    deliveredButton: {
-        backgroundColor: "#f39c12", // Orange
-    },
-    paidButton: {
-        backgroundColor: "#3498db", // Blue
-    },
-    deliveredPaidButton: {
-        backgroundColor: "#2ecc71", // Green
-    },
-    buttonText: {
-        color: customColors.white,
-        fontWeight: "bold",
-        ...typography.body1(),
-    },
     partialPaymentSection: {
-        marginVertical: 12,
-        paddingTop: 4,
-        paddingBottom: 8,
+        marginVertical: spacing.md,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.sm,
         borderTopWidth: 1,
-        borderTopColor: "#eee",
+        borderTopColor: customColors.grey200,
     },
     amountInput: {
         height: 48,
         borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: 4,
-        paddingHorizontal: 12,
-        ...typography.h6(),
-        marginVertical: 8,
+        borderColor: customColors.grey300,
+        borderRadius: 8,
+        paddingHorizontal: spacing.md,
+        ...typography.body1(),
+        marginVertical: spacing.sm,
     },
     partialPaymentNote: {
-        ...typography.body2(),
-        color: customColors.lightGrey,
+        ...typography.caption(),
+        color: customColors.grey600,
         fontStyle: "italic",
+    },
+    buttonGroup: {
+        marginTop: spacing.md,
+    },
+    updateActionButton: {
+        padding: spacing.md,
+        borderRadius: 8,
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+    deliveredButton: {
+        backgroundColor: customColors.warning,
+    },
+    deliveredPaidButton: {
+        backgroundColor: customColors.success,
+    },
+    buttonText: {
+        color: customColors.white,
+        fontWeight: "600",
+        ...typography.body1(),
     },
 });

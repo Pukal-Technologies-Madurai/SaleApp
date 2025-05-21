@@ -8,6 +8,7 @@ import {
     Image,
     Alert,
     ActivityIndicator,
+    Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -26,6 +27,7 @@ import {
 } from "../../Config/helper";
 import { fetchAreas, fetchRoutes, postRetailer } from "../../Api/retailers";
 import FormField from "../../Components/FormField";
+import OpenCamera from "../../Components/OpenCamera";
 
 const AddCustomer = () => {
     const navigation = useNavigation();
@@ -60,6 +62,8 @@ const AddCustomer = () => {
 
     const [errors, setErrors] = useState({});
     const [imageUri, setImageUri] = useState(null);
+    const [showCamera, setShowCamera] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     useEffect(() => {
         loadAsyncStorageData();
@@ -127,14 +131,17 @@ const AddCustomer = () => {
     };
 
     const handleOpenCamera = () => {
-        navigation.navigate("OpenCamera", {
-            onImageCapture: handleImageCapture,
-        });
+        if (imageUri) {
+            setShowPreview(true);
+        } else {
+            setShowCamera(true);
+        }
     };
 
     const handleImageCapture = uri => {
         setImageUri(uri);
         setFormValues({ ...formValues, profilePic: uri });
+        setShowCamera(false);
     };
 
     const validateForm = () => {
@@ -343,7 +350,7 @@ const AddCustomer = () => {
                                 style={styles.cameraButton}
                                 onPress={handleOpenCamera}>
                                 <Text style={styles.cameraButtonText}>
-                                    {imageUri ? "Retake Photo" : "Take Photo"}
+                                    {imageUri ? "Preview Photo" : "Take Photo"}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -398,6 +405,66 @@ const AddCustomer = () => {
                     </View>
                 </ScrollView>
             </View>
+
+            {/* Camera Modal */}
+            <Modal
+                visible={showCamera}
+                animationType="slide"
+                onRequestClose={() => setShowCamera(false)}
+                statusBarTranslucent
+            >
+                <View style={styles.cameraModalContainer}>
+                    <OpenCamera
+                        onPhotoCapture={handleImageCapture}
+                        onClose={() => setShowCamera(false)}
+                    />
+                </View>
+            </Modal>
+
+            {/* Photo Preview Modal */}
+            <Modal
+                visible={showPreview}
+                animationType="slide"
+                onRequestClose={() => setShowPreview(false)}
+                transparent={true}
+            >
+                <View style={styles.previewModalContainer}>
+                    <View style={styles.previewContent}>
+                        <View style={styles.previewHeader}>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setShowPreview(false)}>
+                                <Icon name="close" size={24} color={customColors.white} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <Image
+                            source={{ uri: `file://${imageUri}` }}
+                            style={styles.previewImage}
+                            resizeMode="contain"
+                        />
+                        
+                        <View style={styles.previewActions}>
+                            <TouchableOpacity
+                                style={[styles.previewButton, styles.retakeButton]}
+                                onPress={() => {
+                                    setShowPreview(false);
+                                    setShowCamera(true);
+                                }}>
+                                <Icon name="camera" size={24} color={customColors.white} />
+                                <Text style={styles.previewButtonText}>Retake</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity
+                                style={[styles.previewButton, styles.closePreviewButton]}
+                                onPress={() => setShowPreview(false)}>
+                                <Icon name="checkmark" size={24} color={customColors.white} />
+                                <Text style={styles.previewButtonText}>Done</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -504,5 +571,64 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         backgroundColor: customColors.white,
+    },
+    cameraModalContainer: {
+        flex: 1,
+        backgroundColor: customColors.black,
+    },
+    previewModalContainer: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    previewContent: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'space-between',
+    },
+    previewHeader: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        padding: spacing.md,
+    },
+    closeButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    previewImage: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+    },
+    previewActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        padding: spacing.md,
+        gap: spacing.md,
+    },
+    previewButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: spacing.md,
+        borderRadius: spacing.md,
+        gap: spacing.sm,
+    },
+    retakeButton: {
+        backgroundColor: customColors.primary,
+    },
+    closePreviewButton: {
+        backgroundColor: customColors.success,
+    },
+    previewButtonText: {
+        ...typography.button(),
+        color: customColors.white,
+        fontWeight: '600',
     },
 });
