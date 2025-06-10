@@ -31,6 +31,7 @@ export const loginUser = async ({ selectedCompany, userName, password }) => {
     });
 
     const json = await res.json();
+    console.log("loginUser", json);
     if (!json.success) throw new Error(json.message);
     return json.data;
 };
@@ -44,6 +45,7 @@ export const fetchUserAuth = async ({ webApi, userAuth }) => {
     });
 
     const json = await res.json();
+    console.log("fetchUserAuth", json);
     if (!json.success) throw new Error(json.message);
     return json.user;
 };

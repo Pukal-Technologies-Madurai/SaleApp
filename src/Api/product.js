@@ -2,6 +2,7 @@ import { API } from "../Config/Endpoint";
 
 export const fetchProducts = async userId => {
     const response = await fetch(`${API.products()}${userId}`);
+    // console.log("fetchProducts", `${API.products()}${userId}`);
     const data = await response.json();
 
     if (!data.success) throw new Error(data.message);
@@ -17,7 +18,7 @@ export const fetchUOM = async () => {
 };
 
 export const fetchGroupedProducts = async company => {
-    console.log("urr", `${API.groupedProducts()}${company}`);
+    // console.log("fetchGroupedProducts", `${API.groupedProducts()}${company}`);
     const res = await fetch(`${API.groupedProducts()}${company}`);
     const data = await res.json();
 

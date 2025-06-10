@@ -7,13 +7,18 @@ import {
     View,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { customColors, typography, shadows, spacing } from "../../Config/helper";
-import { API } from "../../Config/Endpoint";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import AddDataModal from "../../Components/AddDataModal";
 import { useNavigation } from "@react-navigation/native";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
+import AddDataModal from "../../Components/AddDataModal";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import { API } from "../../Config/Endpoint";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+} from "../../Config/helper";
 
 const MasterData = () => {
     const navigation = useNavigation();
@@ -24,7 +29,6 @@ const MasterData = () => {
     const [selectedState, setSelectedState] = useState(1);
     const [routeData, setRouteData] = useState([]);
     const [areaData, setAreaData] = useState([]);
-    const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState(null);
 
     useEffect(() => {
@@ -41,7 +45,7 @@ const MasterData = () => {
             const response = await fetch(`${API.areas()}`);
             const data = await response.json();
             if (data.success) {
-                console.log("Area Data Structure:", data.data[0].District_Id); // Log first item
+                // console.log("Area Data Structure:", data.data[0].District_Id); // Log first item
                 setAreaData(data.data);
             }
         } catch (err) {
@@ -127,7 +131,7 @@ const MasterData = () => {
             });
 
             const data = await response.json();
-            console.log(data);
+            // console.log(data);
 
             if (!data.success) {
                 throw new Error(data.message || "Failed to add route");
@@ -142,7 +146,7 @@ const MasterData = () => {
     };
 
     const addArea = async areaName => {
-        console.log(selectedDistrict);
+        // console.log(selectedDistrict);
         if (!selectedDistrict) {
             throw new Error("Please select a district");
         }
@@ -160,7 +164,7 @@ const MasterData = () => {
             });
 
             const data = await response.json();
-            console.log(data);
+            // console.log(data);
 
             if (!data.success) {
                 throw new Error(data.message || "Failed to add area");
@@ -201,7 +205,9 @@ const MasterData = () => {
             <View style={styles.contentContainer}>
                 <View style={styles.dropdownSection}>
                     <View style={styles.dropdownCard}>
-                        <Text style={styles.sectionTitle}>Location Details</Text>
+                        <Text style={styles.sectionTitle}>
+                            Location Details
+                        </Text>
                         <EnhancedDropdown
                             data={stateData}
                             labelField="State_Name"
@@ -241,10 +247,10 @@ const MasterData = () => {
                             }
                             setModalType("route");
                         }}>
-                        <MaterialCommunityIcons 
-                            name="road-variant" 
-                            size={24} 
-                            color={customColors.white} 
+                        <MaterialCommunityIcons
+                            name="road-variant"
+                            size={24}
+                            color={customColors.white}
                         />
                         <Text style={styles.actionButtonText}>Add Route</Text>
                     </TouchableOpacity>
@@ -261,10 +267,10 @@ const MasterData = () => {
                             }
                             setModalType("area");
                         }}>
-                        <MaterialCommunityIcons 
-                            name="map-marker-plus" 
-                            size={24} 
-                            color={customColors.white} 
+                        <MaterialCommunityIcons
+                            name="map-marker-plus"
+                            size={24}
+                            color={customColors.white}
                         />
                         <Text style={styles.actionButtonText}>Add Area</Text>
                     </TouchableOpacity>
@@ -274,8 +280,14 @@ const MasterData = () => {
                     visible={modalType !== null}
                     onClose={() => setModalType(null)}
                     onSubmit={handleAddData}
-                    title={modalType === "route" ? "Add New Route" : "Add New Area"}
-                    placeholder={modalType === "route" ? "Enter route name" : "Enter area name"}
+                    title={
+                        modalType === "route" ? "Add New Route" : "Add New Area"
+                    }
+                    placeholder={
+                        modalType === "route"
+                            ? "Enter route name"
+                            : "Enter area name"
+                    }
                     existingItems={modalType === "route" ? routeData : areaData}
                     selectedDistrict={selectedDistrict}
                     modalType={modalType}

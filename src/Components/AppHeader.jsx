@@ -1,12 +1,13 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StatusBar } from "react-native";
-import Icon from "react-native-vector-icons/FontAwesome";
 import AntDesign from "react-native-vector-icons/AntDesign";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FeatherIcon from "react-native-vector-icons/Feather";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
+import Icon from "react-native-vector-icons/FontAwesome";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { customColors, typography, shadows, spacing } from "../Config/helper";
+import EnhancedDropdown from "./EnhancedDropdown";
 
 const iconLibraries = {
     MaterialIcon: MaterialIcon,
@@ -29,6 +30,11 @@ const AppHeader = ({
     name = "",
     badgeValue = 0,
     showBadge = false,
+    showFilterDropdown = false,
+    filterTitle = "",
+    filterDropdownData = [],
+    selectedFilter = "",
+    onFilterChange = () => {},
 }) => {
     const RightIcon = iconLibraries[rightIconLibrary];
 
@@ -83,28 +89,44 @@ const AppHeader = ({
                     )}
                 </View>
 
-                {showRightIcon && RightIcon ? (
-                    <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={onRightPress}>
-                        <View style={styles.iconContainer}>
-                            <RightIcon
-                                name={rightIconName}
-                                size={24}
-                                color={customColors.white}
-                            />
-                            {showBadge && badgeValue > 0 && (
-                                <View style={styles.badge}>
-                                    <Text style={styles.badgeText}>
-                                        {badgeValue}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.placeholder} />
-                )}
+                <View>
+                    {showFilterDropdown && (
+                        <EnhancedDropdown
+                            data={filterDropdownData}
+                            labelField="label"
+                            valueField="value"
+                            placeholder={filterTitle}
+                            value={selectedFilter}
+                            onChange={onFilterChange}
+                            iconOnly
+                            iconName="filter"
+                            iconColor={customColors.white}
+                            iconSize={22}
+                        />
+                    )}
+                    {showRightIcon && RightIcon ? (
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={onRightPress}>
+                            <View style={styles.iconContainer}>
+                                <RightIcon
+                                    name={rightIconName}
+                                    size={24}
+                                    color={customColors.white}
+                                />
+                                {showBadge && badgeValue > 0 && (
+                                    <View style={styles.badge}>
+                                        <Text style={styles.badgeText}>
+                                            {badgeValue}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.placeholder} />
+                    )}
+                </View>
             </View>
         </View>
     );
@@ -145,7 +167,7 @@ const styles = {
     },
     subtitleText: {
         ...typography.caption(),
-        color: customColors.grey300,
+        color: customColors.grey400,
     },
     iconButton: {
         width: 40,

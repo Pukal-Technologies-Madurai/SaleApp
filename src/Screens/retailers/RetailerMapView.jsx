@@ -1,22 +1,13 @@
-import {
-    ImageBackground,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { StyleSheet, View } from "react-native";
 import React, { useState, useEffect } from "react";
 
-import { customColors, typography } from "../Config/helper";
-import { API } from "../Config/Endpoint";
+import { customColors, typography } from "../../Config/helper";
+import { API } from "../../Config/Endpoint";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/MaterialIcons";
 import { useNavigation } from "@react-navigation/native";
 import { WebView } from "react-native-webview";
-import { Dropdown } from "react-native-element-dropdown";
-import assetImages from "../Config/Image";
-import AppHeader from "../Components/AppHeader";
-import EnhancedDropdown from "../Components/EnhancedDropdown";
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const RetailerMapView = () => {
     const navigation = useNavigation();

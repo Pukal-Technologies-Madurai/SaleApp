@@ -13,19 +13,15 @@ import {
 import React, { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useMutation } from "@tanstack/react-query";
-import {
-    Building,
-    Building2,
-    LogIn,
-    ShieldCheck,
-    User,
-} from "lucide-react-native";
+import CryptoJS from "react-native-crypto-js";
 import Icon from "react-native-vector-icons/Ionicons";
+import AntIcon from "react-native-vector-icons/AntDesign";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
+import FontAwesomeIcon from "react-native-vector-icons/FontAwesome6";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { storeInfo } from "../../Config/AuthContext";
+import { API, setBaseUrl } from "../../Config/Endpoint";
 import { customColors, shadows, typography } from "../../Config/helper";
-import { fetchUserAuth, loginUser, fetchUserCompanies } from "../../Api/auth";
 import assetImages from "../../Config/Image";
 
 const LoginPortal = () => {
@@ -38,42 +34,27 @@ const LoginPortal = () => {
     const [step, setStep] = useState(1);
     const [modalVisible, setModalVisible] = useState(false);
 
-    const companiesMutation = useMutation({
-        mutationFn: fetchUserCompanies,
-        onSuccess: data => {
-            setCompanies(data);
-            if (data.length === 1) {
-                setSelectedCompany(data[0]);
-                setStep(2);
+    const handleContinue = async () => {
+        try {
+            const response = await fetch(`${API.userPortal()}${userName}`);
+            const jsonData = await response.json();
+
+            if (jsonData.success && jsonData.data) {
+                const companies = jsonData.data;
+                setCompanies(companies);
+
+                if (companies.length === 1) {
+                    setSelectedCompany(companies[0]);
+                    setStep(2);
+                } else {
+                    setStep(2);
+                }
             } else {
-                setStep(2);
+                ToastAndroid.show(jsonData.message, ToastAndroid.LONG);
             }
-        },
-        onError: error => ToastAndroid.show(error.message, ToastAndroid.LONG),
-    });
-
-    const loginMutation = useMutation({
-        mutationFn: loginUser,
-        onSuccess: data => {
-            getUserAuth(data.Web_Api, data.Autheticate_Id);
-        },
-        onError: error => ToastAndroid.show(error.message, ToastAndroid.LONG),
-    });
-
-    const authMutation = useMutation({
-        mutationFn: fetchUserAuth,
-        onSuccess: async authData => {
-            await AsyncStorage.setItem("userToken", authData.Autheticate_Id);
-            await setData(authData);
-            setAuthInfo(authData);
-            navigation.replace("HomeScreen");
-            ToastAndroid.show("Login Success", ToastAndroid.LONG);
-        },
-        onError: err => ToastAndroid.show(err.message, ToastAndroid.LONG),
-    });
-
-    const handleContinue = () => {
-        companiesMutation.mutate(userName);
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const handleCompanySelect = company => {
@@ -86,11 +67,73 @@ const LoginPortal = () => {
             ToastAndroid.show("Please select a company.", ToastAndroid.LONG);
             return;
         }
-        loginMutation.mutate({ selectedCompany, userName, password });
+
+        try {
+            const passHash = CryptoJS.AES.encrypt(
+                password,
+                "ly4@&gr$vnh905RyB>?%#@-(KSMT",
+            ).toString();
+
+            const response = await fetch(API.userPortalLogin(), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    Global_User_ID: selectedCompany.Global_User_ID,
+                    username: userName,
+                    Password: passHash,
+
+                    Company_Name: selectedCompany.Company_Name,
+                    Global_Id: selectedCompany.Global_Id,
+                    Local_Id: selectedCompany.Local_Id,
+                    Web_Api: selectedCompany.Web_Api,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                getUserAuth(data.data.Web_Api, data.data.Autheticate_Id);
+            } else {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+            }
+        } catch (err) {
+            Alert.alert("Login Error", "An error occurred during login.");
+            console.error(err);
+        }
     };
 
     const getUserAuth = async (webApi, userAuth) => {
-        authMutation.mutate({ webApi, userAuth });
+        try {
+            setBaseUrl(webApi);
+
+            const url = `${webApi}api/authorization/userAuthmobile`;
+
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    Authorization: `${userAuth}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const authData = data.user;
+
+                await AsyncStorage.setItem(
+                    "userToken",
+                    authData.Autheticate_Id,
+                );
+                await setData(authData);
+                setAuthInfo(authData);
+                navigation.replace("HomeScreen");
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+            } else {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+            }
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const setData = async data => {
@@ -129,7 +172,8 @@ const LoginPortal = () => {
                     {step === 1 && (
                         <View style={styles.inputContainer}>
                             <View style={styles.inputWrapper}>
-                                <User
+                                <AntIcon
+                                    name="user"
                                     size={22}
                                     color={customColors.grey500}
                                     style={styles.inputIcon}
@@ -145,7 +189,8 @@ const LoginPortal = () => {
                             <TouchableOpacity
                                 style={styles.button}
                                 onPress={handleContinue}>
-                                <LogIn
+                                <AntIcon
+                                    name="login"
                                     size={22}
                                     color={customColors.white}
                                     style={styles.inputIcon}
@@ -165,7 +210,8 @@ const LoginPortal = () => {
                     {step === 2 && (
                         <View style={styles.inputContainer}>
                             <View style={styles.inputWrapper}>
-                                <User
+                                <AntIcon
+                                    name="user"
                                     size={22}
                                     color={customColors.grey500}
                                     style={styles.inputIcon}
@@ -182,7 +228,8 @@ const LoginPortal = () => {
                                 <TouchableOpacity
                                     style={styles.selectButton}
                                     onPress={() => setModalVisible(true)}>
-                                    <Building2
+                                    <FontAwesomeIcon
+                                        name="building-shield"
                                         size={22}
                                         color={customColors.grey500}
                                     />
@@ -216,7 +263,8 @@ const LoginPortal = () => {
                                                 onPress={() =>
                                                     handleCompanySelect(item)
                                                 }>
-                                                <Building
+                                                <FontAwesome
+                                                    name="building-o"
                                                     size={22}
                                                     color={customColors.grey500}
                                                 />
@@ -243,7 +291,8 @@ const LoginPortal = () => {
                             {selectedCompany && (
                                 <>
                                     <View style={styles.inputWrapper}>
-                                        <ShieldCheck
+                                        <Icon
+                                            name="shield-checkmark-outline"
                                             size={22}
                                             color={customColors.grey500}
                                             style={styles.inputIcon}

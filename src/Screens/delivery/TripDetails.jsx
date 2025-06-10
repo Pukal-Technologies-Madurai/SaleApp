@@ -211,7 +211,7 @@ const TripDetails = ({ route, navigation }) => {
                                 Total Collection
                             </Text>
                             <Text style={styles.summaryAmount}>
-                                ₹{paymentSummary.totalAmount}
+                                ₹{paymentSummary.totalAmount.toFixed(2)}
                             </Text>
                             <Text style={styles.summaryCount}>
                                 {retailers.length} Orders
@@ -229,7 +229,7 @@ const TripDetails = ({ route, navigation }) => {
                                 Cash Collected
                             </Text>
                             <Text style={styles.summaryAmount}>
-                                ₹{paymentSummary.cashPaidAmount}
+                                ₹{paymentSummary.cashPaidAmount.toFixed(2)}
                             </Text>
                             <Text style={styles.summaryCount}>
                                 {paymentSummary.cashPaidCount} Orders
@@ -247,7 +247,7 @@ const TripDetails = ({ route, navigation }) => {
                                 Credit/Other
                             </Text>
                             <Text style={styles.summaryAmount}>
-                                ₹{paymentSummary.creditAmount}
+                                ₹{paymentSummary.creditAmount.toFixed(2)}
                             </Text>
                             <Text style={styles.summaryCount}>
                                 {paymentSummary.creditCount} Orders

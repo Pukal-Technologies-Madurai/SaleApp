@@ -5,14 +5,14 @@ import {
     TouchableOpacity,
     Image,
     ScrollView,
-    ActivityIndicator,
-    RefreshControl,
 } from "react-native";
-import React, { useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { customColors, typography } from "../Config/helper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import AttendanceInfo from "./attendance/AttendanceInfo";
+import { customColors, typography } from "../Config/helper";
 import assetImages from "../Config/Image";
 import AppHeader from "../Components/AppHeader";
 import Dashboard from "./Dashboard";
@@ -21,11 +21,30 @@ const HomeScreen = () => {
     const navigation = useNavigation();
     const [name, setName] = useState("");
     const [userTypeID, setUserTypeID] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const ADMIN_USER_TYPES = ["0", "1", "2"];
     const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
+
+    const [isConnected, setIsConnected] = useState(null);
+    const [connectionType, setConnectionType] = useState(null);
+
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener(state => {
+            setIsConnected(state.isConnected);
+            setConnectionType(state.type);
+        });
+
+        // Optional: get initial state
+        NetInfo.fetch().then(state => {
+            setIsConnected(state.isConnected);
+            setConnectionType(state.type);
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     React.useEffect(() => {
         const loadUserDetails = async () => {
@@ -91,7 +110,7 @@ const HomeScreen = () => {
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <AppHeader
                 navigation={navigation}
                 showDrawer={true}
@@ -103,15 +122,26 @@ const HomeScreen = () => {
                 onRightPress={() => navigation.navigate("TodayLog")}
             />
 
+            {!isConnected ? (
+                <View
+                    style={{
+                        paddingVertical: 1.5,
+                        marginTop: 10,
+                        alignItems: "center",
+                    }}>
+                    <Text style={styles.text}>
+                        {isConnected
+                            ? `Online ✅ ${connectionType}`
+                            : "Offline ❌ Please check your internet connection."}
+                    </Text>
+                </View>
+            ) : null}
+
             <View style={styles.overlay}>
                 <ScrollView>
                     {error ? (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{error}</Text>
-                        </View>
-                    ) : isLoading ? (
-                        <View style={styles.loaderContainer}>
-                            <ActivityIndicator size="large" color="#4A90E2" />
                         </View>
                     ) : isAdmin ? (
                         <Dashboard />
@@ -145,7 +175,7 @@ const HomeScreen = () => {
                     )}
                 </ScrollView>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 

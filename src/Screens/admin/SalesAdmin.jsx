@@ -6,25 +6,23 @@ import {
     TouchableOpacity,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import AppHeader from "../../Components/AppHeader";
 import { useNavigation } from "@react-navigation/native";
-import DatePickerButton from "../../Components/DatePickerButton";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import AppHeader from "../../Components/AppHeader";
+import DatePickerButton from "../../Components/DatePickerButton";
+import { API } from "../../Config/Endpoint";
 import {
     customColors,
     shadows,
     spacing,
     typography,
 } from "../../Config/helper";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API } from "../../Config/Endpoint";
-import Accordion from "../../Components/Accordion";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import FeatherIcon from "react-native-vector-icons/Feather";
 
 const SalesAdmin = () => {
     const navigation = useNavigation();
-    const [companyId, setCompanyId] = useState([]);
+    const [companyId, setCompanyId] = useState(null);
     const [logData, setLogData] = useState([]);
     const [salesPersonData, setSalesPersonData] = useState([]);
     const [selectedSalesPerson, setSelectedSalesPerson] = useState({
@@ -34,10 +32,8 @@ const SalesAdmin = () => {
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [productSummary, setProductSummary] = useState([]);
-    const [totalProductsSold, setTotalProductsSold] = useState(0);
     const [totalOrderAmount, setTotalOrderAmount] = useState(0);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [expandedItems, setExpandedItems] = useState({});
+    const [expandedItemId, setExpandedItemId] = useState(null);
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandList, setBrandList] = useState([]);
 
@@ -51,17 +47,23 @@ const SalesAdmin = () => {
                 const today = new Date();
                 setSelectedFromDate(today);
                 setSelectedToDate(today);
+                const formattedDate = today.toISOString().split("T")[0];
 
                 setCompanyId(Number(Company_Id));
                 fetchSalesPerson(Company_Id);
                 setSelectedSalesPerson({ label: "All", value: "all" });
 
-                fetchSaleOrder(fromDate, toDate, Company_Id, userId);
+                fetchSaleOrder(
+                    formattedDate,
+                    formattedDate,
+                    Company_Id,
+                    userId,
+                );
             } catch (err) {
                 console.log("Error in useEffect:", err);
             }
         })();
-    }, []); // Remove selectedFromDate and selectedToDate from dependencies
+    }, []);
 
     // Add new useEffect for date changes
     useEffect(() => {
@@ -102,14 +104,12 @@ const SalesAdmin = () => {
                 setLogData([]);
                 setProductSummary([]);
                 setTotalOrderAmount(0);
-                setTotalProductsSold(0);
             }
         } catch (error) {
             console.log("Error fetching logs: ", error);
             setLogData([]);
             setProductSummary([]);
             setTotalOrderAmount(0);
-            setTotalProductsSold(0);
         }
     };
 
@@ -138,7 +138,6 @@ const SalesAdmin = () => {
 
         setProductSummary(Object.values(summary));
         setTotalOrderAmount(totalAmount);
-        setTotalProductsSold(productCount);
     };
 
     const fetchSalesPerson = async companyId => {
@@ -191,14 +190,8 @@ const SalesAdmin = () => {
         }
     }, [logData]);
 
-    const handleSalesReportPress = () => {
-        setShowDropdown(!showDropdown);
-    };
-
     const handleSalesPersonChange = item => {
         setSelectedSalesPerson(item);
-        console.log("Selected Sales Person:", item);
-        setShowDropdown(false);
 
         const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
         const formattedToDate = selectedToDate.toISOString().split("T")[0];
@@ -211,28 +204,109 @@ const SalesAdmin = () => {
         );
     };
 
-    const toggleAccordion = index => {
-        const newExpanded = expandedItems === index ? null : index;
-        setExpandedItems(newExpanded);
+    // const toggleAccordion = index => {
+    //     setExpandedItem(expandedItem === index ? null : index);
+    // };
 
-        // setExpandedItems(prev => {
-        //     const newState = { ...prev };
-        //     newState[index] = !prev[index];
-        //     return newState;
-        // ...prev,
-        // [index]: !prev[index],
-        // });
+    const toggleAccordion = orderId => {
+        setExpandedItemId(expandedItemId === orderId ? null : orderId);
     };
 
-    const renderRetailerItem = (item, index) => {
-        // const isExpanded = Boolean(expandedItems[index]);
-        const isExpanded = expandedItems === index;
+    // const renderRetailerItem = (item, index) => {
+    //     // const isExpanded = expandedItem === index;
+    //     const isExpanded = expandedItemId === item.So_Id;
 
+    //     return (
+    //         <View key={item.So_Id} style={styles.retailerContainer}>
+    //             <TouchableOpacity
+    //                 style={styles.retailerHeader}
+    //                 onPress={() => toggleAccordion(item.So_Id)}>
+    //                 <View style={styles.retailerHeaderContent}>
+    //                     <Text style={styles.retailerName} numberOfLines={2}>
+    //                         {item.Retailer_Name}
+    //                     </Text>
+    //                     <View style={styles.headerRight}>
+    //                         <Text style={styles.orderAmount}>
+    //                             ₹{item.Total_Invoice_value}
+    //                         </Text>
+    //                         <MaterialCommunityIcons
+    //                             name={
+    //                                 isExpanded ? "chevron-up" : "chevron-down"
+    //                             }
+    //                             size={24}
+    //                             color={customColors.white}
+    //                         />
+    //                     </View>
+    //                 </View>
+    //             </TouchableOpacity>
+
+    //             {isExpanded && (
+    //                 <View style={styles.retailerContent}>
+    //                     <View style={styles.orderHeader}>
+    //                         <Text style={styles.orderId}>
+    //                             Order #{item.So_Id}
+    //                         </Text>
+    //                         <Text style={styles.orderDate}>
+    //                             {new Date(item.So_Date).toLocaleDateString()}
+    //                         </Text>
+    //                     </View>
+
+    //                     <View style={styles.productsList}>
+    //                         <View style={styles.productHeader}>
+    //                             <Text
+    //                                 style={[
+    //                                     styles.retailerProductCell,
+    //                                     styles.retailerProductNameCell,
+    //                                 ]}>
+    //                                 Product
+    //                             </Text>
+    //                             <Text style={styles.retailerProductCell}>
+    //                                 Qty
+    //                             </Text>
+    //                             <Text style={styles.retailerProductCell}>
+    //                                 Amount
+    //                             </Text>
+    //                         </View>
+
+    //                         {item.Products_List.map((product, pIndex) => (
+    //                             <View
+    //                                 key={`${item.So_Id}-${pIndex}`}
+    //                                 style={styles.productRow}>
+    //                                 <Text
+    //                                     style={[
+    //                                         styles.retailerProductCell,
+    //                                         { flex: 2, flexWrap: "wrap" },
+    //                                     ]}
+    //                                     numberOfLines={3}>
+    //                                     {product.Product_Name}
+    //                                 </Text>
+    //                                 <Text style={styles.retailerProductCell}>
+    //                                     {product.Bill_Qty}
+    //                                 </Text>
+    //                                 <Text style={styles.retailerProductCell}>
+    //                                     ₹{product.Amount}
+    //                                 </Text>
+    //                             </View>
+    //                         ))}
+
+    //                         <View style={styles.orderTotal}>
+    //                             <Text style={styles.totalLabel}>Total</Text>
+    //                             <Text style={styles.totalAmount}>
+    //                                 ₹{item.Total_Invoice_value}
+    //                             </Text>
+    //                         </View>
+    //                     </View>
+    //                 </View>
+    //             )}
+    //         </View>
+    //     );
+    // };
+
+    const renderRetailerItem = item => {
         return (
-            <View key={index} style={styles.retailerContainer}>
-                <TouchableOpacity
-                    style={styles.retailerHeader}
-                    onPress={() => toggleAccordion(index)}>
+            <View key={item.So_Id} style={styles.retailerContainer}>
+                {/* Header */}
+                <View style={styles.retailerHeader}>
                     <View style={styles.retailerHeaderContent}>
                         <Text style={styles.retailerName} numberOfLines={2}>
                             {item.Retailer_Name}
@@ -241,73 +315,73 @@ const SalesAdmin = () => {
                             <Text style={styles.orderAmount}>
                                 ₹{item.Total_Invoice_value}
                             </Text>
-                            <MaterialCommunityIcons
-                                name={
-                                    isExpanded ? "chevron-up" : "chevron-down"
-                                }
-                                size={24}
-                                color={customColors.white}
-                            />
                         </View>
                     </View>
-                </TouchableOpacity>
+                </View>
 
-                {isExpanded && (
-                    <View style={styles.retailerContent}>
-                        <View style={styles.orderHeader}>
-                            <Text style={styles.orderId}>
-                                Order #{item.So_Id}
+                {/* Body: Products List */}
+                <View style={styles.retailerContent}>
+                    <Text style={styles.orderId}>
+                        Invoice: {item.So_Inv_No}
+                    </Text>
+                    <View style={styles.productsList}>
+                        <View style={styles.productHeader}>
+                            <Text
+                                style={[
+                                    styles.retailerProductCell,
+                                    styles.retailerProductNameCell,
+                                ]}>
+                                Product
                             </Text>
-                            <Text style={styles.orderDate}>
-                                {new Date(item.So_Date).toLocaleDateString()}
+                            <Text
+                                style={[
+                                    styles.retailerProductCell,
+                                    { textAlign: "center" },
+                                ]}>
+                                Qty
+                            </Text>
+                            <Text style={styles.retailerProductCell}>
+                                Amount
                             </Text>
                         </View>
 
-                        <View style={styles.productsList}>
-                            <View style={styles.productHeader}>
+                        {item.Products_List.map((product, pIndex) => (
+                            <View
+                                key={`${item.So_Id}-${pIndex}`}
+                                style={styles.productRow}>
                                 <Text
                                     style={[
                                         styles.retailerProductCell,
-                                        styles.retailerProductNameCell,
+                                        {
+                                            flex: 3,
+                                            flexWrap: "wrap",
+                                            textAlign: "left",
+                                        },
+                                    ]}
+                                    numberOfLines={3}>
+                                    {product.Product_Name}
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.retailerProductCell,
+                                        { textAlign: "center" },
                                     ]}>
-                                    Product
+                                    {product.Total_Qty}
                                 </Text>
                                 <Text style={styles.retailerProductCell}>
-                                    Qty
-                                </Text>
-                                <Text style={styles.retailerProductCell}>
-                                    Amount
+                                    ₹{product.Final_Amo.toFixed(2)}
                                 </Text>
                             </View>
+                        ))}
 
-                            {item.Products_List.map((product, pIndex) => (
-                                <View key={pIndex} style={styles.productRow}>
-                                    <Text
-                                        style={[
-                                            styles.retailerProductCell,
-                                            { flex: 2, flexWrap: "wrap" },
-                                        ]}
-                                        numberOfLines={3}>
-                                        {product.Product_Name}
-                                    </Text>
-                                    <Text style={styles.retailerProductCell}>
-                                        {product.Bill_Qty}
-                                    </Text>
-                                    <Text style={styles.retailerProductCell}>
-                                        ₹{product.Amount}
-                                    </Text>
-                                </View>
-                            ))}
-
-                            <View style={styles.orderTotal}>
-                                <Text style={styles.totalLabel}>Total</Text>
-                                <Text style={styles.totalAmount}>
-                                    ₹{item.Total_Invoice_value}
-                                </Text>
-                            </View>
+                        <View style={styles.orderTotal}>
+                            <Text style={styles.totalLabel}>Total</Text>
+                            <Text style={styles.totalAmount}>
+                                ₹{item.Total_Invoice_value}
+                            </Text>
                         </View>
                     </View>
-                )}
+                </View>
             </View>
         );
     };
@@ -321,56 +395,54 @@ const SalesAdmin = () => {
         });
     };
 
+    const filteredLogData = logData.filter(order =>
+        selectedBrand === "All"
+            ? true
+            : order.Products_List.some(
+                  p => p.BrandGet?.trim() === selectedBrand,
+              ),
+    );
+
+    const filteredTotalSales = filteredLogData.length;
+
+    const filteredTotalAmount = filteredLogData.reduce(
+        (sum, order) => sum + (order.Total_Invoice_value || 0),
+        0,
+    );
+
     return (
         <View style={styles.container}>
             <AppHeader
                 title="Sales Order Summary"
                 navigation={navigation}
-                showRightIcon={true}
-                rightIconLibrary="FeatherIcon"
-                rightIconName="filter"
-                onRightPress={handleSalesReportPress}
+                showFilterDropdown={true}
+                filterDropdownData={salesPersonData}
+                filterTitle="Select Sales Person"
+                selectedFilter={selectedSalesPerson}
+                onFilterChange={handleSalesPersonChange}
             />
 
             <View style={styles.contentContainer}>
-                {showDropdown ? (
-                    <View style={styles.dropdownWrapper}>
-                        <EnhancedDropdown
-                            data={salesPersonData}
-                            labelField="label"
-                            valueField="value"
-                            value={selectedSalesPerson}
-                            onChange={handleSalesPersonChange}
-                            showIcon={true}
-                            iconName="filter"
-                            containerStyle={styles.dropdown}
-                            placeholder="Select Sales Person"
-                        />
-                    </View>
+                {selectedSalesPerson ? (
+                    <Text
+                        style={{
+                            padding: 10,
+                            textAlign: "center",
+                            ...typography.subtitle1(),
+                            color: customColors.black,
+                        }}>
+                        Sales Person: {selectedSalesPerson.label}
+                    </Text>
                 ) : (
-                    <>
-                        {selectedSalesPerson ? (
-                            <Text
-                                style={{
-                                    padding: 10,
-                                    textAlign: "center",
-                                    ...typography.subtitle1(),
-                                    color: customColors.black,
-                                }}>
-                                Sales Person: {selectedSalesPerson.label}
-                            </Text>
-                        ) : (
-                            <Text
-                                style={{
-                                    padding: 10,
-                                    textAlign: "center",
-                                    ...typography.subtitle1(),
-                                    color: customColors.black,
-                                }}>
-                                Sales Person: All
-                            </Text>
-                        )}
-                    </>
+                    <Text
+                        style={{
+                            padding: 10,
+                            textAlign: "center",
+                            ...typography.subtitle1(),
+                            color: customColors.black,
+                        }}>
+                        Sales Person: All
+                    </Text>
                 )}
 
                 <View style={styles.datePickerContainer}>
@@ -437,7 +509,7 @@ const SalesAdmin = () => {
                                     Total Sales
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {logData ? logData.length : "0"}
+                                    {filteredTotalSales}
                                 </Text>
                             </View>
                         </View>
@@ -457,8 +529,8 @@ const SalesAdmin = () => {
                                     Total Amount
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {totalOrderAmount
-                                        ? `₹${totalOrderAmount.toFixed(2)}`
+                                    {filteredTotalAmount
+                                        ? `₹${filteredTotalAmount.toFixed(2)}`
                                         : "₹0.00"}
                                 </Text>
                             </View>
@@ -485,7 +557,8 @@ const SalesAdmin = () => {
                                       p => p.BrandGet?.trim() === selectedBrand,
                                   ),
                         )
-                        .map((item, index) => renderRetailerItem(item, index))}
+                        .map(item => renderRetailerItem(item))}
+
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             </View>
@@ -836,11 +909,11 @@ const styles = StyleSheet.create({
     },
     retailerProductCell: {
         flex: 1,
-        textAlign: "left",
+        textAlign: "right",
         ...typography.body2(),
     },
     retailerProductNameCell: {
-        flex: 2,
+        flex: 3,
         textAlign: "left",
         paddingRight: spacing.sm,
     },

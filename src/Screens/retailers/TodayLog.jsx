@@ -47,10 +47,7 @@ const TodayLog = () => {
         select: data => {
             return data.filter(item => {
                 const createdDate = item.Created_Date?.split("T")[0];
-                return (
-                    item.Created_By?.toString() === userId &&
-                    createdDate === dailyDate
-                );
+                return createdDate === dailyDate;
             });
         },
     });
@@ -59,11 +56,6 @@ const TodayLog = () => {
         <TouchableOpacity style={styles.itemContainer} disabled>
             <View style={styles.itemHeader}>
                 <Text style={styles.title}>{item.Retailer_Name}</Text>
-                <Icon
-                    name="chevron-right"
-                    size={24}
-                    color={customColors.grey500}
-                />
             </View>
 
             <View style={styles.itemContent}>

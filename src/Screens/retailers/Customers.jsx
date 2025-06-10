@@ -264,6 +264,16 @@ const Customers = () => {
                                 />
                             </TouchableOpacity>
                         )}
+                        <Text
+                            style={{
+                                marginLeft: spacing.sm,
+                                ...typography.caption(),
+                                color: customColors.grey700,
+                            }}>
+                            {filteredRetailers.length === 0
+                                ? "No Retailers Found"
+                                : `${filteredRetailers.length} Retailers`}
+                        </Text>
                     </View>
                 </View>
 

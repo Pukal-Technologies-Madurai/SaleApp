@@ -30,6 +30,9 @@ const DeliveryUpdate = () => {
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filteredData, setFilteredData] = useState([]);
+
     const [showUpdateScreen, setShowUpdateScreen] = useState(false);
     const [selectedDelivery, setSelectedDelivery] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -65,6 +68,14 @@ const DeliveryUpdate = () => {
             setDeliveryData([]);
         }
     };
+
+    useEffect(() => {
+        const query = searchQuery.toLowerCase();
+        const results = deliveryData.filter(item =>
+            item.Retailer_Name?.toLowerCase().includes(query),
+        );
+        setFilteredData(results);
+    }, [deliveryData, searchQuery]);
 
     const handleDateChange = (date, isFromDate) => {
         if (isFromDate) {
@@ -457,10 +468,24 @@ const DeliveryUpdate = () => {
                     />
                 </View>
 
+                <View style={styles.searchInputContainer}>
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search Retailer Name..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                    <Text style={styles.searchInputLabel}>
+                        {filteredData.length === 0
+                            ? "No results"
+                            : `${filteredData.length} results`}
+                    </Text>
+                </View>
+
                 <View style={styles.content}>
-                    {deliveryData.length > 0 ? (
+                    {filteredData.length > 0 ? (
                         <FlatList
-                            data={deliveryData}
+                            data={filteredData}
                             renderItem={renderDeliveryItem}
                             keyExtractor={item => item.Delivery_Order_id}
                             showsVerticalScrollIndicator={false}
@@ -516,6 +541,27 @@ const styles = StyleSheet.create({
     listContent: {
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.xs,
+    },
+    searchInputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        // paddingVertical: spacing.sm,
+    },
+    searchInput: {
+        width: "65%",
+        height: 50,
+        borderColor: customColors.grey300,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        marginVertical: 10,
+        marginHorizontal: spacing.lg,
+        backgroundColor: customColors.white,
+        ...typography.body1(),
+    },
+    searchInputLabel: {
+        ...typography.body2(),
+        color: customColors.grey600,
     },
     deliveryItem: {
         flexDirection: "row",

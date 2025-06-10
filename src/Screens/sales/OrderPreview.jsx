@@ -27,7 +27,7 @@ import {
 import Accordion from "../../Components/Accordion";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
-import SalesReportModal from "../../Components/SalesReportModal";
+
 const OrderPreview = () => {
     const navigation = useNavigation();
 

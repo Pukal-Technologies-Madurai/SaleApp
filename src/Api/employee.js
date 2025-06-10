@@ -74,7 +74,6 @@ export const closeDay = async ({ Id, End_KM, End_KM_Pic }) => {
 };
 
 export const attendanceHistory = async ({ fromDay, toDay, id, uid }) => {
-    // console.log(fromDay, toDay, id, uid);
     const res = await fetch(
         `${API.attendanceHistory()}From=${fromDay}&To=${toDay}&UserTypeID=${id}&UserId=${uid}`,
         {

@@ -286,7 +286,7 @@ const SalesReport = ({ navigation, route }) => {
                                         styles.tableCell,
                                         styles.productCell,
                                     ]}
-                                    numberOfLines={2}>
+                                    numberOfLines={3}>
                                     {item.productName}
                                 </Text>
                                 <Text

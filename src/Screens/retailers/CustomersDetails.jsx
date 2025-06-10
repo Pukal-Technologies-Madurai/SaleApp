@@ -159,7 +159,7 @@ const CustomersDetails = ({ route }) => {
                 <View style={styles.actionGrid}>
                     <ActionButton
                         label="Stock"
-                        icon={require("../../../assets/images/closing_stock.png")}
+                        icon={assetImages.closingStock}
                         onPress={() =>
                             navigation.navigate("StockClosing", {
                                 item,
@@ -168,7 +168,7 @@ const CustomersDetails = ({ route }) => {
                     />
                     <ActionButton
                         label="Order"
-                        icon={require("../../../assets/images/sale_order.png")}
+                        icon={assetImages.salesOrder}
                         onPress={() =>
                             navigation.navigate("Sales", {
                                 item,
@@ -178,7 +178,7 @@ const CustomersDetails = ({ route }) => {
 
                     <ActionButton
                         label="Edit"
-                        icon={require("../../../assets/images/order_list.png")}
+                        icon={assetImages.edit}
                         onPress={() =>
                             navigation.navigate("EditCustomer", {
                                 item,
@@ -188,7 +188,7 @@ const CustomersDetails = ({ route }) => {
 
                     <ActionButton
                         label="History"
-                        icon={require("../../../assets/images/retailer.png")}
+                        icon={assetImages.retailerIcon}
                         onPress={() =>
                             navigation.navigate("SaleHistory", {
                                 item,
@@ -198,7 +198,7 @@ const CustomersDetails = ({ route }) => {
 
                     <ActionButton
                         label="WhatsApp"
-                        icon={require("../../../assets/images/whatsapp.png")}
+                        icon={assetImages.whatsapp}
                         onPress={() =>
                             Linking.openURL(
                                 `${API.whatsApp}${item.Mobile_No}/?text=Hi`,
@@ -214,14 +214,14 @@ const CustomersDetails = ({ route }) => {
                             item.AllLocations[0].longitude)) && (
                         <ActionButton
                             label="Maps"
-                            icon={require("../../../assets/images/location_status.png")}
+                            icon={assetImages.locationStatus}
                             onPress={openMap}
                         />
                     )}
 
                     <ActionButton
                         label="Update Location"
-                        icon={require("../../../assets/images/pin.png")}
+                        icon={assetImages.mapViewPin}
                         onPress={() => setShowLocationModal(true)}
                     />
                 </View>

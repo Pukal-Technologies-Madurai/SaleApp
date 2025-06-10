@@ -1,7 +1,6 @@
 import {
     View,
     Text,
-    ImageBackground,
     TouchableOpacity,
     StyleSheet,
     FlatList,
@@ -11,18 +10,21 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { Dropdown } from "react-native-element-dropdown";
-import Icon from "react-native-vector-icons/Ionicons";
 import moment from "moment";
-import Geolocation from "@react-native-community/geolocation";
+import Icon from "react-native-vector-icons/Ionicons";
 import CheckBox from "@react-native-community/checkbox";
+import Geolocation from "@react-native-community/geolocation";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
-import { customColors, spacing, typography, shadows } from "../../Config/helper";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import assetImages from "../../Config/Image";
+import {
+    customColors,
+    spacing,
+    typography,
+    shadows,
+} from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const BillPayment = () => {
     const navigation = useNavigation();
@@ -205,8 +207,8 @@ const BillPayment = () => {
 
             const paymentData = {
                 retailer_id: parseInt(selectedRetailer),
-                payed_by: "Owner", // Using placeholder as requested
-                collection_date: moment().format("YYYY-MM-DD"), // Today's date
+                payed_by: "Owner",
+                collection_date: moment(collectionDate).format("YYYY-MM-DD"),
                 collection_type: "CASH",
                 latitude: 0,
                 longitude: 0,
@@ -246,6 +248,7 @@ const BillPayment = () => {
                     "Success",
                     data.message || "Payment submitted successfully",
                 );
+                navigation.goBack();
                 setShowPaymentScreen(false);
                 // Reset states
                 setSelectedBills([]);
@@ -283,13 +286,15 @@ const BillPayment = () => {
                                             handleCheckboxChange(item);
                                         }
                                     } catch (error) {
-                                        console.error('Checkbox error:', error);
+                                        console.error("Checkbox error:", error);
                                     }
                                 }}
                                 disabled={isDisabled}
                                 tintColors={{
                                     true: customColors.primary,
-                                    false: isDisabled ? customColors.grey300 : customColors.grey700,
+                                    false: isDisabled
+                                        ? customColors.grey300
+                                        : customColors.grey700,
                                 }}
                                 style={styles.checkbox}
                                 boxType="square"
@@ -342,7 +347,7 @@ const BillPayment = () => {
     const renderPaymentScreen = () => (
         <View style={styles.paymentScreen}>
             <View style={styles.paymentHeader}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => setShowPaymentScreen(false)}>
                     <Icon
@@ -354,25 +359,20 @@ const BillPayment = () => {
                 <Text style={styles.paymentHeaderText}>Payment Details</Text>
             </View>
 
-            <ScrollView 
+            <ScrollView
                 style={styles.paymentContent}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.paymentContentContainer}>
                 <View style={styles.paymentCard}>
                     <View style={styles.paymentSection}>
                         <Text style={styles.sectionTitle}>Payment Mode</Text>
-                        <Dropdown
+                        <EnhancedDropdown
                             data={paymentModes}
                             labelField="label"
                             valueField="value"
                             placeholder="Select Payment Mode"
                             value={paymentMode}
                             onChange={item => setPaymentMode(item.value)}
-                            style={styles.paymentDropdown}
-                            containerStyle={styles.dropdownContainer}
-                            activeColor={customColors.primary}
-                            selectedTextStyle={styles.selectedText}
-                            placeholderStyle={styles.placeholderText}
                         />
                     </View>
 
@@ -384,7 +384,11 @@ const BillPayment = () => {
                             <Text style={styles.dateText}>
                                 {moment(collectionDate).format("DD/MM/YYYY")}
                             </Text>
-                            <Icon name="calendar-outline" size={20} color={customColors.primary} />
+                            <Icon
+                                name="calendar-outline"
+                                size={20}
+                                color={customColors.primary}
+                            />
                         </TouchableOpacity>
                         {showDatePicker && (
                             <DateTimePicker
@@ -396,6 +400,7 @@ const BillPayment = () => {
                                     if (selectedDate) {
                                         setCollectionDate(selectedDate);
                                     }
+                                    console.log("selectedDate");
                                 }}
                             />
                         )}
@@ -404,7 +409,9 @@ const BillPayment = () => {
                     <View style={styles.paymentSection}>
                         <Text style={styles.sectionTitle}>Selected Bills</Text>
                         {selectedBills.map(billId => {
-                            const bill = pendingBills.find(b => b.Do_Id === billId);
+                            const bill = pendingBills.find(
+                                b => b.Do_Id === billId,
+                            );
                             return (
                                 <View key={billId} style={styles.billAmountRow}>
                                     <View style={styles.billInfo}>
@@ -444,7 +451,9 @@ const BillPayment = () => {
                     <TouchableOpacity
                         style={styles.submitButton}
                         onPress={handlePaymentSubmit}>
-                        <Text style={styles.submitButtonText}>Submit Payment</Text>
+                        <Text style={styles.submitButtonText}>
+                            Submit Payment
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -614,7 +623,7 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     dropdownContainer: {
-        marginVertical: spacing.sm,
+        marginVertical: spacing.xs,
         paddingHorizontal: spacing.md,
     },
     billList: {
@@ -693,8 +702,8 @@ const styles = StyleSheet.create({
         marginRight: spacing.sm,
         minWidth: 24,
         minHeight: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
     },
     checkbox: {
         width: 20,
@@ -765,11 +774,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: spacing.sm,
         backgroundColor: customColors.white,
-    },
-    dropdownContainer: {
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
     },
     selectedText: {
         color: customColors.primary,

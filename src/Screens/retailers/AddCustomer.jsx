@@ -225,11 +225,11 @@ const AddCustomer = () => {
         <View style={styles.container}>
             <View style={styles.backgroundImage}>
                 <AppHeader
-                    title="Retailers"
+                    title="Add a Retailer"
                     navigation={navigation}
                     showRightIcon={true}
-                    rightIconName="person-pin"
-                    rightIconLibrary="MaterialIcons"
+                    rightIconLibrary="FeatherIcon"
+                    rightIconName="users"
                     onRightPress={() => navigation.push("Customers")}
                 />
 
@@ -411,8 +411,7 @@ const AddCustomer = () => {
                 visible={showCamera}
                 animationType="slide"
                 onRequestClose={() => setShowCamera(false)}
-                statusBarTranslucent
-            >
+                statusBarTranslucent>
                 <View style={styles.cameraModalContainer}>
                     <OpenCamera
                         onPhotoCapture={handleImageCapture}
@@ -426,40 +425,61 @@ const AddCustomer = () => {
                 visible={showPreview}
                 animationType="slide"
                 onRequestClose={() => setShowPreview(false)}
-                transparent={true}
-            >
+                transparent={true}>
                 <View style={styles.previewModalContainer}>
                     <View style={styles.previewContent}>
                         <View style={styles.previewHeader}>
                             <TouchableOpacity
                                 style={styles.closeButton}
                                 onPress={() => setShowPreview(false)}>
-                                <Icon name="close" size={24} color={customColors.white} />
+                                <Icon
+                                    name="close"
+                                    size={24}
+                                    color={customColors.white}
+                                />
                             </TouchableOpacity>
                         </View>
-                        
+
                         <Image
                             source={{ uri: `file://${imageUri}` }}
                             style={styles.previewImage}
                             resizeMode="contain"
                         />
-                        
+
                         <View style={styles.previewActions}>
                             <TouchableOpacity
-                                style={[styles.previewButton, styles.retakeButton]}
+                                style={[
+                                    styles.previewButton,
+                                    styles.retakeButton,
+                                ]}
                                 onPress={() => {
                                     setShowPreview(false);
                                     setShowCamera(true);
                                 }}>
-                                <Icon name="camera" size={24} color={customColors.white} />
-                                <Text style={styles.previewButtonText}>Retake</Text>
+                                <Icon
+                                    name="camera"
+                                    size={24}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.previewButtonText}>
+                                    Retake
+                                </Text>
                             </TouchableOpacity>
-                            
+
                             <TouchableOpacity
-                                style={[styles.previewButton, styles.closePreviewButton]}
+                                style={[
+                                    styles.previewButton,
+                                    styles.closePreviewButton,
+                                ]}
                                 onPress={() => setShowPreview(false)}>
-                                <Icon name="checkmark" size={24} color={customColors.white} />
-                                <Text style={styles.previewButtonText}>Done</Text>
+                                <Icon
+                                    name="checkmark"
+                                    size={24}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.previewButtonText}>
+                                    Done
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -578,44 +598,44 @@ const styles = StyleSheet.create({
     },
     previewModalContainer: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "rgba(0, 0, 0, 0.9)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     previewContent: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'space-between',
+        width: "100%",
+        height: "100%",
+        justifyContent: "space-between",
     },
     previewHeader: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
+        flexDirection: "row",
+        justifyContent: "flex-end",
         padding: spacing.md,
     },
     closeButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     previewImage: {
         flex: 1,
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
     },
     previewActions: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
+        flexDirection: "row",
+        justifyContent: "space-around",
         padding: spacing.md,
         gap: spacing.md,
     },
     previewButton: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         padding: spacing.md,
         borderRadius: spacing.md,
         gap: spacing.sm,
@@ -629,6 +649,6 @@ const styles = StyleSheet.create({
     previewButtonText: {
         ...typography.button(),
         color: customColors.white,
-        fontWeight: '600',
+        fontWeight: "600",
     },
 });

@@ -21,7 +21,6 @@ import {
     typography,
     spacing,
     shadows,
-    componentStyles,
 } from "../../Config/helper";
 import CustomRadioButton from "../../Components/CustomRadioButton";
 import LocationIndicator from "../../Components/LocationIndicator";

@@ -156,7 +156,7 @@ const StatisticsScreen = ({ route, navigation }) => {
                                 },
                             ]}>
                             {kilometersCount[name].totalKm === 0
-                                ? "Present"
+                                ? `Present on ${new Date(kilometersCount[name].details[0].date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}`
                                 : `Distance: ${kilometersCount[name].totalKm} KM`}
                         </Text>
                     ) : (
@@ -166,11 +166,13 @@ const StatisticsScreen = ({ route, navigation }) => {
                     )}
                 </TouchableOpacity>
 
-                {title === "Check-In's" && expandedUser === name && (
-                    <View style={styles.visitDetailsContainer}>
-                        {renderVisitDetails(name)}
-                    </View>
-                )}
+                {title === "Check-In's" || title === "Sales"
+                    ? expandedUser === name && (
+                          <View style={styles.visitDetailsContainer}>
+                              {renderVisitDetails(name)}
+                          </View>
+                      )
+                    : null}
             </View>
         ));
     };
@@ -182,6 +184,12 @@ const StatisticsScreen = ({ route, navigation }) => {
                 showDrawer={false}
                 title={`${title} Statistics`}
                 showBackButton={true}
+                showRightIcon={true}
+                rightIconLibrary="FontAwesome"
+                rightIconName={title !== "Check-In's" && "users"}
+                onRightPress={() => {
+                    navigation.navigate("AdminAttendance");
+                }}
             />
 
             <ScrollView

@@ -181,7 +181,13 @@ const EndDay = () => {
                                         />
                                         <TouchableOpacity
                                             onPress={clearPhoto}
-                                            style={styles.clearPhotoButton}>
+                                            style={[
+                                                styles.submitButton,
+                                                {
+                                                    backgroundColor:
+                                                        customColors.accent2,
+                                                },
+                                            ]}>
                                             <Text
                                                 maxFontSizeMultiplier={1.2}
                                                 style={styles.buttonText}>
@@ -271,7 +277,7 @@ const styles = StyleSheet.create({
     buttonText: {
         ...typography.button(),
         color: customColors.white,
-        marginLeft: 8,
+        marginHorizontal: 12,
     },
     submitButton: {
         backgroundColor: customColors.primary,
