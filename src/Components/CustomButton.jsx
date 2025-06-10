@@ -1,25 +1,27 @@
-import { StyleSheet, Text, View, Pressable } from 'react-native'
-import React from 'react'
-import { customColors, typography } from '../Config/helper'
+import { StyleSheet, Text, View, Pressable } from "react-native";
+import React from "react";
+import { customColors, typography } from "../Config/helper";
 
 const CustomButton = ({ children, onPress }) => {
-
     return (
         <View style={styles.container}>
             <Pressable
                 onPress={onPress}
-                style={({ pressed }) => pressed
-                    ? [styles.buttonInterContainer, styles.pressed]
-                    : styles.buttonInterContainer
+                style={({ pressed }) =>
+                    pressed
+                        ? [styles.buttonInterContainer, styles.pressed]
+                        : styles.buttonInterContainer
                 }
                 android_ripple={{ color: customColors.accent }}>
-                <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>{children}</Text>
+                <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
+                    {children}
+                </Text>
             </Pressable>
         </View>
-    )
-}
+    );
+};
 
-export default CustomButton
+export default CustomButton;
 
 const styles = StyleSheet.create({
     container: {
@@ -41,5 +43,5 @@ const styles = StyleSheet.create({
     },
     pressed: {
         opacity: 0.75,
-    }
-})
+    },
+});

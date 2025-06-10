@@ -1,12 +1,17 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React, { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import IconFont from "react-native-vector-icons/Fontisto";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import {
+    customColors,
+    typography,
+    spacing,
+    shadows,
+} from "../../Config/helper";
 
 const AttendanceInfo = () => {
     const navigation = useNavigation();
@@ -33,27 +38,6 @@ const AttendanceInfo = () => {
             getAttendanceHistory(userId);
         }
     }, [userId]);
-
-    // const getAttendanceInfo = async (userId) => {
-    //     try {
-    //         const url = `${API.myTodayAttendance}${userId}`;
-    //         const response = await fetch(url, {
-    //             method: 'GET',
-    //             headers: { 'Content-Type': 'application/json' },
-    //         });
-    //         const attendanceStatus = await response.json();
-    //         if (attendanceStatus.data.length > 0) {
-    //             const lastAttendance = attendanceStatus.data[attendanceStatus.data.length - 1];
-    //             const lastStartDate = lastAttendance.Start_Date;
-    //             const [datePart, timePart] = lastStartDate.split('T');
-    //             setActiveStatus(attendanceStatus.data[0].Active_Status)
-    //             setDate(datePart);
-    //             setTime(timePart.substring(0, 8));
-    //         }
-    //     } catch (error) {
-    //         console.log("Error fetching attendance data:", error);
-    //     }
-    // };
 
     function formatTimeTo12Hour(dateString) {
         const date = new Date(dateString);
@@ -89,7 +73,6 @@ const AttendanceInfo = () => {
                 const lastStartDate = lastAttendance.Start_Date;
 
                 setActiveStatus(attendanceHistory.data[0].Active_Status);
-
                 setDate(formatDate(lastStartDate));
                 setTime(formatTimeTo12Hour(lastStartDate));
             }
@@ -99,86 +82,98 @@ const AttendanceInfo = () => {
     };
 
     return (
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle} maxFontSizeMultiplier={1.2}>
-                    Today Attendance
-                </Text>
-
-                <TouchableOpacity
-                    onPress={() => navigation.navigate("AttendanceReport")}>
-                    <FeatherIcon
-                        name="arrow-up-right"
-                        color={customColors.white}
-                        size={20}
-                    />
-                </TouchableOpacity>
-            </View>
-
-            {!activeStatus && (
-                <TouchableOpacity
-                    style={styles.startButton}
-                    onPress={() => {
-                        navigation.navigate("Attendance");
-                    }}>
-                    <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>
-                        Start Day
-                    </Text>
-                </TouchableOpacity>
-            )}
-
-            {activeStatus !== 0 && (
-                <View style={styles.cardContent}>
-                    <View style={styles.cardItem}>
-                        <View style={styles.itemIcon}>
-                            <IconFont
-                                name="date"
-                                color={customColors.white}
-                                size={20}
-                            />
-                            <Text
-                                style={styles.text}
-                                maxFontSizeMultiplier={1.2}>
-                                Date
-                            </Text>
-                        </View>
-                        <Text style={styles.text} maxFontSizeMultiplier={1.2}>
-                            {date}
+        <View style={styles.container}>
+            <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.headerContent}>
+                        <Text
+                            style={styles.cardTitle}
+                            maxFontSizeMultiplier={1.2}>
+                            Today's Attendance
+                        </Text>
+                        <Text style={styles.statusText}>
+                            {activeStatus ? "Active" : "Not Started"}
                         </Text>
                     </View>
-
-                    <View style={styles.cardItem}>
-                        <View style={styles.itemIcon}>
-                            <Icon
-                                name="time-outline"
-                                color={customColors.white}
-                                size={20}
-                            />
-                            <Text
-                                style={styles.text}
-                                maxFontSizeMultiplier={1.2}>
-                                Time In
-                            </Text>
-                        </View>
-                        <Text style={styles.text} maxFontSizeMultiplier={1.2}>
-                            {time}
-                        </Text>
-                    </View>
-
                     <TouchableOpacity
-                        style={styles.endButton}
-                        onPress={() => {
-                            navigation.navigate("EndDay");
-                            setActiveStatus(0);
-                        }}>
+                        style={styles.reportButton}
+                        onPress={() => navigation.navigate("AttendanceReport")}>
+                        <FeatherIcon
+                            name="arrow-up-right"
+                            color={customColors.white}
+                            size={20}
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {!activeStatus ? (
+                    <TouchableOpacity
+                        style={styles.startButton}
+                        onPress={() => navigation.navigate("Attendance")}>
                         <Text
                             style={styles.buttonText}
                             maxFontSizeMultiplier={1.2}>
-                            End Day
+                            Start Day
                         </Text>
                     </TouchableOpacity>
-                </View>
-            )}
+                ) : (
+                    <View style={styles.cardContent}>
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoItem}>
+                                <IconFont
+                                    name="date"
+                                    color={customColors.white}
+                                    size={20}
+                                />
+                                <View style={styles.infoTextContainer}>
+                                    <Text
+                                        style={styles.infoLabel}
+                                        maxFontSizeMultiplier={1.2}>
+                                        Date
+                                    </Text>
+                                    <Text
+                                        style={styles.infoValue}
+                                        maxFontSizeMultiplier={1.2}>
+                                        {date}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={styles.infoItem}>
+                                <Icon
+                                    name="time-outline"
+                                    color={customColors.white}
+                                    size={20}
+                                />
+                                <View style={styles.infoTextContainer}>
+                                    <Text
+                                        style={styles.infoLabel}
+                                        maxFontSizeMultiplier={1.2}>
+                                        Time In
+                                    </Text>
+                                    <Text
+                                        style={styles.infoValue}
+                                        maxFontSizeMultiplier={1.2}>
+                                        {time}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.endButton}
+                            onPress={() => {
+                                navigation.navigate("EndDay");
+                                setActiveStatus(0);
+                            }}>
+                            <Text
+                                style={styles.buttonText}
+                                maxFontSizeMultiplier={1.2}>
+                                End Day
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
         </View>
     );
 };
@@ -186,71 +181,85 @@ const AttendanceInfo = () => {
 export default AttendanceInfo;
 
 const styles = StyleSheet.create({
+    container: {
+        padding: spacing.md,
+    },
     card: {
-        backgroundColor: "#0F2B70",
+        backgroundColor: customColors.primary,
         borderRadius: 12,
-        padding: 16,
-        marginVertical: 10,
-        marginHorizontal: 16,
-        shadowColor: customColors.white,
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        ...shadows.medium,
     },
     cardHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignContent: "center",
-        marginBottom: 15,
+        alignItems: "center",
+        padding: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    },
+    headerContent: {
+        flex: 1,
     },
     cardTitle: {
-        ...typography.h4(),
+        ...typography.h5(),
         color: customColors.white,
-        fontWeight: "bold",
+        marginBottom: spacing.xs,
+    },
+    statusText: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.8,
+    },
+    reportButton: {
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        padding: spacing.sm,
+        borderRadius: 8,
+    },
+    cardContent: {
+        padding: spacing.md,
+    },
+    infoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: spacing.md,
+    },
+    infoItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
+    },
+    infoTextContainer: {
+        marginLeft: spacing.sm,
+    },
+    infoLabel: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.8,
+    },
+    infoValue: {
+        ...typography.subtitle1(),
+        color: customColors.white,
     },
     startButton: {
-        backgroundColor: customColors.secondary,
-        paddingVertical: 5,
-        paddingHorizontal: 14,
+        backgroundColor: customColors.primaryDark,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
         borderRadius: 25,
-        alignSelf: "flex-end",
+        alignSelf: "center",
+        marginVertical: spacing.md,
+        ...shadows.small,
     },
     endButton: {
-        backgroundColor: customColors.secondary,
-        paddingVertical: 5,
-        paddingHorizontal: 14,
+        backgroundColor: customColors.error,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
         borderRadius: 25,
-        alignSelf: "flex-end",
+        alignSelf: "center",
+        ...shadows.small,
     },
     buttonText: {
         ...typography.button(),
-        textAlign: "center",
-        color: customColors.primary,
-    },
-    cardContent: {
-        paddingHorizontal: 10,
-        paddingVertical: 12,
-        borderTopWidth: 1,
-        borderTopColor: "#FFFFFF33",
-    },
-    cardItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 10,
-    },
-    itemIcon: {
-        flexDirection: "row",
-        // alignItems: "center",
-        marginRight: 10,
-    },
-    text: {
-        ...typography.body1(),
         color: customColors.white,
-        marginLeft: 8,
+        textAlign: "center",
     },
 });

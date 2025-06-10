@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { customColors, typography } from "../Config/helper";
+import { customColors, typography, shadows, spacing } from "../Config/helper";
 import { API } from "../Config/Endpoint";
 
 const SalesReportModal = ({
@@ -19,87 +19,92 @@ const SalesReportModal = ({
         modalBackground: {
             flex: 1,
             backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
         },
         modalContainer: {
-            flex: 1,
+            width: "90%",
+            maxHeight: "80%",
             backgroundColor: customColors.white,
-            margin: 16,
             borderRadius: 16,
             overflow: "hidden",
+            ...shadows.large,
         },
         modalHeader: {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: 8,
+            padding: spacing.md,
+            backgroundColor: customColors.primary,
             borderBottomWidth: 1,
-            borderBottomColor: "#E5E7EB",
+            borderBottomColor: customColors.grey200,
         },
         modalHeaderText: {
             ...typography.h6(),
+            color: customColors.white,
             fontWeight: "700",
-            color: "#111827",
         },
         closeButton: {
-            padding: 2,
+            padding: spacing.xs,
         },
         contentContainer: {
-            flex: 1,
-            paddingVertical: 3,
-            paddingHorizontal: 14,
+            padding: spacing.md,
         },
-
-        statsContainer: {},
+        statsContainer: {
+            marginBottom: spacing.md,
+        },
         statRow: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: 4,
+            paddingVertical: spacing.sm,
             borderBottomWidth: 1,
-            borderBottomColor: "#E5E7EB",
+            borderBottomColor: customColors.grey200,
         },
         statValue: {
-            ...typography.h6(),
-            color: "#111827",
+            ...typography.subtitle1(),
+            color: customColors.grey900,
             fontWeight: "600",
-            paddingHorizontal: 15,
+            paddingHorizontal: spacing.md,
         },
-
         tableContainer: {
             backgroundColor: customColors.white,
             borderRadius: 12,
             borderWidth: 1,
-            borderColor: "#E5E7EB",
+            borderColor: customColors.grey200,
             overflow: "hidden",
-            marginTop: 10,
+            marginTop: spacing.md,
         },
         tableHeader: {
             backgroundColor: customColors.primary,
-            paddingVertical: 7,
-            paddingHorizontal: 16,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
         },
         tableRow: {
             flexDirection: "row",
-            paddingVertical: 8,
-            paddingHorizontal: 16,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
             borderBottomWidth: 1,
-            borderBottomColor: "#E5E7EB",
+            borderBottomColor: customColors.grey200,
         },
         headerRow: {
             flexDirection: "row",
-            marginBottom: 4,
+            marginBottom: spacing.xs,
         },
         summaryRow: {
             flexDirection: "row",
+            borderTopWidth: 1,
+            borderTopColor: "rgba(255, 255, 255, 0.2)",
+            paddingTop: spacing.xs,
         },
         headerText: {
-            ...typography.body1(),
-            fontWeight: "700",
+            ...typography.subtitle2(),
             color: customColors.white,
+            fontWeight: "700",
         },
         summaryText: {
-            ...typography.body1(),
-            color: "#FFB6C1",
-            fontWeight: "700",
+            ...typography.subtitle2(),
+            color: customColors.white,
+            opacity: 0.9,
         },
         productHeaderCell: {
             flex: 2,
@@ -113,20 +118,11 @@ const SalesReportModal = ({
             alignItems: "flex-end",
         },
         tableCell: {
-            ...typography.body1(),
-            color: "#374151",
+            ...typography.body2(),
+            color: customColors.grey900,
         },
         productCell: {
             flex: 2,
-            ...typography.body2(),
-        },
-        centerCell: {
-            flex: 1,
-            textAlign: "center",
-        },
-        rightCell: {
-            flex: 1,
-            textAlign: "right",
         },
         quantityCell: {
             flex: 1,
@@ -140,19 +136,20 @@ const SalesReportModal = ({
             backgroundColor: customColors.white,
         },
         oddRow: {
-            backgroundColor: "#F9FAFB",
+            backgroundColor: customColors.grey50,
         },
-
         checkOrderRow: {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "flex-end",
-            marginRight: 30,
+            marginRight: spacing.xl,
+            marginTop: spacing.sm,
         },
         checkOrderText: {
             ...typography.body2(),
-            color: "#374151",
-            marginLeft: 10,
+            color: customColors.grey700,
+            marginLeft: spacing.md,
+            fontWeight: "600",
         },
     };
 
@@ -241,7 +238,7 @@ const SalesReportModal = ({
                         <TouchableOpacity
                             onPress={onClose}
                             style={styles.closeButton}>
-                            <Icon name="times" size={24} color="#6B7280" />
+                            <Icon name="times" size={24} color={customColors.white} />
                         </TouchableOpacity>
                     </View>
 
@@ -251,44 +248,31 @@ const SalesReportModal = ({
                                 <Icon
                                     name="calendar"
                                     size={20}
-                                    color="#4A90E2"
+                                    color={customColors.primary}
                                 />
                                 <Text style={styles.statValue}>
                                     {fromDate} • {fromTime}
                                 </Text>
                             </View>
 
-                            {/* <View style={styles.statRow}>
-                                <Icon name="line-chart" size={20} color="#9B59B6" />
-                                <Text style={styles.statValue}>Total Shop Orders Placed:
-                                    <Text style={{ color: "red", fontWeight: "bold" }}> {logData.length.toString()}</Text>
-                                </Text>
-                            </View> */}
-
                             <View style={styles.checkOrderRow}>
                                 <Text style={styles.checkOrderText}>
-                                    Check-Ins
+                                    Check-Ins: {visitLogLength}
                                 </Text>
                                 <Text style={styles.checkOrderText}>
-                                    Orders
+                                    Orders: {logData.length}
                                 </Text>
                             </View>
-                            <View style={[styles.statRow, { marginTop: -10 }]}>
+                            <View style={styles.statRow}>
                                 <MaterialCommunityIcons
                                     name="bike"
                                     size={24}
-                                    color="#2ECC71"
+                                    color={customColors.success}
                                 />
                                 <Text style={styles.statValue}>
-                                    Check & Order Stats:&nbsp;
-                                    <Text
-                                        style={{
-                                            color: "red",
-                                            fontWeight: "bold",
-                                        }}>
-                                        {totalVisitLogCount} ({visitLogLength}
-                                        &nbsp;+&nbsp;
-                                        {logData.length.toString()})
+                                    Total Visits:{" "}
+                                    <Text style={{ color: customColors.error, fontWeight: "bold" }}>
+                                        {totalVisitLogCount}
                                     </Text>
                                 </Text>
                             </View>
@@ -296,29 +280,22 @@ const SalesReportModal = ({
 
                         <View style={styles.tableContainer}>
                             <View style={styles.tableHeader}>
-                                {/* Header Labels Row */}
                                 <View style={styles.headerRow}>
                                     <View style={styles.productHeaderCell}>
-                                        <Text style={styles.headerText}>
-                                            Product
-                                        </Text>
+                                        <Text style={styles.headerText}>Product</Text>
                                     </View>
                                     <View style={styles.quantityHeaderCell}>
-                                        <Text style={styles.headerText}>
-                                            Quantity
-                                        </Text>
+                                        <Text style={styles.headerText}>Quantity</Text>
                                     </View>
                                     <View style={styles.amountHeaderCell}>
-                                        <Text style={styles.headerText}>
-                                            Total
-                                        </Text>
+                                        <Text style={styles.headerText}>Total</Text>
                                     </View>
                                 </View>
 
                                 <View style={styles.summaryRow}>
                                     <View style={styles.productHeaderCell}>
                                         <Text style={styles.summaryText}>
-                                            {productSummary.length}
+                                            {productSummary.length} Products
                                         </Text>
                                     </View>
                                     <View style={styles.quantityHeaderCell}>
@@ -328,7 +305,7 @@ const SalesReportModal = ({
                                     </View>
                                     <View style={styles.amountHeaderCell}>
                                         <Text style={styles.summaryText}>
-                                            ₹ {totalAmount.toFixed(2)}
+                                            ₹{totalAmount.toFixed(2)}
                                         </Text>
                                     </View>
                                 </View>
@@ -339,34 +316,18 @@ const SalesReportModal = ({
                                     key={index}
                                     style={[
                                         styles.tableRow,
-                                        index % 2 === 0
-                                            ? styles.evenRow
-                                            : styles.oddRow,
+                                        index % 2 === 0 ? styles.evenRow : styles.oddRow,
                                     ]}>
                                     <Text
-                                        style={[
-                                            styles.tableCell,
-                                            styles.productCell,
-                                        ]}
-                                        numberOfLines={3}>
+                                        style={[styles.tableCell, styles.productCell]}
+                                        numberOfLines={2}>
                                         {item.productName}
                                     </Text>
-                                    <Text
-                                        style={[
-                                            styles.tableCell,
-                                            styles.quantityCell,
-                                        ]}>
+                                    <Text style={[styles.tableCell, styles.quantityCell]}>
                                         {item.totalQty}
                                     </Text>
-                                    <Text
-                                        style={[
-                                            styles.tableCell,
-                                            styles.amountCell,
-                                        ]}>
-                                        ₹{" "}
-                                        {parseFloat(item.totalAmount).toFixed(
-                                            2,
-                                        )}
+                                    <Text style={[styles.tableCell, styles.amountCell]}>
+                                        ₹{parseFloat(item.totalAmount).toFixed(2)}
                                     </Text>
                                 </View>
                             ))}

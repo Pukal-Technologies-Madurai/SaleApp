@@ -3,23 +3,23 @@ import {
     Text,
     View,
     TouchableOpacity,
-    TextInput,
     Alert,
     Image,
     Modal,
     ToastAndroid,
-    ImageBackground,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { useMutation } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/AntDesign";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import { API } from "../../Config/Endpoint";
+import { startDay } from "../../Api/employee";
 import { customColors, typography } from "../../Config/helper";
-import CameraComponent from "../../Components/CameraComponent";
+import OpenCamera from "../../Components/OpenCamera";
 import LocationIndicator from "../../Components/LocationIndicator";
-import assetImages from "../../Config/Image";
+import AppHeader from "../../Components/AppHeader";
+import FormField from "../../Components/FormField";
 
 const Attendance = locationData => {
     const navigation = useNavigation();
@@ -80,120 +80,84 @@ const Attendance = locationData => {
         }));
     };
 
+    const mutation = useMutation({
+        mutationFn: startDay,
+        onSuccess: data => {
+            ToastAndroid.show(data.message, ToastAndroid.LONG);
+            navigation.replace("HomeScreen");
+        },
+        onError: err => {
+            Alert.alert("Error", err.message || "Failed to start day");
+        },
+    });
+
     const handleSubmit = async () => {
         const { UserId, Start_KM, Latitude, Longitude, Start_KM_Pic } =
             formValues;
 
-        if (!Latitude || !Longitude) {
-            Alert.alert(
-                "Location Permission",
-                "Please ensure location services are enabled.",
-            );
-            return;
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append("UserId", UserId);
-            formData.append("Start_KM", Start_KM);
-            formData.append("Latitude", Latitude);
-            formData.append("Longitude", Longitude);
-            formData.append("Start_KM_Pic", {
-                uri: `file://${Start_KM_Pic}`,
-                name: "photo.jpg",
-                type: "image/jpeg",
-            });
-
-            const response = await fetch(API.attendance(), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-                body: formData,
-            });
-
-            const responseData = await response.json();
-
-            if (!response.ok) {
-                throw new Error(responseData.message);
-            }
-
-            ToastAndroid.show(responseData.message, ToastAndroid.LONG);
-            navigation.replace("HomeScreen");
-        } catch (error) {
-            console.error("Error posting data: ", error);
-            Alert.alert(responseData.message);
-        }
+        mutation.mutate({
+            UserId,
+            Start_KM,
+            Latitude,
+            Longitude,
+            Start_KM_Pic,
+        });
+        console.log("Submitting formValues:", formValues);
     };
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.overlay}>
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcon
-                                name="arrow-back"
-                                size={25}
-                                color={customColors.white}
-                            />
-                        </TouchableOpacity>
-                        <Text
-                            style={styles.headerText}
-                            maxFontSizeMultiplier={1.2}>
-                            Start your Day
-                        </Text>
-                    </View>
+            <AppHeader title="Start Fresh" navigation={navigation} />
 
-                    <View style={styles.contentContainer}>
-                        <LocationIndicator
-                            onLocationUpdate={handleLocationUpdate}
-                            autoFetch={true}
-                            autoFetchOnMount={true}
-                        />
+            <View style={styles.contentContainer}>
+                <View style={styles.formContainer}>
+                    <LocationIndicator
+                        onLocationUpdate={handleLocationUpdate}
+                        autoFetch={true}
+                        autoFetchOnMount={true}
+                    />
 
-                        <View style={styles.inputGroup}>
-                            <TextInput
-                                maxFontSizeMultiplier={1.2}
-                                style={styles.textInput}
+                    <View style={styles.inputGroup}>
+                        <View style={styles.inputWrapper}>
+                            <FormField
                                 value={formValues.Start_KM}
-                                keyboardType="decimal-pad"
-                                placeholder="Starting Kilometers"
-                                placeholderTextColor={customColors.accent}
-                                autoCapitalize="characters"
                                 onChangeText={handleInputChange}
+                                placeholder="Starting KMs"
+                                numbersOnly={true}
                             />
-                            <TouchableOpacity
-                                onPress={() => setShowCameraModal(true)}
-                                style={styles.cameraButton}>
-                                <Text
-                                    style={styles.buttonText}
-                                    maxFontSizeMultiplier={1.2}>
-                                    {!capturedPhotoPath ? "Take" : "Preview"}
-                                </Text>
-                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity
-                            style={styles.submitButton}
-                            onPress={handleSubmit}>
-                            <View style={{ flexDirection: "row" }}>
-                                <Image
-                                    source={assetImages.saveIcon}
-                                    style={{ marginRight: 15 }}
-                                />
-                                <Text
-                                    maxFontSizeMultiplier={1.2}
-                                    style={styles.buttonText}>
-                                    Save
-                                </Text>
-                            </View>
+                            onPress={() => setShowCameraModal(true)}
+                            style={styles.cameraButton}>
+                            <MaterialIcon
+                                name={
+                                    !capturedPhotoPath
+                                        ? "camera-alt"
+                                        : "photo-library"
+                                }
+                                size={24}
+                                color={customColors.white}
+                            />
+                            <Text style={styles.buttonText}>
+                                {!capturedPhotoPath ? "Take Photo" : "Preview"}
+                            </Text>
                         </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.submitButton,
+                            mutation.isPending && styles.disabledButton,
+                        ]}
+                        onPress={handleSubmit}
+                        disabled={mutation.isPending}>
+                        <Text style={styles.buttonText}>
+                            {mutation.isPending ? "Submitting..." : "Save"}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
-            </ImageBackground>
+            </View>
 
             <Modal
                 visible={showCameraModal}
@@ -201,58 +165,77 @@ const Attendance = locationData => {
                 transparent={true}
                 onRequestClose={() => setShowCameraModal(false)}>
                 <View style={styles.modalContainer}>
-                    <TouchableOpacity
-                        onPress={() => setShowCameraModal(false)}
-                        style={styles.closeButton}>
-                        <Icon
-                            name="close"
-                            size={30}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    {!capturedPhotoPath ? (
-                        <CameraComponent onPhotoCapture={handlePhotoCapture} />
-                    ) : (
-                        capturedPhotoPath &&
-                        typeof capturedPhotoPath === "string" && (
-                            <View style={styles.previewImageContainer}>
-                                <Image
-                                    source={{
-                                        uri: "file://" + capturedPhotoPath,
-                                    }}
-                                    style={styles.previewImage}
+                    <View style={styles.modalContent}>
+                        <TouchableOpacity
+                            onPress={() => setShowCameraModal(false)}
+                            style={styles.closeButton}>
+                            <Icon
+                                name="close"
+                                size={24}
+                                color={customColors.white}
+                            />
+                        </TouchableOpacity>
+
+                        <View style={styles.cameraContainer}>
+                            {!capturedPhotoPath ? (
+                                <OpenCamera
+                                    onPhotoCapture={handlePhotoCapture}
+                                    enableCompression={true}
                                 />
-                                <TouchableOpacity
-                                    onPress={clearPhoto}
-                                    style={styles.clearPhotoButton}>
-                                    <Text
-                                        maxFontSizeMultiplier={1.2}
-                                        style={[
-                                            styles.buttonText,
-                                            { color: customColors.black },
-                                        ]}>
-                                        Retake
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => setShowCameraModal(false)}
-                                    style={[
-                                        styles.submitButton,
-                                        {
-                                            marginTop: 15,
-                                            backgroundColor:
-                                                customColors.primary,
-                                        },
-                                    ]}>
-                                    <Text
-                                        maxFontSizeMultiplier={1.2}
-                                        style={styles.buttonText}>
-                                        Done
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        )
-                    )}
+                            ) : (
+                                capturedPhotoPath &&
+                                typeof capturedPhotoPath === "string" && (
+                                    <View style={styles.previewImageContainer}>
+                                        <Image
+                                            source={{
+                                                uri:
+                                                    "file://" +
+                                                    capturedPhotoPath,
+                                            }}
+                                            style={styles.previewImage}
+                                        />
+                                        <View style={styles.previewActions}>
+                                            <TouchableOpacity
+                                                onPress={clearPhoto}
+                                                style={styles.previewButton}>
+                                                <MaterialIcon
+                                                    name="refresh"
+                                                    size={24}
+                                                    color={customColors.white}
+                                                />
+                                                <Text
+                                                    style={
+                                                        styles.previewButtonText
+                                                    }>
+                                                    Retake
+                                                </Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={() =>
+                                                    setShowCameraModal(false)
+                                                }
+                                                style={[
+                                                    styles.previewButton,
+                                                    styles.doneButton,
+                                                ]}>
+                                                <MaterialIcon
+                                                    name="check"
+                                                    size={24}
+                                                    color={customColors.white}
+                                                />
+                                                <Text
+                                                    style={
+                                                        styles.previewButtonText
+                                                    }>
+                                                    Done
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )
+                            )}
+                        </View>
+                    </View>
                 </View>
             </Modal>
         </View>
@@ -264,107 +247,129 @@ export default Attendance;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
         backgroundColor: customColors.background,
     },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.2)",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
-    },
-    loadingContainer: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
     contentContainer: {
-        width: "100%",
-        height: "100%",
+        flex: 1,
         backgroundColor: customColors.white,
-        borderRadius: 7.5,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        marginTop: 10,
+        paddingTop: 20,
+    },
+    formContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
     },
     inputGroup: {
         flexDirection: "row",
-        justifyContent: "space-around",
-        // marginBottom: 50,
-        marginVertical: 20,
+        alignItems: "center",
+        gap: 15,
+        marginVertical: 25,
+    },
+    inputWrapper: {
+        flex: 1,
     },
     textInput: {
         ...typography.h6(),
         color: customColors.black,
         borderWidth: 1,
         borderColor: customColors.primary,
-        borderRadius: 5,
+        borderRadius: 10,
         paddingHorizontal: 15,
-        paddingVertical: 10,
+        paddingVertical: 12,
+        backgroundColor: customColors.white,
     },
     cameraButton: {
-        justifyContent: "center",
+        flexDirection: "row",
+        alignItems: "center",
         backgroundColor: customColors.primary,
-        borderRadius: 5,
-        paddingVertical: 10,
-        paddingHorizontal: 15,
+        borderRadius: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        elevation: 2,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     buttonText: {
         ...typography.button(),
         color: customColors.white,
-        marginHorizontal: 10,
+        marginLeft: 8,
     },
     submitButton: {
         backgroundColor: customColors.primary,
         justifyContent: "center",
-        alignContent: "center",
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        marginLeft: "auto",
-        marginRight: "auto",
-        borderRadius: 5,
+        alignItems: "center",
+        paddingVertical: 15,
+        borderRadius: 10,
+        marginTop: 20,
+        elevation: 3,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
+    disabledButton: {
+        opacity: 0.7,
     },
     previewImageContainer: {
+        flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        padding: 20,
     },
     previewImage: {
-        width: 350,
-        height: 350,
-        resizeMode: "cover",
-        borderRadius: 10,
-        marginHorizontal: 50,
+        width: "100%",
+        height: "80%",
+        resizeMode: "contain",
+        borderRadius: 15,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.5)",
+        backgroundColor: "rgba(0,0,0,0.9)",
         justifyContent: "center",
         alignItems: "center",
     },
-    closeButton: {
-        marginLeft: "auto",
-        right: 25,
+    modalContent: {
+        width: "100%",
+        height: "100%",
+        backgroundColor: customColors.black,
     },
-    clearPhotoButton: {
-        marginTop: 25,
+    closeButton: {
+        position: "absolute",
+        top: 40,
+        right: 20,
+        zIndex: 999,
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    cameraContainer: {
+        flex: 1,
+        backgroundColor: customColors.black,
+    },
+    previewActions: {
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: 20,
+        marginTop: 20,
+    },
+    previewButton: {
+        flexDirection: "row",
+        alignItems: "center",
         backgroundColor: customColors.secondary,
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 5,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        gap: 8,
+    },
+    doneButton: {
+        backgroundColor: customColors.primary,
+    },
+    previewButtonText: {
+        ...typography.button(),
+        color: customColors.white,
     },
 });

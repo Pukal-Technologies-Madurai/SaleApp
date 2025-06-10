@@ -1,9 +1,20 @@
-import { StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
+import {
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    Platform,
+} from "react-native";
 import React from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
-import { customColors, typography } from "../Config/helper";
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+} from "react-native-reanimated";
+import { customColors, typography, spacing } from "../Config/helper";
+import { formatDate } from "../Config/functions";
 
 const DatePickerButton = ({
     title = "Select Date",
@@ -13,10 +24,10 @@ const DatePickerButton = ({
     minDate,
     maxDate,
     containerStyle,
+    titleStyle,
     disabled = false,
     mode = "date",
 }) => {
-
     const [show, setShow] = React.useState(false);
     const animatedScale = useSharedValue(1);
 
@@ -37,60 +48,49 @@ const DatePickerButton = ({
         }
     };
 
-    const formatDate = (inputDate) => {
-        if (!inputDate) return "Select Date";
-
-        return new Intl.DateTimeFormat("en-GB").format(inputDate);
-    };
-
     const animatedButtonStyle = useAnimatedStyle(() => {
         return {
-            transform: [{ scale: animatedScale.value }]
+            transform: [{ scale: animatedScale.value }],
         };
     });
 
     return (
         <View style={[styles.container, containerStyle]}>
-            {title && <Text style={styles.title}>{title}</Text>}
+            {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}
             <Animated.View
                 style={[
                     styles.buttonWrapper,
                     style,
                     animatedButtonStyle,
-                    disabled && styles.disabledButton
-                ]}
-            >
+                    disabled && styles.disabledButton,
+                ]}>
                 <TouchableOpacity
                     onPress={showDatepicker}
                     disabled={disabled}
                     activeOpacity={0.9}
-                    style={[styles.button, disabled && styles.buttonDisabled]}
-                >
+                    style={[styles.button, disabled && styles.buttonDisabled]}>
                     <View style={styles.contentContainer}>
                         <View style={styles.dateContainer}>
                             <Icon
                                 name="calendar-outline"
-                                color={disabled ? customColors.grey : customColors.white}
-                                size={18}
+                                color={
+                                    disabled
+                                        ? customColors.grey500
+                                        : customColors.black
+                                }
+                                size={20}
                                 style={styles.calendarIcon}
                             />
                             <Text
                                 style={[
                                     styles.dateText,
-                                    disabled && styles.disabledText
+                                    disabled && styles.disabledText,
                                 ]}
                                 numberOfLines={1}
-                                ellipsizeMode="tail"
-                            >
+                                ellipsizeMode="tail">
                                 {formatDate(date)}
                             </Text>
                         </View>
-                        <Icon
-                            name="chevron-down-outline"
-                            color={disabled ? customColors.grey : customColors.white}
-                            size={16}
-                            style={styles.chevronIcon}
-                        />
                     </View>
                 </TouchableOpacity>
             </Animated.View>
@@ -106,15 +106,15 @@ const DatePickerButton = ({
                 />
             )}
         </View>
-    )
+    );
 };
 
-export default DatePickerButton
+export default DatePickerButton;
 
 const styles = StyleSheet.create({
     container: {
         width: "100%",
-        marginBottom: 12,
+        marginBottom: spacing.md,
     },
     buttonWrapper: {
         width: "100%",
@@ -133,45 +133,40 @@ const styles = StyleSheet.create({
         backgroundColor: "transparent",
     },
     title: {
-        color: customColors.white,
-        ...typography.body2(),
+        ...typography.subtitle2(),
+        color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: 8,
+        marginBottom: spacing.sm,
         opacity: 0.9,
         letterSpacing: 0.5,
-        textTransform: "uppercase",
     },
     button: {
         borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderWidth: 1,
-        borderColor: "rgba(255, 255, 255, 0.2)",
-        backgroundColor: "rgba(255, 255, 255, 0.12)",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderWidth: 0.5,
+        borderColor: customColors.grey300,
+        backgroundColor: customColors.white,
     },
     buttonDisabled: {
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        borderColor: "rgba(255, 255, 255, 0.1)",
+        backgroundColor: customColors.grey100,
+        borderColor: customColors.grey300,
     },
     dateText: {
-        color: customColors.white,
         ...typography.body1(),
+        color: customColors.black,
         fontWeight: "500",
         backgroundColor: "transparent",
     },
     calendarIcon: {
-        marginRight: 8,
+        marginRight: spacing.sm,
         opacity: 0.9,
-        backgroundColor: "transparent",
-    },
-    chevronIcon: {
-        opacity: 0.8,
         backgroundColor: "transparent",
     },
     disabledButton: {
         opacity: 0.5,
     },
     disabledText: {
-        color: customColors.grey,
+        color: customColors.grey500,
     },
-})
+});

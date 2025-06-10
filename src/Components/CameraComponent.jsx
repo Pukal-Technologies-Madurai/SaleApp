@@ -1,9 +1,10 @@
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, StatusBar } from "react-native";
 import React, { useRef, useEffect } from "react";
 import { Camera, useCameraDevice, useCameraPermission } from "react-native-vision-camera";
 import RNFS from "react-native-fs";
 import ImageResizer from "@bam.tech/react-native-image-resizer";
-import { customColors, typography } from "../Config/helper";
+import { customColors, typography, spacing, shadows } from "../Config/helper";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 const CameraComponent = ({ onPhotoCapture, showCamera }) => {
     const device = useCameraDevice("back");
@@ -65,52 +66,192 @@ const CameraComponent = ({ onPhotoCapture, showCamera }) => {
         }
     };
 
-    if (!hasPermission || device == null) return (<ActivityIndicator />);
+    if (!hasPermission || device == null) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={customColors.primary} />
+                <Text style={styles.loadingText}>Loading camera...</Text>
+            </View>
+        );
+    }
 
     return (
-        <View style={[styles.container, showCamera && styles.fullScreen]}>
-            <Camera
-                ref={camera}
-                photo={true}
-                style={[styles.cameraView, showCamera && styles.fullScreen]}
-                device={device}
-                isActive={true}
-            />
-            <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
-                <Text style={styles.captureButtonText}>Take Photo</Text>
-            </TouchableOpacity>
-        </View>
-    )
-}
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            
+            <View style={styles.header}>
+                <TouchableOpacity 
+                    style={styles.closeButton}
+                    onPress={() => showCamera(false)}>
+                    <Icon name="close" size={28} color={customColors.white} />
+                </TouchableOpacity>
+                <Text style={styles.headerText}>Take Photo</Text>
+                <View style={styles.placeholder} />
+            </View>
+            
+            <View style={styles.cameraContainer}>
+                <Camera
+                    ref={camera}
+                    photo={true}
+                    style={styles.cameraView}
+                    device={device}
+                    isActive={true}
+                />
+                <View style={styles.overlay}>
+                    <View style={styles.frameGuide}>
+                        <View style={styles.cornerTL} />
+                        <View style={styles.cornerTR} />
+                        <View style={styles.cornerBL} />
+                        <View style={styles.cornerBR} />
+                    </View>
+                </View>
+            </View>
 
-export default CameraComponent
+            <View style={styles.controls}>
+                <TouchableOpacity 
+                    style={styles.captureButton} 
+                    onPress={takePhoto}
+                    activeOpacity={0.8}>
+                    <View style={styles.captureButtonInner}>
+                        <View style={styles.captureButtonRing} />
+                    </View>
+                </TouchableOpacity>
+            </View>
+        </SafeAreaView>
+    );
+};
+
+export default CameraComponent;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        alignItems: "center",
+        backgroundColor: customColors.black,
+    },
+    loadingContainer: {
+        flex: 1,
         justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.black,
+    },
+    loadingText: {
+        ...typography.subtitle1(),
+        color: customColors.white,
+        marginTop: spacing.md,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: spacing.md,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1,
+    },
+    closeButton: {
+        padding: spacing.xs,
+    },
+    headerText: {
+        ...typography.h6(),
+        color: customColors.white,
+        textAlign: "center",
+    },
+    placeholder: {
+        width: 40,
+    },
+    cameraContainer: {
+        flex: 1,
+        position: "relative",
     },
     cameraView: {
-        width: "90%",
-        aspectRatio: 1,
+        flex: 1,
     },
-    fullScreen: {
-        width: "100%",
-        height: "100%",
-    },
-    captureButton: {
-        backgroundColor: customColors.secondary,
-        borderRadius: 30,
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 15,
-        paddingHorizontal: 30,
-        marginTop: 40,
     },
-    captureButtonText: {
-        ...typography.button(),
-        color: customColors.black,
-        fontWeight: "700"
+    frameGuide: {
+        width: "70%",
+        aspectRatio: 1,
+        borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.5)",
+        borderRadius: 12,
+        position: 'relative',
     },
-})
+    cornerTL: {
+        position: 'absolute',
+        top: -2,
+        left: -2,
+        width: 20,
+        height: 20,
+        borderTopWidth: 3,
+        borderLeftWidth: 3,
+        borderColor: customColors.white,
+    },
+    cornerTR: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        width: 20,
+        height: 20,
+        borderTopWidth: 3,
+        borderRightWidth: 3,
+        borderColor: customColors.white,
+    },
+    cornerBL: {
+        position: 'absolute',
+        bottom: -2,
+        left: -2,
+        width: 20,
+        height: 20,
+        borderBottomWidth: 3,
+        borderLeftWidth: 3,
+        borderColor: customColors.white,
+    },
+    cornerBR: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        width: 20,
+        height: 20,
+        borderBottomWidth: 3,
+        borderRightWidth: 3,
+        borderColor: customColors.white,
+    },
+    controls: {
+        position: "absolute",
+        bottom: spacing.xl,
+        left: 0,
+        right: 0,
+        alignItems: "center",
+        padding: spacing.md,
+    },
+    captureButton: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: "rgba(255, 255, 255, 0.3)",
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.medium,
+    },
+    captureButtonInner: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: customColors.white,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    captureButtonRing: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        borderWidth: 2,
+        borderColor: customColors.primary,
+    },
+});

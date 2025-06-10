@@ -1,6 +1,6 @@
 import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
-import { customColors } from "../Config/helper";
+import { customColors, shadows } from "../Config/helper";
 import DrawerScreen from "./DrawerScreen";
 import AppStack from "./AppStack";
 
@@ -12,10 +12,20 @@ const AppDrawer = () => {
             drawerContent={props => <DrawerScreen {...props} />}
             screenOptions={{
                 drawerStyle: {
-                    backgroundColor: customColors.background,
-                    width: "65%",
+                    backgroundColor: customColors.white,
+                    width: "75%",
+                    ...shadows.large,
                 },
-                // overlayColor: "transparent",
+                // drawerType: "front",
+                // overlayColor: "rgba(0, 0, 0, 0.5)",
+                // swipeEnabled: true,
+                // swipeEdgeWidth: 50,
+                // headerShown: false,
+                // drawerPosition: "left",
+                // drawerHideStatusBarOnOpen: true,
+                // sceneContainerStyle: {
+                //     backgroundColor: customColors.white,
+                // },
             }}>
             <Drawer.Screen
                 name="AppStack"

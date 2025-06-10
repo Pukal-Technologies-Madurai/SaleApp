@@ -1,5 +1,4 @@
 import {
-    Image,
     ImageBackground,
     Modal,
     StyleSheet,
@@ -13,9 +12,8 @@ import React, { useEffect, useState } from "react";
 import { customColors, typography } from "../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../Config/Endpoint";
-import assetImages from "../Config/Image";
 import { useNavigation } from "@react-navigation/native";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import AppHeader from "../Components/AppHeader";
 
 const ProfileScreen = () => {
     const navigation = useNavigation();
@@ -84,92 +82,77 @@ const ProfileScreen = () => {
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <MaterialIcon
-                            name="arrow-back"
-                            size={25}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
-                        Personal Info
-                    </Text>
+            <AppHeader title="Profile Info" navigation={navigation} />
+
+            <View style={styles.contentContainer}>
+                <View style={styles.formGroup}>
+                    <Text style={styles.label}>Name</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={name}
+                        editable={false}
+                    />
                 </View>
 
-                <View style={styles.contentContainer}>
-                    <View style={styles.formGroup}>
-                        <Text style={styles.label}>Name</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={name}
-                            editable={false}
-                        />
-                    </View>
+                <View style={styles.formGroup}>
+                    <Text style={styles.label}>Branch</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={branchName}
+                        editable={false}
+                    />
+                </View>
 
-                    <View style={styles.formGroup}>
-                        <Text style={styles.label}>Branch</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={branchName}
-                            editable={false}
-                        />
-                    </View>
+                <TouchableOpacity
+                    onPress={() => setModalVisible(true)}
+                    style={styles.button}>
+                    <Text style={styles.buttonText}>Change Password</Text>
+                </TouchableOpacity>
 
-                    <TouchableOpacity
-                        onPress={() => setModalVisible(true)}
-                        style={styles.button}>
-                        <Text style={styles.buttonText}>Change Password</Text>
-                    </TouchableOpacity>
-
-                    <Modal
-                        animationType="slide"
-                        transparent={true}
-                        visible={modalVisible}
-                        onRequestClose={() => setModalVisible(false)}>
-                        <View style={styles.modalOverlay}>
-                            <View style={styles.modalContainer}>
-                                <Text style={styles.modalTitle}>
-                                    Change Password
-                                </Text>
-                                <TextInput
-                                    style={styles.modalInput}
-                                    placeholder="Old Password"
-                                    secureTextEntry={true}
-                                    value={oldPassword}
-                                    onChangeText={setOldPassword}
-                                />
-                                <TextInput
-                                    style={styles.modalInput}
-                                    placeholder="New Password"
-                                    secureTextEntry={true}
-                                    value={newPassword}
-                                    onChangeText={setNewPassword}
-                                />
-                                <View style={styles.modalButtonContainer}>
-                                    <TouchableOpacity
-                                        onPress={handleChangePassword}
-                                        style={styles.modalButton}>
-                                        <Text style={styles.modalButtonText}>
-                                            Submit
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => setModalVisible(false)}
-                                        style={styles.modalButton}>
-                                        <Text style={styles.modalButtonText}>
-                                            Cancel
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={() => setModalVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContainer}>
+                            <Text style={styles.modalTitle}>
+                                Change Password
+                            </Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Old Password"
+                                secureTextEntry={true}
+                                value={oldPassword}
+                                onChangeText={setOldPassword}
+                            />
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="New Password"
+                                secureTextEntry={true}
+                                value={newPassword}
+                                onChangeText={setNewPassword}
+                            />
+                            <View style={styles.modalButtonContainer}>
+                                <TouchableOpacity
+                                    onPress={handleChangePassword}
+                                    style={styles.modalButton}>
+                                    <Text style={styles.modalButtonText}>
+                                        Submit
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setModalVisible(false)}
+                                    style={styles.modalButton}>
+                                    <Text style={styles.modalButtonText}>
+                                        Cancel
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
                         </View>
-                    </Modal>
-                </View>
-            </ImageBackground>
+                    </View>
+                </Modal>
+            </View>
         </View>
     );
 };
@@ -180,24 +163,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: customColors.background,
-    },
-    backgroundImage: {
-        flex: 1,
-        width: "100%",
-        backgroundColor: customColors.background,
-        alignItems: "center",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
     },
     contentContainer: {
         width: "100%",

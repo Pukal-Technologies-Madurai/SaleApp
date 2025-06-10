@@ -1,30 +1,37 @@
 import {
     View,
     Text,
-    TextInput,
     ToastAndroid,
     StyleSheet,
     TouchableOpacity,
     ScrollView,
     Image,
     Alert,
-    ImageBackground,
-    Pressable,
-    Share,
+    ActivityIndicator,
+    Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import { customColors, typography } from "../../Config/helper";
-import { API } from "../../Config/Endpoint";
-import assetImages from "../../Config/Image";
+import Icon from "react-native-vector-icons/Ionicons";
+import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import LocationIndicator from "../../Components/LocationIndicator";
+import {
+    customColors,
+    typography,
+    spacing,
+    shadows,
+    componentStyles,
+} from "../../Config/helper";
+import { fetchAreas, fetchRoutes, postRetailer } from "../../Api/retailers";
+import FormField from "../../Components/FormField";
+import OpenCamera from "../../Components/OpenCamera";
 
 const AddCustomer = () => {
     const navigation = useNavigation();
-    const route = useRoute();
+
     const [formValues, setFormValues] = useState({
         Retailer_Name: "",
         Contact_Person: "",
@@ -46,35 +53,27 @@ const AddCustomer = () => {
         Retailer_Channel_Id: "0",
     });
 
-    const [routes, setRoutes] = useState([]);
     const [selectRoutes, setSelectRoutes] = useState(null);
-    const [areas, setAreas] = useState([]);
     const [selectAreas, setSelectAreas] = useState(null);
-    const [isFocus, setIsFocus] = useState(false);
     const [location, setLocation] = useState({
         latitude: null,
         longitude: null,
     });
 
     const [errors, setErrors] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [imageUri, setImageUri] = useState(null);
+    const [showCamera, setShowCamera] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     useEffect(() => {
         loadAsyncStorageData();
-        if (route.params?.imageUri) {
-            setImageUri(route.params.imageUri);
-        }
-    }, [route.params?.imageUri]);
+    }, []);
 
     const loadAsyncStorageData = async () => {
         try {
             const branchId = await AsyncStorage.getItem("branchId");
             const userId = await AsyncStorage.getItem("UserId");
             const companyId = await AsyncStorage.getItem("Company_Id");
-
-            fetchRoutes();
-            fetchAreas();
 
             setFormValues(prevState => ({
                 ...prevState,
@@ -87,46 +86,26 @@ const AddCustomer = () => {
         }
     };
 
-    const fetchRoutes = async () => {
-        try {
-            const response = await fetch(API.routes(), {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-            const data = await response.json();
+    const { data: routes = [] } = useQuery({
+        queryKey: ["routes"],
+        queryFn: fetchRoutes,
+    });
 
-            if (data.success === true) {
-                setRoutes(data.data);
-            } else {
-                console.log("Failed to fetch routes: ", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching routes:", error);
-        }
-    };
+    const { data: areas = [] } = useQuery({
+        queryKey: ["areas"],
+        queryFn: fetchAreas,
+    });
 
-    const fetchAreas = async () => {
-        try {
-            const response = await fetch(API.areas(), {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-            const data = await response.json();
+    const isLoading = !routes.length || !areas.length;
 
-            if (data.success === true) {
-                // console.log(data.data)
-                setAreas(data.data);
-            } else {
-                console.log("Failed to fetch routes:", data.message);
-            }
-        } catch (error) {
-            console.log("Error fetching routes:", error);
-        }
-    };
+    // if (!isLoading) {
+    //     return (
+    //         <View style={styles.centered}>
+    //             <ActivityIndicator size="large" color={customColors.primary} />
+    //             <Text>Loading data...</Text>
+    //         </View>
+    //     );
+    // }
 
     useEffect(() => {
         if (location.latitude && location.longitude) {
@@ -142,50 +121,6 @@ const AddCustomer = () => {
         setLocation(locationData);
     };
 
-    const handleGeoData = async () => {
-        if (location.latitude && location.longitude) {
-            setFormValues(prev => ({
-                ...prev,
-                Latitude: location.latitude.toString(),
-                Longitude: location.longitude.toString(),
-            }));
-
-            ToastAndroid.show(
-                "Location updated successfully!",
-                ToastAndroid.SHORT,
-            );
-        } else {
-            Alert.alert(
-                "Location Not Available",
-                "Please wait for the location to be detected or try refreshing.",
-                [{ text: "OK" }],
-            );
-        }
-    };
-
-    const handleShare = async () => {
-        if (location.latitude && location.longitude) {
-            setFormValues(prev => ({
-                ...prev,
-                Latitude: location.latitude.toString(),
-                Longitude: location.longitude.toString(),
-            }));
-
-            const link = `https://www.google.com/maps/place/${location.latitude},${location.longitude}`;
-            const message = `${link}`;
-
-            try {
-                await Share.share({
-                    title: "Shared Location",
-                    message,
-                    url: link,
-                });
-            } catch (error) {
-                console.error(error);
-            }
-        }
-    };
-
     const handleInputChange = (field, value) => {
         setFormValues(prev => ({ ...prev, [field]: value }));
 
@@ -196,17 +131,18 @@ const AddCustomer = () => {
     };
 
     const handleOpenCamera = () => {
-        navigation.navigate("OpenCamera", {
-            onImageCapture: handleImageCapture,
-        });
+        if (imageUri) {
+            setShowPreview(true);
+        } else {
+            setShowCamera(true);
+        }
     };
 
     const handleImageCapture = uri => {
         setImageUri(uri);
         setFormValues({ ...formValues, profilePic: uri });
+        setShowCamera(false);
     };
-
-    const validateMobileNo = mobileNo => /^\d{10}$/.test(mobileNo);
 
     const validateForm = () => {
         const newErrors = {};
@@ -254,103 +190,48 @@ const AddCustomer = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async () => {
-        if (!validateForm()) {
-            Alert.alert(
-                "Validation Error",
-                "Please check all required fields and try again.",
-                [{ text: "OK" }],
-            );
-            return;
-        }
-
-        setIsSubmitting(true);
-
-        try {
-            const formData = new FormData();
-
-            // Append all form values to formData
-            Object.entries(formValues).forEach(([key, value]) => {
-                formData.append(key, value);
-            });
-
-            // Append image if exists
-            if (imageUri) {
-                formData.append("Profile_Pic", {
-                    uri: `file://${imageUri}`,
-                    name: "photo.jpg",
-                    type: "image/jpeg",
-                });
-            }
-
-            const response = await fetch(
-                `${API.retailers()}${formValues.Company_Id}`,
-                {
-                    method: "POST",
-                    body: formData,
-                },
-            );
-
-            if (!response.ok) {
-                throw new Error(
-                    `Server responded with status: ${response.status}`,
-                );
-            }
-
-            const result = await response.text();
-            // console.log('Success:', result);
-
+    const mutation = useMutation({
+        mutationFn: postRetailer,
+        onSuccess: () => {
             ToastAndroid.show(
-                "New Customer Added Successfully!",
+                "New Customer added successfully!",
                 ToastAndroid.LONG,
             );
             navigation.reset({
                 index: 0,
                 routes: [{ name: "HomeScreen" }],
             });
-        } catch (error) {
-            console.error("Submission Error:", error);
-            Alert.alert(
-                "Error",
-                "Failed to add new customer. Please try again.",
-                [{ text: "OK" }],
-            );
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+        },
+        onError: error => {
+            Alert.alert("Error", error.message || "Failed to add customer");
+        },
+    });
 
-    const FormLabel = ({ label, required }) => (
-        <Text style={styles.label}>
-            {label} {required && <Text style={styles.requiredAsterisk}>*</Text>}
-        </Text>
-    );
+    const handleSubmit = async () => {
+        if (mutation.isPending) return; // prevent duplicate tap
+
+        if (!validateForm()) {
+            Alert.alert(
+                "Validation Error",
+                "Please check all required fields and try again.",
+            );
+            return;
+        }
+
+        mutation.mutate({ formValues, imageUri });
+    };
 
     return (
         <View style={styles.container}>
-            <ImageBackground
-                source={assetImages.backgroundImage}
-                style={styles.backgroundImage}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <MaterialIcon
-                            name="arrow-back"
-                            size={25}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerText} maxFontSizeMultiplier={1.2}>
-                        Retailers
-                    </Text>
-                    <TouchableOpacity
-                        onPress={() => navigation.push("Customers")}>
-                        <MaterialIcon
-                            name="person-pin"
-                            size={25}
-                            color={customColors.white}
-                        />
-                    </TouchableOpacity>
-                </View>
+            <View style={styles.backgroundImage}>
+                <AppHeader
+                    title="Add a Retailer"
+                    navigation={navigation}
+                    showRightIcon={true}
+                    rightIconLibrary="FeatherIcon"
+                    rightIconName="users"
+                    onRightPress={() => navigation.push("Customers")}
+                />
 
                 <ScrollView style={styles.contentContainer}>
                     <View style={styles.formContainer}>
@@ -360,183 +241,102 @@ const AddCustomer = () => {
                             autoFetchOnMount={true}
                         />
 
-                        <View style={styles.geoSection}>
-                            <Text style={styles.label}>Location Details</Text>
-                            <View style={styles.geoContainer}>
-                                <View style={styles.geoInputContainer}>
-                                    <TextInput
-                                        style={styles.geoInput}
-                                        value={formValues.Latitude}
-                                        placeholder="Latitude"
-                                        keyboardType="numeric"
-                                        editable={false}
-                                        // onChangeText={text =>
-                                        //     handleInputChange("Latitude", text)
-                                        // }
-                                    />
-                                    <TextInput
-                                        style={styles.geoInput}
-                                        value={formValues.Longitude}
-                                        placeholder="Longitude"
-                                        keyboardType="numeric"
-                                        editable={false}
-                                        // onChangeText={text =>
-                                        //     handleInputChange("Longitude", text)
-                                        // }
-                                    />
+                        <View style={styles.masterDataContainer}>
+                            <TouchableOpacity
+                                style={styles.masterDataButton}
+                                onPress={() =>
+                                    navigation.navigate("MasterData")
+                                }>
+                                <Icon
+                                    name="settings-outline"
+                                    size={20}
+                                    color={customColors.accent2}
+                                />
+                                <Text style={styles.masterDataText}>
+                                    Master Data
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
 
-                                    <View style={styles.geoButtonContainer}>
-                                        <TouchableOpacity
-                                            style={styles.geoButton}
-                                            onPress={() => handleGeoData()}>
-                                            <MaterialIcon
-                                                name="location-pin"
-                                                size={25}
-                                                color={customColors.white}
-                                            />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.geoButton}
-                                            onPress={() => handleShare()}>
-                                            <MaterialIcon
-                                                name="share"
-                                                size={25}
-                                                color={customColors.white}
-                                            />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
+                        <View style={styles.dropdownRow}>
+                            <View style={styles.dropdownContainer}>
+                                <EnhancedDropdown
+                                    data={routes}
+                                    labelField="Route_Name"
+                                    valueField="Route_Id"
+                                    placeholder="Select Route"
+                                    value={selectRoutes}
+                                    onChange={value => {
+                                        setSelectRoutes(value.Route_Id);
+                                        setFormValues({
+                                            ...formValues,
+                                            Route_Id: value.Route_Id,
+                                        });
+                                    }}
+                                />
+                            </View>
+
+                            <View style={styles.dropdownContainer}>
+                                <EnhancedDropdown
+                                    data={areas}
+                                    labelField="Area_Name"
+                                    valueField="Area_Id"
+                                    placeholder="Select Area"
+                                    value={selectAreas}
+                                    onChange={value => {
+                                        setSelectAreas(value.Area_Id);
+                                        setFormValues({
+                                            ...formValues,
+                                            Area_Id: value.Area_Id,
+                                        });
+                                    }}
+                                />
                             </View>
                         </View>
 
-                        <EnhancedDropdown
-                            data={routes}
-                            labelField="Route_Name"
-                            valueField="Route_Id"
-                            showIcon={true}
-                            iconName={"chevron-down"}
-                            iconColor={customColors.grey}
-                            placeholder={
-                                !isFocus ? "Please chosen the Route" : "..."
+                        <FormField
+                            label="Retailer Name"
+                            required
+                            error={errors.Retailer_Name}
+                            value={formValues.Retailer_Name}
+                            onChangeText={text =>
+                                handleInputChange("Retailer_Name", text)
                             }
-                            value={selectRoutes}
-                            onChange={value => {
-                                setSelectRoutes(value.Route_Id);
-                                setFormValues({
-                                    ...formValues,
-                                    Route_Id: value.Route_Id,
-                                });
-                                setIsFocus(false);
-                            }}
+                            placeholder="Enter retailer name"
                         />
 
-                        <Pressable
-                            onPress={() => {
-                                navigation.navigate("MasterData");
-                            }}>
-                            <Text
-                                style={{
-                                    color: "red",
-                                    ...typography.body1(),
-                                }}>
-                                Master Info
-                            </Text>
-                        </Pressable>
-
-                        <EnhancedDropdown
-                            data={areas}
-                            labelField="Area_Name"
-                            valueField="Area_Id"
-                            showIcon={true}
-                            iconName={"chevron-down"}
-                            iconColor={customColors.grey}
-                            placeholder={
-                                !isFocus ? "Please chosen the area" : "..."
+                        <FormField
+                            label="Contact Person"
+                            required
+                            error={errors.Contact_Person}
+                            value={formValues.Contact_Person}
+                            onChangeText={text =>
+                                handleInputChange("Contact_Person", text)
                             }
-                            value={selectAreas}
-                            onChange={value => {
-                                setSelectAreas(value.Area_Id);
-                                setFormValues({
-                                    ...formValues,
-                                    Area_Id: value.Area_Id,
-                                });
-                                setIsFocus(false);
-                            }}
+                            placeholder="Enter contact person name"
                         />
 
-                        <View style={styles.inputWrapper}>
-                            <FormLabel label="Retailer Name" required />
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    errors.Retailer_Name && styles.inputError,
-                                ]}
-                                value={formValues.Retailer_Name}
-                                onChangeText={text =>
-                                    handleInputChange("Retailer_Name", text)
-                                }
-                                placeholder="Enter retailer name"
-                            />
-                            {errors.Retailer_Name && (
-                                <Text style={styles.errorText}>
-                                    {errors.Retailer_Name}
-                                </Text>
-                            )}
-                        </View>
+                        <FormField
+                            label="Mobile Number"
+                            required
+                            error={errors.Mobile_No}
+                            value={formValues.Mobile_No}
+                            onChangeText={text =>
+                                handleInputChange("Mobile_No", text)
+                            }
+                            placeholder="Enter 10-digit mobile number"
+                            keyboardType="phone-pad"
+                            maxLength={10}
+                        />
 
-                        <View style={styles.inputWrapper}>
-                            <FormLabel label="Contact Person" required />
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    errors.Contact_Person && styles.inputError,
-                                ]}
-                                value={formValues.Contact_Person}
-                                onChangeText={text =>
-                                    handleInputChange("Contact_Person", text)
-                                }
-                                placeholder="Enter contact person name"
-                            />
-                            {errors.Contact_Person && (
-                                <Text style={styles.errorText}>
-                                    {errors.Contact_Person}
-                                </Text>
-                            )}
-                        </View>
-
-                        <View style={styles.inputWrapper}>
-                            <FormLabel label="Mobile Number" required />
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    errors.Mobile_No && styles.inputError,
-                                ]}
-                                value={formValues.Mobile_No}
-                                onChangeText={text =>
-                                    handleInputChange("Mobile_No", text)
-                                }
-                                placeholder="Enter 10-digit mobile number"
-                                keyboardType="phone-pad"
-                                maxLength={10}
-                            />
-                            {errors.Mobile_No && (
-                                <Text style={styles.errorText}>
-                                    {errors.Mobile_No}
-                                </Text>
-                            )}
-                        </View>
-
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.label}>GST</Text>
-                            <TextInput
-                                style={[styles.input]}
-                                value={formValues.Gstno}
-                                onChangeText={text =>
-                                    handleInputChange("Gstno", text)
-                                }
-                                placeholder="GST number"
-                            />
-                        </View>
+                        <FormField
+                            label="GST"
+                            value={formValues.Gstno}
+                            onChangeText={text =>
+                                handleInputChange("Gstno", text)
+                            }
+                            placeholder="GST number"
+                        />
 
                         <View style={styles.cameraSection}>
                             {imageUri && (
@@ -550,80 +350,141 @@ const AddCustomer = () => {
                                 style={styles.cameraButton}
                                 onPress={handleOpenCamera}>
                                 <Text style={styles.cameraButtonText}>
-                                    {imageUri ? "Retake Photo" : "Take Photo"}
+                                    {imageUri ? "Preview Photo" : "Take Photo"}
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.inputWrapper}>
-                            <FormLabel label="Address" required />
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    errors.Reatailer_Address &&
-                                        styles.inputError,
-                                ]}
-                                value={formValues.Reatailer_Address}
-                                onChangeText={text =>
-                                    handleInputChange("Reatailer_Address", text)
-                                }
-                                placeholder="Enter complete address"
-                                multiline
-                            />
-                            {errors.Reatailer_Address && (
-                                <Text style={styles.errorText}>
-                                    {errors.Reatailer_Address}
-                                </Text>
-                            )}
-                        </View>
+                        <FormField
+                            label="Address"
+                            required
+                            error={errors.Reatailer_Address}
+                            value={formValues.Reatailer_Address}
+                            onChangeText={text =>
+                                handleInputChange("Reatailer_Address", text)
+                            }
+                            placeholder="Enter complete address"
+                            multiline
+                        />
 
-                        <View style={styles.inputWrapper}>
-                            <FormLabel label="City" required />
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    errors.Reatailer_City && styles.inputError,
-                                ]}
-                                value={formValues.Reatailer_City}
-                                onChangeText={text =>
-                                    handleInputChange("Reatailer_City", text)
-                                }
-                                placeholder="Enter city name"
-                            />
-                            {errors.Reatailer_City && (
-                                <Text style={styles.errorText}>
-                                    {errors.Reatailer_City}
-                                </Text>
-                            )}
-                        </View>
+                        <FormField
+                            label="City"
+                            required
+                            error={errors.Reatailer_City}
+                            value={formValues.Reatailer_City}
+                            onChangeText={text =>
+                                handleInputChange("Reatailer_City", text)
+                            }
+                            placeholder="Enter city name"
+                        />
 
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.label}>Pin Code</Text>
-                            <TextInput
-                                style={[styles.input]}
-                                value={formValues.PinCode}
-                                keyboardType="phone-pad"
-                                onChangeText={text =>
-                                    handleInputChange("PinCode", text)
-                                }
-                                placeholder="Pin Code"
-                            />
-                        </View>
+                        <FormField
+                            label="Pin Code"
+                            value={formValues.PinCode}
+                            onChangeText={text =>
+                                handleInputChange("PinCode", text)
+                            }
+                            placeholder="Pin Code"
+                            keyboardType="phone-pad"
+                        />
 
                         <TouchableOpacity
                             style={[
                                 styles.submitButton,
-                                isSubmitting && styles.submitButtonDisabled,
+                                mutation.isPending &&
+                                    styles.submitButtonDisabled,
                             ]}
                             onPress={handleSubmit}
-                            disabled={isSubmitting}>
+                            disabled={mutation.isPending}>
                             <Text style={styles.submitButtonText}>
-                                {isSubmitting ? "Saving..." : "Save Retailer"}
+                                {mutation.isPending
+                                    ? "Saving..."
+                                    : "Save Retailer"}
                             </Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
-            </ImageBackground>
+            </View>
+
+            {/* Camera Modal */}
+            <Modal
+                visible={showCamera}
+                animationType="slide"
+                onRequestClose={() => setShowCamera(false)}
+                statusBarTranslucent>
+                <View style={styles.cameraModalContainer}>
+                    <OpenCamera
+                        onPhotoCapture={handleImageCapture}
+                        onClose={() => setShowCamera(false)}
+                    />
+                </View>
+            </Modal>
+
+            {/* Photo Preview Modal */}
+            <Modal
+                visible={showPreview}
+                animationType="slide"
+                onRequestClose={() => setShowPreview(false)}
+                transparent={true}>
+                <View style={styles.previewModalContainer}>
+                    <View style={styles.previewContent}>
+                        <View style={styles.previewHeader}>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setShowPreview(false)}>
+                                <Icon
+                                    name="close"
+                                    size={24}
+                                    color={customColors.white}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Image
+                            source={{ uri: `file://${imageUri}` }}
+                            style={styles.previewImage}
+                            resizeMode="contain"
+                        />
+
+                        <View style={styles.previewActions}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.previewButton,
+                                    styles.retakeButton,
+                                ]}
+                                onPress={() => {
+                                    setShowPreview(false);
+                                    setShowCamera(true);
+                                }}>
+                                <Icon
+                                    name="camera"
+                                    size={24}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.previewButtonText}>
+                                    Retake
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.previewButton,
+                                    styles.closePreviewButton,
+                                ]}
+                                onPress={() => setShowPreview(false)}>
+                                <Icon
+                                    name="checkmark"
+                                    size={24}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.previewButtonText}>
+                                    Done
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -638,133 +499,156 @@ const styles = StyleSheet.create({
     backgroundImage: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primary,
         alignItems: "center",
-    },
-    headerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    headerText: {
-        flex: 1,
-        ...typography.h4(),
-        color: customColors.white,
-        marginHorizontal: 10,
     },
     contentContainer: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 10,
-        borderTopRightRadius: 10,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
     },
     formContainer: {
-        padding: 20,
+        padding: spacing.md,
     },
-    inputWrapper: {
-        marginBottom: 10,
+    locationSection: {
+        marginBottom: spacing.md,
     },
-    label: {
-        ...typography.h6(),
-        marginBottom: 5,
-        color: customColors.grey,
+    masterDataContainer: {
+        marginBottom: spacing.md,
+        alignItems: "flex-end",
+    },
+    masterDataButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 20,
+        backgroundColor: customColors.accent2 + "10",
+        gap: spacing.xs,
+        ...shadows.small,
+    },
+    masterDataText: {
+        ...typography.caption(),
+        color: customColors.accent2,
         fontWeight: "500",
     },
-    input: {
+    dropdownRow: {
+        flexDirection: "row",
+        gap: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    dropdownContainer: {
+        flex: 1,
+    },
+    dropdownLabel: {
+        ...typography.label(),
+        marginBottom: spacing.xs,
+        color: customColors.grey900,
+        fontWeight: "500",
+    },
+    dropdown: {
+        height: 48,
         backgroundColor: customColors.white,
-        color: customColors.black,
         borderWidth: 1,
-        borderColor: "#ddd",
+        borderColor: customColors.grey300,
         borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-    },
-    inputError: {
-        borderColor: "red",
-    },
-    errorText: {
-        ...typography.body1(),
-        color: "red",
-        marginTop: 5,
+        paddingHorizontal: spacing.sm,
+        ...shadows.small,
     },
     cameraSection: {
-        marginBottom: 20,
+        marginBottom: spacing.md,
     },
     previewImage: {
         width: "100%",
         height: 200,
         borderRadius: 8,
-        marginBottom: 10,
-        backgroundColor: "#f0f0f0",
+        marginBottom: spacing.sm,
+        backgroundColor: customColors.grey100,
     },
     cameraButton: {
-        backgroundColor: customColors.primary,
-        padding: 15,
-        borderRadius: 8,
-        alignItems: "center",
+        ...componentStyles.button.primary,
+        paddingVertical: spacing.sm,
     },
     cameraButtonText: {
-        color: customColors.white,
-        ...typography.h6(),
-        fontWeight: "600",
-    },
-    geoSection: {
-        marginVertical: 15,
-    },
-    geoContainer: {
-        width: "100%",
-    },
-    geoInputContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 10,
-    },
-    geoInput: {
-        flex: 1,
-        backgroundColor: customColors.lightGrey,
-        color: customColors.black,
-        borderWidth: 1,
-        borderColor: customColors.grey,
-        borderRadius: 8,
-        padding: 12,
-        ...typography.h6(),
-        marginRight: 10,
-    },
-    geoButtonContainer: {
-        flex: 1,
-        flexDirection: "row",
-        gap: 5,
-    },
-    geoButton: {
-        backgroundColor: customColors.primary,
-        padding: 15,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    geoButtonText: {
-        color: customColors.black,
-        ...typography.h5(),
-        fontWeight: "600",
+        textAlign: "center",
+        ...typography.button(),
     },
     submitButton: {
-        backgroundColor: customColors.primary,
-        padding: 15,
-        borderRadius: 8,
-        alignItems: "center",
-        marginTop: 20,
+        ...componentStyles.button.primary,
+        marginTop: spacing.lg,
     },
     submitButtonDisabled: {
         opacity: 0.5,
     },
     submitButtonText: {
-        ...typography.h5(),
-        color: customColors.white,
-        fontWeight: "bold",
+        textAlign: "center",
+        ...typography.button(),
     },
-    requiredAsterisk: {
-        color: "#FF0000",
-        ...typography.h6(),
+    centered: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+    },
+    cameraModalContainer: {
+        flex: 1,
+        backgroundColor: customColors.black,
+    },
+    previewModalContainer: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.9)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    previewContent: {
+        width: "100%",
+        height: "100%",
+        justifyContent: "space-between",
+    },
+    previewHeader: {
+        flexDirection: "row",
+        justifyContent: "flex-end",
+        padding: spacing.md,
+    },
+    closeButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    previewImage: {
+        flex: 1,
+        width: "100%",
+        height: "100%",
+    },
+    previewActions: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        padding: spacing.md,
+        gap: spacing.md,
+    },
+    previewButton: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: spacing.md,
+        borderRadius: spacing.md,
+        gap: spacing.sm,
+    },
+    retakeButton: {
+        backgroundColor: customColors.primary,
+    },
+    closePreviewButton: {
+        backgroundColor: customColors.success,
+    },
+    previewButtonText: {
+        ...typography.button(),
+        color: customColors.white,
+        fontWeight: "600",
     },
 });
