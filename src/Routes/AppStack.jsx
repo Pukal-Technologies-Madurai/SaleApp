@@ -41,6 +41,7 @@ import TripDetails from "../Screens/delivery/TripDetails";
 import TripSheet from "../Screens/delivery/TripSheet";
 import Sales from "../Screens/sales/Sales";
 import SalesAdminDetail from "../Screens/admin/SalesAdminDetail";
+import ClosingStock from "../Screens/closing/ClosingStock";
 
 const Stack = createStackNavigator();
 
@@ -83,6 +84,7 @@ const AppStack = () => {
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
 
+            <Stack.Screen name="ClosingStock" component={ClosingStock} />
             <Stack.Screen name="StockClosing" component={StockClosing} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
 

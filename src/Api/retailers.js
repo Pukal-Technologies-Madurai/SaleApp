@@ -64,6 +64,14 @@ export const fetchRetailerInfo = async retailerId => {
     return json;
 };
 
+export const fetchRetailerClosingStock = async retailerId => {
+    const res = await fetch(`${API.retailerwiseClosingStock()}${retailerId}`);
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
 export const putRetailer = async ({
     formValues,
     currentPhoto,
@@ -73,7 +81,10 @@ export const putRetailer = async ({
 
     Object.entries(formValues).forEach(([key, value]) => {
         if (key === "Profile_Pic") {
-            if (currentPhoto && (!originalPhoto || currentPhoto.uri !== originalPhoto)) {
+            if (
+                currentPhoto &&
+                (!originalPhoto || currentPhoto.uri !== originalPhoto)
+            ) {
                 formData.append(key, currentPhoto);
             }
         } else {

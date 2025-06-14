@@ -494,20 +494,15 @@ export default AddCustomer;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
     },
     backgroundImage: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.primary,
-        alignItems: "center",
     },
     contentContainer: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
     },
     formContainer: {
         padding: spacing.md,

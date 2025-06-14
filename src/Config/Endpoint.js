@@ -65,6 +65,9 @@ export const API = {
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",
 
+    retailerwiseClosingStock: () =>
+        `${baseURL}api/masters/retailers/soldProducts?Retailer_Id=`,
+
     // Not Used API
     company: () => `${baseURL}api/masters/company?Company_id=`,
     distributors: () => `${baseURL}api/masters/distributors`,

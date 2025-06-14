@@ -122,7 +122,7 @@ const StockInfo = () => {
     });
 
     const editOption = item => {
-        navigation.navigate("StockClosing", { item, isEdit: true });
+        navigation.navigate("ClosingStock", { item, isEdit: true });
     };
 
     return (

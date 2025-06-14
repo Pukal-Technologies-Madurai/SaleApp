@@ -5,6 +5,7 @@ import {
     View,
     ScrollView,
     Alert,
+    TextInput,
     Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
@@ -34,6 +35,8 @@ const OrderPreview = () => {
     const [logData, setLogData] = useState([]);
     const [companyId, setCompanyId] = useState([]);
     const [retailerInfo, setRetailerInfo] = useState({});
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
@@ -599,14 +602,24 @@ const OrderPreview = () => {
         0,
     );
 
-    const fromDate = new Date(selectedFromDate)
-        .toLocaleDateString()
-        .split("T")[0];
-    const fromTime = new Date(selectedFromDate).toLocaleString("en-US", {
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-    });
+    const filteredLogData = logData.filter(order =>
+        selectedBrand === "All"
+            ? true
+            : order.Products_List.some(
+                  p => p.BrandGet?.trim() === selectedBrand,
+              ),
+    );
+
+    const filteredTotalSales = filteredLogData.length;
+
+    const filteredTotalAmount = filteredLogData.reduce(
+        (sum, order) => sum + (order.Total_Invoice_value || 0),
+        0,
+    );
+
+    const filteredOrderData = filteredLogData.filter(order =>
+        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
 
     const handleSalesReportPress = () => {
         navigation.navigate("SalesReport", {
@@ -645,40 +658,68 @@ const OrderPreview = () => {
                 </View>
 
                 <View style={styles.countContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{
-                            paddingHorizontal: spacing.md,
-                            marginVertical: spacing.sm,
-                        }}>
-                        {brandList.map((brand, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={{
-                                    paddingVertical: spacing.xs,
-                                    paddingHorizontal: spacing.md,
-                                    marginRight: spacing.sm,
-                                    borderRadius: 20,
-                                    backgroundColor:
-                                        selectedBrand === brand
-                                            ? customColors.primary
-                                            : customColors.grey200,
-                                }}
-                                onPress={() => setSelectedBrand(brand)}>
-                                <Text
+                    <View style={styles.searchHeader}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={{
+                                flex: 1,
+                                paddingHorizontal: spacing.md,
+                                marginVertical: spacing.sm,
+                            }}>
+                            {brandList.map((brand, index) => (
+                                <TouchableOpacity
+                                    key={index}
                                     style={{
-                                        color:
+                                        paddingVertical: spacing.xs,
+                                        paddingHorizontal: spacing.md,
+                                        marginRight: spacing.sm,
+                                        borderRadius: 20,
+                                        backgroundColor:
                                             selectedBrand === brand
-                                                ? customColors.white
-                                                : customColors.grey900,
-                                        ...typography.caption(),
-                                    }}>
-                                    {brand}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                                                ? customColors.primary
+                                                : customColors.grey200,
+                                    }}
+                                    onPress={() => setSelectedBrand(brand)}>
+                                    <Text
+                                        style={{
+                                            color:
+                                                selectedBrand === brand
+                                                    ? customColors.white
+                                                    : customColors.grey900,
+                                            ...typography.caption(),
+                                        }}>
+                                        {brand}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity
+                            style={styles.searchIcon}
+                            onPress={() => {
+                                setSearchQuery("");
+                                setShowSearch(!showSearch);
+                            }}>
+                            <MaterialIcon
+                                name={showSearch ? "close" : "search"}
+                                size={24}
+                                color={customColors.grey900}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    {showSearch && (
+                        <View style={styles.searchContainer}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search retailer..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                        </View>
+                    )}
+
                     <View style={styles.statsContainer}>
                         <View style={styles.statItem}>
                             <View style={styles.iconContainer}>
@@ -693,7 +734,9 @@ const OrderPreview = () => {
                                     Total Sales
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {logData ? logData.length : "0"}
+                                    {filteredTotalSales
+                                        ? filteredTotalSales
+                                        : "0"}
                                 </Text>
                             </View>
                         </View>
@@ -713,8 +756,8 @@ const OrderPreview = () => {
                                     Total Amount
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {totalOrderAmount
-                                        ? `₹${totalOrderAmount.toFixed(2)}`
+                                    {filteredTotalAmount
+                                        ? `₹${filteredTotalAmount.toFixed(2)}`
                                         : "₹0.00"}
                                 </Text>
                             </View>
@@ -724,13 +767,7 @@ const OrderPreview = () => {
 
                 <ScrollView style={styles.accordationScrollContainer}>
                     <Accordion
-                        data={logData.filter(order =>
-                            selectedBrand === "All"
-                                ? true
-                                : order.Products_List.some(
-                                      p => p.BrandGet?.trim() === selectedBrand,
-                                  ),
-                        )}
+                        data={filteredOrderData}
                         renderHeader={renderHeader}
                         renderContent={renderContent}
                     />
@@ -762,6 +799,32 @@ const styles = StyleSheet.create({
     countContainer: {
         marginHorizontal: spacing.sm,
         marginVertical: spacing.xs,
+    },
+    searchHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+    searchIcon: {
+        padding: spacing.xs,
+        borderRadius: 50,
+        backgroundColor: customColors.grey100,
+        marginLeft: spacing.sm,
+        ...shadows.small,
+    },
+    searchContainer: {
+        marginTop: spacing.xs,
+        marginBottom: spacing.sm,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: customColors.white,
+        ...shadows.medium,
+    },
+    searchInput: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        fontSize: 16,
+        color: customColors.grey900,
     },
     statsContainer: {
         flexDirection: "row",

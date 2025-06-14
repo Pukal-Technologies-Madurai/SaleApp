@@ -161,7 +161,7 @@ const CustomersDetails = ({ route }) => {
                         label="Stock"
                         icon={assetImages.closingStock}
                         onPress={() =>
-                            navigation.navigate("StockClosing", {
+                            navigation.navigate("ClosingStock", {
                                 item,
                             })
                         }

@@ -3,12 +3,14 @@ import {
     StyleSheet,
     Text,
     View,
+    TextInput,
     TouchableOpacity,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
@@ -36,6 +38,8 @@ const SalesAdmin = () => {
     const [expandedItemId, setExpandedItemId] = useState(null);
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandList, setBrandList] = useState([]);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -96,11 +100,11 @@ const SalesAdmin = () => {
             const data = await response.json();
 
             if (data.success === true && Array.isArray(data.data)) {
-                console.log("Data received:", data.data.length, "items");
+                // console.log("Data received:", data.data.length, "items");
                 setLogData(data.data);
                 calculateProductSummaryAndTotals(data.data);
             } else {
-                console.log("No data received or invalid response format");
+                // console.log("No data received or invalid response format");
                 setLogData([]);
                 setProductSummary([]);
                 setTotalOrderAmount(0);
@@ -410,6 +414,10 @@ const SalesAdmin = () => {
         0,
     );
 
+    const filteredOrderData = filteredLogData.filter(order =>
+        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+
     return (
         <View style={styles.container}>
             <AppHeader
@@ -461,40 +469,57 @@ const SalesAdmin = () => {
                 </View>
 
                 <View style={styles.countContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{
-                            paddingHorizontal: spacing.md,
-                            marginVertical: spacing.sm,
-                        }}>
-                        {brandList.map((brand, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={{
-                                    paddingVertical: spacing.xs,
-                                    paddingHorizontal: spacing.md,
-                                    marginRight: spacing.sm,
-                                    borderRadius: 20,
-                                    backgroundColor:
-                                        selectedBrand === brand
-                                            ? customColors.primary
-                                            : customColors.grey200,
-                                }}
-                                onPress={() => setSelectedBrand(brand)}>
-                                <Text
+                    <View style={styles.searchHeader}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={{
+                                flex: 1,
+                                paddingHorizontal: spacing.md,
+                                marginVertical: spacing.sm,
+                            }}>
+                            {brandList.map((brand, index) => (
+                                <TouchableOpacity
+                                    key={index}
                                     style={{
-                                        color:
+                                        paddingVertical: spacing.xs,
+                                        paddingHorizontal: spacing.md,
+                                        marginRight: spacing.sm,
+                                        borderRadius: 20,
+                                        backgroundColor:
                                             selectedBrand === brand
-                                                ? customColors.white
-                                                : customColors.grey900,
-                                        ...typography.caption(),
-                                    }}>
-                                    {brand}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                                                ? customColors.primary
+                                                : customColors.grey200,
+                                    }}
+                                    onPress={() => setSelectedBrand(brand)}>
+                                    <Text
+                                        style={{
+                                            color:
+                                                selectedBrand === brand
+                                                    ? customColors.white
+                                                    : customColors.grey900,
+                                            ...typography.caption(),
+                                        }}>
+                                        {brand}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={styles.searchIcon}
+                            onPress={() => {
+                                setSearchQuery("");
+                                setShowSearch(!showSearch);
+                            }}>
+                            <MaterialIcon
+                                name={showSearch ? "close" : "search"}
+                                size={24}
+                                color={customColors.grey900}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
                     <View style={styles.statsContainer}>
                         <View style={styles.statItem}>
                             <View style={styles.iconContainer}>
@@ -543,22 +568,25 @@ const SalesAdmin = () => {
                             />
                         </TouchableOpacity>
                     </View>
+
+                    {showSearch && (
+                        <View style={styles.searchContainer}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search retailer..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                        </View>
+                    )}
                 </View>
 
                 <ScrollView
                     style={styles.retailersScrollContainer}
                     contentContainerStyle={styles.retailersScrollContent}
                     showsVerticalScrollIndicator={false}>
-                    {logData
-                        .filter(order =>
-                            selectedBrand === "All"
-                                ? true
-                                : order.Products_List.some(
-                                      p => p.BrandGet?.trim() === selectedBrand,
-                                  ),
-                        )
-                        .map(item => renderRetailerItem(item))}
-
+                    {filteredOrderData.map(item => renderRetailerItem(item))}
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             </View>
@@ -916,6 +944,34 @@ const styles = StyleSheet.create({
         flex: 3,
         textAlign: "left",
         paddingRight: spacing.sm,
+    },
+    searchHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+
+    searchIcon: {
+        padding: spacing.xs,
+        borderRadius: 50,
+        backgroundColor: customColors.grey100,
+        marginLeft: spacing.sm,
+        ...shadows.small,
+    },
+
+    searchContainer: {
+        marginBottom: spacing.sm,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: customColors.white,
+        ...shadows.medium,
+    },
+
+    searchInput: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        fontSize: 16,
+        color: customColors.grey900,
     },
 });
 
