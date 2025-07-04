@@ -139,6 +139,11 @@ export const typography = {
         lineHeight: responsiveFontSize(20),
         color: customColors.grey900,
     }),
+    tableCell: () => ({
+        fontFamily: customFonts.poppinsRegular,
+        fontSize: responsiveFontSize(13),
+        lineHeight: responsiveFontSize(14),
+    }),
     label: () => ({
         fontFamily: customFonts.poppinsMedium,
         fontSize: responsiveFontSize(14),

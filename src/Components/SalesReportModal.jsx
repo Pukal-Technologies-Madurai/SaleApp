@@ -201,7 +201,7 @@ const SalesReportModal = ({
         try {
             const userIdParam = id || "";
             const url = `${API.visitedLog()}?reqDate=${date}&UserId=${userIdParam}`;
-            console.log(url);
+            // console.log(url);
 
             const response = await fetch(url, {
                 method: "GET",
@@ -238,7 +238,11 @@ const SalesReportModal = ({
                         <TouchableOpacity
                             onPress={onClose}
                             style={styles.closeButton}>
-                            <Icon name="times" size={24} color={customColors.white} />
+                            <Icon
+                                name="times"
+                                size={24}
+                                color={customColors.white}
+                            />
                         </TouchableOpacity>
                     </View>
 
@@ -270,9 +274,14 @@ const SalesReportModal = ({
                                     color={customColors.success}
                                 />
                                 <Text style={styles.statValue}>
-                                    Total Visits:{" "}
-                                    <Text style={{ color: customColors.error, fontWeight: "bold" }}>
-                                        {totalVisitLogCount}
+                                    Total Visits: s
+                                    <Text
+                                        style={{
+                                            color: customColors.error,
+                                            fontWeight: "bold",
+                                        }}>
+                                        {totalVisitLogCount} (for sales:{" "}
+                                        {logData.length})
                                     </Text>
                                 </Text>
                             </View>
@@ -282,13 +291,19 @@ const SalesReportModal = ({
                             <View style={styles.tableHeader}>
                                 <View style={styles.headerRow}>
                                     <View style={styles.productHeaderCell}>
-                                        <Text style={styles.headerText}>Product</Text>
+                                        <Text style={styles.headerText}>
+                                            Product
+                                        </Text>
                                     </View>
                                     <View style={styles.quantityHeaderCell}>
-                                        <Text style={styles.headerText}>Quantity</Text>
+                                        <Text style={styles.headerText}>
+                                            Quantity
+                                        </Text>
                                     </View>
                                     <View style={styles.amountHeaderCell}>
-                                        <Text style={styles.headerText}>Total</Text>
+                                        <Text style={styles.headerText}>
+                                            Total
+                                        </Text>
                                     </View>
                                 </View>
 
@@ -316,18 +331,34 @@ const SalesReportModal = ({
                                     key={index}
                                     style={[
                                         styles.tableRow,
-                                        index % 2 === 0 ? styles.evenRow : styles.oddRow,
+                                        index % 2 === 0
+                                            ? styles.evenRow
+                                            : styles.oddRow,
                                     ]}>
                                     <Text
-                                        style={[styles.tableCell, styles.productCell]}
+                                        style={[
+                                            styles.tableCell,
+                                            styles.productCell,
+                                        ]}
                                         numberOfLines={2}>
                                         {item.productName}
                                     </Text>
-                                    <Text style={[styles.tableCell, styles.quantityCell]}>
+                                    <Text
+                                        style={[
+                                            styles.tableCell,
+                                            styles.quantityCell,
+                                        ]}>
                                         {item.totalQty}
                                     </Text>
-                                    <Text style={[styles.tableCell, styles.amountCell]}>
-                                        ₹{parseFloat(item.totalAmount).toFixed(2)}
+                                    <Text
+                                        style={[
+                                            styles.tableCell,
+                                            styles.amountCell,
+                                        ]}>
+                                        ₹
+                                        {parseFloat(item.totalAmount).toFixed(
+                                            2,
+                                        )}
                                     </Text>
                                 </View>
                             ))}

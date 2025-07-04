@@ -110,7 +110,7 @@ const HomeScreen = () => {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "right"]}>
             <AppHeader
                 navigation={navigation}
                 showDrawer={true}

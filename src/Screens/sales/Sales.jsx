@@ -27,6 +27,7 @@ import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { fetchUOM, fetchProducts } from "../../Api/product";
 import { createSaleOrder } from "../../Api/sales";
+import { API } from "../../Config/Endpoint";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();
@@ -394,6 +395,38 @@ const Sales = ({ route }) => {
         },
     });
 
+    const handleSubmitforVisitLog = async () => {
+        const formData = new FormData();
+        formData.append("Mode", 1);
+        formData.append("Retailer_Id", item.Retailer_Id);
+        formData.append("Latitude", 0);
+        formData.append("Longitude", 0);
+        formData.append("Narration", "The Sale order has been created.");
+        formData.append("EntryBy", uID);
+
+        try {
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                navigation.navigate("HomeScreen");
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
+            console.error("Error submitting form:", err);
+        }
+    };
+
     // Handle order submission
     const handleSubmitOrder = async () => {
         if (initialValue.Product_Array.length === 0) {
@@ -405,6 +438,9 @@ const Sales = ({ route }) => {
         }
 
         setIsSubmitting(true);
+
+        handleSubmitforVisitLog();
+
         mutation.mutate(
             { orderData: initialValue },
             {

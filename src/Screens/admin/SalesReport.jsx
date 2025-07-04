@@ -143,29 +143,6 @@ const SalesReport = ({ navigation, route }) => {
 
                     {isNotAdmin === true ? (
                         <View>
-                            <View style={styles.checkOrderRow}>
-                                <Text style={styles.checkOrderText}>
-                                    Check-Ins:{" "}
-                                    <Text
-                                        style={{
-                                            color: customColors.warning,
-                                            fontWeight: "700",
-                                        }}>
-                                        {" "}
-                                        {visitLogLength}
-                                    </Text>
-                                </Text>
-                                <Text style={styles.checkOrderText}>
-                                    Orders:{" "}
-                                    <Text
-                                        style={{
-                                            color: customColors.success,
-                                            fontWeight: "700",
-                                        }}>
-                                        {logData.length}
-                                    </Text>
-                                </Text>
-                            </View>
                             <View style={styles.statRow}>
                                 <MaterialCommunityIcons
                                     name="bike"
@@ -173,13 +150,29 @@ const SalesReport = ({ navigation, route }) => {
                                     color={customColors.success}
                                 />
                                 <Text style={styles.statValue}>
-                                    Total Visits:{" "}
+                                    Shops Visited:{" "}
                                     <Text
                                         style={{
-                                            color: customColors.error,
+                                            color: customColors.success,
                                             fontWeight: "bold",
                                         }}>
-                                        {totalVisitLogCount}
+                                        {visitLogLength}
+                                        <Text
+                                            style={[
+                                                styles.statValue,
+                                                { color: customColors.grey800 },
+                                            ]}>
+                                            {" "}
+                                            | Sales:
+                                            <Text
+                                                style={{
+                                                    color: customColors.error,
+                                                    fontWeight: "bold",
+                                                }}>
+                                                {" "}
+                                                {logData.length}
+                                            </Text>
+                                        </Text>
                                     </Text>
                                 </Text>
                             </View>

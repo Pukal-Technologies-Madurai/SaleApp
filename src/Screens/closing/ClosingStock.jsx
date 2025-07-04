@@ -121,29 +121,54 @@ const ClosingStock = ({ route }) => {
         }));
     };
 
-    // Add handler for quantity changes
+    // Add handler for quantity changes with validation
     const handleQuantityChange = (productId, value) => {
-        setQuantities(prev => ({
-            ...prev,
-            [productId]: value,
-        }));
+        // Allow empty string for deletion
+        if (value === "") {
+            setQuantities(prev => ({
+                ...prev,
+                [productId]: "",
+            }));
+            return;
+        }
+
+        // Validate decimal input - allow numbers with up to 2 decimal places
+        const decimalRegex = /^\d*\.?\d{0,2}$/;
+
+        // Remove any non-numeric characters except decimal point
+        const cleanValue = value.replace(/[^0-9.]/g, "");
+
+        // Ensure only one decimal point
+        const decimalCount = (cleanValue.match(/\./g) || []).length;
+        if (decimalCount > 1) return;
+
+        // Validate against regex pattern
+        if (decimalRegex.test(cleanValue)) {
+            setQuantities(prev => ({
+                ...prev,
+                [productId]: cleanValue,
+            }));
+        }
     };
 
-    // Prepare data for saving
+    // Prepare data for saving with proper decimal handling
     const prepareClosingStockData = () => {
         const closingStockValues = [];
 
         brandsData.forEach(brand => {
             brand.GroupedProductArray.forEach(product => {
-                const newQty = parseInt(quantities[product.Product_Id]) || 0;
+                const newQtyStr = quantities[product.Product_Id] || "0";
+                const newQty = parseFloat(newQtyStr) || 0;
                 const originalQty = product.estimatedQuantity || 0;
 
                 // Only include items where quantity has actually changed
-                if (newQty !== originalQty) {
+                // Use a small tolerance for floating point comparison
+                const tolerance = 0.001;
+                if (Math.abs(newQty - originalQty) > tolerance) {
                     closingStockValues.push({
                         Product_Id: product.Product_Id,
-                        ST_Qty: newQty,
-                        PR_Qty: originalQty,
+                        ST_Qty: Number(newQty.toFixed(2)), // Round to 2 decimal places
+                        PR_Qty: Number(originalQty.toFixed(2)),
                         LT_CL_Date: new Date().toISOString().split("T")[0],
                     });
                 }
@@ -214,8 +239,8 @@ const ClosingStock = ({ route }) => {
                 ST_Id: isEdit && item.ST_Id ? parseInt(item.ST_Id) : "",
                 Product_Stock_List: closingStockValues.map(item => ({
                     Product_Id: parseInt(item.Product_Id),
-                    ST_Qty: parseInt(item.ST_Qty),
-                    PR_Qty: parseInt(item.PR_Qty),
+                    ST_Qty: parseFloat(item.ST_Qty),
+                    PR_Qty: parseFloat(item.PR_Qty),
                     LT_CL_Date: item.LT_CL_Date,
                 })),
             };
@@ -314,6 +339,22 @@ const ClosingStock = ({ route }) => {
                     }
                     keyboardType="numeric"
                     selectTextOnFocus={true}
+                    placeholder="0"
+                    maxLength={10}
+                    returnKeyType="done"
+                    onBlur={() => {
+                        // Format the value when user finishes editing
+                        const currentValue = quantities[item.Product_Id];
+                        if (currentValue && currentValue !== "") {
+                            const numValue = parseFloat(currentValue);
+                            if (!isNaN(numValue)) {
+                                setQuantities(prev => ({
+                                    ...prev,
+                                    [item.Product_Id]: numValue.toString(),
+                                }));
+                            }
+                        }
+                    }}
                 />
             </View>
         );
@@ -352,17 +393,18 @@ const ClosingStock = ({ route }) => {
 
         brandsData.forEach(brand => {
             brand.GroupedProductArray.forEach(product => {
-                const currentQty =
-                    parseInt(quantities[product.Product_Id]) || 0;
+                const currentQtyStr = quantities[product.Product_Id] || "0";
+                const currentQty = parseFloat(currentQtyStr) || 0;
                 const originalQty = product.estimatedQuantity || 0;
 
-                // Only show products with changed quantities
-                if (currentQty !== originalQty) {
+                // Only show products with changed quantities (with tolerance for decimal comparison)
+                const tolerance = 0.001;
+                if (Math.abs(currentQty - originalQty) > tolerance) {
                     updatedProducts.push({
                         ...product,
                         brand: brand.Brand_Name,
-                        currentQty,
-                        originalQty,
+                        currentQty: Number(currentQty.toFixed(2)),
+                        originalQty: Number(originalQty.toFixed(2)),
                     });
                 }
             });

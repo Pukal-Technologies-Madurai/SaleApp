@@ -1,7 +1,6 @@
 import {
     Alert,
     FlatList,
-    Modal,
     StyleSheet,
     Text,
     TextInput,
@@ -23,12 +22,16 @@ import {
 } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
+import { useQuery } from "@tanstack/react-query";
+import { fetchUsers } from "../../Api/employee";
 
 const DeliveryUpdate = () => {
     const navigation = useNavigation();
     const [deliveryData, setDeliveryData] = useState([]);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
+    const [companyId, setCompanyId] = useState(null);
+    const [callCenterId, setCallCenterId] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filteredData, setFilteredData] = useState([]);
@@ -52,6 +55,8 @@ const DeliveryUpdate = () => {
             const userId = await AsyncStorage.getItem("UserId");
             const fromDate = selectedFromDate.toISOString().split("T")[0];
             const toDate = selectedToDate.toISOString().split("T")[0];
+            const companyId = await AsyncStorage.getItem("Company_Id");
+            setCompanyId(companyId);
 
             const url = `${API.delivery()}${userId}&Fromdate=${fromDate}&Todate=${toDate}`;
 
@@ -84,6 +89,12 @@ const DeliveryUpdate = () => {
             setSelectedToDate(date);
         }
     };
+
+    const { data: users = [] } = useQuery({
+        queryKey: ["users", companyId],
+        queryFn: () => fetchUsers(companyId),
+        enabled: !!companyId,
+    });
 
     const formatDate = dateString => {
         const date = new Date(dateString);
@@ -156,6 +167,20 @@ const DeliveryUpdate = () => {
         </View>
     );
 
+    const matchCallCenterId = async () => {
+        const userId = await AsyncStorage.getItem("UserId");
+
+        const callUser = users.find(
+            user => user.Cost_Center_Id !== null && user.UserId === userId,
+        );
+
+        setCallCenterId(callUser ? callUser.Cost_Center_Id : userId);
+    };
+
+    useEffect(() => {
+        matchCallCenterId();
+    }, [users]);
+
     const handleUpdateDelivery = async (isDelivered, isPaid) => {
         // console.log("isDelivered", isDelivered, isPaid, selectedDelivery);
         if (!selectedDelivery) return;
@@ -189,7 +214,7 @@ const DeliveryUpdate = () => {
                 Delivery_Location: isDelivered ? "MDU" : null, // Set to "MDU"
                 Delivery_Latitude: 0, // Set to 0
                 Delivery_Longitude: 0, // Set to 0
-                Delivery_Person_Id: userId,
+                Delivery_Person_Id: callCenterId || userId,
                 Delivery_Status: finalDeliveryStatus,
                 Payment_Status: finalPaymentStatus,
                 Payment_Mode: selectedPaymentMode,

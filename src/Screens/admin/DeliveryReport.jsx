@@ -137,7 +137,7 @@ const DeliveryTable = ({ deliveryData }) => {
                             numberOfLines={4}>
                             {item.Retailer_Name}
                         </Text>
-                        <Text style={[styles.cell, { flex: 2 }]}>
+                        <Text style={[styles.cell, { flex: 2, fontSize: 12 }]}>
                             {item.Delivery_Person_Name}
                         </Text>
                         <View style={[styles.statusContainer, { flex: 2 }]}>
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
     },
     cell: {
-        ...typography.label(),
+        ...typography.tableCell(),
         color: "#444",
         textAlign: "left",
         paddingHorizontal: 8,

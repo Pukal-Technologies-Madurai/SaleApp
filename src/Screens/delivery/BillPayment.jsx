@@ -7,6 +7,7 @@ import {
     TextInput,
     Alert,
     ScrollView,
+    ToastAndroid,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -29,6 +30,7 @@ import EnhancedDropdown from "../../Components/EnhancedDropdown";
 const BillPayment = () => {
     const navigation = useNavigation();
     const [retailersData, setRetailersData] = useState([]);
+    const [userId, setUserId] = useState(null);
     const [pendingBills, setPending] = useState([]);
     const [selectedRetailer, setSelectedRetailer] = useState(0);
     const [selectedBills, setSelectedBills] = useState([]);
@@ -51,6 +53,8 @@ const BillPayment = () => {
     useEffect(() => {
         (async () => {
             try {
+                const userId = await AsyncStorage.getItem("UserId");
+                setUserId(userId);
                 fetchRetailersInfo();
             } catch (err) {
                 console.error(err);
@@ -174,6 +178,40 @@ const BillPayment = () => {
         });
     };
 
+    const handleSubmitforVisitLog = async () => {
+        const formData = new FormData();
+
+        formData.append("Mode", 1);
+        formData.append("Retailer_Id", selectedRetailer);
+        formData.append("Latitude", 0);
+        formData.append("Longitude", 0);
+        formData.append("Narration", "The payment receipt has been created.");
+        formData.append("EntryBy", userId);
+
+        try {
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                // ToastAndroid.show(data.message, ToastAndroid.LONG);
+                // navigation.navigate("HomeScreen");
+                console.log("Visit log submitted successfully:", data);
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
+            console.error("Error submitting form:", err);
+        }
+    };
+
     const handlePaymentSubmit = async () => {
         if (!paymentMode) {
             Alert.alert("Error", "Please select payment mode");
@@ -195,8 +233,6 @@ const BillPayment = () => {
         }
 
         try {
-            const userId = await AsyncStorage.getItem("UserId");
-
             // Map payment mode to backend format
             const paymentModeMap = {
                 cash: "CREATED-CASH",
@@ -239,6 +275,7 @@ const BillPayment = () => {
 
             // console.log(API.paymentCollection());
             // console.log(JSON.stringify(paymentData));
+            handleSubmitforVisitLog();
 
             const data = await response.json();
             // console.log("Server response:", data);

@@ -21,6 +21,8 @@ export const API = {
     state: () => `${baseURL}api/masters/state`,
     district: () => `${baseURL}api/masters/district`,
 
+    users: () => `${baseURL}api/masters/users?Company_id=`,
+
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
     MyLastAttendance: () => `${baseURL}api/empAttendance/attendance?UserId=`,
