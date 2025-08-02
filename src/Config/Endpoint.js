@@ -1,5 +1,6 @@
-let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
-// let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+// let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
+let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+// let baseURL = "http://test.erpsmt.in/";
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
 
 export const setBaseUrl = url => {
@@ -57,6 +58,28 @@ export const API = {
     closingStockAreaBased: () =>
         `${baseURL}api/masters/retailers/closingStock/areaBased?Company_id=`,
 
+    accountsMaster: () => `${baseURL}api/masters/accounts`,
+
+    createReceipt: () => `${baseURL}api/receipt/receiptMaster`,
+    userInvoltedReceipts: () =>
+        `${baseURL}api/receipt/receiptMaster?createdBy=`,
+
+    getReceipt: () => `${baseURL}api/receipt/receiptMaster?Fromdate=`,
+
+    salesLive: () => `${baseURL}api/sales/salesInvoice/liveSales`,
+
+    pendingSalesInvoice: () =>
+        `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt?Acc_Id=`,
+
+    defaultAccountMaster: () =>
+        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=MOBILE_CASH`,
+
+    defaultDebitLiveSales: () =>
+        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=ONLINE_LIVE_SALES`,
+
+    defaultCreditAccountMaster: () => `${baseURL}api/masters/accountMaster`,
+
+    setRoutePath: () => `${baseURL}api/masters/setRoutes`,
     getRetailersWhoHasBills: () =>
         `${baseURL}api/receipt/getRetailersWhoHasBills`,
     retailerPendingBills: () =>

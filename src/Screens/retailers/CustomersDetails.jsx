@@ -298,7 +298,7 @@ const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.white,
     },
     contentContainer: {
         flex: 1,

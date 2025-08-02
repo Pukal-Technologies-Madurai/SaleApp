@@ -168,11 +168,11 @@ const BillAdminView = () => {
         );
     };
 
-    const handleFromDateChange = (event, date) => {
+    const handleFromDateChange = date => {
         if (date) setSelectedFromDate(date);
     };
 
-    const handleToDateChange = (event, date) => {
+    const handleToDateChange = date => {
         if (date) setSelectedToDate(date);
     };
 

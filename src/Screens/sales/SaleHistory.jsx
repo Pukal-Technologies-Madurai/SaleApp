@@ -49,7 +49,7 @@ const SaleHistory = ({ route }) => {
         enabled: !!item.Retailer_Id || !!selectedFromDate || !!selectedToDate,
     });
 
-    const handleDateChange = async (event, date, type) => {
+    const handleDateChange = async (date, type) => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
             if (type === "from") {
@@ -85,8 +85,8 @@ const SaleHistory = ({ route }) => {
                     <View style={styles.datePickerWrapper}>
                         <DatePickerButton
                             date={new Date(selectedFromDate)}
-                            onDateChange={(event, date) => {
-                                handleDateChange(event, date, "from");
+                            onDateChange={date => {
+                                handleDateChange(date, "from");
                             }}
                             mode="date"
                             title="From Date"
@@ -96,8 +96,8 @@ const SaleHistory = ({ route }) => {
                     <View style={styles.datePickerWrapper}>
                         <DatePickerButton
                             date={new Date(selectedToDate)}
-                            onDateChange={(event, date) => {
-                                handleDateChange(event, date, "to");
+                            onDateChange={date => {
+                                handleDateChange(date, "to");
                             }}
                             mode="date"
                             title="To Date"

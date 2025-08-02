@@ -17,6 +17,7 @@ import { customColors, typography } from "../../Config/helper";
 import { fetchClosingStock } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
+import FilterModal from "../../Components/FilterModal";
 
 const StockInfo = () => {
     const navigation = useNavigation();
@@ -47,7 +48,7 @@ const StockInfo = () => {
         enabled: !!userId,
     });
 
-    const handleDateChange = (event, date) => {
+    const handleDateChange = date => {
         setSelectedDate(date);
     };
 
@@ -125,13 +126,30 @@ const StockInfo = () => {
         navigation.navigate("ClosingStock", { item, isEdit: true });
     };
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <View style={styles.container}>
             <AppHeader
                 title="Closing Stock Summary"
                 navigation={navigation}
-                showRightIcon={true}
+                // showRightIcon={true}
+                // rightIconLibrary="MaterialIcon"
+                // rightIconName="filter-list"
+                // onRightPress={() => setModalVisible(true)}
             />
+
+            {/* <FilterModal
+                visible={modalVisible}
+                fromDate={selectedDate}
+                onFromDateChange={handleDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                title="Select Date Range"
+                fromLabel="From Date"
+            /> */}
 
             <View style={styles.contentContainer}>
                 <View style={styles.datePickerContainer}>

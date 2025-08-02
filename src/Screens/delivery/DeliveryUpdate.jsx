@@ -24,6 +24,8 @@ import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUsers } from "../../Api/employee";
+import FilterModal from "../../Components/FilterModal";
+import { fetchDefaultAccountMaster } from "../../Api/receipt";
 
 const DeliveryUpdate = () => {
     const navigation = useNavigation();
@@ -41,6 +43,7 @@ const DeliveryUpdate = () => {
     const [loading, setLoading] = useState(false);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState("0");
     const [partialAmount, setPartialAmount] = useState("");
+    const [modalVisible, setModalVisible] = useState(false);
 
     const deliveryStatus = { 5: "Pending", 7: "Delivered" };
     const paymentStatus = { 0: "Pending", 3: "Completed" };
@@ -82,11 +85,17 @@ const DeliveryUpdate = () => {
         setFilteredData(results);
     }, [deliveryData, searchQuery]);
 
-    const handleDateChange = (date, isFromDate) => {
-        if (isFromDate) {
-            setSelectedFromDate(date);
-        } else {
-            setSelectedToDate(date);
+    const handleFromDateChange = date => {
+        if (date) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
+        }
+    };
+
+    const handleToDateChange = date => {
+        if (date) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
         }
     };
 
@@ -181,6 +190,19 @@ const DeliveryUpdate = () => {
         matchCallCenterId();
     }, [users]);
 
+    const {
+        data: paymentOption = [],
+        isLoading: isLoadingPaymentOption,
+        isError: isErrorPaymentOption,
+    } = useQuery({
+        queryKey: ["paymentOption"],
+        queryFn: fetchDefaultAccountMaster,
+        select: data => {
+            if (!data) return [];
+            return data;
+        },
+    });
+
     const handleUpdateDelivery = async (isDelivered, isPaid) => {
         // console.log("isDelivered", isDelivered, isPaid, selectedDelivery);
         if (!selectedDelivery) return;
@@ -245,39 +267,63 @@ const DeliveryUpdate = () => {
                 const paymentAmount = partialAmount
                     ? parseFloat(partialAmount)
                     : parseFloat(selectedDelivery.Total_Invoice_value);
-                const paymentData = {
-                    retailer_id: parseInt(selectedDelivery.Retailer_Id),
-                    payed_by: "Owner",
-                    collection_date: new Date().toISOString().split("T")[0],
-                    collection_type:
-                        selectedPaymentMode === "1" ? "CASH" : "UPI",
-                    latitude: 0,
-                    longitude: 0,
-                    collected_by: userId,
+
+                let debit_ledger_id = 0;
+                let debit_ledger_name = "";
+
+                if (selectedPaymentMode === "1") {
+                    const cashOption = paymentOption.find(
+                        option => option.Account_Name === "Cash Note Off",
+                    );
+                    if (cashOption) {
+                        debit_ledger_id = cashOption.Acc_Id;
+                        debit_ledger_name = cashOption.Account_Name;
+                    }
+                }
+
+                if (selectedPaymentMode === "2") {
+                    const gpayOption = paymentOption.find(
+                        option =>
+                            option.Account_Name === "Canara Bank (795956)",
+                    );
+                    if (gpayOption) {
+                        debit_ledger_id = gpayOption.Acc_Id;
+                        debit_ledger_name = gpayOption.Account_Name;
+                    }
+                }
+
+                const receiptPostData = {
+                    receipt_voucher_type_id: 10,
+                    receipt_bill_type: 1,
+                    remarks: "Sale delivery and payment collection",
+                    status: 1,
+                    credit_ledger: selectedDelivery.Acc_Id,
+                    credit_ledger_name: selectedDelivery.Retailer_Name,
+                    debit_ledger: debit_ledger_id,
+                    debit_ledger_name: debit_ledger_name,
+                    credit_amount: paymentAmount,
                     created_by: userId,
-                    voucher_id: 1,
-                    narration: "Bill Receipt",
-                    Collections: [
+                    receipt_date: new Date().toISOString().split("T")[0],
+                    BillsDetails: [
                         {
                             bill_id: parseInt(selectedDelivery.Do_Id),
+                            bill_name: selectedDelivery.Do_Inv_No,
                             bill_amount: parseFloat(
                                 selectedDelivery.Total_Invoice_value,
                             ),
-                            collected_amount: paymentAmount,
-                            payment_status:
-                                selectedPaymentMode === "1"
-                                    ? "CREATED-CASH"
-                                    : "CREATED-UPI",
+                            Credit_Amo: parseFloat(paymentAmount),
                         },
                     ],
                 };
 
-                const paymentResponse = await fetch(API.paymentCollection(), {
+                console.log("receiptPostData", receiptPostData);
+
+                const paymentResponse = await fetch(API.createReceipt(), {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(paymentData),
+                    body: JSON.stringify(receiptPostData),
                 });
                 const paymentResult = await paymentResponse.json();
 
@@ -471,28 +517,36 @@ const DeliveryUpdate = () => {
         </View>
     );
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <View style={styles.container}>
-            <AppHeader title="Delivery Update" navigation={navigation} />
+            <AppHeader
+                title="Delivery Update"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Filter options"
+                fromLabel="From Date"
+                toLabel="To Date"
+            />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="From"
-                        date={selectedFromDate}
-                        onDateChange={(_, date) => handleDateChange(date, true)}
-                        containerStyle={styles.datePicker}
-                    />
-                    <DatePickerButton
-                        title="To"
-                        date={selectedToDate}
-                        onDateChange={(_, date) =>
-                            handleDateChange(date, false)
-                        }
-                        containerStyle={styles.datePicker}
-                    />
-                </View>
-
                 <View style={styles.searchInputContainer}>
                     <TextInput
                         style={styles.searchInput}
@@ -544,19 +598,6 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
         ...shadows.small,
-    },
-    datePickerContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        backgroundColor: customColors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    datePicker: {
-        width: "48%",
-        backgroundColor: customColors.white,
     },
     content: {
         flex: 1,

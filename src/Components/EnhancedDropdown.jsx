@@ -27,6 +27,9 @@ const EnhancedDropdown = ({
     iconOnly = false,
     containerStyle,
     searchPlaceholder = "Search...",
+    placeholderStyle,
+    selectedTextStyle,
+    itemTextStyle,
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -66,7 +69,9 @@ const EnhancedDropdown = ({
                 <Text
                     style={[
                         styles.dropdownItemText,
+                        itemTextStyle,
                         value === item[valueField] && styles.selectedItemText,
+                        value === item[valueField] && selectedTextStyle,
                     ]}>
                     {item[labelField]}
                 </Text>
@@ -119,7 +124,11 @@ const EnhancedDropdown = ({
                             style={styles.iconStyle}
                         />
                     )}
-                    <Text style={styles.dropdownButtonText}>
+                    <Text
+                        style={[
+                            styles.dropdownButtonText,
+                            value ? selectedTextStyle : placeholderStyle,
+                        ]}>
                         {getSelectedLabel()}
                     </Text>
                     <Icon

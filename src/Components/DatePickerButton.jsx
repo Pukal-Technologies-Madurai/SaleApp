@@ -33,8 +33,8 @@ const DatePickerButton = ({
 
     const handleDateChange = (event, selectedDate) => {
         setShow(false);
-        if (selectedDate) {
-            onDateChange(event, selectedDate);
+        if (selectedDate && selectedDate instanceof Date) {
+            onDateChange(selectedDate);
         }
     };
 
@@ -97,7 +97,11 @@ const DatePickerButton = ({
 
             {show && (
                 <DateTimePicker
-                    value={date || new Date()}
+                    value={
+                        date instanceof Date && !isNaN(date.getTime())
+                            ? date
+                            : new Date()
+                    }
                     mode={mode}
                     display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={handleDateChange}

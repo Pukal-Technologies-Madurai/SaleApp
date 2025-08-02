@@ -13,7 +13,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import {
     customColors,
@@ -54,7 +53,7 @@ const RetailerVisitLog = () => {
         enabled: !!userId && !!formattedDate,
     });
 
-    const handleDateChange = (event, selectedDate) => {
+    const handleDateChange = selectedDate => {
         if (selectedDate) {
             setSelectedDate(selectedDate);
         }

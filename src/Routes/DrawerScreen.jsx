@@ -75,6 +75,18 @@ const DrawerScreen = ({ navigation }) => {
                 />
 
                 <DrawerItem
+                    label="Set Route"
+                    icon={
+                        <IconFont
+                            name="route"
+                            size={24}
+                            color={customColors.primary}
+                        />
+                    }
+                    onPress={() => navigation.navigate("RoutePath")}
+                />
+
+                <DrawerItem
                     icon={
                         <IconAntDesign
                             name="setting"

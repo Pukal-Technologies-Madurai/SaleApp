@@ -42,6 +42,10 @@ import Sales from "../Screens/sales/Sales";
 import SalesAdminDetail from "../Screens/admin/SalesAdminDetail";
 import StockClosing from "../Screens/closing/StockClosing";
 import ClosingStock from "../Screens/closing/ClosingStock";
+import RoutePath from "../Screens/retailers/RoutePath";
+import CreateReceipts from "../Screens/bills/CreateReceipts";
+import ReceiptInfo from "../Screens/bills/ReceiptInfo";
+import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
 
 const Stack = createStackNavigator();
 
@@ -68,6 +72,7 @@ const AppStack = () => {
 
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
 
+            <Stack.Screen name="RoutePath" component={RoutePath} />
             <Stack.Screen name="AddCustomer" component={AddCustomer} />
             <Stack.Screen name="Customers" component={Customers} />
             <Stack.Screen
@@ -92,6 +97,10 @@ const AppStack = () => {
             <Stack.Screen name="DeliveryUpdate" component={DeliveryUpdate} />
             <Stack.Screen name="TripDetails" component={TripDetails} />
             <Stack.Screen name="TripSheet" component={TripSheet} />
+
+            <Stack.Screen name="CreateReceipts" component={CreateReceipts} />
+            <Stack.Screen name="ReceiptInfo" component={ReceiptInfo} />
+            <Stack.Screen name="ReceiptAdmin" component={ReceiptAdmin} />
 
             <Stack.Screen name="AdminAttendance" component={AdminAttendance} />
             <Stack.Screen name="BillAdminView" component={BillAdminView} />

@@ -6,7 +6,6 @@ import {
     ScrollView,
     Alert,
     TextInput,
-    Modal,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -15,8 +14,6 @@ import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import Icon from "react-native-vector-icons/FontAwesome";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { API } from "../../Config/Endpoint";
 import {
@@ -27,13 +24,12 @@ import {
 } from "../../Config/helper";
 import Accordion from "../../Components/Accordion";
 import AppHeader from "../../Components/AppHeader";
-import DatePickerButton from "../../Components/DatePickerButton";
+import FilterModal from "../../Components/FilterModal";
 
 const OrderPreview = () => {
     const navigation = useNavigation();
 
     const [logData, setLogData] = useState([]);
-    const [companyId, setCompanyId] = useState([]);
     const [retailerInfo, setRetailerInfo] = useState({});
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -43,10 +39,7 @@ const OrderPreview = () => {
 
     const [modalVisible, setModalVisible] = useState(false);
     const [productSummary, setProductSummary] = useState([]);
-    const [totalOrderAmount, setTotalOrderAmount] = useState(0);
-    const [totalProductsSold, setTotalProductsSold] = useState(0);
 
-    const [visitLogLength, setVisitLogLength] = useState(0);
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandList, setBrandList] = useState([]);
 
@@ -56,35 +49,39 @@ const OrderPreview = () => {
                 const userId = await AsyncStorage.getItem("UserId");
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
 
-                const fromDate = selectedFromDate.toISOString().split("T")[0];
-                const toDate = selectedToDate.toISOString().split("T")[0];
+                if (
+                    selectedFromDate instanceof Date &&
+                    selectedToDate instanceof Date
+                ) {
+                    const fromDate = selectedFromDate
+                        .toISOString()
+                        .split("T")[0];
+                    const toDate = selectedToDate.toISOString().split("T")[0];
 
-                setCompanyId(Number(Company_Id));
-                fetchSaleOrder(fromDate, toDate, Company_Id, userId);
+                    fetchSaleOrder(fromDate, toDate, Company_Id, userId);
+                }
             } catch (err) {
                 console.log(err);
             }
         })();
     }, [selectedFromDate, selectedToDate]);
 
-    useEffect(() => {
-        if (modalVisible && selectedFromDate) {
-            fetchVisitLog();
-        }
-    }, [modalVisible, selectedFromDate]);
-
-    const handleFromDateChange = (event, date) => {
-        if (date) {
+    const handleFromDateChange = date => {
+        if (date instanceof Date && !isNaN(date)) {
             const newFromDate = date > selectedToDate ? selectedToDate : date;
             setSelectedFromDate(newFromDate);
         }
     };
 
-    const handleToDateChange = (event, date) => {
-        if (date) {
+    const handleToDateChange = date => {
+        if (date instanceof Date && !isNaN(date)) {
             const newToDate = date < selectedFromDate ? selectedFromDate : date;
             setSelectedToDate(newToDate);
         }
+    };
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
     };
 
     const fetchSaleOrder = async (from, to, company, userId = "") => {
@@ -92,7 +89,6 @@ const OrderPreview = () => {
             const salesPersonIdParam = userId || "";
 
             let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`;
-            // console.log(url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -154,8 +150,6 @@ const OrderPreview = () => {
         });
 
         setProductSummary(Object.values(summary));
-        setTotalOrderAmount(totalAmount);
-        setTotalProductsSold(productCount);
     };
 
     function numberToWords(num) {
@@ -227,12 +221,22 @@ const OrderPreview = () => {
     const renderHeader = item => {
         return (
             <View style={styles.accordionHeader}>
-                <Text style={styles.retailerName} numberOfLines={2}>
-                    {item.Retailer_Name}
-                </Text>
+                <View style={styles.headerLeft}>
+                    <Text style={styles.retailerName} numberOfLines={2}>
+                        {item.Retailer_Name}
+                    </Text>
+                    <Text style={styles.orderDate}>
+                        {item.So_Date
+                            ? new Date(item.So_Date).toLocaleDateString("en-GB")
+                            : "N/A"}
+                    </Text>
+                </View>
                 <View style={styles.headerRight}>
                     <Text style={styles.orderAmount}>
                         ₹{item.Total_Invoice_value}
+                    </Text>
+                    <Text style={styles.orderCount}>
+                        {item.Products_List.length} items
                     </Text>
                 </View>
             </View>
@@ -245,63 +249,60 @@ const OrderPreview = () => {
 
         return (
             <View style={styles.content}>
-                <View style={styles.invoiceHeader}>
-                    <Text style={styles.invoiceTitle}>Order #{item.So_Id}</Text>
-                    <Text style={styles.invoiceDate}>
-                        {new Date(item.So_Date).toLocaleDateString()}
-                    </Text>
+                <View style={styles.orderInfo}>
+                    <Text style={styles.orderNumber}>Order #{item.So_Id}</Text>
                 </View>
 
-                <View style={styles.invoiceBody}>
-                    <View style={styles.invoiceProducts}>
-                        <View style={styles.productRowHeader}>
-                            <Text
-                                style={[
-                                    styles.invoiceCell,
-                                    styles.productNameCell,
-                                ]}>
-                                Product
-                            </Text>
-                            <Text style={styles.invoiceCell}>Qty</Text>
-                            <Text style={styles.invoiceCell}>Amount</Text>
-                        </View>
-                        {item.Products_List.map((product, index) => (
-                            <View key={index} style={styles.productRow}>
+                <View style={styles.productsContainer}>
+                    {item.Products_List.map((product, index) => (
+                        <View key={index} style={styles.productItem}>
+                            <View style={styles.productInfo}>
                                 <Text
-                                    style={[
-                                        styles.invoiceCell,
-                                        styles.productNameCell,
-                                    ]}
-                                    numberOfLines={2}
-                                    ellipsizeMode="tail">
+                                    style={styles.productName}
+                                    numberOfLines={3}>
                                     {product.Product_Name}
                                 </Text>
-                                <Text style={styles.invoiceCell}>
-                                    {product.Bill_Qty}
-                                </Text>
-                                <Text style={styles.invoiceCell}>
-                                    ₹{product.Amount}
+                                <Text style={styles.productDetails}>
+                                    Qty: {product.Bill_Qty} • ₹
+                                    {product.Item_Rate} each
                                 </Text>
                             </View>
-                        ))}
-                    </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Total</Text>
+                            <Text style={styles.productAmount}>
+                                ₹{product.Amount}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
+
+                <View style={styles.footer}>
+                    <View style={styles.totalSection}>
+                        <Text style={styles.totalLabel}>Total Amount</Text>
                         <Text style={styles.totalValue}>
                             ₹{item.Total_Invoice_value}
                         </Text>
                     </View>
-                    <View style={styles.buttonContainer}>
+
+                    <View style={styles.actionButtons}>
                         {currentDate === orderDate && (
                             <TouchableOpacity
-                                style={[styles.button, styles.editButton]}
+                                style={[styles.actionButton, styles.editButton]}
                                 onPress={() => editOption(item)}>
+                                <FeatherIcon
+                                    name="edit-2"
+                                    size={14}
+                                    color={customColors.white}
+                                />
                                 <Text style={styles.buttonText}>Edit</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity
-                            style={[styles.button, styles.shareButton]}
+                            style={[styles.actionButton, styles.shareButton]}
                             onPress={() => downloadItemPDF(item)}>
+                            <FeatherIcon
+                                name="share"
+                                size={14}
+                                color={customColors.white}
+                            />
                             <Text style={styles.buttonText}>Share</Text>
                         </TouchableOpacity>
                     </View>
@@ -338,7 +339,7 @@ const OrderPreview = () => {
             return null;
         }
 
-        console.log(retailerInfo.Retailer_Name);
+        // console.log(retailerInfo.Retailer_Name);
         const totalAmountWords = numberToWords(item.Total_Invoice_value);
 
         const htmlContent = `
@@ -550,7 +551,6 @@ const OrderPreview = () => {
     };
 
     const editOption = item => {
-        // console.log(item.Retailer_Id, item.So_Id, item.Retailer_Name);
         navigation.navigate("EditOrder", {
             item: {
                 ...item,
@@ -561,46 +561,6 @@ const OrderPreview = () => {
             isEdit: true,
         });
     };
-
-    const fetchVisitLog = async () => {
-        try {
-            const storeUserTypeId = await AsyncStorage.getItem("userTypeId");
-            const userId = await AsyncStorage.getItem("UserId");
-            const formattedDate = new Date(selectedFromDate)
-                .toISOString()
-                .split("T")[0];
-
-            const isAdminUser = ["0", "1", "2"].includes(storeUserTypeId);
-            const userIdParam = isAdminUser ? "" : userId;
-
-            const url = `${API.visitedLog()}?reqDate=${formattedDate}&UserId=${userIdParam}`;
-            const response = await fetch(url, {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setVisitLogLength(data.data?.length || 0);
-            } else {
-                console.log("Failed to fetch logs:", data.message);
-                setVisitLogLength(0);
-            }
-        } catch (error) {
-            console.error("Error fetching logs:", error);
-            setVisitLogLength(0);
-        }
-    };
-
-    const totalVisitLogCount = visitLogLength + logData.length;
-    const totalQuantity = productSummary.reduce(
-        (sum, item) => sum + item.totalQty,
-        0,
-    );
-    const totalAmount = productSummary.reduce(
-        (sum, item) => sum + parseFloat(item.totalAmount),
-        0,
-    );
 
     const filteredLogData = logData.filter(order =>
         selectedBrand === "All"
@@ -636,27 +596,26 @@ const OrderPreview = () => {
                 title="Order Summary"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="FeatherIcon"
-                rightIconName="arrow-up-right"
-                onRightPress={handleSalesReportPress}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Select Date Range"
+                fromLabel="From Date"
+                toLabel="To Date"
             />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="From Date"
-                        date={selectedFromDate}
-                        onDateChange={handleFromDateChange}
-                        containerStyle={{ width: "50%" }}
-                    />
-                    <DatePickerButton
-                        title="To Date"
-                        date={selectedToDate}
-                        onDateChange={handleToDateChange}
-                        containerStyle={{ width: "50%" }}
-                    />
-                </View>
-
                 <View style={styles.countContainer}>
                     <View style={styles.searchHeader}>
                         <ScrollView
@@ -721,37 +680,28 @@ const OrderPreview = () => {
                     )}
 
                     <View style={styles.statsContainer}>
-                        <View style={styles.statItem}>
-                            <View style={styles.iconContainer}>
-                                <MaterialCommunityIcons
-                                    name="shopping"
-                                    size={24}
-                                    color={customColors.primary}
-                                />
-                            </View>
-                            <View style={styles.statContent}>
+                        <TouchableOpacity
+                            style={styles.reportButton}
+                            onPress={handleSalesReportPress}
+                            activeOpacity={0.7}>
+                            <FeatherIcon
+                                name="arrow-up-right"
+                                size={14}
+                                color={customColors.grey600}
+                            />
+                        </TouchableOpacity>
+
+                        <View style={styles.statsRow}>
+                            <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
                                     Total Sales
                                 </Text>
                                 <Text style={styles.statValue}>
-                                    {filteredTotalSales
-                                        ? filteredTotalSales
-                                        : "0"}
+                                    {filteredTotalSales || "0"}
                                 </Text>
                             </View>
-                        </View>
 
-                        <View style={styles.statDivider} />
-
-                        <View style={styles.statItem}>
-                            <View style={styles.iconContainer}>
-                                <MaterialCommunityIcons
-                                    name="currency-inr"
-                                    size={24}
-                                    color={customColors.success}
-                                />
-                            </View>
-                            <View style={styles.statContent}>
+                            <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
                                     Total Amount
                                 </Text>
@@ -790,11 +740,27 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
     },
     datePickerContainer: {
-        flexDirection: "row",
         marginHorizontal: spacing.md,
         marginTop: spacing.sm,
-        justifyContent: "space-between",
+        marginBottom: spacing.sm,
+    },
+    filterButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
         gap: spacing.sm,
+        ...shadows.small,
+    },
+    filterButtonText: {
+        flex: 1,
+        ...typography.body1(),
+        color: customColors.grey900,
+        textAlign: "center",
     },
     countContainer: {
         marginHorizontal: spacing.sm,
@@ -823,169 +789,179 @@ const styles = StyleSheet.create({
     searchInput: {
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        fontSize: 16,
         color: customColors.grey900,
     },
     statsContainer: {
-        flexDirection: "row",
         backgroundColor: customColors.white,
-        borderRadius: 16,
-        padding: spacing.md,
-        ...shadows.medium,
-    },
-    statItem: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: spacing.xs,
-    },
-    iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: customColors.grey50,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: spacing.sm,
+        borderRadius: 12,
+        padding: spacing.lg,
+        marginHorizontal: spacing.xs,
+        position: "relative",
         ...shadows.small,
     },
-    statContent: {
+    reportButton: {
+        position: "absolute",
+        top: spacing.sm,
+        right: spacing.sm,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
+    },
+    statsRow: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        paddingTop: spacing.xs,
+    },
+    statItem: {
+        alignItems: "center",
         flex: 1,
     },
     statLabel: {
-        ...typography.caption(),
-        color: customColors.grey700,
+        ...typography.body2(),
+        color: customColors.grey600,
         marginBottom: spacing.xs,
+        textAlign: "center",
     },
     statValue: {
-        ...typography.body1(),
+        ...typography.h3(),
+        fontWeight: "600",
+        textAlign: "center",
         color: customColors.grey900,
-        fontWeight: "700",
-    },
-    statDivider: {
-        width: 1,
-        backgroundColor: customColors.grey200,
-        marginHorizontal: spacing.sm,
     },
     accordationScrollContainer: {
         marginTop: spacing.sm,
         paddingHorizontal: spacing.sm,
     },
     accordionHeader: {
-        width: "70%",
         flexDirection: "row",
-        justifyContent: "flex-start",
+        justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.xs,
         backgroundColor: customColors.primary,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         borderRadius: 8,
-        marginBottom: spacing.xs,
-        // ...shadows.small,
+        marginBottom: 2,
     },
-    retailerName: {
-        ...typography.subtitle1(),
-        color: customColors.white,
+    headerLeft: {
         flex: 1,
         marginRight: spacing.sm,
     },
+    retailerName: {
+        ...typography.subtitle2(),
+        color: customColors.white,
+        fontWeight: "600",
+        marginBottom: 2,
+    },
+    orderDate: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.9,
+    },
     headerRight: {
-        flexDirection: "row",
-        justifyContent: "flex-end",
         alignItems: "flex-end",
-        gap: spacing.sm,
     },
     orderAmount: {
         ...typography.subtitle1(),
         color: customColors.white,
+        fontWeight: "700",
+    },
+    orderCount: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.8,
+        marginTop: 1,
     },
     content: {
-        margin: spacing.xs,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
-        borderRadius: 8,
         backgroundColor: customColors.white,
+        borderRadius: 6,
+        marginHorizontal: 2,
+        marginBottom: spacing.xs,
+        overflow: "hidden",
     },
-    invoiceHeader: {
+    orderInfo: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        backgroundColor: customColors.primaryLight,
-        borderTopLeftRadius: 8,
-        borderTopRightRadius: 8,
-    },
-    invoiceTitle: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-    },
-    invoiceDate: {
-        ...typography.body2(),
-        color: customColors.grey700,
-    },
-    invoiceBody: {
-        padding: spacing.sm,
-    },
-    invoiceProducts: {
-        marginBottom: spacing.sm,
-    },
-    productRowHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
         backgroundColor: customColors.grey50,
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    invoiceCell: {
-        flex: 1,
-        textAlign: "center",
-        ...typography.caption(),
-    },
-    productNameCell: {
-        flex: 2,
-        flexWrap: "wrap",
-        textAlign: "left",
-        paddingRight: spacing.xs,
-    },
-    productRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
         paddingVertical: spacing.xs,
         paddingHorizontal: spacing.sm,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey100,
     },
-    totalRow: {
+    orderNumber: {
+        ...typography.body2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    productsContainer: {
+        paddingVertical: spacing.xs,
+    },
+    productItem: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        paddingVertical: 6,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey50,
+    },
+    productInfo: {
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    productName: {
+        width: "88%",
+        ...typography.body2(),
+        color: customColors.grey900,
+        fontWeight: "500",
+        marginBottom: 2,
+    },
+    productDetails: {
+        ...typography.caption(),
+        color: customColors.grey600,
+    },
+    productAmount: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "600",
+    },
+    footer: {
+        backgroundColor: customColors.grey25,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
+    },
+    totalSection: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: spacing.sm,
     },
     totalLabel: {
         ...typography.subtitle2(),
         color: customColors.grey900,
+        fontWeight: "600",
     },
     totalValue: {
-        ...typography.subtitle2(),
+        ...typography.subtitle1(),
         color: customColors.primary,
+        fontWeight: "700",
     },
-    buttonContainer: {
+    actionButtons: {
         flexDirection: "row",
         justifyContent: "flex-end",
         gap: spacing.sm,
-        marginTop: spacing.sm,
     },
-    button: {
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.md,
+    actionButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 6,
+        paddingHorizontal: spacing.sm,
         borderRadius: 6,
-        minWidth: 80,
+        gap: 4,
     },
     editButton: {
         backgroundColor: customColors.grey700,
@@ -996,6 +972,6 @@ const styles = StyleSheet.create({
     buttonText: {
         ...typography.caption(),
         color: customColors.white,
-        textAlign: "center",
+        fontWeight: "500",
     },
 });

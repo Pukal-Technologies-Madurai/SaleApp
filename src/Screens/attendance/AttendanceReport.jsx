@@ -107,9 +107,7 @@ const AttendanceReport = () => {
                             style={styles.datePicker}
                             containerStyle={styles.datePickerContainerStyle}
                             titleStyle={styles.datePickerTitle}
-                            onDateChange={(event, date) =>
-                                setSelectedFromDate(date)
-                            }
+                            onDateChange={date => setSelectedFromDate(date)}
                         />
                     </View>
                     <View style={styles.datePickerWrapper}>
@@ -119,9 +117,7 @@ const AttendanceReport = () => {
                             style={styles.datePicker}
                             containerStyle={styles.datePickerContainerStyle}
                             titleStyle={styles.datePickerTitle}
-                            onDateChange={(event, date) =>
-                                setSelectedToDate(date)
-                            }
+                            onDateChange={date => setSelectedToDate(date)}
                         />
                     </View>
                 </View>

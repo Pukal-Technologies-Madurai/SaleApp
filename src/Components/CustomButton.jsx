@@ -30,14 +30,15 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     buttonInterContainer: {
-        backgroundColor: customColors.secondary,
+        backgroundColor: customColors.primary,
+        color: customColors.white,
         paddingVertical: 8,
         paddingHorizontal: 20,
         elevation: 2,
     },
     buttonText: {
         ...typography.button(),
-        color: customColors.black,
+        color: customColors.white,
         fontWeight: "500",
         textAlign: "center",
     },

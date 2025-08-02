@@ -1,6 +1,5 @@
 import {
     ActivityIndicator,
-    ImageBackground,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -13,8 +12,8 @@ import { useNavigation } from "@react-navigation/native";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
-import assetImages from "../../Config/Image";
 import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
 
 const DeliveryTable = ({ deliveryData }) => {
     const [selectedFilter, setSelectedFilter] = useState("all");
@@ -166,6 +165,8 @@ const DeliveryReport = () => {
     const navigation = useNavigation();
     const [deliveryData, setDeliveryData] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split("T")[0],
     );
@@ -185,7 +186,6 @@ const DeliveryReport = () => {
         setIsLoading(true);
         try {
             const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}`;
-            // console.log(url);
 
             const response = await fetch(url, {
                 method: "GET",
@@ -198,7 +198,6 @@ const DeliveryReport = () => {
             if (data?.success) {
                 setDeliveryData(data.data || []);
             } else {
-                // Reset delivery data if fetch fails
                 setDeliveryData([]);
             }
             setIsLoading(false);
@@ -207,7 +206,7 @@ const DeliveryReport = () => {
         }
     };
 
-    const handleDateChange = async (event, date) => {
+    const handleDateChange = async date => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
             setSelectedDate(formattedDate);
@@ -215,22 +214,33 @@ const DeliveryReport = () => {
         }
     };
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <View style={styles.container}>
-            <AppHeader title="Delivery Status" navigation={navigation} />
+            <AppHeader
+                title="Delivery Status"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedDate}
+                onFromDateChange={handleDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={false}
+                title="Filter options"
+                fromLabel="From Date"
+            />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        date={new Date(selectedDate)}
-                        onDateChange={(event, date) => {
-                            handleDateChange(event, date);
-                        }}
-                        mode="date"
-                        title="Select Date"
-                    />
-                </View>
-
                 {isLoading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color="#0000ff" />
@@ -255,11 +265,6 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-    },
-    datePickerContainer: {
-        ...typography.h6(),
-        marginHorizontal: 25,
-        marginVertical: 10,
     },
     loadingContainer: {
         flex: 1,

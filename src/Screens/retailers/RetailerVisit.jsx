@@ -26,7 +26,11 @@ import CustomRadioButton from "../../Components/CustomRadioButton";
 import LocationIndicator from "../../Components/LocationIndicator";
 import OpenCamera from "../../Components/OpenCamera";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import { fetchRetailers, visitEntry } from "../../Api/retailers";
+import {
+    fetchRetailers,
+    fetchRoutePathData,
+    visitEntry,
+} from "../../Api/retailers";
 import AppHeader from "../../Components/AppHeader";
 import FormField from "../../Components/FormField";
 
@@ -69,6 +73,66 @@ const RetailerVisit = () => {
         enabled: !!companyId,
     });
 
+    const currentDate = new Date().toISOString().split("T")[0];
+
+    const { data: existingRouteData = [] } = useQuery({
+        queryKey: ["routePath", currentDate, userId],
+        queryFn: () => fetchRoutePathData(currentDate, userId),
+        enabled: !!userId,
+    });
+
+    // Filter retailers based on existing route data
+    const getFilteredRetailers = () => {
+        // Check if there's any existing route data
+        if (!existingRouteData || existingRouteData.length === 0) {
+            // No route data exists, return all retailers
+            return retailerData;
+        }
+
+        // Find active route
+        const activeRoute = existingRouteData.find(
+            route => route.IsActive === 1,
+        );
+
+        if (!activeRoute) {
+            // No active route, return all retailers
+            return retailerData;
+        }
+
+        // Filter retailers based on the active route's Route_Id
+        const filteredRetailers = retailerData.filter(
+            retailer => retailer.Route_Id === activeRoute.Route_Id,
+        );
+
+        return filteredRetailers;
+    };
+
+    const filteredRetailers = getFilteredRetailers();
+
+    // Get route information for display
+    const getRouteInfo = () => {
+        if (!existingRouteData || existingRouteData.length === 0) {
+            return null;
+        }
+
+        const activeRoute = existingRouteData.find(
+            route => route.IsActive === 1,
+        );
+
+        if (!activeRoute) {
+            return null;
+        }
+
+        // Find a retailer with matching Route_Id to get RouteGet information
+        const routeRetailer = retailerData.find(
+            retailer => retailer.Route_Id === activeRoute.Route_Id,
+        );
+
+        return routeRetailer ? routeRetailer.RouteGet : null;
+    };
+
+    const routeInfo = getRouteInfo();
+
     const handleInputChange = (fieldName, value) => {
         setFormValues(prevState => ({
             ...prevState,
@@ -88,37 +152,6 @@ const RetailerVisit = () => {
         } else {
             setShowCamera(true);
         }
-    };
-
-    const clearPhoto = () => {
-        setCapturedPhotoPath(null);
-    };
-
-    const validateInputs = () => {
-        if (selectedValue === "new") {
-            if (formValues.Retailer_Name.trim() === "") {
-                ToastAndroid.show(
-                    "Please enter the Shop Name",
-                    ToastAndroid.LONG,
-                );
-                return false;
-            }
-            if (formValues.Contact_Person.trim() === "") {
-                ToastAndroid.show(
-                    "Please enter the Shop Owner Name",
-                    ToastAndroid.LONG,
-                );
-                return false;
-            }
-            if (formValues.Mobile_No.trim().length !== 10) {
-                ToastAndroid.show(
-                    "Please enter a valid 10-digit Mobile Number",
-                    ToastAndroid.LONG,
-                );
-                return false;
-            }
-        }
-        return true;
     };
 
     const mutation = useMutation({
@@ -191,11 +224,23 @@ const RetailerVisit = () => {
                             nestedScrollEnabled={true}
                             contentContainerStyle={styles.scrollContent}>
                             <View style={styles.formCard}>
+                                {/* Show filtered retailers count */}
+                                {routeInfo && (
+                                    <Text style={styles.retailerCountText}>
+                                        {filteredRetailers.length} retailers
+                                        available in {routeInfo}
+                                    </Text>
+                                )}
+
                                 <EnhancedDropdown
-                                    data={retailerData}
+                                    data={filteredRetailers}
                                     labelField="Retailer_Name"
                                     valueField="Retailer_Id"
-                                    placeholder="Select Retailer"
+                                    placeholder={
+                                        filteredRetailers.length > 0
+                                            ? "Select Retailer"
+                                            : "No retailers available for this route"
+                                    }
                                     value={selectedRetail}
                                     onChange={item => {
                                         setSelectedRetail(item.Retailer_Id);
@@ -204,6 +249,7 @@ const RetailerVisit = () => {
                                             item.Retailer_Id,
                                         );
                                     }}
+                                    disable={filteredRetailers.length === 0}
                                 />
 
                                 <FormField
@@ -234,8 +280,15 @@ const RetailerVisit = () => {
                                     onPress={handleSubmit}
                                     style={[
                                         styles.button,
-                                        { marginVertical: spacing.md },
-                                    ]}>
+                                        {
+                                            marginVertical: spacing.md,
+                                            backgroundColor:
+                                                filteredRetailers.length === 0
+                                                    ? customColors.grey400
+                                                    : customColors.primary,
+                                        },
+                                    ]}
+                                    disabled={filteredRetailers.length === 0}>
                                     <Text style={styles.buttonText}>
                                         Submit
                                     </Text>
@@ -555,6 +608,13 @@ const styles = StyleSheet.create({
         ...typography.button(),
         color: customColors.white,
         fontWeight: "600",
+    },
+    retailerCountText: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        textAlign: "center",
+        marginBottom: spacing.sm,
+        fontStyle: "italic",
     },
 });
 

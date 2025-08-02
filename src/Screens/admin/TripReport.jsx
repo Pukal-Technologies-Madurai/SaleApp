@@ -13,10 +13,12 @@ import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
 
 const TripReport = () => {
     const navigation = useNavigation();
     const [logData, setLogData] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
@@ -43,7 +45,7 @@ const TripReport = () => {
         }
     };
 
-    const handleDateChange = (event, date) => {
+    const handleDateChange = date => {
         setSelectedFromDate(date);
         setSelectedToDate(date);
         fetchTripSheet(
@@ -299,19 +301,33 @@ const TripReport = () => {
         [],
     );
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <View style={styles.container}>
-            <AppHeader title="TripSheet Summary" navigation={navigation} />
-            <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="Select Date Range"
-                        date={selectedFromDate}
-                        onDateChange={handleDateChange}
-                        containerStyle={styles.datePicker}
-                    />
-                </View>
+            <AppHeader
+                title="TripSheet Summary"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
 
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                onFromDateChange={handleDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={false}
+                title="Filter options"
+                fromLabel="From Date"
+            />
+
+            <View style={styles.contentContainer}>
                 <View style={styles.content}>
                     <FlatList
                         data={logData}
@@ -336,9 +352,6 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-    },
-    datePickerContainer: {
-        padding: 16,
     },
     datePicker: {
         width: "100%",

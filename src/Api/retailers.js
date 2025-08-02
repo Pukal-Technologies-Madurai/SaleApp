@@ -211,3 +211,26 @@ export const visitEntry = async ({
 
     return data;
 };
+
+export const fetchRoutePathData = async (date, userId) => {
+    const url = `${API.setRoutePath()}?date=${date}&User_Id=${userId}`;
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
+export const deleteRoutePathData = async id => {
+    const res = await fetch(`${API.setRoutePath()}?Id=${id}`, {
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ Id: id }),
+    });
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};

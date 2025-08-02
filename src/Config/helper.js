@@ -188,7 +188,7 @@ export const shadows = {
 
 export const componentStyles = {
     card: {
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.white,
         borderRadius: 8,
         padding: 16,
         ...shadows.small,
