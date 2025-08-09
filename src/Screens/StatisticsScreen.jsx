@@ -10,6 +10,7 @@ import {
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { customColors, typography } from "../Config/helper";
 import AppHeader from "../Components/AppHeader";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -237,7 +238,7 @@ const StatisticsScreen = ({ route, navigation }) => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <AppHeader
                 navigation={navigation}
                 showDrawer={false}
@@ -257,18 +258,19 @@ const StatisticsScreen = ({ route, navigation }) => {
                 showsVerticalScrollIndicator={true}>
                 {renderContent()}
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     content: {
         flex: 1,
         padding: 20,
+        backgroundColor: customColors.background,
     },
     scrollViewContent: {
         paddingBottom: 20,

@@ -14,7 +14,6 @@ import { useNavigation } from "@react-navigation/native";
 import moment from "moment";
 import Icon from "react-native-vector-icons/Ionicons";
 import CheckBox from "@react-native-community/checkbox";
-import Geolocation from "@react-native-community/geolocation";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
@@ -26,6 +25,7 @@ import {
 } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const BillPayment = () => {
     const navigation = useNavigation();
@@ -157,25 +157,6 @@ const BillPayment = () => {
                 [billId]: amount,
             }));
         }
-    };
-
-    const getCurrentLocation = () => {
-        return new Promise((resolve, reject) => {
-            Geolocation.getCurrentPosition(
-                position => {
-                    setLocation({
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                    });
-                    resolve(position);
-                },
-                error => {
-                    console.error("Error getting location:", error);
-                    reject(error);
-                },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-            );
-        });
     };
 
     const handleSubmitforVisitLog = async () => {
@@ -382,7 +363,7 @@ const BillPayment = () => {
     );
 
     const renderPaymentScreen = () => (
-        <View style={styles.paymentScreen}>
+        <SafeAreaView style={styles.paymentScreen} edges={["top", "bottom"]}>
             <View style={styles.paymentHeader}>
                 <TouchableOpacity
                     style={styles.backButton}
@@ -494,11 +475,11 @@ const BillPayment = () => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <AppHeader title="Retailer Receipts" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -638,7 +619,7 @@ const BillPayment = () => {
                 </View>
             </View>
             {showPaymentScreen && renderPaymentScreen()}
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -647,7 +628,7 @@ export default BillPayment;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -762,7 +743,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primary,
     },
     paymentHeader: {
         flexDirection: "row",
@@ -786,6 +767,7 @@ const styles = StyleSheet.create({
     },
     paymentContent: {
         flex: 1,
+        backgroundColor: customColors.white,
     },
     paymentContentContainer: {
         padding: spacing.md,

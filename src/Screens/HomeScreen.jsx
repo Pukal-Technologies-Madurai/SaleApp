@@ -4,7 +4,10 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    StatusBar,
+    Image,
+    Modal,
+    Alert,
+    Platform,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,16 +17,20 @@ import NetInfo from "@react-native-community/netinfo";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import Share from "react-native-share";
+import RNFS from "react-native-fs";
 import AttendanceInfo from "./attendance/AttendanceInfo";
 import { customColors, typography, spacing, shadows } from "../Config/helper";
 import AppHeader from "../Components/AppHeader";
 import Dashboard from "./Dashboard";
+import assetImages from "../Config/Image";
 
 const HomeScreen = () => {
     const navigation = useNavigation();
     const [name, setName] = useState("");
     const [userTypeID, setUserTypeID] = useState("");
     const [error, setError] = useState(null);
+    const [isQRVisible, setIsQRVisible] = useState(false);
 
     const ADMIN_USER_TYPES = ["0", "1", "2"];
     const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
@@ -159,9 +166,55 @@ const HomeScreen = () => {
         );
     }
 
+    const handleShowQR = () => {
+        setIsQRVisible(true); // This should set the state to show the modal
+    };
+
+    const handleShareQR = async () => {
+        try {
+            // 1) Resolve the asset URI
+            const srcUri = Image.resolveAssetSource(assetImages.gpayLogo)?.uri;
+            if (!srcUri) throw new Error("Could not resolve asset URI");
+
+            // 2) Materialize to a file when needed (dev http:// uri or file://)
+            let urlToShare = srcUri;
+
+            if (srcUri.startsWith("http")) {
+                // dev mode: download the asset to cache
+                const destPath = `${RNFS.CachesDirectoryPath}/qr_code.jpg`;
+                await RNFS.downloadFile({ fromUrl: srcUri, toFile: destPath })
+                    .promise;
+                urlToShare = `file://${destPath}`;
+            } else if (srcUri.startsWith("file://")) {
+                urlToShare = srcUri; // already a file
+            } else if (
+                Platform.OS === "android" &&
+                srcUri.startsWith("asset:/")
+            ) {
+                // react-native-share understands asset:// on Android:
+                // convert asset:/ to asset://
+                urlToShare = srcUri.replace("asset:/", "asset://");
+            }
+
+            await Share.open({
+                title: "Share QR Code",
+                message:
+                    "Here is the QR code for payment. Scan to make payment!",
+                url: urlToShare,
+                type: "image/jpeg",
+                failOnCancel: false,
+            });
+        } catch (error) {
+            if (error.message !== "User did not share") {
+                console.error("Error sharing image:", error);
+                Alert.alert("Error", "Failed to share QR code");
+            }
+        }
+    };
+
     return (
-        <SafeAreaView style={styles.container} edges={["top", "right"]}>
-            <StatusBar backgroundColor={customColors.primaryDark} />
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+            {/* <StatusBar backgroundColor={customColors.primaryDark} /> */}
             <AppHeader
                 navigation={navigation}
                 showDrawer={true}
@@ -201,9 +254,20 @@ const HomeScreen = () => {
                             <AttendanceInfo />
 
                             <View style={styles.buttonContainer}>
-                                <Text style={styles.sectionTitle}>
-                                    Quick Actions
-                                </Text>
+                                <View style={styles.sectionTitleContainer}>
+                                    <Text style={styles.sectionTitle}>
+                                        Quick Actions
+                                    </Text>
+                                    <TouchableOpacity
+                                        onPress={handleShowQR}
+                                        activeOpacity={0.7}>
+                                        <MaterialIcons
+                                            name="qr-code-scanner"
+                                            size={24}
+                                            color={customColors.primary}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
                                 <View style={styles.buttonsGrid}>
                                     {buttons.map((button, index) => (
                                         <TouchableOpacity
@@ -242,6 +306,47 @@ const HomeScreen = () => {
                     )}
                 </ScrollView>
             </View>
+
+            {/* Simplified QR Modal */}
+            <Modal
+                visible={isQRVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsQRVisible(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <TouchableOpacity
+                            style={styles.closeIconButton}
+                            onPress={() => setIsQRVisible(false)}
+                            activeOpacity={0.7}>
+                            <MaterialIcons
+                                name="close"
+                                size={28}
+                                color={customColors.grey700}
+                            />
+                        </TouchableOpacity>
+
+                        <Image
+                            source={assetImages.gpayLogo}
+                            style={styles.qrImage}
+                            resizeMode="contain"
+                        />
+
+                        <TouchableOpacity
+                            style={styles.shareButton}
+                            onPress={handleShareQR}
+                            activeOpacity={0.7}>
+                            <MaterialIcons
+                                name="share"
+                                size={20}
+                                color={customColors.white}
+                                style={{ marginRight: 8 }}
+                            />
+                            <Text style={styles.shareButtonText}>Share</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -251,7 +356,7 @@ export default HomeScreen;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     overlay: {
         flex: 1,
@@ -266,11 +371,16 @@ const styles = StyleSheet.create({
         marginVertical: spacing.md,
         ...shadows.medium,
     },
+    sectionTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: spacing.md,
+    },
     sectionTitle: {
         ...typography.h5(),
         color: customColors.grey900,
         fontWeight: "700",
-        marginBottom: spacing.lg,
     },
     buttonsGrid: {
         flexDirection: "row",
@@ -321,5 +431,58 @@ const styles = StyleSheet.create({
         ...typography.body2(),
         color: customColors.grey600,
         textAlign: "center",
+    },
+    // Simplified modal styles
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+    },
+    modalContent: {
+        width: "90%",
+        maxWidth: 400,
+        backgroundColor: customColors.white,
+        borderRadius: 20,
+        padding: spacing.lg,
+        alignItems: "center",
+        position: "relative",
+        margin: spacing.lg,
+        ...shadows.large,
+    },
+    closeIconButton: {
+        position: "absolute",
+        top: 10,
+        right: 10,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
+    },
+    qrImage: {
+        width: "100%",
+        height: 510,
+        borderRadius: 12,
+        marginBottom: spacing.xxs,
+    },
+    shareButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: customColors.primary,
+        borderRadius: 12,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        width: "60%",
+        ...shadows.small,
+    },
+    shareButtonText: {
+        color: customColors.white,
+        ...typography.body2(),
+        fontWeight: "600",
+        marginLeft: spacing.xs,
     },
 });

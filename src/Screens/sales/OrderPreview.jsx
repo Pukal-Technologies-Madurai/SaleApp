@@ -25,6 +25,7 @@ import {
 import Accordion from "../../Components/Accordion";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const OrderPreview = () => {
     const navigation = useNavigation();
@@ -591,7 +592,7 @@ const OrderPreview = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Order Summary"
                 navigation={navigation}
@@ -723,7 +724,7 @@ const OrderPreview = () => {
                     />
                 </ScrollView>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -732,7 +733,7 @@ export default OrderPreview;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

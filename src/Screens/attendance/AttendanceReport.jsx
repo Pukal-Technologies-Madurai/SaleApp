@@ -9,6 +9,7 @@ import { customColors, typography, shadows } from "../../Config/helper";
 import { attendanceHistory } from "../../Api/employee";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SummaryCard = ({ icon, title, value, color }) => (
     <View style={[styles.card, { backgroundColor: color }]}>
@@ -95,7 +96,7 @@ const AttendanceReport = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Attendance Summary" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -220,7 +221,7 @@ const AttendanceReport = () => {
                     </View>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -229,7 +230,7 @@ export default AttendanceReport;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

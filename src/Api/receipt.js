@@ -15,6 +15,25 @@ export const fetchAccountsMaster = async () => {
     return data.data;
 };
 
+export const fetchCustomerWhoHasBills = async () => {
+    try {
+        const url = API.customerWhoHasBills();
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    } catch (err) {
+        console.error("Error fetching customers who have bills:", err);
+    }
+};
+
 export const fetchDefaultAccountMaster = async () => {
     const url = API.defaultAccountMaster();
 
@@ -60,9 +79,11 @@ export const fetchCreditLiveSale = async () => {
     return data.data;
 };
 
-export const fetchPendingSalesInvoiceReceipt = async ({ accId }) => {
+export const fetchRetailerBasedPendingSalesInvoiceReceipt = async ({
+    retailerId,
+}) => {
     try {
-        const url = `${API.pendingSalesInvoice()}${accId}`;
+        const url = `${API.retailerBasedPendingSalesInvoiceReceipt()}${retailerId}`;
 
         const response = await fetch(url);
         const data = await response.json();

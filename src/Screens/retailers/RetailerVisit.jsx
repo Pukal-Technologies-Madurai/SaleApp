@@ -33,6 +33,7 @@ import {
 } from "../../Api/retailers";
 import AppHeader from "../../Components/AppHeader";
 import FormField from "../../Components/FormField";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const RetailerVisit = () => {
     const navigation = useNavigation();
@@ -190,7 +191,7 @@ const RetailerVisit = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Visit Entry" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -463,14 +464,14 @@ const RetailerVisit = () => {
                     </View>
                 </Modal>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

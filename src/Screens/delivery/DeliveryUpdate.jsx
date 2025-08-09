@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     View,
     ScrollView,
+    ToastAndroid,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -26,9 +27,12 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchUsers } from "../../Api/employee";
 import FilterModal from "../../Components/FilterModal";
 import { fetchDefaultAccountMaster } from "../../Api/receipt";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const DeliveryUpdate = () => {
     const navigation = useNavigation();
+    const [userId, setUserId] = useState(null);
     const [deliveryData, setDeliveryData] = useState([]);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
@@ -44,6 +48,10 @@ const DeliveryUpdate = () => {
     const [selectedPaymentMode, setSelectedPaymentMode] = useState("0");
     const [partialAmount, setPartialAmount] = useState("");
     const [modalVisible, setModalVisible] = useState(false);
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
 
     const deliveryStatus = { 5: "Pending", 7: "Delivered" };
     const paymentStatus = { 0: "Pending", 3: "Completed" };
@@ -60,6 +68,7 @@ const DeliveryUpdate = () => {
             const toDate = selectedToDate.toISOString().split("T")[0];
             const companyId = await AsyncStorage.getItem("Company_Id");
             setCompanyId(companyId);
+            setUserId(userId);
 
             const url = `${API.delivery()}${userId}&Fromdate=${fromDate}&Todate=${toDate}`;
 
@@ -177,8 +186,6 @@ const DeliveryUpdate = () => {
     );
 
     const matchCallCenterId = async () => {
-        const userId = await AsyncStorage.getItem("UserId");
-
         const callUser = users.find(
             user => user.Cost_Center_Id !== null && user.UserId === userId,
         );
@@ -203,13 +210,53 @@ const DeliveryUpdate = () => {
         },
     });
 
+    const handleSubmitforVisitLog = async () => {
+        if (!location.latitude || !location.longitude) {
+            ToastAndroid.show(
+                "Location not available for visit log",
+                ToastAndroid.SHORT,
+            );
+            return false;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", selectedDelivery.Retailer_Id);
+            formData.append("Latitude", location.latitude.toString());
+            formData.append("Longitude", location.longitude.toString());
+            formData.append("Narration", "The Sale delivery has been updated.");
+            formData.append("EntryBy", userId);
+
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                // navigation.navigate("HomeScreen");
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            console.error("Error submitting form:", err);
+        }
+    };
+
     const handleUpdateDelivery = async (isDelivered, isPaid) => {
         // console.log("isDelivered", isDelivered, isPaid, selectedDelivery);
         if (!selectedDelivery) return;
         setLoading(true);
 
+        await handleSubmitforVisitLog();
+
         try {
-            const userId = await AsyncStorage.getItem("UserId");
             // Use a reference for partial payment
             let paymentRef = null;
             // Handle partial payment for cash
@@ -292,13 +339,24 @@ const DeliveryUpdate = () => {
                     }
                 }
 
+                let credit_ledger_Id = selectedDelivery.Acc_Id;
+                let credit_ledger_name = selectedDelivery.Retailer_Name;
+
+                if (
+                    selectedDelivery.Acc_Id === "0" ||
+                    selectedDelivery.Acc_Id === 0
+                ) {
+                    credit_ledger_Id = 14;
+                    credit_ledger_name = `${selectedDelivery.Retailer_Name} - (Sundry Creditors)`;
+                }
+
                 const receiptPostData = {
                     receipt_voucher_type_id: 10,
                     receipt_bill_type: 1,
                     remarks: "Sale delivery and payment collection",
                     status: 1,
-                    credit_ledger: selectedDelivery.Acc_Id,
-                    credit_ledger_name: selectedDelivery.Retailer_Name,
+                    credit_ledger: credit_ledger_Id,
+                    credit_ledger_name: credit_ledger_name,
                     debit_ledger: debit_ledger_id,
                     debit_ledger_name: debit_ledger_name,
                     credit_amount: paymentAmount,
@@ -316,7 +374,7 @@ const DeliveryUpdate = () => {
                     ],
                 };
 
-                console.log("receiptPostData", receiptPostData);
+                // console.log("receiptPostData", receiptPostData);
 
                 const paymentResponse = await fetch(API.createReceipt(), {
                     method: "POST",
@@ -522,7 +580,7 @@ const DeliveryUpdate = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Delivery Update"
                 navigation={navigation}
@@ -530,6 +588,13 @@ const DeliveryUpdate = () => {
                 rightIconLibrary="MaterialIcon"
                 rightIconName="filter-list"
                 onRightPress={() => setModalVisible(true)}
+            />
+
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
             />
 
             <FilterModal
@@ -580,7 +645,7 @@ const DeliveryUpdate = () => {
                 </View>
             </View>
             {showUpdateScreen && renderUpdateScreen()}
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -589,15 +654,12 @@ export default DeliveryUpdate;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        ...shadows.small,
     },
     content: {
         flex: 1,

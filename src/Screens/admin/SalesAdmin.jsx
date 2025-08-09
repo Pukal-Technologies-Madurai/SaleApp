@@ -22,6 +22,7 @@ import {
     typography,
 } from "../../Config/helper";
 import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SalesAdmin = () => {
     const navigation = useNavigation();
@@ -309,7 +310,7 @@ const SalesAdmin = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Sales Order Summary"
                 navigation={navigation}
@@ -451,14 +452,14 @@ const SalesAdmin = () => {
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

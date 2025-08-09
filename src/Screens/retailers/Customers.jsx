@@ -6,6 +6,7 @@ import {
     StyleSheet,
     TextInput,
     FlatList,
+    StatusBar,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import {
     spacing,
     shadows,
 } from "../../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const RetailerItem = memo(({ item, onPress }) => (
     <TouchableOpacity
@@ -322,7 +324,7 @@ const Customers = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Retailers"
                 navigation={navigation}
@@ -449,7 +451,7 @@ const Customers = () => {
                     contentContainerStyle={styles.listContent}
                 />
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -458,7 +460,7 @@ export default Customers;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.primary,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

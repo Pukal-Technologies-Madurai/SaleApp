@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchUserInvolvedReceipts } from "../../Api/receipt";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const ReceiptInfo = () => {
     const navigation = useNavigation();
@@ -266,7 +267,7 @@ const ReceiptInfo = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="My Receipts"
                 navigation={navigation}
@@ -362,7 +363,7 @@ const ReceiptInfo = () => {
                     </ScrollView>
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -371,7 +372,7 @@ export default ReceiptInfo;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

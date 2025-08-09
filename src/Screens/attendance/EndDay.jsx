@@ -19,6 +19,7 @@ import AppHeader from "../../Components/AppHeader";
 import FormField from "../../Components/FormField";
 import { customColors, typography } from "../../Config/helper";
 import { closeDay, getAttendance } from "../../Api/employee";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const EndDay = () => {
     const navigation = useNavigation();
@@ -103,7 +104,7 @@ const EndDay = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Wrap Up" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -248,7 +249,7 @@ const EndDay = () => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -257,6 +258,7 @@ export default EndDay;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

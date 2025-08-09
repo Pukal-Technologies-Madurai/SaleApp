@@ -22,6 +22,7 @@ import {
     shadows,
 } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const ReceiptAdmin = () => {
     const navigation = useNavigation();
@@ -465,7 +466,7 @@ const ReceiptAdmin = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Receipt Collections"
                 navigation={navigation}
@@ -563,7 +564,7 @@ const ReceiptAdmin = () => {
                     </ScrollView>
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -572,10 +573,11 @@ export default ReceiptAdmin;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
+        backgroundColor: customColors.background,
     },
     loadingContainer: {
         flex: 1,

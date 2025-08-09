@@ -600,7 +600,7 @@ const Dashboard = () => {
     const renderIcon = (iconLibrary, iconName, color) => {
         const iconProps = {
             name: iconName,
-            size: 28,
+            size: 24,
             color: color,
         };
 
@@ -671,7 +671,7 @@ const Dashboard = () => {
 
                 {/* Stats Grid */}
                 <View style={styles.statsContainer}>
-                    <Text style={styles.sectionTitle}>Quick Stats</Text>
+                    <Text style={styles.sectionTitle}>Analytics</Text>
                     <View style={styles.gridContainer}>
                         {statsData.map((stat, index) => (
                             <TouchableOpacity
@@ -696,7 +696,8 @@ const Dashboard = () => {
                                 <View style={styles.statContent}>
                                     <Text
                                         style={styles.statValue}
-                                        numberOfLines={1}>
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit>
                                         {stat.value}
                                     </Text>
                                     <Text
@@ -719,7 +720,7 @@ export default Dashboard;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.background,
     },
     content: {
         flex: 1,
@@ -774,52 +775,58 @@ const styles = StyleSheet.create({
         ...typography.h5(),
         color: customColors.grey900,
         fontWeight: "700",
-        marginBottom: spacing.lg,
+        marginBottom: spacing.sm,
+        letterSpacing: 0.3,
     },
     gridContainer: {
         flexDirection: "row",
         flexWrap: "wrap",
         justifyContent: "space-between",
-        gap: spacing.md,
+        alignItems: "stretch",
+        padding: spacing.sm,
     },
     statCard: {
-        width: "47%",
-        flexDirection: "row", // Keep row direction
-        alignItems: "center", // Center items vertically
+        width: "46.5%",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
         backgroundColor: customColors.white,
-        borderRadius: 16,
-        padding: spacing.md,
+        borderRadius: 20,
+        padding: spacing.sm,
         ...shadows.medium,
         borderWidth: 1,
         borderColor: customColors.grey100,
-        minHeight: 90, // Reduced height for row layout
+        minHeight: 95,
+        marginBottom: spacing.md,
     },
     iconContainer: {
-        width: 48,
-        height: 48,
+        width: 44,
+        height: 44,
         borderRadius: 12,
         justifyContent: "center",
         alignItems: "center",
-        marginRight: spacing.sm, // Changed from marginBottom to marginRight
-        marginBottom: 0, // Remove bottom margin
+        margin: spacing.xs,
     },
     statContent: {
-        flex: 1,
-        justifyContent: "center",
         alignItems: "center",
+        justifyContent: "center",
+        width: "100%",
+        marginTop: spacing.sm,
     },
     statValue: {
         ...typography.h6(),
         color: customColors.grey900,
-        fontWeight: "700",
+        fontWeight: "800",
         marginBottom: spacing.xs,
         textAlign: "center",
+        lineHeight: 20,
     },
     statLabel: {
-        ...typography.caption(),
-        fontWeight: "500",
-        color: customColors.grey900,
+        ...typography.body2(),
+        fontWeight: "600",
+        color: customColors.grey600,
         lineHeight: 16,
         textAlign: "center",
+        paddingHorizontal: spacing.xs,
     },
 });

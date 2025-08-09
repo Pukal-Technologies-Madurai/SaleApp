@@ -17,6 +17,7 @@ import {
     typography,
 } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const RoutePath = () => {
     const navigation = useNavigation();
@@ -240,7 +241,7 @@ const RoutePath = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Set Route" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -369,7 +370,7 @@ const RoutePath = () => {
                     )}
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -378,7 +379,7 @@ export default RoutePath;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.primary,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

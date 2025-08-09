@@ -20,6 +20,7 @@ import {
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripSheet = () => {
     const navigation = useNavigation();
@@ -532,7 +533,7 @@ const TripSheet = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="TripSheet Summary"
                 navigation={navigation}
@@ -577,7 +578,7 @@ const TripSheet = () => {
                     )}
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -586,7 +587,7 @@ export default TripSheet;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

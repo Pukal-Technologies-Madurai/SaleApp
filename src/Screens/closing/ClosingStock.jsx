@@ -17,6 +17,8 @@ import { API } from "../../Config/Endpoint";
 import { fetchRetailerClosingStock } from "../../Api/retailers";
 import { customColors, typography, spacing } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const ClosingStock = ({ route }) => {
     const navigation = useNavigation();
@@ -26,6 +28,10 @@ const ClosingStock = ({ route }) => {
     const [quantities, setQuantities] = useState({});
     const [showModal, setShowModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
 
     useEffect(() => {
         const getUserId = async () => {
@@ -182,8 +188,8 @@ const ClosingStock = ({ route }) => {
         const formData = new FormData();
         formData.append("Mode", 1);
         formData.append("Retailer_Id", item.Retailer_Id);
-        formData.append("Latitude", 0);
-        formData.append("Longitude", 0);
+        formData.append("Latitude", location.latitude.toString());
+        formData.append("Longitude", location.longitude.toString());
         formData.append("Narration", "The stock entry has been updated.");
         formData.append("EntryBy", userId);
 
@@ -445,7 +451,7 @@ const ClosingStock = ({ route }) => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Closing Stock"
                 navigation={navigation}
@@ -455,85 +461,103 @@ const ClosingStock = ({ route }) => {
                 onRightPress={() => setShowModal(true)}
             />
 
-            {/* Summary Header */}
-            <View style={styles.summaryContainer}>
-                <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>QTY</Text>
-                    <Text style={styles.summaryLabel}>STOCK VALUE</Text>
-                    <Text style={styles.summaryLabel}>ED</Text>
-                    <Text style={styles.summaryLabel}>VD</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{summary.totalQty}</Text>
-                    <Text style={styles.summaryValue}>
-                        {summary.totalValue}
-                    </Text>
-                    <Text style={styles.summaryValue}>{summary.vd}</Text>
-                    <Text style={styles.summaryValue}>{summary.ed}</Text>
-                </View>
-            </View>
-
-            {/* Product List Header */}
-            <View style={styles.listHeader}>
-                <Text style={{ flex: 4.5, ...styles.headerText }}>ITEM</Text>
-                <Text style={styles.headerText}>VD</Text>
-                <Text style={styles.headerText}>ED</Text>
-                <Text style={styles.headerText}>QTY</Text>
-            </View>
-
-            {/* Product Groups */}
-            <FlatList
-                data={brandsData}
-                keyExtractor={item => item.Brand_Id.toString()}
-                renderItem={({ item }) => (
-                    <View>
-                        {renderGroupHeader(item)}
-                        {expandedGroups[item.Brand_Id] && (
-                            <FlatList
-                                data={item.GroupedProductArray}
-                                keyExtractor={product =>
-                                    product.Product_Id.toString()
-                                }
-                                renderItem={renderProductItem}
-                            />
-                        )}
-                    </View>
-                )}
-                style={styles.productList}
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
             />
 
-            {/* Confirmation Modal */}
-            <Modal
-                visible={showModal}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setShowModal(false)}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        {renderStockSummary()}
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.modalButton,
-                                    styles.cancelButton,
-                                ]}
-                                onPress={() => setShowModal(false)}
-                                disabled={isSubmitting}>
-                                <Text style={styles.buttonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.saveButton]}
-                                onPress={saveClosingStock}
-                                disabled={isSubmitting}>
-                                <Text style={styles.buttonText}>
-                                    {isSubmitting ? "Saving..." : "Save"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+            <View style={styles.contentContainer}>
+                {/* Summary Header */}
+                <View style={styles.summaryContainer}>
+                    <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>QTY</Text>
+                        <Text style={styles.summaryLabel}>STOCK VALUE</Text>
+                        <Text style={styles.summaryLabel}>ED</Text>
+                        <Text style={styles.summaryLabel}>VD</Text>
+                    </View>
+                    <View style={styles.summaryRow}>
+                        <Text style={styles.summaryValue}>
+                            {summary.totalQty}
+                        </Text>
+                        <Text style={styles.summaryValue}>
+                            {summary.totalValue}
+                        </Text>
+                        <Text style={styles.summaryValue}>{summary.vd}</Text>
+                        <Text style={styles.summaryValue}>{summary.ed}</Text>
                     </View>
                 </View>
-            </Modal>
-        </View>
+
+                {/* Product List Header */}
+                <View style={styles.listHeader}>
+                    <Text style={{ flex: 4.5, ...styles.headerText }}>
+                        ITEM
+                    </Text>
+                    <Text style={styles.headerText}>VD</Text>
+                    <Text style={styles.headerText}>ED</Text>
+                    <Text style={styles.headerText}>QTY</Text>
+                </View>
+
+                {/* Product Groups */}
+                <FlatList
+                    data={brandsData}
+                    keyExtractor={item => item.Brand_Id.toString()}
+                    renderItem={({ item }) => (
+                        <View>
+                            {renderGroupHeader(item)}
+                            {expandedGroups[item.Brand_Id] && (
+                                <FlatList
+                                    data={item.GroupedProductArray}
+                                    keyExtractor={product =>
+                                        product.Product_Id.toString()
+                                    }
+                                    renderItem={renderProductItem}
+                                />
+                            )}
+                        </View>
+                    )}
+                    style={styles.productList}
+                />
+
+                {/* Confirmation Modal */}
+                <Modal
+                    visible={showModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowModal(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            {renderStockSummary()}
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.modalButton,
+                                        styles.cancelButton,
+                                    ]}
+                                    onPress={() => setShowModal(false)}
+                                    disabled={isSubmitting}>
+                                    <Text style={styles.buttonText}>
+                                        Cancel
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.modalButton,
+                                        styles.saveButton,
+                                    ]}
+                                    onPress={saveClosingStock}
+                                    disabled={isSubmitting}>
+                                    <Text style={styles.buttonText}>
+                                        {isSubmitting ? "Saving..." : "Save"}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            </View>
+        </SafeAreaView>
     );
 };
 
@@ -541,6 +565,10 @@ export default ClosingStock;
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1,
+        backgroundColor: customColors.primaryDark,
+    },
+    contentContainer: {
         flex: 1,
         backgroundColor: customColors.background,
     },

@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
+    ToastAndroid,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -20,25 +21,32 @@ import {
 } from "../../Config/helper";
 import {
     fetchDefaultAccountMaster,
-    fetchAccountsMaster,
     createReceipt,
+    fetchCustomerWhoHasBills,
+    fetchRetailerBasedPendingSalesInvoiceReceipt,
 } from "../../Api/receipt";
 import DatePickerButton from "../../Components/DatePickerButton";
 import { API } from "../../Config/Endpoint";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const CreateReceipts = () => {
     const navigation = useNavigation();
 
     const [filteredRetailers, setFilteredRetailers] = useState([]);
-    const [selectedRetailer, setSelectedRetailer] = useState(0);
+    const [selectedRetailer, setSelectedRetailer] = useState(null);
     const [selectedBills, setSelectedBills] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [selectedAmountType, setSelectedAmountType] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showReceiptView, setShowReceiptView] = useState(false);
     const [receiptAmounts, setReceiptAmounts] = useState({});
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
 
     const {
         data: retailersData = [],
@@ -46,7 +54,27 @@ const CreateReceipts = () => {
         isError: isErrorRetailers,
     } = useQuery({
         queryKey: ["retailersData"],
-        queryFn: fetchAccountsMaster,
+        queryFn: fetchCustomerWhoHasBills,
+        select: data => {
+            if (!data || !Array.isArray(data)) return [];
+
+            // Remove duplicates based on Retailer_id instead of value, since multiple retailers can have value "0"
+            const uniqueRetailers = data.reduce((acc, current) => {
+                const existingItem = acc.find(
+                    item => item.Retailer_id === current.Retailer_id,
+                );
+                if (!existingItem) {
+                    acc.push({
+                        ...current,
+                        // Ensure unique key using Retailer_id
+                        key: `retailer_${current.Retailer_id}_${acc.length}`,
+                    });
+                }
+                return acc;
+            }, []);
+
+            return uniqueRetailers;
+        },
     });
 
     const {
@@ -57,8 +85,13 @@ const CreateReceipts = () => {
         queryKey: ["paymentOption"],
         queryFn: fetchDefaultAccountMaster,
         select: data => {
-            if (!data) return [];
-            return data;
+            if (!data || !Array.isArray(data)) return [];
+
+            // Ensure unique keys for payment options too
+            return data.map((item, index) => ({
+                ...item,
+                key: `payment_${item.Acc_Id}_${index}`,
+            }));
         },
     });
 
@@ -68,53 +101,39 @@ const CreateReceipts = () => {
         }
     }, [retailersData]);
 
-    const [pendingBills, setPendingBills] = useState([]);
-    const [isLoadingBills, setIsLoadingBills] = useState(false);
-    const [isErrorBills, setIsErrorBills] = useState(false);
-
-    useEffect(() => {
-        const fetchPendingBills = async () => {
-            if (!selectedRetailer) {
-                setPendingBills([]);
-                return;
-            }
-
-            setIsLoadingBills(true);
-            setIsErrorBills(false);
-
-            try {
-                const url = `${API.pendingSalesInvoice()}${selectedRetailer}`;
-
-                const res = await fetch(url);
-                const data = await res.json();
-
-                if (!data.success) {
-                    throw new Error(data.message || "API Error");
-                }
-
-                const validBills = data.data.filter(
-                    bill => bill.Total_Invoice_value > bill.Paid_Amount,
-                );
-
-                setPendingBills(validBills);
-            } catch (error) {
-                setIsErrorBills(true);
-                setPendingBills([]);
-            } finally {
-                setIsLoadingBills(false);
-            }
-        };
-
-        fetchPendingBills();
-    }, [selectedRetailer]);
+    // Remove the old manual fetch logic and use the useQuery instead
+    const {
+        data: pendingBills = [],
+        isLoading: isLoadingBills,
+        isError: isErrorBills,
+    } = useQuery({
+        queryKey: [
+            "retailerBasedPendingSalesInvoiceReceipt",
+            selectedRetailer?.Retailer_id,
+        ],
+        queryFn: () =>
+            fetchRetailerBasedPendingSalesInvoiceReceipt({
+                retailerId: selectedRetailer?.Retailer_id,
+            }),
+        enabled: !!selectedRetailer?.Retailer_id, // Only run when we have a Retailer_id
+        select: data => {
+            if (!data || !Array.isArray(data)) return [];
+            // Filter bills that have pending amounts
+            return data.filter(
+                bill => bill.Total_Invoice_value > bill.Paid_Amount,
+            );
+        },
+    });
 
     const handleRetailerSelect = item => {
-        if (item && item.Acc_Id) {
-            setSelectedRetailer(item.Acc_Id);
+        if (item && item.Retailer_id) {
+            // Store the entire retailer object instead of just the ID
+            setSelectedRetailer(item);
             setSelectedBills([]);
             setSelectAll(false);
         } else {
-            console.error("Invalid retailer selection");
+            console.error("Invalid retailer selection:", item);
+            setSelectedRetailer(null);
         }
     };
 
@@ -171,6 +190,41 @@ const CreateReceipts = () => {
             ...prev,
             [billId]: amount,
         }));
+    };
+
+    const handleSubmitforVisitLog = async () => {
+        if (!location.latitude || !location.longitude) {
+            ToastAndroid.show(
+                "Location not available for visit log",
+                ToastAndroid.SHORT,
+            );
+            return false;
+        }
+
+        try {
+            const userId = await AsyncStorage.getItem("UserId");
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", selectedRetailer.Retailer_id);
+            formData.append("Latitude", location.latitude.toString());
+            formData.append("Longitude", location.longitude.toString());
+            formData.append("Narration", "The receipt has been created.");
+            formData.append("EntryBy", userId);
+
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            console.error("Error submitting form:", err);
+        }
     };
 
     const handleCreateReceipt = () => {
@@ -237,19 +291,25 @@ const CreateReceipts = () => {
             return;
         }
 
+        let credit_ledger_Id = selectedRetailer.value;
+        let credit_ledger_name = selectedRetailer.label;
+
+        if (selectedRetailer.value === "0" || selectedRetailer.value === 0) {
+            credit_ledger_Id = 14;
+            credit_ledger_name = `${selectedRetailer.label} - (Sundry Creditors)`;
+        }
+
         try {
-            // Get user ID (you may need to import this from your auth context)
-            const userId = await AsyncStorage.getItem("UserId"); // Replace this with actual user ID from auth context
+            const userId = await AsyncStorage.getItem("UserId");
+            await handleSubmitforVisitLog();
 
             const resBody = {
                 receipt_voucher_type_id: 10,
                 receipt_bill_type: 1,
                 remarks: "Receipt created from mobile app",
                 status: 1,
-                credit_ledger: selectedRetailer,
-                credit_ledger_name: filteredRetailers.find(
-                    r => r.Acc_Id === selectedRetailer,
-                )?.Account_name,
+                credit_ledger: credit_ledger_Id,
+                credit_ledger_name: credit_ledger_name,
                 debit_ledger: selectedAmountType?.Acc_Id,
                 debit_ledger_name: selectedAmountType?.Account_Name,
                 credit_amount: getTotalSelectedAmount(),
@@ -272,8 +332,8 @@ const CreateReceipts = () => {
                 }),
             };
 
+            // console.log("Receipt created successfully:", resBody);
             const result = await createReceipt(resBody);
-            // console.log("Receipt created successfully:", result);
 
             // Show success message and navigate back
             Alert.alert(
@@ -350,13 +410,23 @@ const CreateReceipts = () => {
         <View style={styles.content}>
             <EnhancedDropdown
                 data={filteredRetailers}
-                labelField="Account_name"
-                valueField="Acc_Id"
+                labelField="label"
+                valueField="Retailer_id" // Changed to use Retailer_id as the valueField
                 placeholder="Select Retailer"
-                value={selectedRetailer}
+                value={selectedRetailer?.Retailer_id}
                 onChange={handleRetailerSelect}
                 containerStyle={styles.dropdownContainer}
                 searchPlaceholder="Search retailers..."
+                itemContainerStyle={styles.dropdownItem}
+                renderItem={(item, index) => (
+                    <View
+                        key={`retailer_item_${item.Retailer_id}_${index}`}
+                        style={styles.dropdownItemContent}>
+                        <Text style={styles.dropdownItemText} numberOfLines={2}>
+                            {item.label}
+                        </Text>
+                    </View>
+                )}
             />
 
             <View style={styles.rowContainer}>
@@ -369,10 +439,21 @@ const CreateReceipts = () => {
                     onChange={handleAmountTypeSelect}
                     containerStyle={styles.dropdownContainer}
                     searchPlaceholder="Search payment types..."
+                    renderItem={(item, index) => (
+                        <View
+                            key={`payment_item_${item.Acc_Id}_${index}`}
+                            style={styles.dropdownItemContent}>
+                            <Text
+                                style={styles.dropdownItemText}
+                                numberOfLines={2}>
+                                {item.Account_Name}
+                            </Text>
+                        </View>
+                    )}
                 />
             </View>
 
-            {selectedRetailer > 0 && pendingBills.length > 0 && (
+            {selectedRetailer?.Retailer_id && pendingBills.length > 0 && (
                 <>
                     <View style={styles.billsHeader}>
                         <TouchableOpacity
@@ -432,7 +513,7 @@ const CreateReceipts = () => {
                 </>
             )}
 
-            {selectedRetailer > 0 &&
+            {selectedRetailer?.Retailer_id &&
                 pendingBills.length === 0 &&
                 !isLoadingBills && (
                     <View style={styles.emptyState}>
@@ -544,14 +625,21 @@ const CreateReceipts = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Create Receipts" navigation={navigation} />
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
+            />
+
             <View style={styles.contentContainer}>
                 {showReceiptView
                     ? renderReceiptCreationView()
                     : renderBillSelectionView()}
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -560,7 +648,7 @@ export default CreateReceipts;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -573,12 +661,14 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     dropdownContainer: {
-        marginBottom: spacing.md,
+        marginBottom: 0, // Remove bottom margin since it's in rowContainer
+        minHeight: 56, // Ensure consistent height
     },
     rowContainer: {
         flexDirection: "row",
+        alignItems: "stretch", // Changed from "center" to "stretch" for equal height
         marginBottom: spacing.md,
-        gap: spacing.sm,
+        gap: spacing.md,
     },
     rowItem: {
         flex: 1,
@@ -846,5 +936,19 @@ const styles = StyleSheet.create({
         ...typography.subtitle1(),
         color: customColors.white,
         fontWeight: "700",
+    },
+
+    dropdownItem: {
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
+    },
+    dropdownItemContent: {
+        padding: spacing.sm,
+        backgroundColor: customColors.white,
+    },
+    dropdownItemText: {
+        ...typography.body2(),
+        color: customColors.grey900,
+        lineHeight: 20,
     },
 });

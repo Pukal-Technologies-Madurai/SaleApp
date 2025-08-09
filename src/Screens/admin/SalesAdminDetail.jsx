@@ -7,7 +7,7 @@ const SalesAdminDetail = ({ route }) => {
     const { order } = route.params;
 
     return (
-        <View style={{ flex: 1, backgroundColor: customColors.background }}>
+        <View style={{ flex: 1, backgroundColor: customColors.primaryDark }}>
             <AppHeader title="Sale order details" />
             <View style={styles.retailerContent}>
                 <View style={styles.orderHeader}>

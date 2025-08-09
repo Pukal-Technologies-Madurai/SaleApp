@@ -21,6 +21,7 @@ import { fetchProducts } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import FormField from "../../Components/FormField";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const EditSaleOrder = ({ route }) => {
     const navigation = useNavigation();
@@ -60,17 +61,22 @@ const EditSaleOrder = ({ route }) => {
                 setUID(userId);
 
                 if (item.Products_List && item.Products_List.length > 0) {
-                    const initialQuantities = item.Products_List.map(product => ({
-                        Item_Id: product.Item_Id.toString(),
-                        Bill_Qty: product.Bill_Qty.toString(),
-                        Item_Rate: product.Item_Rate.toString(),
-                        Amount: product.Amount,
-                    }));
+                    const initialQuantities = item.Products_List.map(
+                        product => ({
+                            Item_Id: product.Item_Id.toString(),
+                            Bill_Qty: product.Bill_Qty.toString(),
+                            Item_Rate: product.Item_Rate.toString(),
+                            Amount: product.Amount,
+                        }),
+                    );
                     setQuantities(initialQuantities);
 
-                    const initialTotal = initialQuantities.reduce((sum, product) => {
-                        return sum + (parseFloat(product.Amount) || 0);
-                    }, 0);
+                    const initialTotal = initialQuantities.reduce(
+                        (sum, product) => {
+                            return sum + (parseFloat(product.Amount) || 0);
+                        },
+                        0,
+                    );
                     setTotal(initialTotal);
                 }
             } catch (err) {
@@ -289,7 +295,7 @@ const EditSaleOrder = ({ route }) => {
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Edit Order"
                 navigation={navigation}
@@ -333,7 +339,8 @@ const EditSaleOrder = ({ route }) => {
                     <ScrollView style={styles.productsContainer}>
                         {filteredProducts.map((product, index) => {
                             const existingQuantity = quantities.find(
-                                q => q.Item_Id === product.Product_Id.toString()
+                                q =>
+                                    q.Item_Id === product.Product_Id.toString(),
                             );
                             return (
                                 <View key={index} style={styles.productCard}>
@@ -360,19 +367,26 @@ const EditSaleOrder = ({ route }) => {
                                                 {product.Units || "N/A"}
                                             </Text>
                                             <FormField
-                                                value={existingQuantity?.Bill_Qty || ""}
+                                                value={
+                                                    existingQuantity?.Bill_Qty ||
+                                                    ""
+                                                }
                                                 onChangeText={text =>
                                                     handleQuantityChange(
                                                         product.Product_Id,
                                                         text,
-                                                        existingQuantity?.Item_Rate || product.Item_Rate,
+                                                        existingQuantity?.Item_Rate ||
+                                                            product.Item_Rate,
                                                     )
                                                 }
                                                 placeholder="Quantity"
                                                 numbersOnly={true}
                                             />
                                             <FormField
-                                                value={existingQuantity?.Item_Rate || product.Item_Rate.toString()}
+                                                value={
+                                                    existingQuantity?.Item_Rate ||
+                                                    product.Item_Rate.toString()
+                                                }
                                                 onChangeText={text =>
                                                     handleRateChange(
                                                         product.Product_Id,
@@ -556,7 +570,7 @@ const EditSaleOrder = ({ route }) => {
                     </Modal>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -565,7 +579,7 @@ export default EditSaleOrder;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     backgroundImage: {
         flex: 1,

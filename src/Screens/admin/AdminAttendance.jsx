@@ -9,6 +9,7 @@ import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { attendanceHistory, fetchSalePerson } from "../../Api/employee";
 import { customColors, shadows, typography } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SummaryCard = ({ icon, title, value, color }) => (
     <View style={[styles.card, { backgroundColor: color }]}>
@@ -108,7 +109,7 @@ const AdminAttendance = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Attendance Report"
                 navigation={navigation}
@@ -242,7 +243,7 @@ const AdminAttendance = () => {
                     </View>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -251,7 +252,7 @@ export default AdminAttendance;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

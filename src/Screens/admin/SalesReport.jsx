@@ -17,6 +17,7 @@ import {
 } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import AppHeader from "../../Components/AppHeader";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SalesReport = ({ navigation, route }) => {
     const {
@@ -121,7 +122,7 @@ const SalesReport = ({ navigation, route }) => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Sales Report"
                 navigation={navigation}
@@ -325,18 +326,19 @@ const SalesReport = ({ navigation, route }) => {
                 </View>
                 <View style={styles.bottomSpacer} />
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         padding: spacing.sm,
+        backgroundColor: customColors.white,
     },
     statsContainer: {
         marginBottom: spacing.sm,

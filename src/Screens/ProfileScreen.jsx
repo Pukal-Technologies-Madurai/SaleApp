@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../Config/Endpoint";
 import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../Components/AppHeader";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const ProfileScreen = () => {
     const navigation = useNavigation();
@@ -81,7 +82,7 @@ const ProfileScreen = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Profile Info" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -153,7 +154,7 @@ const ProfileScreen = () => {
                     </View>
                 </Modal>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -162,13 +163,12 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         width: "100%",
         height: "100%",
         backgroundColor: customColors.white,
-        borderRadius: 15,
     },
     formGroup: {
         margin: 20,

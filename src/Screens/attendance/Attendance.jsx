@@ -20,6 +20,7 @@ import OpenCamera from "../../Components/OpenCamera";
 import LocationIndicator from "../../Components/LocationIndicator";
 import AppHeader from "../../Components/AppHeader";
 import FormField from "../../Components/FormField";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Attendance = locationData => {
     const navigation = useNavigation();
@@ -106,7 +107,7 @@ const Attendance = locationData => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Start Fresh" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -238,7 +239,7 @@ const Attendance = locationData => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -247,13 +248,11 @@ export default Attendance;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
         marginTop: 10,
         paddingTop: 20,
     },

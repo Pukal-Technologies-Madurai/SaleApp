@@ -19,6 +19,7 @@ import {
     shadows,
     spacing,
 } from "../../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const MasterData = () => {
     const navigation = useNavigation();
@@ -199,7 +200,7 @@ const MasterData = () => {
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Master Data" navigation={navigation} />
 
             <View style={styles.contentContainer}>
@@ -293,7 +294,7 @@ const MasterData = () => {
                     modalType={modalType}
                 />
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -302,7 +303,7 @@ export default MasterData;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

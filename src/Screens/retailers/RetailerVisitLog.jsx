@@ -24,6 +24,7 @@ import { visitEntryLog } from "../../Api/retailers";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import { formatTime } from "../../Config/functions";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -196,7 +197,7 @@ const RetailerVisitLog = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <AppHeader
                 title="Log Entries"
                 navigation={navigation}
@@ -264,14 +265,14 @@ const RetailerVisitLog = () => {
                     )}
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

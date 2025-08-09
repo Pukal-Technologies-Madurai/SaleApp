@@ -13,6 +13,7 @@ import {
     shadows,
     spacing,
 } from "../../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const BillSummary = () => {
     const navigation = useNavigation();
@@ -61,7 +62,7 @@ const BillSummary = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Bills Summary"
                 navigation={navigation}
@@ -255,7 +256,7 @@ const BillSummary = () => {
                     </ScrollView>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -264,7 +265,7 @@ export default BillSummary;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

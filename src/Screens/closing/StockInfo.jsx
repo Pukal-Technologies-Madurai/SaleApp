@@ -18,6 +18,7 @@ import { fetchClosingStock } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
 import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const StockInfo = () => {
     const navigation = useNavigation();
@@ -131,7 +132,7 @@ const StockInfo = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Closing Stock Summary"
                 navigation={navigation}
@@ -358,7 +359,7 @@ const StockInfo = () => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -367,7 +368,7 @@ export default StockInfo;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

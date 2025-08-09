@@ -33,6 +33,8 @@ import {
     fetchCreditLiveSale,
     fetchDebitLiveSale,
 } from "../../Api/receipt";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();
@@ -70,7 +72,13 @@ const Sales = ({ route }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLiveSale, setIsLiveSale] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState("cash");
-    const [isDelivery, setIsDelivery] = useState(true);
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
+
+    // Add new state for partial amount
+    const [partialAmount, setPartialAmount] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -476,8 +484,8 @@ const Sales = ({ route }) => {
         const formData = new FormData();
         formData.append("Mode", 1);
         formData.append("Retailer_Id", item.Retailer_Id);
-        formData.append("Latitude", 0);
-        formData.append("Longitude", 0);
+        formData.append("Latitude", location.latitude.toString());
+        formData.append("Longitude", location.longitude.toString());
         formData.append("Narration", "The Sale order has been created.");
         formData.append("EntryBy", uID);
 
@@ -494,7 +502,7 @@ const Sales = ({ route }) => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                navigation.navigate("HomeScreen");
+                // navigation.navigate("HomeScreen");
             } else {
                 throw new Error(data.message);
             }
@@ -512,6 +520,16 @@ const Sales = ({ route }) => {
                 "Please add at least one product to the order",
             );
             return;
+        }
+
+        // Validate partial amount for cash/bank payments
+        if (
+            isLiveSale &&
+            (paymentMethod === "cash" || paymentMethod === "bank")
+        ) {
+            if (!validatePartialAmount()) {
+                return;
+            }
         }
 
         setIsSubmitting(true);
@@ -544,18 +562,24 @@ const Sales = ({ route }) => {
                 return;
             }
 
+            // Use partial amount if provided for cash/bank, otherwise use full amount
+            const paymentAmount =
+                paymentMethod === "cash" || paymentMethod === "bank"
+                    ? parseFloat(partialAmount)
+                    : orderTotal;
+
             // Construct the proper request body for live sales
             const resBody = {
                 Branch_Id: initialValue.Branch_Id,
-                Narration: `Live sale order created with ${paymentMethod.toUpperCase()} and total amount ₹${orderTotal}`,
+                Narration: `Live sale order created with ${paymentMethod.toUpperCase()} payment of ₹${paymentAmount} (Total: ₹${orderTotal})`,
                 Created_by: initialValue.Created_by,
                 GST_Inclusive: 1,
                 IS_IGST: 0,
-                credit_ledger: 31,
-                credit_ledger_name: "Cash Note Off",
-                debit_ledger: debitLedgerData[0]?.Acc_Id, // creditLedgerInfo.id,
-                debit_ledger_name: debitLedgerData[0]?.AC_Reason, //creditLedgerInfo.name,
-                credit_amount: orderTotal,
+                credit_ledger: Number(creditLedgerInfo.id),
+                credit_ledger_name: creditLedgerInfo.name,
+                debit_ledger: debitLedgerData[0]?.Acc_Id,
+                debit_ledger_name: debitLedgerData[0]?.AC_Reason,
+                credit_amount: paymentAmount,
                 Staff_Involved_List: [],
                 Product_Array: initialValue.Product_Array.map(product => ({
                     Item_Id: product.Item_Id,
@@ -587,8 +611,55 @@ const Sales = ({ route }) => {
         );
     };
 
+    // Add validation for partial amount
+    const validatePartialAmount = () => {
+        const amount = parseFloat(partialAmount);
+        if (isNaN(amount) || amount <= 0) {
+            Alert.alert("Error", "Please enter a valid amount");
+            return false;
+        }
+        if (amount > orderTotal) {
+            Alert.alert("Error", "Partial amount cannot exceed total amount");
+            return false;
+        }
+        return true;
+    };
+
+    const handlePaymentMethodChange = method => {
+        setPaymentMethod(method);
+        if (method === "cash" || method === "bank") {
+            // Set the full amount as default
+            setPartialAmount(orderTotal.toString());
+        } else {
+            setPartialAmount("");
+        }
+    };
+
+    // Add useEffect to update partial amount when orderTotal changes
+    useEffect(() => {
+        if (
+            isLiveSale &&
+            (paymentMethod === "cash" || paymentMethod === "bank")
+        ) {
+            setPartialAmount(orderTotal.toString());
+        }
+    }, [isLiveSale, paymentMethod, orderTotal]);
+
+    // Update the TextInput handling
+    const handleAmountFocus = () => {
+        // When user focuses, select all text so they can easily replace it
+        // This is handled by selectTextOnFocus prop
+    };
+
+    const handleAmountChange = value => {
+        // Allow empty value or valid numbers
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            setPartialAmount(value);
+        }
+    };
+
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title={item.Retailer_Name}
                 navigation={navigation}
@@ -598,6 +669,13 @@ const Sales = ({ route }) => {
                 badgeValue={totalItems}
                 showBadge={true}
                 onRightPress={() => setIsSummaryModalVisible(true)}
+            />
+
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
             />
 
             <View style={styles.contentContainer}>
@@ -1032,11 +1110,13 @@ const Sales = ({ route }) => {
                                                     styles.paymentOptionSelected,
                                             ]}
                                             onPress={() =>
-                                                setPaymentMethod("cash")
+                                                handlePaymentMethodChange(
+                                                    "cash",
+                                                )
                                             }>
                                             <Icon
-                                                name="inr"
-                                                size={20}
+                                                name="money"
+                                                size={18}
                                                 color={
                                                     paymentMethod === "cash"
                                                         ? customColors.white
@@ -1052,6 +1132,7 @@ const Sales = ({ route }) => {
                                                 Cash
                                             </Text>
                                         </TouchableOpacity>
+
                                         <TouchableOpacity
                                             style={[
                                                 styles.paymentOption,
@@ -1059,11 +1140,13 @@ const Sales = ({ route }) => {
                                                     styles.paymentOptionSelected,
                                             ]}
                                             onPress={() =>
-                                                setPaymentMethod("bank")
+                                                handlePaymentMethodChange(
+                                                    "bank",
+                                                )
                                             }>
                                             <MaterialIcons
                                                 name="account-balance"
-                                                size={20}
+                                                size={18}
                                                 color={
                                                     paymentMethod === "bank"
                                                         ? customColors.white
@@ -1079,6 +1162,7 @@ const Sales = ({ route }) => {
                                                 Bank
                                             </Text>
                                         </TouchableOpacity>
+
                                         <TouchableOpacity
                                             style={[
                                                 styles.paymentOption,
@@ -1086,11 +1170,13 @@ const Sales = ({ route }) => {
                                                     styles.paymentOptionSelected,
                                             ]}
                                             onPress={() =>
-                                                setPaymentMethod("credit")
+                                                handlePaymentMethodChange(
+                                                    "credit",
+                                                )
                                             }>
                                             <MaterialIcons
                                                 name="credit-card"
-                                                size={20}
+                                                size={18}
                                                 color={
                                                     paymentMethod === "credit"
                                                         ? customColors.white
@@ -1108,20 +1194,65 @@ const Sales = ({ route }) => {
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
-                                </View>
-                            )}
 
-                            {/* Delivery Option (show when Live Sale is enabled) */}
-                            {isLiveSale && (
-                                <View style={styles.deliveryContainer}>
-                                    <CheckBox
-                                        value={isDelivery}
-                                        onValueChange={setIsDelivery}
-                                        style={styles.deliveryCheckbox}
-                                    />
-                                    <Text style={styles.deliveryLabel}>
-                                        Delivery Required
-                                    </Text>
+                                    {/* Payment Amount Input (only for cash/bank) */}
+                                    {(paymentMethod === "cash" ||
+                                        paymentMethod === "bank") && (
+                                        <View
+                                            style={
+                                                styles.partialAmountContainer
+                                            }>
+                                            <Text
+                                                style={
+                                                    styles.partialAmountLabel
+                                                }>
+                                                Payment Amount:
+                                            </Text>
+                                            <View
+                                                style={
+                                                    styles.amountInputContainer
+                                                }>
+                                                <Text
+                                                    style={
+                                                        styles.currencySymbol
+                                                    }>
+                                                    ₹
+                                                </Text>
+                                                <TextInput
+                                                    style={styles.amountInput}
+                                                    value={partialAmount}
+                                                    onChangeText={
+                                                        handleAmountChange
+                                                    }
+                                                    onFocus={handleAmountFocus}
+                                                    keyboardType="numeric"
+                                                    placeholder={orderTotal.toString()}
+                                                    placeholderTextColor={
+                                                        customColors.grey400
+                                                    }
+                                                    selectTextOnFocus={true}
+                                                    returnKeyType="done"
+                                                />
+                                                <Text
+                                                    style={
+                                                        styles.totalAmountText
+                                                    }>
+                                                    Total: ₹
+                                                    {orderTotal.toFixed(2)}
+                                                </Text>
+                                            </View>
+                                            <Text
+                                                style={
+                                                    styles.partialAmountHint
+                                                }>
+                                                {partialAmount &&
+                                                parseFloat(partialAmount) <
+                                                    orderTotal
+                                                    ? `Remaining: ₹${(orderTotal - parseFloat(partialAmount || 0)).toFixed(2)} (Credit)`
+                                                    : "Amount auto-filled. Tap to modify for partial payment"}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
                             )}
 
@@ -1148,17 +1279,30 @@ const Sales = ({ route }) => {
                                         />
                                         <Text style={styles.submitButtonText}>
                                             {isLiveSale
-                                                ? "Complete Live Sale"
+                                                ? `Complete Live Sale`
                                                 : "Submit Order"}
                                         </Text>
-                                        {isLiveSale && (
-                                            <Text
-                                                style={
-                                                    styles.submitButtonSubtext
-                                                }>
-                                                ({paymentMethod.toUpperCase()})
-                                            </Text>
-                                        )}
+                                        {isLiveSale &&
+                                            (paymentMethod === "cash" ||
+                                                paymentMethod === "bank") && (
+                                                <Text
+                                                    style={
+                                                        styles.submitButtonSubtext
+                                                    }>
+                                                    ₹{partialAmount || "0"} (
+                                                    {paymentMethod.toUpperCase()}
+                                                    )
+                                                </Text>
+                                            )}
+                                        {isLiveSale &&
+                                            paymentMethod === "credit" && (
+                                                <Text
+                                                    style={
+                                                        styles.submitButtonSubtext
+                                                    }>
+                                                    (CREDIT)
+                                                </Text>
+                                            )}
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -1166,7 +1310,7 @@ const Sales = ({ route }) => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -1175,7 +1319,7 @@ export default Sales;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -1385,7 +1529,7 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     modalContent: {
-        maxHeight: "80%",
+        maxHeight: "90%",
         backgroundColor: customColors.white,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
@@ -1559,27 +1703,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: customColors.white,
     },
-    deliveryContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        padding: spacing.sm,
-        borderWidth: 1,
-        borderColor: customColors.grey300,
-        backgroundColor: customColors.grey50,
-        borderRadius: 8,
-    },
-    deliveryCheckbox: {
-        marginRight: spacing.sm,
-        transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }], // Slightly larger checkbox
-    },
-    deliveryLabel: {
-        ...typography.body1(),
-        color: customColors.grey700,
-        fontWeight: "500",
-        flex: 1,
-    },
-    // Payment Method Styles
+    // Updated payment method styles
     paymentMethodContainer: {
         marginBottom: spacing.md,
         backgroundColor: customColors.white,
@@ -1596,7 +1720,8 @@ const styles = StyleSheet.create({
     },
     paymentMethodOptions: {
         flexDirection: "row",
-        gap: spacing.sm,
+        gap: spacing.xs,
+        marginBottom: spacing.sm,
     },
     paymentOption: {
         flex: 1,
@@ -1604,23 +1729,85 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         gap: spacing.xs,
-        padding: spacing.sm,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xs,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: customColors.grey300,
         backgroundColor: customColors.white,
+        minHeight: 40,
     },
     paymentOptionSelected: {
         backgroundColor: customColors.success,
         borderColor: customColors.success,
     },
     paymentOptionText: {
-        ...typography.body2(),
+        ...typography.caption(),
         color: customColors.grey700,
         fontWeight: "500",
+        fontSize: 12,
     },
     paymentOptionTextSelected: {
         color: customColors.white,
         fontWeight: "600",
     },
+
+    // New partial amount styles
+    partialAmountContainer: {
+        backgroundColor: customColors.grey50,
+        borderRadius: 8,
+        padding: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    partialAmountLabel: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    amountInputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        paddingHorizontal: spacing.sm,
+        marginBottom: spacing.xs,
+    },
+    currencySymbol: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        marginRight: spacing.xs,
+    },
+    amountInput: {
+        flex: 1,
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        textAlign: "center",
+        paddingVertical: spacing.sm,
+        minHeight: 40,
+    },
+    totalAmountText: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginLeft: spacing.xs,
+    },
+    partialAmountHint: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        textAlign: "center",
+        fontStyle: "italic",
+        lineHeight: 16,
+    },
+
+    // Remove delivery styles (commented out or deleted)
+    // deliveryContainer: { ... },
+    // deliveryCheckbox: { ... },
+    // deliveryLabel: { ... },
 });
