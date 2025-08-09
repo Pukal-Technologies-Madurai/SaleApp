@@ -8,7 +8,16 @@ export const formatTime = dateString => {
 };
 
 export const formatDate = date => {
-    return date.toLocaleDateString("en-US", {
+    // Handle undefined, null, or invalid date objects
+    if (!date) return "Select Date";
+
+    // Ensure it's a valid Date object
+    const validDate = date instanceof Date ? date : new Date(date);
+
+    // Check if the date is valid
+    if (isNaN(validDate.getTime())) return "Invalid Date";
+
+    return validDate.toLocaleDateString("en-US", {
         day: "2-digit",
         month: "short",
         year: "numeric",

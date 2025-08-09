@@ -1,11 +1,27 @@
-import { PermissionsAndroid, StyleSheet, Text, TouchableOpacity, View, Alert, Linking, Platform } from "react-native"
-import React, { useEffect, useState } from "react"
+import {
+    PermissionsAndroid,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    Alert,
+    Linking,
+    Platform,
+} from "react-native";
+import React, { useEffect, useState } from "react";
 import Geolocation from "@react-native-community/geolocation";
 import Icon from "react-native-vector-icons/Ionicons";
 import { customColors, typography } from "../Config/helper";
 
-const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
-    const [location, setLocation] = useState({ latitude: null, longitude: null });
+const LocationIndicator = ({
+    onLocationUpdate,
+    autoFetch = true,
+    showComponent = true,
+}) => {
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -16,9 +32,10 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
                     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
                     {
                         title: "Location Access Required",
-                        message: "This app needs location access to function properly.",
-                        buttonPositive: "OK"
-                    }
+                        message:
+                            "This app needs location access to function properly.",
+                        buttonPositive: "OK",
+                    },
                 );
                 return granted === PermissionsAndroid.RESULTS.GRANTED;
             }
@@ -43,10 +60,10 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
                     [
                         {
                             text: "Open Settings",
-                            onPress: () => Linking.openSettings()
+                            onPress: () => Linking.openSettings(),
                         },
-                        { text: "Cancel", style: "cancel" }
-                    ]
+                        { text: "Cancel", style: "cancel" },
+                    ],
                 );
                 return;
             }
@@ -54,8 +71,8 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
             // Configure geolocation with optimized settings
             Geolocation.setRNConfiguration({
                 skipPermissionRequests: false,
-                authorizationLevel: 'whenInUse',
-                locationProvider: 'auto',
+                authorizationLevel: "whenInUse",
+                locationProvider: "auto",
             });
 
             // First try with high accuracy
@@ -64,7 +81,7 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
                     enableHighAccuracy: true,
                     timeout: 5000,
                     maximumAge: 0,
-                    distanceFilter: 10
+                    distanceFilter: 10,
                 });
                 handleSuccessfulLocation(position);
             } catch (highAccuracyError) {
@@ -74,7 +91,7 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
                         enableHighAccuracy: false,
                         timeout: 10000,
                         maximumAge: 30000,
-                        distanceFilter: 50
+                        distanceFilter: 50,
                     });
                     handleSuccessfulLocation(position);
                 } catch (lowAccuracyError) {
@@ -89,31 +106,31 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
         }
     };
 
-    const getPositionWithOptions = (options) => {
+    const getPositionWithOptions = options => {
         return new Promise((resolve, reject) => {
             Geolocation.getCurrentPosition(
                 position => resolve(position),
                 error => reject(error),
-                options
+                options,
             );
         });
     };
 
-    const handleSuccessfulLocation = (position) => {
+    const handleSuccessfulLocation = position => {
         const { latitude, longitude } = position.coords;
         if (isValidCoordinates(latitude, longitude)) {
             setLocation({ latitude, longitude });
             onLocationUpdate?.({ latitude, longitude });
             setError(null);
         } else {
-            throw new Error('Invalid coordinates received');
+            throw new Error("Invalid coordinates received");
         }
     };
 
     const isValidCoordinates = (lat, lon) => {
         return (
-            typeof lat === 'number' &&
-            typeof lon === 'number' &&
+            typeof lat === "number" &&
+            typeof lon === "number" &&
             !isNaN(lat) &&
             !isNaN(lon) &&
             lat >= -90 &&
@@ -123,7 +140,7 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
         );
     };
 
-    const getErrorMessage = (code) => {
+    const getErrorMessage = code => {
         switch (code) {
             case 1:
                 return "Location permission denied";
@@ -144,13 +161,17 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
         }
     }, [autoFetch]);
 
+    if (!showComponent) {
+        return null;
+    }
+
     return (
         <View style={styles.container}>
             <View style={styles.locationInfo}>
-                <Icon 
-                    name={error ? "warning" : "location"} 
-                    size={20} 
-                    color={error ? customColors.accent2 : customColors.primary} 
+                <Icon
+                    name={error ? "warning" : "location"}
+                    size={20}
+                    color={error ? customColors.accent2 : customColors.primary}
                 />
                 <View style={styles.locationTextContainer}>
                     {location.latitude ? (
@@ -163,26 +184,29 @@ const LocationIndicator = ({ onLocationUpdate, autoFetch = true }) => {
                             </Text>
                         </>
                     ) : (
-                        <Text style={[styles.locationText, error && styles.errorText]}>
+                        <Text
+                            style={[
+                                styles.locationText,
+                                error && styles.errorText,
+                            ]}>
                             {error || "Getting location..."}
                         </Text>
                     )}
                 </View>
             </View>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
                 style={[
-                    styles.refreshButton, 
+                    styles.refreshButton,
                     isLoading && styles.refreshButtonDisabled,
-                    error && styles.refreshButtonError
+                    error && styles.refreshButtonError,
                 ]}
                 onPress={getLocation}
-                disabled={isLoading}
-            >
-                <Icon 
-                    name={isLoading ? "sync" : "refresh"} 
-                    size={20} 
-                    color={error ? customColors.accent2 : customColors.primary} 
+                disabled={isLoading}>
+                <Icon
+                    name={isLoading ? "sync" : "refresh"}
+                    size={20}
+                    color={error ? customColors.accent2 : customColors.primary}
                 />
             </TouchableOpacity>
         </View>
@@ -193,9 +217,9 @@ export default LocationIndicator;
 
 const styles = StyleSheet.create({
     container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
         backgroundColor: customColors.white,
         padding: 12,
         borderRadius: 8,
@@ -207,8 +231,8 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     locationInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         flex: 1,
         gap: 8,
     },
@@ -231,6 +255,6 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     refreshButtonError: {
-        backgroundColor: customColors.accent2 + '20',
+        backgroundColor: customColors.accent2 + "20",
     },
 });

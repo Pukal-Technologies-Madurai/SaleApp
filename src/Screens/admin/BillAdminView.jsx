@@ -14,6 +14,7 @@ import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const BillAdminView = () => {
     const navigation = useNavigation();
@@ -168,16 +169,16 @@ const BillAdminView = () => {
         );
     };
 
-    const handleFromDateChange = (event, date) => {
+    const handleFromDateChange = date => {
         if (date) setSelectedFromDate(date);
     };
 
-    const handleToDateChange = (event, date) => {
+    const handleToDateChange = date => {
         if (date) setSelectedToDate(date);
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader navigation={navigation} title="Collection Information" />
             <View style={styles.contentContainer}>
                 <View style={styles.datePickerContainer}>
@@ -260,18 +261,19 @@ const BillAdminView = () => {
                 </ScrollView>
             </View>
             {renderFilterScreen()}
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         padding: 16,
+        backgroundColor: customColors.background,
     },
     datePickerContainer: {
         flexDirection: "row",

@@ -13,8 +13,8 @@ import { useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/Feather";
-import AntDesign from "react-native-vector-icons/AntDesign";
+import CheckBox from "@react-native-community/checkbox";
+import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 import {
@@ -25,8 +25,16 @@ import {
 } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import { fetchUOM, fetchProducts } from "../../Api/product";
+import { API } from "../../Config/Endpoint";
 import { createSaleOrder } from "../../Api/sales";
+import { fetchUOM, fetchProducts } from "../../Api/product";
+import {
+    createLiveSales,
+    fetchCreditLiveSale,
+    fetchDebitLiveSale,
+} from "../../Api/receipt";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();
@@ -49,8 +57,6 @@ const Sales = ({ route }) => {
     });
 
     const [uID, setUID] = useState([]);
-    // const [productData, setProductData] = useState([]);
-    // const [brandData, setBrandData] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
 
     const [proGroupData, setProGroupData] = useState([]);
@@ -64,6 +70,15 @@ const Sales = ({ route }) => {
 
     const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLiveSale, setIsLiveSale] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState("cash");
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
+
+    // Add new state for partial amount
+    const [partialAmount, setPartialAmount] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -208,6 +223,13 @@ const Sales = ({ route }) => {
                 ...prev,
                 [productId]: uomId,
             }));
+
+            console.log(
+                "Selected UOM for product:",
+                productId,
+                uomId,
+                selectedUOMs[productId],
+            );
 
             // Update Product_Array with new UOM
             setInitialValue(prev => {
@@ -379,6 +401,45 @@ const Sales = ({ route }) => {
         [calculateOrderTotal],
     );
 
+    // Optimized queries for live sale ledger data
+    const { data: debitLedgerData = [], isLoading: isDebitLoading } = useQuery({
+        queryKey: ["debitLedgerData"],
+        queryFn: fetchDebitLiveSale,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+        retry: 2,
+    });
+
+    const { data: creditLedgerData = [], isLoading: isCreditLoading } =
+        useQuery({
+            queryKey: ["creditLedgerData"],
+            queryFn: fetchCreditLiveSale,
+            staleTime: 5 * 60 * 1000, // 5 minutes
+            cacheTime: 10 * 60 * 1000, // 10 minutes
+            retry: 2,
+        });
+
+    // Memoized credit ledger information with validation
+    const creditLedgerInfo = useMemo(() => {
+        if (!creditLedgerData.length) {
+            return { id: 0, name: "", isValid: false };
+        }
+
+        const matchedLedger = creditLedgerData.find(
+            ledger => ledger.Account_name === item.Retailer_Name,
+        );
+
+        if (matchedLedger) {
+            return {
+                id: matchedLedger.Acc_Id,
+                name: matchedLedger.Account_name,
+                isValid: true,
+            };
+        }
+
+        return { id: 0, name: "", isValid: false };
+    }, [creditLedgerData, item.Retailer_Name]);
+
     const mutation = useMutation({
         mutationFn: createSaleOrder,
         onSuccess: data => {
@@ -394,6 +455,63 @@ const Sales = ({ route }) => {
         },
     });
 
+    const liveSaleMutation = useMutation({
+        mutationFn: createLiveSales,
+        onSuccess: data => {
+            Alert.alert(
+                "Live Sale Success",
+                data.message || "Live sale completed successfully!",
+                [
+                    {
+                        text: "OK",
+                        onPress: () => {
+                            setIsSummaryModalVisible(false);
+                            navigation.goBack();
+                        },
+                    },
+                ],
+            );
+        },
+        onError: error => {
+            Alert.alert(
+                "Live Sale Error",
+                error.message || "Failed to complete live sale",
+            );
+        },
+    });
+
+    const handleSubmitforVisitLog = async () => {
+        const formData = new FormData();
+        formData.append("Mode", 1);
+        formData.append("Retailer_Id", item.Retailer_Id);
+        formData.append("Latitude", location.latitude.toString());
+        formData.append("Longitude", location.longitude.toString());
+        formData.append("Narration", "The Sale order has been created.");
+        formData.append("EntryBy", uID);
+
+        try {
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                // navigation.navigate("HomeScreen");
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
+            console.error("Error submitting form:", err);
+        }
+    };
+
     // Handle order submission
     const handleSubmitOrder = async () => {
         if (initialValue.Product_Array.length === 0) {
@@ -404,7 +522,87 @@ const Sales = ({ route }) => {
             return;
         }
 
+        // Validate partial amount for cash/bank payments
+        if (
+            isLiveSale &&
+            (paymentMethod === "cash" || paymentMethod === "bank")
+        ) {
+            if (!validatePartialAmount()) {
+                return;
+            }
+        }
+
         setIsSubmitting(true);
+
+        let createPaymentReceipt = false;
+        if (paymentMethod === "cash" || paymentMethod === "bank") {
+            createPaymentReceipt = true;
+        }
+
+        if (isLiveSale) {
+            // Validate credit ledger information before proceeding
+            if (!creditLedgerInfo.isValid) {
+                setIsSubmitting(false);
+                Alert.alert(
+                    "Account Information Required",
+                    "Credit ledger information is not available for this retailer. Please contact your account manager to set up the account information before proceeding with live sales.",
+                    [{ text: "OK" }],
+                );
+                return;
+            }
+
+            // Validate debit ledger information
+            if (!debitLedgerData.length) {
+                setIsSubmitting(false);
+                Alert.alert(
+                    "Account Configuration Error",
+                    "Debit ledger information is not available. Please contact your account manager.",
+                    [{ text: "OK" }],
+                );
+                return;
+            }
+
+            // Use partial amount if provided for cash/bank, otherwise use full amount
+            const paymentAmount =
+                paymentMethod === "cash" || paymentMethod === "bank"
+                    ? parseFloat(partialAmount)
+                    : orderTotal;
+
+            // Construct the proper request body for live sales
+            const resBody = {
+                Branch_Id: initialValue.Branch_Id,
+                Narration: `Live sale order created with ${paymentMethod.toUpperCase()} payment of ₹${paymentAmount} (Total: ₹${orderTotal})`,
+                Created_by: initialValue.Created_by,
+                GST_Inclusive: 1,
+                IS_IGST: 0,
+                credit_ledger: Number(creditLedgerInfo.id),
+                credit_ledger_name: creditLedgerInfo.name,
+                debit_ledger: debitLedgerData[0]?.Acc_Id,
+                debit_ledger_name: debitLedgerData[0]?.AC_Reason,
+                credit_amount: paymentAmount,
+                Staff_Involved_List: [],
+                Product_Array: initialValue.Product_Array.map(product => ({
+                    Item_Id: product.Item_Id,
+                    Bill_Qty: product.Bill_Qty,
+                    Item_Rate:
+                        editedPrices[product.Item_Id] || product.Item_Rate,
+                    UOM: product.UOM,
+                    Units: product.Units,
+                })),
+                createReceipt: createPaymentReceipt,
+            };
+
+            console.log("Live Sale Request Body:", resBody);
+
+            // Call live sales API
+            liveSaleMutation.mutate(resBody, {
+                onSettled: () => setIsSubmitting(false),
+            });
+            return;
+        }
+
+        handleSubmitforVisitLog();
+
         mutation.mutate(
             { orderData: initialValue },
             {
@@ -413,10 +611,57 @@ const Sales = ({ route }) => {
         );
     };
 
+    // Add validation for partial amount
+    const validatePartialAmount = () => {
+        const amount = parseFloat(partialAmount);
+        if (isNaN(amount) || amount <= 0) {
+            Alert.alert("Error", "Please enter a valid amount");
+            return false;
+        }
+        if (amount > orderTotal) {
+            Alert.alert("Error", "Partial amount cannot exceed total amount");
+            return false;
+        }
+        return true;
+    };
+
+    const handlePaymentMethodChange = method => {
+        setPaymentMethod(method);
+        if (method === "cash" || method === "bank") {
+            // Set the full amount as default
+            setPartialAmount(orderTotal.toString());
+        } else {
+            setPartialAmount("");
+        }
+    };
+
+    // Add useEffect to update partial amount when orderTotal changes
+    useEffect(() => {
+        if (
+            isLiveSale &&
+            (paymentMethod === "cash" || paymentMethod === "bank")
+        ) {
+            setPartialAmount(orderTotal.toString());
+        }
+    }, [isLiveSale, paymentMethod, orderTotal]);
+
+    // Update the TextInput handling
+    const handleAmountFocus = () => {
+        // When user focuses, select all text so they can easily replace it
+        // This is handled by selectTextOnFocus prop
+    };
+
+    const handleAmountChange = value => {
+        // Allow empty value or valid numbers
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            setPartialAmount(value);
+        }
+    };
+
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Sales Order"
+                title={item.Retailer_Name}
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconName="shopping-bag"
@@ -426,190 +671,223 @@ const Sales = ({ route }) => {
                 onRightPress={() => setIsSummaryModalVisible(true)}
             />
 
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
+            />
+
             <View style={styles.contentContainer}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     <View style={styles.filterSection}>
-                        <Text style={styles.label}>
-                            Retailer Name:
-                            <Text
-                                style={{
-                                    ...typography.h6(),
-                                    color: customColors.accent2,
-                                    fontWeight: "bold",
-                                }}>
-                                {" "}
-                                {item.Retailer_Name}
-                            </Text>
-                        </Text>
-
-                        <EnhancedDropdown
-                            data={brandData}
-                            labelField="label"
-                            valueField="value"
-                            placeholder="Select Brand"
-                            value={selectedBrand}
-                            onChange={handleBrandChange}
-                        />
-
-                        <EnhancedDropdown
-                            data={proGroupData}
-                            labelField="label"
-                            valueField="value"
-                            placeholder={
-                                selectedBrand
-                                    ? "Select Product Group"
-                                    : "Select Brand First"
-                            }
-                            value={selectedGroup}
-                            onChange={handleGroupChange}
-                            // containerStyle={[
-                            //     !selectedBrand && styles.disabledDropdown,
-                            // ]}
-                        />
+                        <View style={styles.filterRow}>
+                            <View style={styles.filterItem}>
+                                <EnhancedDropdown
+                                    data={brandData}
+                                    labelField="label"
+                                    valueField="value"
+                                    placeholder="Select Brand"
+                                    value={selectedBrand}
+                                    onChange={handleBrandChange}
+                                    containerStyle={styles.compactDropdown}
+                                />
+                            </View>
+                            <View style={styles.filterItem}>
+                                <EnhancedDropdown
+                                    data={proGroupData}
+                                    labelField="label"
+                                    valueField="value"
+                                    placeholder={
+                                        selectedBrand
+                                            ? "Select Group"
+                                            : "Brand First"
+                                    }
+                                    value={selectedGroup}
+                                    onChange={handleGroupChange}
+                                    containerStyle={styles.compactDropdown}
+                                />
+                            </View>
+                        </View>
                     </View>
 
                     {selectedBrand && selectedGroup && (
                         <View style={styles.productsContainer}>
-                            <Text style={styles.sectionTitle}>
-                                Products ({filteredProducts.length})
-                            </Text>
+                            <View style={styles.sectionHeader}>
+                                <MaterialIcons
+                                    name="inventory"
+                                    size={20}
+                                    color={customColors.primary}
+                                />
+                                <Text style={styles.sectionTitle}>
+                                    Available Products (
+                                    {filteredProducts.length})
+                                </Text>
+                            </View>
+
                             {filteredProducts.map(product => (
                                 <View
                                     key={product.Product_Id}
-                                    style={styles.productItem}>
-                                    <Text style={styles.productName}>
-                                        {product.Product_Name}
-                                        <Text
-                                            style={{
-                                                ...typography.caption(),
-                                                color: customColors.accent2,
-                                                fontWeight: "bold",
-                                            }}>
-                                            Availability: {product.CL_Qty}
+                                    style={styles.productCard}>
+                                    <View style={styles.productHeader}>
+                                        <View style={styles.productInfo}>
+                                            <Text style={styles.productName}>
+                                                {product.Product_Name}
+                                            </Text>
+                                            <View
+                                                style={
+                                                    styles.availabilityContainer
+                                                }>
+                                                <MaterialIcons
+                                                    name="inventory-2"
+                                                    size={14}
+                                                    color={
+                                                        product.CL_Qty > 0
+                                                            ? customColors.success
+                                                            : customColors.error
+                                                    }
+                                                />
+                                                <Text
+                                                    style={[
+                                                        styles.availabilityText,
+                                                        {
+                                                            color:
+                                                                product.CL_Qty >
+                                                                0
+                                                                    ? customColors.success
+                                                                    : customColors.error,
+                                                        },
+                                                    ]}>
+                                                    Stock: {product.CL_Qty}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.basePrice}>
+                                            ₹{product.Item_Rate}
                                         </Text>
-                                    </Text>
-                                    <View style={styles.quantityContainer}>
-                                        <TextInput
-                                            style={styles.quantityInput}
-                                            keyboardType="numeric"
-                                            value={
-                                                orderQuantities[
-                                                    product.Product_Id
-                                                ] || ""
-                                            }
-                                            onChangeText={quantity =>
-                                                handleQuantityChange(
-                                                    product.Product_Id,
-                                                    quantity,
-                                                    product.Item_Rate,
-                                                    product,
-                                                )
-                                            }
-                                            placeholder="0"
-                                            placeholderTextColor={
-                                                customColors.grey
-                                            }
-                                        />
+                                    </View>
 
-                                        <EnhancedDropdown
-                                            data={uomData.map(uom => ({
-                                                label: uom.Units,
-                                                value: uom.Unit_Id,
-                                            }))}
-                                            labelField="label"
-                                            valueField="value"
-                                            placeholder="UOM"
-                                            value={
-                                                selectedUOMs[
-                                                    product.Product_Id
-                                                ] || product.UOM_Id
-                                            }
-                                            onChange={item =>
-                                                handleUOMChange(
-                                                    product.Product_Id,
-                                                    item.value,
-                                                )
-                                            }
-                                            containerStyle={
-                                                styles.uomDropdownContainer
-                                            }
-                                        />
-
-                                        {/* <Dropdown
-                                            style={styles.uomDropdown}
-                                            data={uomData.map(uom => ({
-                                                label: uom.Units,
-                                                value: uom.Unit_Id,
-                                            }))}
-                                            labelField="label"
-                                            valueField="value"
-                                            placeholder="UOM"
-                                            value={
-                                                selectedUOMs[
-                                                    product.Product_Id
-                                                ] || product.UOM_Id
-                                            }
-                                            onChange={item =>
-                                                handleUOMChange(
-                                                    product.Product_Id,
-                                                    item.value,
-                                                )
-                                            }
-                                            containerStyle={
-                                                styles.uomDropdownContainer
-                                            }
-                                            placeholderStyle={
-                                                styles.placeholderStyle
-                                            }
-                                            selectedTextStyle={
-                                                styles.selectedTextStyle
-                                            }
-                                            itemTextStyle={styles.itemTextStyle}
-                                        /> */}
-                                        <View style={styles.priceContainer}>
-                                            <Text style={styles.currencySymbol}>
-                                                ₹
+                                    <View style={styles.orderControls}>
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>
+                                                Qty
                                             </Text>
                                             <TextInput
-                                                style={styles.priceInput}
+                                                style={styles.quantityInput}
                                                 keyboardType="numeric"
                                                 value={
-                                                    priceInputValues[
+                                                    orderQuantities[
                                                         product.Product_Id
-                                                    ] !== undefined
-                                                        ? priceInputValues[
-                                                              product.Product_Id
-                                                          ]
-                                                        : String(
-                                                              editedPrices[
+                                                    ] || ""
+                                                }
+                                                onChangeText={quantity =>
+                                                    handleQuantityChange(
+                                                        product.Product_Id,
+                                                        quantity,
+                                                        product.Item_Rate,
+                                                        product,
+                                                    )
+                                                }
+                                                placeholder="0"
+                                                placeholderTextColor={
+                                                    customColors.grey
+                                                }
+                                            />
+                                        </View>
+
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>
+                                                Unit
+                                            </Text>
+                                            <EnhancedDropdown
+                                                data={uomData.map(uom => ({
+                                                    label: uom.Units,
+                                                    value: uom.Unit_Id,
+                                                }))}
+                                                labelField="label"
+                                                valueField="value"
+                                                placeholder="UOM"
+                                                value={
+                                                    selectedUOMs[
+                                                        product.Product_Id
+                                                    ] || product.UOM_Id
+                                                }
+                                                onChange={item =>
+                                                    handleUOMChange(
+                                                        product.Product_Id,
+                                                        item.value,
+                                                    )
+                                                }
+                                                containerStyle={
+                                                    styles.uomDropdownContainer
+                                                }
+                                                placeholderStyle={
+                                                    styles.uomPlaceholderStyle
+                                                }
+                                                selectedTextStyle={
+                                                    styles.uomSelectedTextStyle
+                                                }
+                                                itemTextStyle={
+                                                    styles.uomItemTextStyle
+                                                }
+                                            />
+                                        </View>
+
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>
+                                                Price
+                                            </Text>
+                                            <View style={styles.priceContainer}>
+                                                <Text
+                                                    style={
+                                                        styles.currencySymbol
+                                                    }>
+                                                    ₹
+                                                </Text>
+                                                <TextInput
+                                                    style={styles.priceInput}
+                                                    keyboardType="numeric"
+                                                    value={
+                                                        priceInputValues[
+                                                            product.Product_Id
+                                                        ] !== undefined
+                                                            ? priceInputValues[
                                                                   product
                                                                       .Product_Id
-                                                              ] ||
-                                                                  product.Item_Rate,
-                                                          )
-                                                }
-                                                onChangeText={price =>
-                                                    handlePriceChange(
-                                                        product.Product_Id,
-                                                        price,
-                                                    )
-                                                }
-                                                onFocus={() =>
-                                                    handlePriceFocus(
-                                                        product.Product_Id,
-                                                        editedPrices[
-                                                            product.Product_Id
-                                                        ] || product.Item_Rate,
-                                                    )
-                                                }
-                                                onBlur={() =>
-                                                    handlePriceBlur(
-                                                        product.Product_Id,
-                                                    )
-                                                }
-                                                placeholder="0.00"
-                                                selectTextOnFocus={true} // This will select all text when focused
-                                            />
+                                                              ]
+                                                            : String(
+                                                                  editedPrices[
+                                                                      product
+                                                                          .Product_Id
+                                                                  ] ||
+                                                                      product.Item_Rate,
+                                                              )
+                                                    }
+                                                    onChangeText={price =>
+                                                        handlePriceChange(
+                                                            product.Product_Id,
+                                                            price,
+                                                        )
+                                                    }
+                                                    onFocus={() =>
+                                                        handlePriceFocus(
+                                                            product.Product_Id,
+                                                            editedPrices[
+                                                                product
+                                                                    .Product_Id
+                                                            ] ||
+                                                                product.Item_Rate,
+                                                        )
+                                                    }
+                                                    onBlur={() =>
+                                                        handlePriceBlur(
+                                                            product.Product_Id,
+                                                        )
+                                                    }
+                                                    placeholder="0.00"
+                                                    selectTextOnFocus={true}
+                                                />
+                                            </View>
                                         </View>
                                     </View>
                                 </View>
@@ -627,25 +905,36 @@ const Sales = ({ route }) => {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Order Summary</Text>
+                            <View style={styles.modalTitleContainer}>
+                                <MaterialIcons
+                                    name="shopping-cart"
+                                    size={24}
+                                    color={customColors.primary}
+                                />
+                                <Text style={styles.modalTitle}>
+                                    Order Summary
+                                </Text>
+                            </View>
                             <TouchableOpacity
                                 onPress={() => setIsSummaryModalVisible(false)}
                                 style={styles.closeButton}>
-                                <AntDesign
-                                    name="closesquareo"
-                                    color="red"
-                                    size={25}
+                                <MaterialIcons
+                                    name="close"
+                                    color={customColors.grey600}
+                                    size={24}
                                 />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={styles.summaryList}>
+                        <ScrollView
+                            style={styles.summaryList}
+                            showsVerticalScrollIndicator={false}>
                             {initialValue.Product_Array.map(item => {
                                 const product = productData.find(
                                     p => p.Product_Id === item.Item_Id,
                                 );
                                 const uom = uomData.find(
-                                    u => u.Unit_Id === item.UOM_Id,
+                                    u => u.Unit_Id === item.UOM,
                                 );
 
                                 return (
@@ -660,24 +949,34 @@ const Sales = ({ route }) => {
                                             <Text style={styles.summaryItemQty}>
                                                 {item.Bill_Qty} {uom?.Units}
                                             </Text>
+                                            <Text
+                                                style={styles.summaryItemRate}>
+                                                ₹{item.Item_Rate} per unit
+                                            </Text>
                                         </View>
-                                        <Text style={styles.summaryItemPrice}>
-                                            ₹
-                                            {(
-                                                item.Bill_Qty * item.Item_Rate
-                                            ).toFixed(2)}
-                                        </Text>
-                                        <TouchableOpacity
-                                            style={styles.deleteButton}
-                                            onPress={() =>
-                                                handleDeleteItem(item.Item_Id)
-                                            }>
-                                            <Icon
-                                                name="delete"
-                                                size={24}
-                                                color="red"
-                                            />
-                                        </TouchableOpacity>
+                                        <View style={styles.summaryItemRight}>
+                                            <Text
+                                                style={styles.summaryItemPrice}>
+                                                ₹
+                                                {(
+                                                    item.Bill_Qty *
+                                                    item.Item_Rate
+                                                ).toFixed(2)}
+                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.deleteButton}
+                                                onPress={() =>
+                                                    handleDeleteItem(
+                                                        item.Item_Id,
+                                                    )
+                                                }>
+                                                <MaterialIcons
+                                                    name="delete-outline"
+                                                    size={20}
+                                                    color={customColors.error}
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 );
                             })}
@@ -693,26 +992,325 @@ const Sales = ({ route }) => {
                                 </Text>
                             </View>
 
+                            {/* Live Sale Toggle */}
+                            <View style={styles.liveSaleContainer}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.liveSaleToggle,
+                                        (isCreditLoading ||
+                                            isDebitLoading ||
+                                            !creditLedgerInfo.isValid) &&
+                                            styles.liveSaleToggleDisabled,
+                                    ]}
+                                    onPress={() => {
+                                        if (isCreditLoading || isDebitLoading)
+                                            return;
+
+                                        if (!creditLedgerInfo.isValid) {
+                                            Alert.alert(
+                                                "Account Setup Required",
+                                                "Live sale is not available for this retailer. Please contact your account manager to set up the account information.",
+                                                [{ text: "OK" }],
+                                            );
+                                            return;
+                                        }
+
+                                        setIsLiveSale(!isLiveSale);
+                                    }}
+                                    disabled={
+                                        isCreditLoading ||
+                                        isDebitLoading ||
+                                        !creditLedgerInfo.isValid
+                                    }
+                                    activeOpacity={0.7}>
+                                    <View style={styles.liveSaleContent}>
+                                        {isCreditLoading || isDebitLoading ? (
+                                            <ActivityIndicator
+                                                size="small"
+                                                color={customColors.grey500}
+                                            />
+                                        ) : (
+                                            <MaterialIcons
+                                                name={
+                                                    creditLedgerInfo.isValid
+                                                        ? "flash-on"
+                                                        : "warning"
+                                                }
+                                                size={20}
+                                                color={
+                                                    !creditLedgerInfo.isValid
+                                                        ? customColors.warning
+                                                        : isLiveSale
+                                                          ? customColors.success
+                                                          : customColors.grey500
+                                                }
+                                            />
+                                        )}
+                                        <Text
+                                            style={[
+                                                styles.liveSaleText,
+                                                {
+                                                    color: !creditLedgerInfo.isValid
+                                                        ? customColors.warning
+                                                        : isLiveSale
+                                                          ? customColors.success
+                                                          : customColors.grey700,
+                                                },
+                                            ]}>
+                                            Live Sale
+                                        </Text>
+                                        <Text
+                                            style={styles.liveSaleDescription}>
+                                            {isCreditLoading || isDebitLoading
+                                                ? "Loading account info..."
+                                                : !creditLedgerInfo.isValid
+                                                  ? "Account setup required"
+                                                  : "Complete sale instantly"}
+                                        </Text>
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.toggle,
+                                            {
+                                                backgroundColor:
+                                                    !creditLedgerInfo.isValid
+                                                        ? customColors.grey300
+                                                        : isLiveSale
+                                                          ? customColors.success
+                                                          : customColors.grey300,
+                                            },
+                                        ]}>
+                                        <View
+                                            style={[
+                                                styles.toggleCircle,
+                                                {
+                                                    marginLeft:
+                                                        isLiveSale &&
+                                                        creditLedgerInfo.isValid
+                                                            ? 21
+                                                            : 2,
+                                                },
+                                            ]}
+                                        />
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Payment Method Selection (only show when Live Sale is enabled) */}
+                            {isLiveSale && (
+                                <View style={styles.paymentMethodContainer}>
+                                    <Text style={styles.paymentMethodLabel}>
+                                        Payment Method:
+                                    </Text>
+                                    <View style={styles.paymentMethodOptions}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.paymentOption,
+                                                paymentMethod === "cash" &&
+                                                    styles.paymentOptionSelected,
+                                            ]}
+                                            onPress={() =>
+                                                handlePaymentMethodChange(
+                                                    "cash",
+                                                )
+                                            }>
+                                            <Icon
+                                                name="money"
+                                                size={18}
+                                                color={
+                                                    paymentMethod === "cash"
+                                                        ? customColors.white
+                                                        : customColors.grey600
+                                                }
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.paymentOptionText,
+                                                    paymentMethod === "cash" &&
+                                                        styles.paymentOptionTextSelected,
+                                                ]}>
+                                                Cash
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.paymentOption,
+                                                paymentMethod === "bank" &&
+                                                    styles.paymentOptionSelected,
+                                            ]}
+                                            onPress={() =>
+                                                handlePaymentMethodChange(
+                                                    "bank",
+                                                )
+                                            }>
+                                            <MaterialIcons
+                                                name="account-balance"
+                                                size={18}
+                                                color={
+                                                    paymentMethod === "bank"
+                                                        ? customColors.white
+                                                        : customColors.grey600
+                                                }
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.paymentOptionText,
+                                                    paymentMethod === "bank" &&
+                                                        styles.paymentOptionTextSelected,
+                                                ]}>
+                                                Bank
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.paymentOption,
+                                                paymentMethod === "credit" &&
+                                                    styles.paymentOptionSelected,
+                                            ]}
+                                            onPress={() =>
+                                                handlePaymentMethodChange(
+                                                    "credit",
+                                                )
+                                            }>
+                                            <MaterialIcons
+                                                name="credit-card"
+                                                size={18}
+                                                color={
+                                                    paymentMethod === "credit"
+                                                        ? customColors.white
+                                                        : customColors.grey600
+                                                }
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.paymentOptionText,
+                                                    paymentMethod ===
+                                                        "credit" &&
+                                                        styles.paymentOptionTextSelected,
+                                                ]}>
+                                                Credit
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {/* Payment Amount Input (only for cash/bank) */}
+                                    {(paymentMethod === "cash" ||
+                                        paymentMethod === "bank") && (
+                                        <View
+                                            style={
+                                                styles.partialAmountContainer
+                                            }>
+                                            <Text
+                                                style={
+                                                    styles.partialAmountLabel
+                                                }>
+                                                Payment Amount:
+                                            </Text>
+                                            <View
+                                                style={
+                                                    styles.amountInputContainer
+                                                }>
+                                                <Text
+                                                    style={
+                                                        styles.currencySymbol
+                                                    }>
+                                                    ₹
+                                                </Text>
+                                                <TextInput
+                                                    style={styles.amountInput}
+                                                    value={partialAmount}
+                                                    onChangeText={
+                                                        handleAmountChange
+                                                    }
+                                                    onFocus={handleAmountFocus}
+                                                    keyboardType="numeric"
+                                                    placeholder={orderTotal.toString()}
+                                                    placeholderTextColor={
+                                                        customColors.grey400
+                                                    }
+                                                    selectTextOnFocus={true}
+                                                    returnKeyType="done"
+                                                />
+                                                <Text
+                                                    style={
+                                                        styles.totalAmountText
+                                                    }>
+                                                    Total: ₹
+                                                    {orderTotal.toFixed(2)}
+                                                </Text>
+                                            </View>
+                                            <Text
+                                                style={
+                                                    styles.partialAmountHint
+                                                }>
+                                                {partialAmount &&
+                                                parseFloat(partialAmount) <
+                                                    orderTotal
+                                                    ? `Remaining: ₹${(orderTotal - parseFloat(partialAmount || 0)).toFixed(2)} (Credit)`
+                                                    : "Amount auto-filled. Tap to modify for partial payment"}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+
                             <TouchableOpacity
                                 style={[
                                     styles.submitButton,
                                     isSubmitting && styles.submitButtonDisabled,
+                                    isLiveSale && styles.liveSaleButton,
                                 ]}
                                 onPress={handleSubmitOrder}
                                 disabled={isSubmitting}>
                                 {isSubmitting ? (
                                     <ActivityIndicator color="white" />
                                 ) : (
-                                    <Text style={styles.submitButtonText}>
-                                        Submit Order
-                                    </Text>
+                                    <View style={styles.submitButtonContent}>
+                                        <MaterialIcons
+                                            name={
+                                                isLiveSale
+                                                    ? "flash-on"
+                                                    : "shopping-bag"
+                                            }
+                                            size={20}
+                                            color={customColors.white}
+                                        />
+                                        <Text style={styles.submitButtonText}>
+                                            {isLiveSale
+                                                ? `Complete Live Sale`
+                                                : "Submit Order"}
+                                        </Text>
+                                        {isLiveSale &&
+                                            (paymentMethod === "cash" ||
+                                                paymentMethod === "bank") && (
+                                                <Text
+                                                    style={
+                                                        styles.submitButtonSubtext
+                                                    }>
+                                                    ₹{partialAmount || "0"} (
+                                                    {paymentMethod.toUpperCase()}
+                                                    )
+                                                </Text>
+                                            )}
+                                        {isLiveSale &&
+                                            paymentMethod === "credit" && (
+                                                <Text
+                                                    style={
+                                                        styles.submitButtonSubtext
+                                                    }>
+                                                    (CREDIT)
+                                                </Text>
+                                            )}
+                                    </View>
                                 )}
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -721,7 +1319,7 @@ export default Sales;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -733,11 +1331,22 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     filterSection: {
-        marginBottom: spacing.lg,
+        marginBottom: spacing.md,
         backgroundColor: customColors.white,
-        borderRadius: 8,
+        borderRadius: 12,
         padding: spacing.md,
         ...shadows.small,
+    },
+    filterRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        alignItems: "center",
+    },
+    filterItem: {
+        flex: 1,
+    },
+    compactDropdown: {
+        marginBottom: 0,
     },
     label: {
         ...typography.h6(),
@@ -781,24 +1390,82 @@ const styles = StyleSheet.create({
     },
     productsContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 8,
+        borderRadius: 12,
         padding: spacing.md,
         ...shadows.small,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: spacing.md,
+        paddingBottom: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
     },
     sectionTitle: {
         ...typography.h5(),
         color: customColors.grey900,
+        marginLeft: spacing.sm,
+        fontWeight: "600",
+    },
+    productCard: {
+        backgroundColor: customColors.grey50,
+        borderRadius: 8,
+        padding: spacing.md,
         marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    productHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: spacing.md,
+    },
+    productInfo: {
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    productName: {
+        ...typography.subtitle1(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
+    },
+    availabilityContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    availabilityText: {
+        ...typography.caption(),
+        fontWeight: "500",
+    },
+    basePrice: {
+        ...typography.subtitle2(),
+        color: customColors.accent2,
+        fontWeight: "500",
+    },
+    orderControls: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        alignItems: "flex-end",
+    },
+    inputGroup: {
+        flex: 1,
+    },
+    inputLabel: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     productItem: {
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
         paddingVertical: spacing.sm,
-    },
-    productName: {
-        ...typography.h6(),
-        color: customColors.grey900,
-        marginBottom: spacing.xs,
     },
     quantityContainer: {
         flexDirection: "row",
@@ -807,39 +1474,40 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     quantityInput: {
-        width: 60,
         height: 40,
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 4,
+        borderRadius: 6,
         padding: spacing.xs,
         textAlign: "center",
         ...typography.body1(),
         color: customColors.grey900,
-    },
-    uomDropdown: {
-        width: 120,
-        height: 40,
-        borderColor: customColors.grey300,
-        borderWidth: 1,
-        borderRadius: 4,
-        paddingHorizontal: spacing.sm,
         backgroundColor: customColors.white,
     },
     uomDropdownContainer: {
-        width: "40%",
+        borderRadius: 6,
+    },
+    uomPlaceholderStyle: {
+        ...typography.label(),
+        color: customColors.grey500,
+    },
+    uomSelectedTextStyle: {
+        ...typography.label(),
         color: customColors.grey900,
-        borderRadius: 4,
+        fontWeight: "500",
+    },
+    uomItemTextStyle: {
+        ...typography.label(),
+        color: customColors.grey900,
     },
     priceContainer: {
         flexDirection: "row",
         alignItems: "center",
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 4,
+        borderRadius: 6,
         paddingHorizontal: spacing.xs,
         backgroundColor: customColors.white,
-        minWidth: 75,
         height: 40,
     },
     currencySymbol: {
@@ -861,7 +1529,7 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     modalContent: {
-        maxHeight: "80%",
+        maxHeight: "90%",
         backgroundColor: customColors.white,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
@@ -872,49 +1540,74 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: spacing.md,
-        paddingBottom: spacing.sm,
+        paddingBottom: spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
+    },
+    modalTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
     },
     modalTitle: {
         ...typography.h4(),
         color: customColors.grey900,
+        fontWeight: "600",
     },
     closeButton: {
         padding: spacing.xs,
+        borderRadius: 20,
+        backgroundColor: customColors.grey100,
     },
     summaryList: {
-        maxHeight: "60%",
+        maxHeight: "50%",
+        marginBottom: spacing.md,
     },
     summaryItem: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.sm,
+        marginBottom: spacing.xs,
+        backgroundColor: customColors.grey50,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
     summaryItemDetails: {
         flex: 1,
         marginRight: spacing.sm,
     },
     summaryItemName: {
-        ...typography.body1(),
+        ...typography.subtitle2(),
         color: customColors.grey900,
+        fontWeight: "600",
         marginBottom: spacing.xs,
     },
     summaryItemQty: {
-        ...typography.body2(),
+        ...typography.caption(),
         color: customColors.grey700,
+        marginBottom: 2,
+    },
+    summaryItemRate: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        fontStyle: "italic",
+    },
+    summaryItemRight: {
+        alignItems: "flex-end",
+        gap: spacing.xs,
     },
     summaryItemPrice: {
-        ...typography.body1(),
-        fontWeight: "bold",
-        marginLeft: spacing.md,
-        color: customColors.grey900,
+        ...typography.subtitle2(),
+        fontWeight: "700",
+        color: customColors.primary,
     },
     deleteButton: {
         padding: spacing.xs,
+        borderRadius: 4,
+        backgroundColor: customColors.errorLight,
     },
     summaryFooter: {
         paddingTop: spacing.md,
@@ -937,12 +1630,20 @@ const styles = StyleSheet.create({
         color: customColors.primary,
     },
     submitButton: {
-        backgroundColor: customColors.accent,
-        borderRadius: 8,
+        backgroundColor: customColors.primary,
+        borderRadius: 12,
         padding: spacing.md,
         alignItems: "center",
-        marginTop: spacing.sm,
-        ...shadows.small,
+        marginTop: spacing.md,
+        ...shadows.medium,
+    },
+    liveSaleButton: {
+        backgroundColor: customColors.success,
+    },
+    submitButtonContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
     },
     submitButtonDisabled: {
         opacity: 0.7,
@@ -950,5 +1651,163 @@ const styles = StyleSheet.create({
     submitButtonText: {
         ...typography.button(),
         color: customColors.white,
+        fontWeight: "600",
     },
+    submitButtonSubtext: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.9,
+        marginLeft: spacing.xs,
+    },
+    // Live Sale Styles
+    liveSaleContainer: {
+        marginBottom: spacing.md,
+        backgroundColor: customColors.grey50,
+        borderRadius: 12,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    liveSaleToggle: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    liveSaleToggleDisabled: {
+        opacity: 0.6,
+    },
+    liveSaleContent: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    liveSaleText: {
+        ...typography.subtitle2(),
+        fontWeight: "600",
+    },
+    liveSaleDescription: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginLeft: spacing.sm,
+    },
+    toggle: {
+        width: 40,
+        height: 20,
+        borderRadius: 10,
+        justifyContent: "center",
+    },
+    toggleCircle: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: customColors.white,
+    },
+    // Updated payment method styles
+    paymentMethodContainer: {
+        marginBottom: spacing.md,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: customColors.success,
+    },
+    paymentMethodLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        marginBottom: spacing.sm,
+    },
+    paymentMethodOptions: {
+        flexDirection: "row",
+        gap: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    paymentOption: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xs,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        backgroundColor: customColors.white,
+        minHeight: 40,
+    },
+    paymentOptionSelected: {
+        backgroundColor: customColors.success,
+        borderColor: customColors.success,
+    },
+    paymentOptionText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "500",
+        fontSize: 12,
+    },
+    paymentOptionTextSelected: {
+        color: customColors.white,
+        fontWeight: "600",
+    },
+
+    // New partial amount styles
+    partialAmountContainer: {
+        backgroundColor: customColors.grey50,
+        borderRadius: 8,
+        padding: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    partialAmountLabel: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    amountInputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        paddingHorizontal: spacing.sm,
+        marginBottom: spacing.xs,
+    },
+    currencySymbol: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        marginRight: spacing.xs,
+    },
+    amountInput: {
+        flex: 1,
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        textAlign: "center",
+        paddingVertical: spacing.sm,
+        minHeight: 40,
+    },
+    totalAmountText: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginLeft: spacing.xs,
+    },
+    partialAmountHint: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        textAlign: "center",
+        fontStyle: "italic",
+        lineHeight: 16,
+    },
+
+    // Remove delivery styles (commented out or deleted)
+    // deliveryContainer: { ... },
+    // deliveryCheckbox: { ... },
+    // deliveryLabel: { ... },
 });

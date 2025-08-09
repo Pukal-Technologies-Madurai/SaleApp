@@ -10,6 +10,7 @@ import {
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { customColors, typography } from "../Config/helper";
 import AppHeader from "../Components/AppHeader";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -60,6 +61,17 @@ const StatisticsScreen = ({ route, navigation }) => {
 
         return userVisits.map((visit, index) => (
             <View key={index} style={styles.visitDetailItem}>
+                <Icon
+                    name={
+                        visit.IsExistingRetailer === 1
+                            ? "check-circle"
+                            : "alert-circle"
+                    }
+                    size={20}
+                    color={
+                        visit.IsExistingRetailer === 1 ? "#2ECC71" : "#E74C3C"
+                    }
+                />
                 <Text
                     style={[
                         visit.IsExistingRetailer === 1
@@ -169,6 +181,54 @@ const StatisticsScreen = ({ route, navigation }) => {
                 {title === "Check-In's" || title === "Sales"
                     ? expandedUser === name && (
                           <View style={styles.visitDetailsContainer}>
+                              <View style={styles.newUserCountContainer}>
+                                  <Text
+                                      style={[
+                                          styles.userCountName,
+                                          visitData.filter(
+                                              visit =>
+                                                  visit.EntryByGet === name &&
+                                                  visit.IsExistingRetailer ===
+                                                      1,
+                                          ).length > 0
+                                              ? { color: "#2ECC71" }
+                                              : {},
+                                      ]}>
+                                      isExisting:{" "}
+                                      {
+                                          visitData.filter(
+                                              visit =>
+                                                  visit.EntryByGet === name &&
+                                                  visit.IsExistingRetailer ===
+                                                      1,
+                                          ).length
+                                      }
+                                  </Text>
+                                  <Text
+                                      style={[
+                                          styles.userCountName,
+                                          visitData.filter(
+                                              visit =>
+                                                  visit.EntryByGet === name &&
+                                                  visit.IsExistingRetailer ===
+                                                      0,
+                                          ).length > 0
+                                              ? { color: "#E74C3C" }
+                                              : {},
+                                          { marginLeft: -18 },
+                                      ]}>
+                                      isNew:{" "}
+                                      {
+                                          visitData.filter(
+                                              visit =>
+                                                  visit.EntryByGet === name &&
+                                                  visit.IsExistingRetailer ===
+                                                      0,
+                                          ).length
+                                      }
+                                  </Text>
+                              </View>
+
                               {renderVisitDetails(name)}
                           </View>
                       )
@@ -178,7 +238,7 @@ const StatisticsScreen = ({ route, navigation }) => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <AppHeader
                 navigation={navigation}
                 showDrawer={false}
@@ -198,18 +258,19 @@ const StatisticsScreen = ({ route, navigation }) => {
                 showsVerticalScrollIndicator={true}>
                 {renderContent()}
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     content: {
         flex: 1,
         padding: 20,
+        backgroundColor: customColors.background,
     },
     scrollViewContent: {
         paddingBottom: 20,
@@ -312,6 +373,13 @@ const styles = StyleSheet.create({
     detailValue: {
         ...typography.body1(),
         fontWeight: "bold",
+    },
+
+    newUserCountContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 8,
+        alignItems: "center",
     },
 });
 

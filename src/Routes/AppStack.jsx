@@ -22,7 +22,6 @@ import Attendance from "../Screens/attendance/Attendance";
 import AttendanceInfo from "../Screens/attendance/AttendanceInfo";
 import AttendanceReport from "../Screens/attendance/AttendanceReport";
 import EndDay from "../Screens/attendance/EndDay";
-import StockClosing from "../Screens/closing/StockClosing";
 import StockInfo from "../Screens/closing/StockInfo";
 import OrderPreview from "../Screens/sales/OrderPreview";
 import SaleHistory from "../Screens/sales/SaleHistory";
@@ -41,6 +40,12 @@ import TripDetails from "../Screens/delivery/TripDetails";
 import TripSheet from "../Screens/delivery/TripSheet";
 import Sales from "../Screens/sales/Sales";
 import SalesAdminDetail from "../Screens/admin/SalesAdminDetail";
+import StockClosing from "../Screens/closing/StockClosing";
+import ClosingStock from "../Screens/closing/ClosingStock";
+import RoutePath from "../Screens/retailers/RoutePath";
+import CreateReceipts from "../Screens/bills/CreateReceipts";
+import ReceiptInfo from "../Screens/bills/ReceiptInfo";
+import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
 
 const Stack = createStackNavigator();
 
@@ -67,6 +72,7 @@ const AppStack = () => {
 
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
 
+            <Stack.Screen name="RoutePath" component={RoutePath} />
             <Stack.Screen name="AddCustomer" component={AddCustomer} />
             <Stack.Screen name="Customers" component={Customers} />
             <Stack.Screen
@@ -83,7 +89,7 @@ const AppStack = () => {
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
 
-            <Stack.Screen name="StockClosing" component={StockClosing} />
+            <Stack.Screen name="ClosingStock" component={ClosingStock} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
 
             <Stack.Screen name="BillPayment" component={BillPayment} />
@@ -91,6 +97,10 @@ const AppStack = () => {
             <Stack.Screen name="DeliveryUpdate" component={DeliveryUpdate} />
             <Stack.Screen name="TripDetails" component={TripDetails} />
             <Stack.Screen name="TripSheet" component={TripSheet} />
+
+            <Stack.Screen name="CreateReceipts" component={CreateReceipts} />
+            <Stack.Screen name="ReceiptInfo" component={ReceiptInfo} />
+            <Stack.Screen name="ReceiptAdmin" component={ReceiptAdmin} />
 
             <Stack.Screen name="AdminAttendance" component={AdminAttendance} />
             <Stack.Screen name="BillAdminView" component={BillAdminView} />
@@ -105,6 +115,7 @@ const AppStack = () => {
 
             {/* Not Used */}
             <Stack.Screen name="Sales" component={Sales} />
+            <Stack.Screen name="StockClosing" component={StockClosing} />
             <Stack.Screen
                 name="SalesAdminDetail"
                 component={SalesAdminDetail}

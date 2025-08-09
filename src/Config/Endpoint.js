@@ -1,5 +1,6 @@
 let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
 // let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
+// let baseURL = "http://test.erpsmt.in/";
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
 
 export const setBaseUrl = url => {
@@ -20,6 +21,8 @@ export const API = {
     areas: () => `${baseURL}api/masters/areas`,
     state: () => `${baseURL}api/masters/state`,
     district: () => `${baseURL}api/masters/district`,
+
+    users: () => `${baseURL}api/masters/users?Company_id=`,
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
@@ -55,6 +58,33 @@ export const API = {
     closingStockAreaBased: () =>
         `${baseURL}api/masters/retailers/closingStock/areaBased?Company_id=`,
 
+    accountsMaster: () => `${baseURL}api/masters/accounts`,
+
+    customerWhoHasBills: () => `${baseURL}api/receipt/getCustomerWhoHasBills`,
+
+    createReceipt: () => `${baseURL}api/receipt/receiptMaster`,
+    userInvoltedReceipts: () =>
+        `${baseURL}api/receipt/receiptMaster?createdBy=`,
+
+    getReceipt: () => `${baseURL}api/receipt/receiptMaster?Fromdate=`,
+
+    salesLive: () => `${baseURL}api/sales/salesInvoice/liveSales`,
+
+    pendingSalesInvoice: () =>
+        `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt?Acc_Id=`,
+
+    retailerBasedPendingSalesInvoiceReceipt: () =>
+        `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt/retailerBased?Retailer_id=`,
+
+    defaultAccountMaster: () =>
+        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=MOBILE_CASH`,
+
+    defaultDebitLiveSales: () =>
+        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=ONLINE_LIVE_SALES`,
+
+    defaultCreditAccountMaster: () => `${baseURL}api/masters/accountMaster`,
+
+    setRoutePath: () => `${baseURL}api/masters/setRoutes`,
     getRetailersWhoHasBills: () =>
         `${baseURL}api/receipt/getRetailersWhoHasBills`,
     retailerPendingBills: () =>
@@ -64,6 +94,9 @@ export const API = {
 
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",
+
+    retailerwiseClosingStock: () =>
+        `${baseURL}api/masters/retailers/soldProducts?Retailer_Id=`,
 
     // Not Used API
     company: () => `${baseURL}api/masters/company?Company_id=`,

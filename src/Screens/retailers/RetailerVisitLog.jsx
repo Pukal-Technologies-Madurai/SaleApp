@@ -13,7 +13,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import {
     customColors,
@@ -25,6 +24,7 @@ import { visitEntryLog } from "../../Api/retailers";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import { formatTime } from "../../Config/functions";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -54,7 +54,7 @@ const RetailerVisitLog = () => {
         enabled: !!userId && !!formattedDate,
     });
 
-    const handleDateChange = (event, selectedDate) => {
+    const handleDateChange = selectedDate => {
         if (selectedDate) {
             setSelectedDate(selectedDate);
         }
@@ -197,7 +197,7 @@ const RetailerVisitLog = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <AppHeader
                 title="Log Entries"
                 navigation={navigation}
@@ -265,14 +265,14 @@ const RetailerVisitLog = () => {
                     )}
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

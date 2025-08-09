@@ -5,11 +5,9 @@ import {
     StyleSheet,
     FlatList,
     TouchableOpacity,
-    ImageBackground,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../../Config/helper";
-import assetImages from "../../Config/Image";
 
 const TripDetails = ({ route, navigation }) => {
     const { tripNo, tripDate, retailers, deliveryPerson } = route.params;
@@ -311,7 +309,7 @@ const styles = StyleSheet.create({
     },
     overlay: {
         flex: 1,
-        backgroundColor: customColors.primary,
+        backgroundColor: customColors.primaryDark,
     },
     headerContainer: {
         flexDirection: "row",

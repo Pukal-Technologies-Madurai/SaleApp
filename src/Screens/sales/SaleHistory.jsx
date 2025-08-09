@@ -12,6 +12,7 @@ import {
     typography,
     spacing,
 } from "../../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SaleHistory = ({ route }) => {
     const { item } = route.params;
@@ -49,7 +50,7 @@ const SaleHistory = ({ route }) => {
         enabled: !!item.Retailer_Id || !!selectedFromDate || !!selectedToDate,
     });
 
-    const handleDateChange = async (event, date, type) => {
+    const handleDateChange = async (date, type) => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
             if (type === "from") {
@@ -77,16 +78,16 @@ const SaleHistory = ({ route }) => {
     }, {});
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <View style={styles.mainContainer}>
-                <AppHeader title="Order Summary" navigation={navigation} />
+                <AppHeader title="Order History" navigation={navigation} />
 
                 <View style={styles.datePickerRow}>
                     <View style={styles.datePickerWrapper}>
                         <DatePickerButton
                             date={new Date(selectedFromDate)}
-                            onDateChange={(event, date) => {
-                                handleDateChange(event, date, "from");
+                            onDateChange={date => {
+                                handleDateChange(date, "from");
                             }}
                             mode="date"
                             title="From Date"
@@ -96,8 +97,8 @@ const SaleHistory = ({ route }) => {
                     <View style={styles.datePickerWrapper}>
                         <DatePickerButton
                             date={new Date(selectedToDate)}
-                            onDateChange={(event, date) => {
-                                handleDateChange(event, date, "to");
+                            onDateChange={date => {
+                                handleDateChange(date, "to");
                             }}
                             mode="date"
                             title="To Date"
@@ -210,7 +211,7 @@ const SaleHistory = ({ route }) => {
                     ))}
                 </ScrollView>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -219,7 +220,7 @@ export default SaleHistory;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     mainContainer: {
         flex: 1,
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     },
     scrollContainer: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.white,
     },
     scrollContent: {
         paddingVertical: spacing.sm,

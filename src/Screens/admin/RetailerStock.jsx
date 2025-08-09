@@ -13,6 +13,7 @@ import { customColors, typography } from "../../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API } from "../../Config/Endpoint";
 import AppHeader from "../../Components/AppHeader";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const RetailerStock = () => {
     const navigation = useNavigation();
@@ -235,7 +236,7 @@ const RetailerStock = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 navigation={navigation}
                 title="Retailers Stock Info"
@@ -425,7 +426,7 @@ const RetailerStock = () => {
                     renderBrandView()
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 

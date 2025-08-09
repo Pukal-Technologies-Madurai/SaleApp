@@ -27,6 +27,7 @@ import LocationIndicator from "../../Components/LocationIndicator";
 import assetImages from "../../Config/Image";
 import AppHeader from "../../Components/AppHeader";
 import { updateRetailerLocation } from "../../Api/retailers";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const CustomersDetails = ({ route }) => {
     const { item } = route.params;
@@ -112,7 +113,7 @@ const CustomersDetails = ({ route }) => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Retailer Details" navigation={navigation} />
 
             <ScrollView style={styles.contentContainer}>
@@ -161,7 +162,7 @@ const CustomersDetails = ({ route }) => {
                         label="Stock"
                         icon={assetImages.closingStock}
                         onPress={() =>
-                            navigation.navigate("StockClosing", {
+                            navigation.navigate("ClosingStock", {
                                 item,
                             })
                         }
@@ -287,7 +288,7 @@ const CustomersDetails = ({ route }) => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -298,11 +299,12 @@ const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         padding: spacing.md,
+        backgroundColor: customColors.white,
     },
     card: {
         ...componentStyles.card,

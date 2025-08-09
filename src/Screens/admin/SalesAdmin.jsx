@@ -3,15 +3,17 @@ import {
     StyleSheet,
     Text,
     View,
+    TextInput,
     TouchableOpacity,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
-import DatePickerButton from "../../Components/DatePickerButton";
+import Accordion from "../../Components/Accordion";
 import { API } from "../../Config/Endpoint";
 import {
     customColors,
@@ -19,6 +21,8 @@ import {
     spacing,
     typography,
 } from "../../Config/helper";
+import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SalesAdmin = () => {
     const navigation = useNavigation();
@@ -32,10 +36,12 @@ const SalesAdmin = () => {
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [productSummary, setProductSummary] = useState([]);
-    const [totalOrderAmount, setTotalOrderAmount] = useState(0);
     const [expandedItemId, setExpandedItemId] = useState(null);
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandList, setBrandList] = useState([]);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -96,20 +102,18 @@ const SalesAdmin = () => {
             const data = await response.json();
 
             if (data.success === true && Array.isArray(data.data)) {
-                console.log("Data received:", data.data.length, "items");
+                // console.log("Data received:", data.data.length, "items");
                 setLogData(data.data);
                 calculateProductSummaryAndTotals(data.data);
             } else {
-                console.log("No data received or invalid response format");
+                // console.log("No data received or invalid response format");
                 setLogData([]);
                 setProductSummary([]);
-                setTotalOrderAmount(0);
             }
         } catch (error) {
             console.log("Error fetching logs: ", error);
             setLogData([]);
             setProductSummary([]);
-            setTotalOrderAmount(0);
         }
     };
 
@@ -137,7 +141,6 @@ const SalesAdmin = () => {
         });
 
         setProductSummary(Object.values(summary));
-        setTotalOrderAmount(totalAmount);
     };
 
     const fetchSalesPerson = async companyId => {
@@ -161,14 +164,14 @@ const SalesAdmin = () => {
         }
     };
 
-    const handleFromDateChange = (event, date) => {
+    const handleFromDateChange = date => {
         if (date) {
             const newFromDate = date > selectedToDate ? selectedToDate : date;
             setSelectedFromDate(newFromDate);
         }
     };
 
-    const handleToDateChange = (event, date) => {
+    const handleToDateChange = date => {
         if (date) {
             const newToDate = date < selectedFromDate ? selectedFromDate : date;
             setSelectedToDate(newToDate);
@@ -204,182 +207,70 @@ const SalesAdmin = () => {
         );
     };
 
-    // const toggleAccordion = index => {
-    //     setExpandedItem(expandedItem === index ? null : index);
-    // };
-
-    const toggleAccordion = orderId => {
-        setExpandedItemId(expandedItemId === orderId ? null : orderId);
+    const renderHeader = item => {
+        return (
+            <View style={styles.accordionHeader}>
+                <View style={styles.headerLeft}>
+                    <Text style={styles.retailerName} numberOfLines={1}>
+                        {item.Retailer_Name}
+                    </Text>
+                    <Text style={styles.orderDate}>
+                        {item.So_Date
+                            ? new Date(item.So_Date).toLocaleDateString("en-GB")
+                            : "N/A"}
+                    </Text>
+                </View>
+                <View style={styles.headerRight}>
+                    <Text style={styles.orderAmount}>
+                        ₹{item.Total_Invoice_value}
+                    </Text>
+                    <Text style={styles.orderCount}>
+                        {item.Products_List.length} items
+                    </Text>
+                </View>
+            </View>
+        );
     };
 
-    // const renderRetailerItem = (item, index) => {
-    //     // const isExpanded = expandedItem === index;
-    //     const isExpanded = expandedItemId === item.So_Id;
-
-    //     return (
-    //         <View key={item.So_Id} style={styles.retailerContainer}>
-    //             <TouchableOpacity
-    //                 style={styles.retailerHeader}
-    //                 onPress={() => toggleAccordion(item.So_Id)}>
-    //                 <View style={styles.retailerHeaderContent}>
-    //                     <Text style={styles.retailerName} numberOfLines={2}>
-    //                         {item.Retailer_Name}
-    //                     </Text>
-    //                     <View style={styles.headerRight}>
-    //                         <Text style={styles.orderAmount}>
-    //                             ₹{item.Total_Invoice_value}
-    //                         </Text>
-    //                         <MaterialCommunityIcons
-    //                             name={
-    //                                 isExpanded ? "chevron-up" : "chevron-down"
-    //                             }
-    //                             size={24}
-    //                             color={customColors.white}
-    //                         />
-    //                     </View>
-    //                 </View>
-    //             </TouchableOpacity>
-
-    //             {isExpanded && (
-    //                 <View style={styles.retailerContent}>
-    //                     <View style={styles.orderHeader}>
-    //                         <Text style={styles.orderId}>
-    //                             Order #{item.So_Id}
-    //                         </Text>
-    //                         <Text style={styles.orderDate}>
-    //                             {new Date(item.So_Date).toLocaleDateString()}
-    //                         </Text>
-    //                     </View>
-
-    //                     <View style={styles.productsList}>
-    //                         <View style={styles.productHeader}>
-    //                             <Text
-    //                                 style={[
-    //                                     styles.retailerProductCell,
-    //                                     styles.retailerProductNameCell,
-    //                                 ]}>
-    //                                 Product
-    //                             </Text>
-    //                             <Text style={styles.retailerProductCell}>
-    //                                 Qty
-    //                             </Text>
-    //                             <Text style={styles.retailerProductCell}>
-    //                                 Amount
-    //                             </Text>
-    //                         </View>
-
-    //                         {item.Products_List.map((product, pIndex) => (
-    //                             <View
-    //                                 key={`${item.So_Id}-${pIndex}`}
-    //                                 style={styles.productRow}>
-    //                                 <Text
-    //                                     style={[
-    //                                         styles.retailerProductCell,
-    //                                         { flex: 2, flexWrap: "wrap" },
-    //                                     ]}
-    //                                     numberOfLines={3}>
-    //                                     {product.Product_Name}
-    //                                 </Text>
-    //                                 <Text style={styles.retailerProductCell}>
-    //                                     {product.Bill_Qty}
-    //                                 </Text>
-    //                                 <Text style={styles.retailerProductCell}>
-    //                                     ₹{product.Amount}
-    //                                 </Text>
-    //                             </View>
-    //                         ))}
-
-    //                         <View style={styles.orderTotal}>
-    //                             <Text style={styles.totalLabel}>Total</Text>
-    //                             <Text style={styles.totalAmount}>
-    //                                 ₹{item.Total_Invoice_value}
-    //                             </Text>
-    //                         </View>
-    //                     </View>
-    //                 </View>
-    //             )}
-    //         </View>
-    //     );
-    // };
-
-    const renderRetailerItem = item => {
+    const renderContent = item => {
         return (
-            <View key={item.So_Id} style={styles.retailerContainer}>
-                {/* Header */}
-                <View style={styles.retailerHeader}>
-                    <View style={styles.retailerHeaderContent}>
-                        <Text style={styles.retailerName} numberOfLines={2}>
-                            {item.Retailer_Name}
-                        </Text>
-                        <View style={styles.headerRight}>
-                            <Text style={styles.orderAmount}>
-                                ₹{item.Total_Invoice_value}
-                            </Text>
-                        </View>
-                    </View>
+            <View style={styles.content}>
+                <View style={styles.orderInfo}>
+                    <Text style={styles.orderNumber}>Order #{item.So_Id}</Text>
+                    <Text style={styles.createdBy}>
+                        by {item.Created_BY_Name}
+                    </Text>
                 </View>
 
-                {/* Body: Products List */}
-                <View style={styles.retailerContent}>
-                    <Text style={styles.orderId}>
-                        Invoice: {item.So_Inv_No}
-                    </Text>
-                    <View style={styles.productsList}>
-                        <View style={styles.productHeader}>
-                            <Text
-                                style={[
-                                    styles.retailerProductCell,
-                                    styles.retailerProductNameCell,
-                                ]}>
-                                Product
-                            </Text>
-                            <Text
-                                style={[
-                                    styles.retailerProductCell,
-                                    { textAlign: "center" },
-                                ]}>
-                                Qty
-                            </Text>
-                            <Text style={styles.retailerProductCell}>
-                                Amount
-                            </Text>
-                        </View>
-
-                        {item.Products_List.map((product, pIndex) => (
-                            <View
-                                key={`${item.So_Id}-${pIndex}`}
-                                style={styles.productRow}>
+                <View style={styles.productsContainer}>
+                    {item.Products_List.map((product, index) => (
+                        <View key={index} style={styles.productItem}>
+                            <View style={styles.productInfo}>
                                 <Text
-                                    style={[
-                                        styles.retailerProductCell,
-                                        {
-                                            flex: 3,
-                                            flexWrap: "wrap",
-                                            textAlign: "left",
-                                        },
-                                    ]}
+                                    style={styles.productName}
                                     numberOfLines={3}>
                                     {product.Product_Name}
                                 </Text>
-                                <Text
-                                    style={[
-                                        styles.retailerProductCell,
-                                        { textAlign: "center" },
-                                    ]}>
-                                    {product.Total_Qty}
-                                </Text>
-                                <Text style={styles.retailerProductCell}>
-                                    ₹{product.Final_Amo.toFixed(2)}
+                                <Text style={styles.productDetails}>
+                                    Qty: {product.Bill_Qty || product.Total_Qty}{" "}
+                                    • ₹{product.Item_Rate} each
                                 </Text>
                             </View>
-                        ))}
-
-                        <View style={styles.orderTotal}>
-                            <Text style={styles.totalLabel}>Total</Text>
-                            <Text style={styles.totalAmount}>
-                                ₹{item.Total_Invoice_value}
+                            <Text style={styles.productAmount}>
+                                ₹
+                                {product.Amount ||
+                                    product.Final_Amo?.toFixed(2)}
                             </Text>
                         </View>
+                    ))}
+                </View>
+
+                <View style={styles.footer}>
+                    <View style={styles.totalSection}>
+                        <Text style={styles.totalLabel}>Total Amount</Text>
+                        <Text style={styles.totalValue}>
+                            ₹{item.Total_Invoice_value}
+                        </Text>
                     </View>
                 </View>
             </View>
@@ -410,101 +301,111 @@ const SalesAdmin = () => {
         0,
     );
 
+    const filteredOrderData = filteredLogData.filter(order =>
+        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Sales Order Summary"
                 navigation={navigation}
-                showFilterDropdown={true}
-                filterDropdownData={salesPersonData}
-                filterTitle="Select Sales Person"
-                selectedFilter={selectedSalesPerson}
-                onFilterChange={handleSalesPersonChange}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Filter options"
+                fromLabel="From Date"
+                toLabel="To Date"
+                showSalesPerson={true}
+                salesPersonLabel="Select Sales Person"
+                salesPersonData={salesPersonData}
+                selectedSalesPerson={selectedSalesPerson}
+                onSalesPersonChange={handleSalesPersonChange}
             />
 
             <View style={styles.contentContainer}>
-                {selectedSalesPerson ? (
-                    <Text
-                        style={{
-                            padding: 10,
-                            textAlign: "center",
-                            ...typography.subtitle1(),
-                            color: customColors.black,
-                        }}>
-                        Sales Person: {selectedSalesPerson.label}
-                    </Text>
-                ) : (
-                    <Text
-                        style={{
-                            padding: 10,
-                            textAlign: "center",
-                            ...typography.subtitle1(),
-                            color: customColors.black,
-                        }}>
-                        Sales Person: All
-                    </Text>
-                )}
-
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="From Date"
-                        date={selectedFromDate}
-                        onDateChange={handleFromDateChange}
-                        containerStyle={{ width: "50%" }}
-                    />
-                    <DatePickerButton
-                        title="To Date"
-                        date={selectedToDate}
-                        onDateChange={handleToDateChange}
-                        containerStyle={{ width: "50%" }}
-                    />
-                </View>
-
                 <View style={styles.countContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{
-                            paddingHorizontal: spacing.md,
-                            marginVertical: spacing.sm,
-                        }}>
-                        {brandList.map((brand, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={{
-                                    paddingVertical: spacing.xs,
-                                    paddingHorizontal: spacing.md,
-                                    marginRight: spacing.sm,
-                                    borderRadius: 20,
-                                    backgroundColor:
-                                        selectedBrand === brand
-                                            ? customColors.primary
-                                            : customColors.grey200,
-                                }}
-                                onPress={() => setSelectedBrand(brand)}>
-                                <Text
+                    <View style={styles.searchHeader}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={{
+                                flex: 1,
+                                paddingHorizontal: spacing.md,
+                                marginVertical: spacing.sm,
+                            }}>
+                            {brandList.map((brand, index) => (
+                                <TouchableOpacity
+                                    key={index}
                                     style={{
-                                        color:
+                                        paddingVertical: spacing.xs,
+                                        paddingHorizontal: spacing.md,
+                                        marginRight: spacing.sm,
+                                        borderRadius: 20,
+                                        backgroundColor:
                                             selectedBrand === brand
-                                                ? customColors.white
-                                                : customColors.grey900,
-                                        ...typography.caption(),
-                                    }}>
-                                    {brand}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                                                ? customColors.primary
+                                                : customColors.grey200,
+                                    }}
+                                    onPress={() => setSelectedBrand(brand)}>
+                                    <Text
+                                        style={{
+                                            color:
+                                                selectedBrand === brand
+                                                    ? customColors.white
+                                                    : customColors.grey900,
+                                            ...typography.caption(),
+                                        }}>
+                                        {brand}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={styles.searchIcon}
+                            onPress={() => {
+                                setSearchQuery("");
+                                setShowSearch(!showSearch);
+                            }}>
+                            <MaterialIcon
+                                name={showSearch ? "close" : "search"}
+                                size={24}
+                                color={customColors.grey900}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
                     <View style={styles.statsContainer}>
-                        <View style={styles.statItem}>
-                            <View style={styles.iconContainer}>
-                                <MaterialCommunityIcons
-                                    name="shopping"
-                                    size={24}
-                                    color={customColors.primary}
-                                />
-                            </View>
-                            <View style={styles.statContent}>
+                        <TouchableOpacity
+                            style={styles.reportButton}
+                            onPress={handleProductSummaryPress}
+                            activeOpacity={0.7}>
+                            <FeatherIcon
+                                name="arrow-up-right"
+                                size={14}
+                                color={customColors.grey600}
+                            />
+                        </TouchableOpacity>
+
+                        <View style={styles.statsRow}>
+                            <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
                                     Total Sales
                                 </Text>
@@ -512,19 +413,8 @@ const SalesAdmin = () => {
                                     {filteredTotalSales}
                                 </Text>
                             </View>
-                        </View>
 
-                        <View style={styles.statDivider} />
-
-                        <View style={styles.statItem}>
-                            <View style={styles.iconContainer}>
-                                <MaterialCommunityIcons
-                                    name="currency-inr"
-                                    size={24}
-                                    color={customColors.success}
-                                />
-                            </View>
-                            <View style={styles.statContent}>
+                            <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
                                     Total Amount
                                 </Text>
@@ -535,41 +425,41 @@ const SalesAdmin = () => {
                                 </Text>
                             </View>
                         </View>
-                        <TouchableOpacity onPress={handleProductSummaryPress}>
-                            <FeatherIcon
-                                name="arrow-up-right"
-                                size={24}
-                                color={customColors.primary}
-                            />
-                        </TouchableOpacity>
                     </View>
+
+                    {showSearch && (
+                        <View style={styles.searchContainer}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search retailer..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                        </View>
+                    )}
                 </View>
 
                 <ScrollView
                     style={styles.retailersScrollContainer}
                     contentContainerStyle={styles.retailersScrollContent}
                     showsVerticalScrollIndicator={false}>
-                    {logData
-                        .filter(order =>
-                            selectedBrand === "All"
-                                ? true
-                                : order.Products_List.some(
-                                      p => p.BrandGet?.trim() === selectedBrand,
-                                  ),
-                        )
-                        .map(item => renderRetailerItem(item))}
-
+                    <Accordion
+                        data={filteredOrderData}
+                        renderHeader={renderHeader}
+                        renderContent={renderContent}
+                    />
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -582,87 +472,172 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
     },
-    datePickerContainer: {
-        flexDirection: "row",
-        marginHorizontal: spacing.md,
-        marginTop: spacing.xs,
-        justifyContent: "space-between",
-        gap: spacing.sm,
-    },
     countContainer: {
         marginHorizontal: spacing.md,
         marginVertical: spacing.xxs,
     },
     statsContainer: {
-        flexDirection: "row",
         backgroundColor: customColors.white,
-        borderRadius: 16,
-        padding: spacing.xs,
-        ...shadows.medium,
-    },
-    statItem: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: spacing.sm,
-    },
-    iconContainer: {
-        width: 25,
-        height: 25,
-        borderRadius: 24,
-        backgroundColor: customColors.grey50,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: spacing.sm,
+        borderRadius: 12,
+        padding: spacing.lg,
+        marginHorizontal: spacing.xs,
+        position: "relative",
         ...shadows.small,
     },
-    statContent: {
+    reportButton: {
+        position: "absolute",
+        top: spacing.sm,
+        right: spacing.sm,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
+    },
+    statsRow: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        paddingTop: spacing.xs,
+    },
+    statItem: {
+        alignItems: "center",
         flex: 1,
     },
     statLabel: {
         ...typography.caption(),
-        color: customColors.grey700,
+        color: customColors.grey600,
         marginBottom: spacing.xs,
+        textAlign: "center",
     },
     statValue: {
-        ...typography.h6(),
+        ...typography.h3(),
         color: customColors.grey900,
-        fontWeight: "700",
-    },
-    statDivider: {
-        width: 1,
-        backgroundColor: customColors.grey200,
-        marginHorizontal: spacing.sm,
+        fontWeight: "600",
+        textAlign: "center",
     },
     accordationScrollContainer: {
         marginTop: spacing.sm,
         paddingHorizontal: spacing.sm,
     },
     accordionHeader: {
-        width: "70%",
         flexDirection: "row",
-        justifyContent: "flex-start",
+        justifyContent: "space-between",
         alignItems: "center",
+        backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        backgroundColor: customColors.primary,
         borderRadius: 8,
-        marginBottom: spacing.xs,
+        marginBottom: 2,
+    },
+    headerLeft: {
+        flex: 1,
+        marginRight: spacing.sm,
     },
     retailerName: {
         ...typography.subtitle2(),
         color: customColors.white,
-        flex: 1,
-        marginRight: spacing.sm,
+        fontWeight: "600",
+        marginBottom: 2,
+    },
+    orderDate: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.9,
     },
     headerRight: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
+        alignItems: "flex-end",
     },
     orderAmount: {
         ...typography.subtitle1(),
         color: customColors.white,
+        fontWeight: "700",
+    },
+    orderCount: {
+        ...typography.caption(),
+        color: customColors.white,
+        opacity: 0.8,
+        marginTop: 1,
+    },
+    content: {
+        backgroundColor: customColors.white,
+        borderRadius: 6,
+        marginHorizontal: 2,
+        marginBottom: spacing.xs,
+        overflow: "hidden",
+        ...shadows.small,
+    },
+    orderInfo: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey100,
+    },
+    orderNumber: {
+        ...typography.body2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    createdBy: {
+        ...typography.caption(),
+        color: customColors.grey700,
+    },
+    productsContainer: {
+        paddingVertical: spacing.xs,
+    },
+    productItem: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 6,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey50,
+    },
+    productInfo: {
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    productName: {
+        width: "88%",
+        ...typography.body2(),
+        color: customColors.grey900,
+        fontWeight: "500",
+        marginBottom: 2,
+    },
+    productDetails: {
+        ...typography.caption(),
+        color: customColors.grey600,
+    },
+    productAmount: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "600",
+    },
+    footer: {
+        backgroundColor: customColors.grey25,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
+    },
+    totalSection: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    totalLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    totalValue: {
+        ...typography.subtitle1(),
+        color: customColors.primary,
+        fontWeight: "700",
     },
     content: {
         margin: spacing.xs,
@@ -916,6 +891,32 @@ const styles = StyleSheet.create({
         flex: 3,
         textAlign: "left",
         paddingRight: spacing.sm,
+    },
+    searchHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+
+    searchIcon: {
+        padding: spacing.xs,
+        borderRadius: 50,
+        backgroundColor: customColors.grey100,
+        marginLeft: spacing.sm,
+        ...shadows.small,
+    },
+
+    searchContainer: {
+        marginBottom: spacing.sm,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: customColors.white,
+        ...shadows.medium,
+    },
+    searchInput: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        color: customColors.grey900,
     },
 });
 

@@ -1,49 +1,49 @@
-import { StyleSheet, View, TouchableOpacity, ScrollView } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import React, { useState } from "react";
-import Icon from "react-native-vector-icons/Feather";
-import { customColors, shadows, spacing, typography } from "../Config/helper";
+import { customColors, shadows, spacing } from "../Config/helper";
 
-const Accordion = ({ data, renderHeader, renderContent, customStyles = {} }) => {
+const Accordion = ({
+    data,
+    renderHeader,
+    renderContent,
+    customStyles = {},
+}) => {
     const [expanded, setExpanded] = useState(null);
 
-    const toggleAccordion = (index) => {
+    const toggleAccordion = index => {
         setExpanded(expanded === index ? null : index);
     };
 
     return (
-        <ScrollView 
-            style={[styles.container, customStyles.container]}
-            showsVerticalScrollIndicator={false}
-            bounces={false}>
+        <View style={[styles.container, customStyles.container]}>
             {data.map((item, index) => (
-                <View 
-                    key={index} 
+                <View
+                    key={index}
                     style={[
-                        styles.itemContainer, 
+                        styles.itemContainer,
                         customStyles.itemContainer,
-                        expanded === index && styles.expandedItem
+                        expanded === index && styles.expandedItem,
                     ]}>
-                    <TouchableOpacity 
-                        onPress={() => toggleAccordion(index)} 
-                        activeOpacity={0.7}
+                    <TouchableOpacity
+                        onPress={() => toggleAccordion(index)}
+                        activeOpacity={0.8}
                         style={styles.headerButton}>
-                        <View style={[styles.headerContent, customStyles.headerContent]}>
+                        <View style={styles.headerWrapper}>
                             {renderHeader(item, index)}
-                            <Icon 
-                                size={24} 
-                                color={customColors.white}
-                                name={expanded === index ? "chevron-up" : "chevron-down"}
-                            />
                         </View>
                     </TouchableOpacity>
                     {expanded === index && (
-                        <View style={[styles.contentContainer, customStyles.contentContainer]}>
+                        <View
+                            style={[
+                                styles.contentContainer,
+                                customStyles.contentContainer,
+                            ]}>
                             {renderContent(item)}
                         </View>
                     )}
                 </View>
             ))}
-        </ScrollView>
+        </View>
     );
 };
 
@@ -52,31 +52,37 @@ export default Accordion;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: spacing.sm,
+        marginVertical: spacing.sm,
+        marginHorizontal: spacing.sm,
     },
     itemContainer: {
-        marginBottom: spacing.sm,
-        backgroundColor: customColors.primary,
-        borderRadius: 12,
-        overflow: 'hidden',
-        ...shadows.medium,
+        marginBottom: spacing.xs,
+        backgroundColor: customColors.white,
+        borderRadius: 8,
+        overflow: "hidden",
     },
     expandedItem: {
-        ...shadows.large,
+        ...shadows.medium,
     },
     headerButton: {
-        width: '100%',
+        width: "100%",
     },
-    headerContent: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+    headerWrapper: {
+        position: "relative",
+        width: "100%",
+    },
+    chevronContainer: {
+        position: "absolute",
+        right: spacing.sm,
+        top: "50%",
+        transform: [{ translateY: -9 }],
+        width: 18,
+        height: 18,
+        justifyContent: "center",
         alignItems: "center",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
+        zIndex: 2,
     },
     contentContainer: {
         backgroundColor: customColors.white,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
     },
 });

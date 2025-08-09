@@ -6,7 +6,7 @@ import {
     View,
     AppState,
     RefreshControl,
-    ScrollView
+    ScrollView,
 } from "react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -41,6 +41,7 @@ const Dashboard = () => {
     const [receipts, setReceipts] = useState([]);
     const [kilometersCount, setKilometersCount] = useState({});
     const [refreshing, setRefreshing] = useState(false);
+    const [newReceiptData, setNewReceiptData] = useState([]);
 
     const POLLING_INTERVAL = 90000; // 90 seconds
 
@@ -76,6 +77,7 @@ const Dashboard = () => {
                 fetchDeliveryData(today),
                 fetchTripSheet(today, today),
                 fetchCollectionReceipts(today, today),
+                fetchReceiptData(today, today),
             ]);
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -248,6 +250,33 @@ const Dashboard = () => {
         }
     };
 
+    // Fix the fetchReceiptData function
+    const fetchReceiptData = async (from, to) => {
+        try {
+            const url = `${API.getReceipt()}${from}&Todate=${to}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                // Fix: Properly calculate the total sum
+                const total = data.data.reduce((sum, receipt) => {
+                    return sum + (receipt.credit_amount || 0); // Fixed: added return
+                }, 0);
+                setNewReceiptData(total);
+            } else {
+                setNewReceiptData(0); // Set to 0 instead of empty array
+            }
+        } catch (error) {
+            console.error("Error fetching receipt data:", error);
+            setNewReceiptData(0);
+        }
+    };
+
     const fetchCollectionReceipts = async (from, to) => {
         try {
             const url = `${API.paymentCollection()}?Fromdate=${from}&Todate=${to}`;
@@ -413,7 +442,7 @@ const Dashboard = () => {
         setKilometersCount(kmCount);
     };
 
-    const handleDateChange = async (event, date) => {
+    const handleDateChange = async date => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
             setSelectedDate(formattedDate);
@@ -425,6 +454,7 @@ const Dashboard = () => {
                 fetchCollectionReceipts(formattedDate, formattedDate),
                 fetchDeliveryData(formattedDate),
                 fetchTripSheet(formattedDate, formattedDate),
+                fetchReceiptData(formattedDate, formattedDate),
             ]);
         }
     };
@@ -450,16 +480,12 @@ const Dashboard = () => {
     const statsData = useMemo(
         () => [
             {
-                icon: (
-                    <MaterialCommunityIcons
-                        name="human-greeting-variant"
-                        size={40}
-                        color="#2ECC71"
-                        style={styles.materialIcon}
-                    />
-                ),
+                icon: "human-greeting-variant",
+                iconLibrary: "MaterialCommunityIcons",
                 label: "Attendance",
                 value: Object.keys(attendanceCount).length,
+                color: "#10B981",
+                backgroundColor: "#ECFDF5",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Attendance",
@@ -468,15 +494,12 @@ const Dashboard = () => {
                     }),
             },
             {
-                icon: (
-                    <MaterialCommunityIcons
-                        name="map-marker-account-outline"
-                        size={40}
-                        color="#9B59B6"
-                    />
-                ),
+                icon: "map-marker-account-outline",
+                iconLibrary: "MaterialCommunityIcons",
                 label: "Check-ins",
                 value: visitData.length,
+                color: "#8B5CF6",
+                backgroundColor: "#F3E8FF",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Check-In's",
@@ -485,15 +508,12 @@ const Dashboard = () => {
                     }),
             },
             {
-                icon: (
-                    <MaterialCommunityIcons
-                        name="chart-areaspline"
-                        size={40}
-                        color="#4A90E2"
-                    />
-                ),
+                icon: "chart-areaspline",
+                iconLibrary: "MaterialCommunityIcons",
                 label: "Total Sales",
                 value: saleData.length,
+                color: "#3B82F6",
+                backgroundColor: "#DBEAFE",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Sales",
@@ -501,37 +521,38 @@ const Dashboard = () => {
                     }),
             },
             {
-                icon: (
-                    <MaterialIcons
-                        name="currency-rupee"
-                        size={40}
-                        color="#E74C3C"
-                    />
-                ),
-                label: "Total Order Amount",
-                value: `₹ ${totalOrderAmount.toFixed(2)}`,
+                icon: "currency-rupee",
+                iconLibrary: "MaterialIcons",
+                label: "Sales Amount",
+                value: `₹${totalOrderAmount.toLocaleString("en-IN")}`,
+                color: "#EF4444",
+                backgroundColor: "#FEF2F2",
                 onPress: () => navigation.navigate("SalesAdmin"),
             },
             {
-                icon: (
-                    <MaterialCommunityIcons
-                        name="currency-rupee"
-                        size={40}
-                        color="#2ECC71"
-                    />
-                ),
-                label: "Collection amount",
-                value: `₹ ${receipts.map(total => total.total_amount).reduce((acc, curr) => acc + curr, 0)}`,
+                icon: "receipt-long",
+                iconLibrary: "MaterialIcons",
+                label: "Bills",
+                value: `₹${receipts
+                    .map(total => total.total_amount)
+                    .reduce((acc, curr) => acc + curr, 0)
+                    .toLocaleString("en-IN")}`,
+                color: "#059669",
+                backgroundColor: "#D1FAE5",
                 onPress: () => navigation.navigate("BillAdminView"),
             },
             {
-                icon: (
-                    <MaterialIcons
-                        name="delivery-dining"
-                        size={40}
-                        color="#E74C3C"
-                    />
-                ),
+                icon: "receipt",
+                iconLibrary: "MaterialIcons",
+                label: "Receipts",
+                value: `₹${newReceiptData.toLocaleString("en-IN")}`, // Fixed: Format as currency
+                color: "#EC4899",
+                backgroundColor: "#FDF2F8",
+                onPress: () => navigation.navigate("ReceiptAdmin"),
+            },
+            {
+                icon: "local-shipping",
+                iconLibrary: "MaterialIcons",
                 label: "Delivery",
                 value: `${
                     deliveryData.filter(
@@ -540,25 +561,26 @@ const Dashboard = () => {
                             item.DeliveryStatusName === "Pending",
                     ).length
                 }/${deliveryData.length || 0}`,
+                color: "#DC2626",
+                backgroundColor: "#FEE2E2",
                 onPress: () => navigation.navigate("DeliveryReport"),
             },
             {
-                icon: (
-                    <MaterialIcons
-                        name="directions-bike"
-                        size={40}
-                        color="#F39C12"
-                    />
-                ),
+                icon: "truck-delivery",
+                iconLibrary: "MaterialCommunityIcons",
                 label: "Trip Count",
                 value: tripSheetData.length,
+                color: "#F59E0B",
+                backgroundColor: "#FEF3C7",
                 onPress: () => navigation.navigate("TripReport"),
             },
             {
-                icon: (
-                    <AntDesignIcons name="dropbox" size={40} color="#E74C3C" />
-                ),
+                icon: "warehouse",
+                iconLibrary: "MaterialCommunityIcons",
                 label: "Outlet Stock",
+                value: "",
+                color: "#7C3AED",
+                backgroundColor: "#EDE9FE",
                 onPress: () => navigation.navigate("RetailerStock"),
             },
         ],
@@ -571,21 +593,43 @@ const Dashboard = () => {
             deliveryData,
             tripSheetData,
             receipts,
+            newReceiptData, // Added to dependency array
         ],
     );
+
+    const renderIcon = (iconLibrary, iconName, color) => {
+        const iconProps = {
+            name: iconName,
+            size: 24,
+            color: color,
+        };
+
+        switch (iconLibrary) {
+            case "MaterialIcons":
+                return <MaterialIcons {...iconProps} />;
+            case "MaterialCommunityIcons":
+                return <MaterialCommunityIcons {...iconProps} />;
+            case "AntDesign":
+                return <AntDesignIcons {...iconProps} />;
+            default:
+                return <MaterialIcons {...iconProps} />;
+        }
+    };
 
     if (isLoading) {
         return (
             <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color="#4A90E2" />
+                <ActivityIndicator size="large" color={customColors.primary} />
+                <Text style={styles.loadingText}>Loading dashboard...</Text>
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
-            <ScrollView 
+            <ScrollView
                 style={styles.content}
+                showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -595,41 +639,73 @@ const Dashboard = () => {
                         title="Pull to refresh..."
                         titleColor={customColors.grey700}
                     />
-                }
-            >
-                <DatePickerButton
-                    date={new Date(selectedDate)}
-                    onDateChange={handleDateChange}
-                    mode="date"
-                    title="Select Date"
-                    containerStyle={styles.datePickerContainer}
-                />
-                {selectedDate !== new Date().toISOString().split("T")[0] && (
-                    <TouchableOpacity
-                        style={styles.todayButton}
-                        onPress={returnToToday}>
-                        <Text style={styles.todayButtonText}>
-                            Return to Today
-                        </Text>
-                    </TouchableOpacity>
-                )}
+                }>
+                {/* Date Picker */}
+                <View style={styles.dateSection}>
+                    <DatePickerButton
+                        date={new Date(selectedDate)}
+                        onDateChange={handleDateChange}
+                        mode="date"
+                        title="Select Date"
+                        containerStyle={styles.datePickerContainer}
+                    />
 
+                    {selectedDate !==
+                        new Date().toISOString().split("T")[0] && (
+                        <TouchableOpacity
+                            style={styles.todayButton}
+                            onPress={returnToToday}
+                            activeOpacity={0.8}>
+                            <MaterialIcons
+                                name="today"
+                                size={20}
+                                color={customColors.white}
+                                style={styles.todayIcon}
+                            />
+                            <Text style={styles.todayButtonText}>
+                                Return to Today
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Stats Grid */}
                 <View style={styles.statsContainer}>
+                    <Text style={styles.sectionTitle}>Analytics</Text>
                     <View style={styles.gridContainer}>
                         {statsData.map((stat, index) => (
                             <TouchableOpacity
                                 key={index}
-                                style={styles.statItem}
-                                onPress={stat.onPress}>
-                                <View style={styles.statIconContainer}>
-                                    {stat.icon}
+                                style={styles.statCard}
+                                onPress={stat.onPress}
+                                activeOpacity={0.7}>
+                                <View
+                                    style={[
+                                        styles.iconContainer,
+                                        {
+                                            backgroundColor:
+                                                stat.backgroundColor,
+                                        },
+                                    ]}>
+                                    {renderIcon(
+                                        stat.iconLibrary,
+                                        stat.icon,
+                                        stat.color,
+                                    )}
                                 </View>
-                                <Text style={styles.statLabel}>
-                                    {stat.label}
-                                </Text>
-                                <Text style={styles.statValue}>
-                                    {stat.value}
-                                </Text>
+                                <View style={styles.statContent}>
+                                    <Text
+                                        style={styles.statValue}
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit>
+                                        {stat.value}
+                                    </Text>
+                                    <Text
+                                        style={styles.statLabel}
+                                        numberOfLines={2}>
+                                        {stat.label}
+                                    </Text>
+                                </View>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -648,12 +724,21 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: spacing.md,
     },
     loaderContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        gap: spacing.md,
+    },
+    loadingText: {
+        ...typography.body1(),
+        color: customColors.grey600,
+    },
+    dateSection: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        gap: spacing.sm,
     },
     datePickerContainer: {
         backgroundColor: customColors.white,
@@ -664,48 +749,84 @@ const styles = StyleSheet.create({
     },
     todayButton: {
         backgroundColor: customColors.primary,
-        marginTop: spacing.sm,
-        padding: spacing.sm,
-        borderRadius: 8,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        borderRadius: 12,
         alignSelf: "center",
+        gap: spacing.xs,
+        ...shadows.small,
+    },
+    todayIcon: {
+        marginRight: spacing.xs,
     },
     todayButtonText: {
         ...typography.button(),
         color: customColors.white,
+        fontWeight: "600",
     },
     statsContainer: {
-        marginTop: spacing.md,
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xl,
+    },
+    sectionTitle: {
+        ...typography.h5(),
+        color: customColors.grey900,
+        fontWeight: "700",
+        marginBottom: spacing.sm,
+        letterSpacing: 0.3,
     },
     gridContainer: {
         flexDirection: "row",
         flexWrap: "wrap",
         justifyContent: "space-between",
+        alignItems: "stretch",
+        padding: spacing.sm,
     },
-    statItem: {
-        width: "48%",
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        ...shadows.small,
-    },
-    statIconContainer: {
-        marginBottom: spacing.sm,
+    statCard: {
+        width: "46.5%",
+        flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 20,
+        padding: spacing.sm,
+        ...shadows.medium,
+        borderWidth: 1,
+        borderColor: customColors.grey100,
+        minHeight: 95,
+        marginBottom: spacing.md,
     },
-    statLabel: {
-        ...typography.caption(),
-        color: customColors.textSecondary,
-        textAlign: "center",
-        marginBottom: spacing.xs,
+    iconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        justifyContent: "center",
+        alignItems: "center",
+        margin: spacing.xs,
+    },
+    statContent: {
+        alignItems: "center",
+        justifyContent: "center",
+        width: "100%",
+        marginTop: spacing.sm,
     },
     statValue: {
         ...typography.h6(),
-        color: customColors.textPrimary,
+        color: customColors.grey900,
+        fontWeight: "800",
+        marginBottom: spacing.xs,
         textAlign: "center",
-        fontWeight: "bold",
+        lineHeight: 20,
     },
-    materialIcon: {
-        marginBottom: spacing.sm,
+    statLabel: {
+        ...typography.body2(),
+        fontWeight: "600",
+        color: customColors.grey600,
+        lineHeight: 16,
+        textAlign: "center",
+        paddingHorizontal: spacing.xs,
     },
 });

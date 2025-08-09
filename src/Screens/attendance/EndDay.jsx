@@ -19,6 +19,7 @@ import AppHeader from "../../Components/AppHeader";
 import FormField from "../../Components/FormField";
 import { customColors, typography } from "../../Config/helper";
 import { closeDay, getAttendance } from "../../Api/employee";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const EndDay = () => {
     const navigation = useNavigation();
@@ -59,6 +60,13 @@ const EndDay = () => {
         }
     }, [attendanceData]);
 
+    const startKm =
+        attendanceData.length > 0 && attendanceData[0].Start_KM !== null
+            ? attendanceData[0].End_KM !== null
+                ? attendanceData[0].End_KM
+                : attendanceData[0]?.Start_KM
+            : "0";
+
     const handleInputChange = value => {
         setFormValues(prevState => ({ ...prevState, End_KM: value }));
     };
@@ -96,13 +104,35 @@ const EndDay = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Wrap Up" navigation={navigation} />
 
             <View style={styles.contentContainer}>
                 <View style={styles.formContainer}>
                     <View style={styles.inputGroup}>
                         <View style={styles.inputWrapper}>
+                            {/* <Text>
+                                <MaterialIcon name="speed" size={20} />
+                                {startKm}
+                            </Text> */}
+                            <View
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                }}>
+                                <MaterialIcon
+                                    name="speed"
+                                    size={20}
+                                    color={customColors.primaryDark}
+                                />
+                                <Text
+                                    style={{
+                                        ...typography.h6(),
+                                        marginLeft: 5,
+                                    }}>
+                                    {startKm} km/h
+                                </Text>
+                            </View>
                             <FormField
                                 value={formValues.End_KM}
                                 onChangeText={handleInputChange}
@@ -219,7 +249,7 @@ const EndDay = () => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -228,14 +258,11 @@ export default EndDay;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        marginTop: 10,
         paddingTop: 20,
     },
     formContainer: {

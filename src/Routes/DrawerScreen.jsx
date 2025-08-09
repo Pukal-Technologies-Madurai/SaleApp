@@ -6,6 +6,7 @@ import {
     View,
     Image,
     StatusBar,
+    Linking,
 } from "react-native";
 import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -74,6 +75,18 @@ const DrawerScreen = ({ navigation }) => {
                 />
 
                 <DrawerItem
+                    label="Set Route"
+                    icon={
+                        <IconFont
+                            name="route"
+                            size={24}
+                            color={customColors.primary}
+                        />
+                    }
+                    onPress={() => navigation.navigate("RoutePath")}
+                />
+
+                <DrawerItem
                     icon={
                         <IconAntDesign
                             name="setting"
@@ -83,6 +96,20 @@ const DrawerScreen = ({ navigation }) => {
                     }
                     label="Master Info"
                     onPress={() => navigation.navigate("MasterData")}
+                />
+
+                <DrawerItem
+                    label="App Settings"
+                    icon={
+                        <IconFont
+                            name="screwdriver-wrench"
+                            size={24}
+                            color={customColors.primary}
+                        />
+                    }
+                    onPress={() => {
+                        Linking.openSettings();
+                    }}
                 />
             </View>
 

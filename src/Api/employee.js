@@ -27,9 +27,7 @@ export const startDay = async ({
         body: formData,
     });
 
-    // console.log(res);
     const data = await res.json();
-    // console.log(data);
 
     if (!res.ok) {
         throw new Error(data.message);
@@ -92,5 +90,16 @@ export const fetchSalePerson = async companyId => {
     const data = await response.json();
 
     if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
+export const fetchUsers = async companyId => {
+    const url = `${API.users()}${companyId}`;
+    const response = await fetch(url);
+
+    const data = await response.json();
+    if (!data.success) {
+        throw new Error(data.message || "Failed to fetch users");
+    }
     return data.data;
 };

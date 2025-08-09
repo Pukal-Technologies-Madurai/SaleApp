@@ -28,6 +28,7 @@ import {
 import { fetchAreas, fetchRoutes, postRetailer } from "../../Api/retailers";
 import FormField from "../../Components/FormField";
 import OpenCamera from "../../Components/OpenCamera";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const AddCustomer = () => {
     const navigation = useNavigation();
@@ -222,7 +223,7 @@ const AddCustomer = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <View style={styles.backgroundImage}>
                 <AppHeader
                     title="Add a Retailer"
@@ -485,7 +486,7 @@ const AddCustomer = () => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -494,20 +495,16 @@ export default AddCustomer;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     backgroundImage: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.primary,
-        alignItems: "center",
     },
     contentContainer: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
     },
     formContainer: {
         padding: spacing.md,

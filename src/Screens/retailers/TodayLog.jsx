@@ -19,6 +19,7 @@ import { fetchRetailers } from "../../Api/retailers";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
 import { formatDate } from "../../Config/functions";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const TodayLog = () => {
     const navigation = useNavigation();
@@ -90,7 +91,7 @@ const TodayLog = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Today's Log"
                 navigation={navigation}
@@ -133,14 +134,14 @@ const TodayLog = () => {
                     </View>
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,

@@ -384,7 +384,7 @@ const StockClosing = ({ route }) => {
                                             )
                                         }
                                         placeholder="Enter Closing Stock"
-                                        numbersOnly={true}
+                                        // numbersOnly={true}
                                     />
                                 </View>
                             </View>

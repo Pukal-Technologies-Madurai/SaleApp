@@ -1,12 +1,12 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StatusBar } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { customColors, typography, shadows, spacing } from "../Config/helper";
+import { customColors, typography, spacing } from "../Config/helper";
 import EnhancedDropdown from "./EnhancedDropdown";
 
 const iconLibraries = {
@@ -40,7 +40,6 @@ const AppHeader = ({
 
     return (
         <View style={styles.headerContainer}>
-            <StatusBar backgroundColor={customColors.primaryDark} />
             <View style={styles.headerContent}>
                 {showDrawer ? (
                     <TouchableOpacity
@@ -135,7 +134,6 @@ const AppHeader = ({
 const styles = {
     headerContainer: {
         backgroundColor: customColors.primaryDark,
-        ...shadows.medium,
     },
     headerContent: {
         width: "100%",
@@ -144,7 +142,7 @@ const styles = {
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
+        paddingVertical: 6,
     },
     titleContainer: {
         flex: 1,

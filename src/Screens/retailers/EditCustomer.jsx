@@ -36,6 +36,7 @@ import {
     fetchState,
     putRetailer,
 } from "../../Api/retailers";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -69,9 +70,7 @@ const EditCustomer = ({ route }) => {
     const [hasPermission, setHasPermission] = useState(null);
 
     const [currentPhoto, setCurrentPhoto] = useState(
-        item.Profile_Pic
-            ? { uri: item.Profile_Pic }
-            : null,
+        item.Profile_Pic ? { uri: item.Profile_Pic } : null,
     );
 
     const { data: routes = [] } = useQuery({
@@ -97,7 +96,7 @@ const EditCustomer = ({ route }) => {
     useEffect(() => {
         (async () => {
             const { status } = await Camera.requestCameraPermission();
-            setHasPermission(status === 'authorized');
+            setHasPermission(status === "authorized");
         })();
     }, []);
 
@@ -136,12 +135,14 @@ const EditCustomer = ({ route }) => {
         }
 
         // Prepare the photo data
-        const photoData = currentPhoto ? {
-            uri: currentPhoto.uri,
-            type: 'image/jpeg',
-            name: 'photo.jpg'
-        } : null;
-        
+        const photoData = currentPhoto
+            ? {
+                  uri: currentPhoto.uri,
+                  type: "image/jpeg",
+                  name: "photo.jpg",
+              }
+            : null;
+
         mutation.mutate({
             formValues: formData,
             currentPhoto: photoData,
@@ -150,24 +151,37 @@ const EditCustomer = ({ route }) => {
     }, [formData, currentPhoto, item.Profile_Pic]);
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Edit Retailer" navigation={navigation} />
 
             {showCamera ? (
                 <View style={styles.cameraContainer}>
                     {hasPermission === null ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={customColors.primary} />
-                            <Text style={styles.loadingText}>Requesting camera permission...</Text>
+                            <ActivityIndicator
+                                size="large"
+                                color={customColors.primary}
+                            />
+                            <Text style={styles.loadingText}>
+                                Requesting camera permission...
+                            </Text>
                         </View>
                     ) : hasPermission === false ? (
                         <View style={styles.errorContainer}>
-                            <Icon name="error" size={40} color={customColors.accent2} />
-                            <Text style={styles.errorText}>Camera permission denied</Text>
+                            <Icon
+                                name="error"
+                                size={40}
+                                color={customColors.accent2}
+                            />
+                            <Text style={styles.errorText}>
+                                Camera permission denied
+                            </Text>
                             <TouchableOpacity
                                 style={styles.permissionButton}
                                 onPress={() => Linking.openSettings()}>
-                                <Text style={styles.permissionButtonText}>Open Settings</Text>
+                                <Text style={styles.permissionButtonText}>
+                                    Open Settings
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
@@ -374,18 +388,19 @@ const EditCustomer = ({ route }) => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         padding: spacing.md,
+        backgroundColor: customColors.background,
     },
     formContainer: {
         backgroundColor: customColors.white,
@@ -523,8 +538,8 @@ const styles = StyleSheet.create({
     },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         backgroundColor: customColors.black,
     },
     loadingText: {
@@ -534,8 +549,8 @@ const styles = StyleSheet.create({
     },
     errorContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         backgroundColor: customColors.black,
         padding: spacing.xl,
     },
@@ -543,7 +558,7 @@ const styles = StyleSheet.create({
         ...typography.subtitle1(),
         color: customColors.white,
         marginTop: spacing.md,
-        textAlign: 'center',
+        textAlign: "center",
     },
     permissionButton: {
         marginTop: spacing.xl,

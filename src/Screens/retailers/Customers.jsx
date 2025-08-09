@@ -6,6 +6,7 @@ import {
     StyleSheet,
     TextInput,
     FlatList,
+    StatusBar,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
@@ -14,14 +15,15 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 import AppHeader from "../../Components/AppHeader";
-import { fetchRetailers } from "../../Api/retailers";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import { fetchRetailers, fetchRoutePathData } from "../../Api/retailers";
 import {
     customColors,
     typography,
     spacing,
     shadows,
 } from "../../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const RetailerItem = memo(({ item, onPress }) => (
     <TouchableOpacity
@@ -30,50 +32,44 @@ const RetailerItem = memo(({ item, onPress }) => (
         activeOpacity={0.7}>
         <View style={styles.cardContent}>
             <View style={styles.retailerHeader}>
-                <View style={styles.storeIconContainer}>
-                    <Icon name="store" size={24} color={customColors.primary} />
-                </View>
                 <View style={styles.retailerInfo}>
                     <Text style={styles.retailerName} numberOfLines={1}>
                         {item.Retailer_Name || "No Name"}
                     </Text>
-                    <View style={styles.retailerPhone}>
-                        <Text style={styles.phoneText}>
-                            {item.Mobile_No || "No Contact"}
-                        </Text>
-                    </View>
+                    <Text style={styles.contactInfo}>
+                        {item.Mobile_No || "No Contact"}
+                    </Text>
                 </View>
-                <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={customColors.grey}
-                />
+                <View style={styles.chevronContainer}>
+                    <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={customColors.grey500}
+                    />
+                </View>
             </View>
 
             <View style={styles.detailsContainer}>
-                <View style={styles.detailItem}>
-                    <View style={styles.detailIconContainer}>
-                        <Icon
-                            name="route"
-                            size={16}
-                            color={customColors.primary}
-                        />
+                <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Route:</Text>
+                        <Text style={styles.detailValue} numberOfLines={1}>
+                            {item.RouteGet || "No Route"}
+                        </Text>
                     </View>
-                    <Text style={styles.retailerDetails} numberOfLines={1}>
-                        {item.RouteGet || "No Route"}
-                    </Text>
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Area:</Text>
+                        <Text style={styles.detailValue} numberOfLines={1}>
+                            {item.AreaGet || "No Area"}
+                        </Text>
+                    </View>
                 </View>
 
-                <View style={styles.detailItem}>
-                    <View style={styles.detailIconContainer}>
-                        <Icon
-                            name="location-on"
-                            size={16}
-                            color={customColors.primary}
-                        />
-                    </View>
-                    <Text style={styles.retailerDetails} numberOfLines={1}>
-                        {item.AreaGet || "No Area"}
+                <View style={styles.addressContainer}>
+                    <Text style={styles.addressText} numberOfLines={2}>
+                        {item.Reatailer_Address || "No Address"},{" "}
+                        {item.Reatailer_City || ""}
+                        {item.PinCode ? ` - ${item.PinCode}` : ""}
                     </Text>
                 </View>
             </View>
@@ -84,6 +80,7 @@ const RetailerItem = memo(({ item, onPress }) => (
 const Customers = () => {
     const navigation = useNavigation();
 
+    const [userId, setUserId] = useState(null);
     const [companyId, setCompanyId] = useState(null);
     const [filteredRetailers, setFilteredRetailers] = useState([]);
     const [routes, setRoutes] = useState([]);
@@ -92,6 +89,7 @@ const Customers = () => {
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showAllRetailers, setShowAllRetailers] = useState(false);
 
     const renderItem = useCallback(
         ({ item }) => (
@@ -109,12 +107,25 @@ const Customers = () => {
         AsyncStorage.getItem("Company_Id").then(id => {
             setCompanyId(id);
         });
+        AsyncStorage.getItem("UserId").then(userId => {
+            if (userId) {
+                setUserId(userId);
+            }
+        });
     }, []);
 
     const { data: retailers = [] } = useQuery({
         queryKey: ["retailers", companyId],
         queryFn: () => fetchRetailers(companyId),
         enabled: !!companyId, // prevent fetch until companyId is ready
+    });
+
+    const currentDate = new Date().toISOString().split("T")[0];
+
+    const { data: existingRouteData = [] } = useQuery({
+        queryKey: ["routePath", currentDate, userId],
+        queryFn: () => fetchRoutePathData(currentDate, userId),
+        enabled: !!userId,
     });
 
     useEffect(() => {
@@ -134,9 +145,71 @@ const Customers = () => {
         }
     }, [retailers]);
 
+    // Create filtered routes based on existingRouteData
+    const getAvailableRoutes = () => {
+        if (existingRouteData.length > 0 && !showAllRetailers) {
+            // Show only routes from existingRouteData
+            const existingRouteIds = existingRouteData.map(
+                route => route.Route_Id,
+            );
+            const filteredRoutes = routes.filter(route =>
+                existingRouteIds.includes(route.value),
+            );
+
+            // Sort routes based on IsActive status (active routes first)
+            return filteredRoutes.sort((a, b) => {
+                const routeDataA = existingRouteData.find(
+                    r => r.Route_Id === a.value,
+                );
+                const routeDataB = existingRouteData.find(
+                    r => r.Route_Id === b.value,
+                );
+
+                const isActiveA = routeDataA ? routeDataA.IsActive : 0;
+                const isActiveB = routeDataB ? routeDataB.IsActive : 0;
+
+                // Sort by IsActive (1 first, then 0)
+                return isActiveB - isActiveA;
+            });
+        }
+        // Show all routes when showAllRetailers is true or no existing data
+        return routes;
+    };
+
+    // Auto-select route based on existingRouteData
+    useEffect(() => {
+        if (
+            existingRouteData.length > 0 &&
+            routes.length > 0 &&
+            !showAllRetailers
+        ) {
+            // Find the active route first (IsActive === 1)
+            const activeRoute = existingRouteData.find(
+                route => route.IsActive === 1,
+            );
+
+            if (activeRoute && activeRoute.Route_Id) {
+                setSelectedRoute(activeRoute.Route_Id);
+            } else {
+                // If no active route, select the first route in existingRouteData
+                const firstRoute = existingRouteData[0];
+                if (firstRoute && firstRoute.Route_Id) {
+                    setSelectedRoute(firstRoute.Route_Id);
+                }
+            }
+        } else if (existingRouteData.length === 0 || showAllRetailers) {
+            // If no existing route data or showAllRetailers is true, reset selection
+            setSelectedRoute(null);
+            setSelectedArea(null);
+            if (showAllRetailers) {
+                setFilteredRetailers(retailers);
+            }
+        }
+    }, [existingRouteData, routes, showAllRetailers]);
+
     // Update areas when route is selected
     useEffect(() => {
-        if (selectedRoute) {
+        if (selectedRoute && !showAllRetailers) {
             const routeRetailers = retailers.filter(
                 item => item.Route_Id === selectedRoute,
             );
@@ -152,9 +225,24 @@ const Customers = () => {
             setAreas(uniqueAreas);
             filterRetailers(selectedRoute, selectedArea, searchQuery);
         }
-    }, [selectedRoute]);
+    }, [selectedRoute, showAllRetailers]);
 
     const filterRetailers = (routeId, areaId, search) => {
+        if (showAllRetailers) {
+            // When showing all retailers, only apply search filter
+            let filtered = [...retailers];
+            if (search) {
+                filtered = filtered.filter(i =>
+                    i.Retailer_Name.toLowerCase().includes(
+                        search.toLowerCase(),
+                    ),
+                );
+            }
+            setFilteredRetailers(filtered);
+            return;
+        }
+
+        // Normal filtering logic
         let filtered = [...retailers];
 
         if (routeId) filtered = filtered.filter(i => i.Route_Id === routeId);
@@ -171,7 +259,59 @@ const Customers = () => {
         setSelectedRoute(null);
         setSelectedArea(null);
         setSearchQuery("");
-        setFilteredRetailers(retailers);
+        setShowAllRetailers(false);
+
+        // Reset to existingRouteData behavior
+        if (existingRouteData.length > 0) {
+            // Find the active route first (IsActive === 1)
+            const activeRoute = existingRouteData.find(
+                route => route.IsActive === 1,
+            );
+
+            if (activeRoute && activeRoute.Route_Id) {
+                setSelectedRoute(activeRoute.Route_Id);
+            } else {
+                // If no active route, select the first route in existingRouteData
+                const firstRoute = existingRouteData[0];
+                if (firstRoute && firstRoute.Route_Id) {
+                    setSelectedRoute(firstRoute.Route_Id);
+                }
+            }
+        } else {
+            setFilteredRetailers(retailers);
+        }
+    };
+
+    const toggleShowAllRetailers = () => {
+        const newShowAll = !showAllRetailers;
+        setShowAllRetailers(newShowAll);
+
+        if (newShowAll) {
+            // Reset route and area selection when showing all
+            setSelectedRoute(null);
+            setSelectedArea(null);
+            setAreas([]);
+            // Apply only search filter
+            filterRetailers(null, null, searchQuery);
+        } else {
+            // When turning off "show all", reset to existing route data behavior
+            if (existingRouteData.length > 0) {
+                // Find the active route first (IsActive === 1)
+                const activeRoute = existingRouteData.find(
+                    route => route.IsActive === 1,
+                );
+
+                if (activeRoute && activeRoute.Route_Id) {
+                    setSelectedRoute(activeRoute.Route_Id);
+                } else {
+                    // If no active route, select the first route in existingRouteData
+                    const firstRoute = existingRouteData[0];
+                    if (firstRoute && firstRoute.Route_Id) {
+                        setSelectedRoute(firstRoute.Route_Id);
+                    }
+                }
+            }
+        }
     };
 
     const getItemLayout = useCallback(
@@ -184,23 +324,22 @@ const Customers = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Retailers"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialCommunityIcons"
-                rightIconName="map-marker-right-outline"
-                onRightPress={() => navigation.navigate("RetailerMapView")}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="alt-route"
+                onRightPress={() => navigation.navigate("RoutePath")}
             />
 
             <View style={styles.contentContainer}>
                 <View style={styles.filterSection}>
-                    <View style={styles.dropdownRow}>
+                    <View style={styles.dropdownColumn}>
                         <View style={styles.dropdownContainer}>
-                            <Text style={styles.dropdownLabel}>Route</Text>
                             <EnhancedDropdown
-                                data={routes}
+                                data={getAvailableRoutes()}
                                 labelField="label"
                                 valueField="value"
                                 placeholder="Select Route"
@@ -209,11 +348,11 @@ const Customers = () => {
                                     setSelectedRoute(item.value);
                                     setSelectedArea(null);
                                 }}
+                                disabled={showAllRetailers}
                             />
                         </View>
 
                         <View style={styles.dropdownContainer}>
-                            <Text style={styles.dropdownLabel}>Area</Text>
                             <EnhancedDropdown
                                 data={areas}
                                 labelField="label"
@@ -228,52 +367,74 @@ const Customers = () => {
                                         searchQuery,
                                     );
                                 }}
+                                disabled={showAllRetailers}
                             />
                         </View>
                     </View>
 
-                    <View style={styles.searchContainer}>
-                        <Icon
-                            name="search"
-                            size={20}
-                            color={customColors.grey}
-                            style={styles.searchIcon}
-                        />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search retailers..."
-                            placeholderTextColor={customColors.grey}
-                            value={searchQuery}
-                            onChangeText={text => {
-                                setSearchQuery(text);
-                                filterRetailers(
-                                    selectedRoute,
-                                    selectedArea,
-                                    text,
-                                );
-                            }}
-                        />
-                        {(searchQuery || selectedRoute || selectedArea) && (
-                            <TouchableOpacity
-                                onPress={clearFilters}
-                                style={styles.clearButton}>
-                                <Icon
-                                    name="close"
-                                    size={20}
-                                    color={customColors.grey}
-                                />
-                            </TouchableOpacity>
-                        )}
-                        <Text
-                            style={{
-                                marginLeft: spacing.sm,
-                                ...typography.caption(),
-                                color: customColors.grey700,
-                            }}>
-                            {filteredRetailers.length === 0
-                                ? "No Retailers Found"
-                                : `${filteredRetailers.length} Retailers`}
-                        </Text>
+                    <View style={styles.searchRow}>
+                        <View style={styles.searchContainer}>
+                            <Icon
+                                name="search"
+                                size={20}
+                                color={customColors.grey}
+                                style={styles.searchIcon}
+                            />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search retailers..."
+                                placeholderTextColor={customColors.grey}
+                                value={searchQuery}
+                                onChangeText={text => {
+                                    setSearchQuery(text);
+                                    filterRetailers(
+                                        selectedRoute,
+                                        selectedArea,
+                                        text,
+                                    );
+                                }}
+                            />
+
+                            {(searchQuery || selectedRoute || selectedArea) && (
+                                <TouchableOpacity
+                                    onPress={clearFilters}
+                                    style={styles.clearButton}>
+                                    <Icon
+                                        name="close"
+                                        size={20}
+                                        color={customColors.grey}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                            <Text
+                                style={{
+                                    marginLeft: spacing.sm,
+                                    ...typography.caption(),
+                                    color: customColors.grey700,
+                                }}>
+                                {filteredRetailers.length === 0
+                                    ? "No Retailers Found"
+                                    : `${filteredRetailers.length} Retailers`}
+                            </Text>
+                        </View>
+
+                        {/* Toggle button to show all retailers - moved outside */}
+                        <TouchableOpacity
+                            onPress={toggleShowAllRetailers}
+                            style={[
+                                styles.toggleButton,
+                                showAllRetailers && styles.toggleButtonActive,
+                            ]}>
+                            <Icon
+                                name="visibility"
+                                size={20}
+                                color={
+                                    showAllRetailers
+                                        ? customColors.white
+                                        : customColors.grey
+                                }
+                            />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -290,7 +451,7 @@ const Customers = () => {
                     contentContainerStyle={styles.listContent}
                 />
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -299,7 +460,7 @@ export default Customers;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.primary,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -312,13 +473,36 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
     },
-    dropdownRow: {
-        flexDirection: "row",
-        gap: spacing.md,
+    routeInfoContainer: {
+        backgroundColor: customColors.primary + "10",
+        padding: spacing.md,
+        borderRadius: 8,
         marginBottom: spacing.md,
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.primary,
+    },
+    routeInfoTitle: {
+        ...typography.subtitle2(),
+        color: customColors.primary,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
+    },
+    routesList: {
+        gap: spacing.xs,
+    },
+    routeInfoItem: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    routeInfoText: {
+        ...typography.body2(),
+        color: customColors.grey800,
+    },
+    dropdownColumn: {
+        marginBottom: spacing.sm,
     },
     dropdownContainer: {
-        flex: 1,
+        marginBottom: spacing.sm,
     },
     dropdownLabel: {
         ...typography.label(),
@@ -334,7 +518,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         ...shadows.small,
     },
+    searchRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
     searchContainer: {
+        flex: 1,
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
@@ -356,6 +546,15 @@ const styles = StyleSheet.create({
     clearButton: {
         padding: spacing.xs,
     },
+    toggleButton: {
+        padding: spacing.sm,
+        borderRadius: 8,
+        backgroundColor: customColors.grey200,
+        ...shadows.small,
+    },
+    toggleButtonActive: {
+        backgroundColor: customColors.primary,
+    },
     list: {
         flex: 1,
     },
@@ -365,75 +564,67 @@ const styles = StyleSheet.create({
     retailerCard: {
         backgroundColor: customColors.white,
         borderRadius: 12,
-        marginBottom: spacing.sm,
+        marginBottom: spacing.md,
         ...shadows.small,
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.primary,
     },
     cardContent: {
         padding: spacing.md,
     },
     retailerHeader: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         marginBottom: spacing.sm,
-    },
-    storeIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: customColors.primary + "10",
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: spacing.sm,
     },
     retailerInfo: {
         flex: 1,
-        marginRight: spacing.sm,
     },
     retailerName: {
         ...typography.subtitle1(),
         color: customColors.grey900,
         marginBottom: spacing.xs,
+        fontWeight: "600",
     },
-    retailerPhone: {
-        backgroundColor: customColors.primary + "10",
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs / 2,
-        borderRadius: 4,
-        alignSelf: "flex-start",
-    },
-    phoneText: {
-        ...typography.caption(),
+    contactInfo: {
+        ...typography.body2(),
         color: customColors.primary,
         fontWeight: "500",
     },
+    chevronContainer: {
+        marginLeft: spacing.sm,
+        marginTop: spacing.xs,
+    },
     detailsContainer: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        marginLeft: spacing.xs,
         gap: spacing.sm,
     },
-    detailItem: {
+    detailRow: {
         flexDirection: "row",
-        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.md,
+    },
+    detailItem: {
         flex: 1,
-        minWidth: "45%",
-        // backgroundColor: customColors.grey50,
-        padding: spacing.xs,
-        // borderRadius: 6,
     },
-    detailIconContainer: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: customColors.white,
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: spacing.xs,
-        ...shadows.small,
+    detailLabel: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        fontWeight: "500",
+        marginBottom: spacing.xs / 2,
     },
-    retailerDetails: {
+    detailValue: {
         ...typography.body2(),
-        color: customColors.grey700,
-        flex: 1,
+        color: customColors.grey800,
+        fontWeight: "500",
+    },
+    addressContainer: {
+        paddingTop: spacing.xs,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey200,
+    },
+    addressText: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        lineHeight: 18,
     },
 });

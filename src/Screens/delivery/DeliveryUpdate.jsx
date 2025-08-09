@@ -1,13 +1,13 @@
 import {
     Alert,
     FlatList,
-    Modal,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
     ScrollView,
+    ToastAndroid,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -23,12 +23,21 @@ import {
 } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
+import { useQuery } from "@tanstack/react-query";
+import { fetchUsers } from "../../Api/employee";
+import FilterModal from "../../Components/FilterModal";
+import { fetchDefaultAccountMaster } from "../../Api/receipt";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const DeliveryUpdate = () => {
     const navigation = useNavigation();
+    const [userId, setUserId] = useState(null);
     const [deliveryData, setDeliveryData] = useState([]);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
+    const [companyId, setCompanyId] = useState(null);
+    const [callCenterId, setCallCenterId] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filteredData, setFilteredData] = useState([]);
@@ -38,6 +47,11 @@ const DeliveryUpdate = () => {
     const [loading, setLoading] = useState(false);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState("0");
     const [partialAmount, setPartialAmount] = useState("");
+    const [modalVisible, setModalVisible] = useState(false);
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
 
     const deliveryStatus = { 5: "Pending", 7: "Delivered" };
     const paymentStatus = { 0: "Pending", 3: "Completed" };
@@ -52,6 +66,9 @@ const DeliveryUpdate = () => {
             const userId = await AsyncStorage.getItem("UserId");
             const fromDate = selectedFromDate.toISOString().split("T")[0];
             const toDate = selectedToDate.toISOString().split("T")[0];
+            const companyId = await AsyncStorage.getItem("Company_Id");
+            setCompanyId(companyId);
+            setUserId(userId);
 
             const url = `${API.delivery()}${userId}&Fromdate=${fromDate}&Todate=${toDate}`;
 
@@ -77,13 +94,25 @@ const DeliveryUpdate = () => {
         setFilteredData(results);
     }, [deliveryData, searchQuery]);
 
-    const handleDateChange = (date, isFromDate) => {
-        if (isFromDate) {
-            setSelectedFromDate(date);
-        } else {
-            setSelectedToDate(date);
+    const handleFromDateChange = date => {
+        if (date) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
         }
     };
+
+    const handleToDateChange = date => {
+        if (date) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
+        }
+    };
+
+    const { data: users = [] } = useQuery({
+        queryKey: ["users", companyId],
+        queryFn: () => fetchUsers(companyId),
+        enabled: !!companyId,
+    });
 
     const formatDate = dateString => {
         const date = new Date(dateString);
@@ -156,13 +185,78 @@ const DeliveryUpdate = () => {
         </View>
     );
 
+    const matchCallCenterId = async () => {
+        const callUser = users.find(
+            user => user.Cost_Center_Id !== null && user.UserId === userId,
+        );
+
+        setCallCenterId(callUser ? callUser.Cost_Center_Id : userId);
+    };
+
+    useEffect(() => {
+        matchCallCenterId();
+    }, [users]);
+
+    const {
+        data: paymentOption = [],
+        isLoading: isLoadingPaymentOption,
+        isError: isErrorPaymentOption,
+    } = useQuery({
+        queryKey: ["paymentOption"],
+        queryFn: fetchDefaultAccountMaster,
+        select: data => {
+            if (!data) return [];
+            return data;
+        },
+    });
+
+    const handleSubmitforVisitLog = async () => {
+        if (!location.latitude || !location.longitude) {
+            ToastAndroid.show(
+                "Location not available for visit log",
+                ToastAndroid.SHORT,
+            );
+            return false;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", selectedDelivery.Retailer_Id);
+            formData.append("Latitude", location.latitude.toString());
+            formData.append("Longitude", location.longitude.toString());
+            formData.append("Narration", "The Sale delivery has been updated.");
+            formData.append("EntryBy", userId);
+
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                // navigation.navigate("HomeScreen");
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            console.error("Error submitting form:", err);
+        }
+    };
+
     const handleUpdateDelivery = async (isDelivered, isPaid) => {
         // console.log("isDelivered", isDelivered, isPaid, selectedDelivery);
         if (!selectedDelivery) return;
         setLoading(true);
 
+        await handleSubmitforVisitLog();
+
         try {
-            const userId = await AsyncStorage.getItem("UserId");
             // Use a reference for partial payment
             let paymentRef = null;
             // Handle partial payment for cash
@@ -189,7 +283,7 @@ const DeliveryUpdate = () => {
                 Delivery_Location: isDelivered ? "MDU" : null, // Set to "MDU"
                 Delivery_Latitude: 0, // Set to 0
                 Delivery_Longitude: 0, // Set to 0
-                Delivery_Person_Id: userId,
+                Delivery_Person_Id: callCenterId || userId,
                 Delivery_Status: finalDeliveryStatus,
                 Payment_Status: finalPaymentStatus,
                 Payment_Mode: selectedPaymentMode,
@@ -220,39 +314,74 @@ const DeliveryUpdate = () => {
                 const paymentAmount = partialAmount
                     ? parseFloat(partialAmount)
                     : parseFloat(selectedDelivery.Total_Invoice_value);
-                const paymentData = {
-                    retailer_id: parseInt(selectedDelivery.Retailer_Id),
-                    payed_by: "Owner",
-                    collection_date: new Date().toISOString().split("T")[0],
-                    collection_type:
-                        selectedPaymentMode === "1" ? "CASH" : "UPI",
-                    latitude: 0,
-                    longitude: 0,
-                    collected_by: userId,
+
+                let debit_ledger_id = 0;
+                let debit_ledger_name = "";
+
+                if (selectedPaymentMode === "1") {
+                    const cashOption = paymentOption.find(
+                        option => option.Account_Name === "Cash Note Off",
+                    );
+                    if (cashOption) {
+                        debit_ledger_id = cashOption.Acc_Id;
+                        debit_ledger_name = cashOption.Account_Name;
+                    }
+                }
+
+                if (selectedPaymentMode === "2") {
+                    const gpayOption = paymentOption.find(
+                        option =>
+                            option.Account_Name === "Canara Bank (795956)",
+                    );
+                    if (gpayOption) {
+                        debit_ledger_id = gpayOption.Acc_Id;
+                        debit_ledger_name = gpayOption.Account_Name;
+                    }
+                }
+
+                let credit_ledger_Id = selectedDelivery.Acc_Id;
+                let credit_ledger_name = selectedDelivery.Retailer_Name;
+
+                if (
+                    selectedDelivery.Acc_Id === "0" ||
+                    selectedDelivery.Acc_Id === 0
+                ) {
+                    credit_ledger_Id = 14;
+                    credit_ledger_name = `${selectedDelivery.Retailer_Name} - (Sundry Creditors)`;
+                }
+
+                const receiptPostData = {
+                    receipt_voucher_type_id: 10,
+                    receipt_bill_type: 1,
+                    remarks: "Sale delivery and payment collection",
+                    status: 1,
+                    credit_ledger: credit_ledger_Id,
+                    credit_ledger_name: credit_ledger_name,
+                    debit_ledger: debit_ledger_id,
+                    debit_ledger_name: debit_ledger_name,
+                    credit_amount: paymentAmount,
                     created_by: userId,
-                    voucher_id: 1,
-                    narration: "Bill Receipt",
-                    Collections: [
+                    receipt_date: new Date().toISOString().split("T")[0],
+                    BillsDetails: [
                         {
                             bill_id: parseInt(selectedDelivery.Do_Id),
+                            bill_name: selectedDelivery.Do_Inv_No,
                             bill_amount: parseFloat(
                                 selectedDelivery.Total_Invoice_value,
                             ),
-                            collected_amount: paymentAmount,
-                            payment_status:
-                                selectedPaymentMode === "1"
-                                    ? "CREATED-CASH"
-                                    : "CREATED-UPI",
+                            Credit_Amo: parseFloat(paymentAmount),
                         },
                     ],
                 };
 
-                const paymentResponse = await fetch(API.paymentCollection(), {
+                // console.log("receiptPostData", receiptPostData);
+
+                const paymentResponse = await fetch(API.createReceipt(), {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(paymentData),
+                    body: JSON.stringify(receiptPostData),
                 });
                 const paymentResult = await paymentResponse.json();
 
@@ -446,28 +575,43 @@ const DeliveryUpdate = () => {
         </View>
     );
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
-        <View style={styles.container}>
-            <AppHeader title="Delivery Update" navigation={navigation} />
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+            <AppHeader
+                title="Delivery Update"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Filter options"
+                fromLabel="From Date"
+                toLabel="To Date"
+            />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="From"
-                        date={selectedFromDate}
-                        onDateChange={(_, date) => handleDateChange(date, true)}
-                        containerStyle={styles.datePicker}
-                    />
-                    <DatePickerButton
-                        title="To"
-                        date={selectedToDate}
-                        onDateChange={(_, date) =>
-                            handleDateChange(date, false)
-                        }
-                        containerStyle={styles.datePicker}
-                    />
-                </View>
-
                 <View style={styles.searchInputContainer}>
                     <TextInput
                         style={styles.searchInput}
@@ -501,7 +645,7 @@ const DeliveryUpdate = () => {
                 </View>
             </View>
             {showUpdateScreen && renderUpdateScreen()}
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -510,27 +654,11 @@ export default DeliveryUpdate;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.white,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        ...shadows.small,
-    },
-    datePickerContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        backgroundColor: customColors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    datePicker: {
-        width: "48%",
         backgroundColor: customColors.white,
     },
     content: {

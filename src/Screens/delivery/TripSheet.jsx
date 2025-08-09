@@ -19,6 +19,8 @@ import {
 } from "../../Config/helper";
 import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripSheet = () => {
     const navigation = useNavigation();
@@ -27,6 +29,7 @@ const TripSheet = () => {
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [expandedTrip, setExpandedTrip] = useState(null);
     const [expandedProduct, setExpandedProduct] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
     // Status constants
     const DELIVERY_STATUS = {
@@ -64,7 +67,7 @@ const TripSheet = () => {
     const fetchTripSheet = async (from, to, uId) => {
         try {
             const url = `${API.deliveryTripSheet()}${from}&Todate=${to}&User_Id=${uId}`;
-            console.log("Fetching trip sheet from URL:", url);
+            // console.log("Fetching trip sheet from URL:", url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -75,8 +78,10 @@ const TripSheet = () => {
             const data = await response.json();
 
             if (data.success) {
-                const filteredData = await filterTripsByUserId(data.data);
-                setLogData(filteredData);
+                // Temporarily disable filtering to show all trips
+                setLogData(data.data);
+                // const filteredData = await filterTripsByUserId(data.data);
+                // setLogData(filteredData);
             } else {
                 Alert.alert(
                     "Error",
@@ -91,27 +96,53 @@ const TripSheet = () => {
 
     const filterTripsByUserId = async trips => {
         try {
-            const userId = await AsyncStorage.getItem("UserId");
+            const userId = await AsyncStorage.getItem("UserId"); // Changed from "UserId" to "User_Id"
             const numericUserId = Number(userId);
 
-            return trips.filter(trip =>
-                trip.Trip_Details?.some(
-                    detail =>
-                        Number(detail.Delivery_Person_Id) === numericUserId,
-                ),
-            );
+            console.log("Current User ID:", numericUserId);
+            console.log("Available trips:", trips.length);
+
+            const filteredTrips = trips.filter(trip => {
+                const hasMatchingDeliveryPerson = trip.Trip_Details?.some(
+                    detail => {
+                        console.log(
+                            "Checking Delivery_Person_Id:",
+                            detail.Delivery_Person_Id,
+                            "vs User ID:",
+                            numericUserId,
+                        );
+                        return (
+                            Number(detail.Delivery_Person_Id) === numericUserId
+                        );
+                    },
+                );
+                return hasMatchingDeliveryPerson;
+            });
+
+            console.log("Filtered trips:", filteredTrips.length);
+            return filteredTrips;
         } catch (error) {
             console.error("Error filtering trips:", error);
             return trips;
         }
     };
 
-    const handleDateChange = (date, isFromDate) => {
-        if (isFromDate) {
-            setSelectedFromDate(date);
-        } else {
-            setSelectedToDate(date);
+    const handleFromDateChange = date => {
+        if (date) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
         }
+    };
+
+    const handleToDateChange = date => {
+        if (date) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
     };
 
     const toggleTripExpand = tripId => {
@@ -502,27 +533,31 @@ const TripSheet = () => {
     };
 
     return (
-        <View style={styles.container}>
-            <AppHeader title="TripSheet Summary" navigation={navigation} />
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+            <AppHeader
+                title="TripSheet Summary"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Filter options"
+                fromLabel="From Date"
+                toLabel="To Date"
+            />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="From Date"
-                        date={selectedFromDate}
-                        onDateChange={(_, date) => handleDateChange(date, true)}
-                        containerStyle={styles.datePicker}
-                    />
-                    <DatePickerButton
-                        title="To Date"
-                        date={selectedToDate}
-                        onDateChange={(_, date) =>
-                            handleDateChange(date, false)
-                        }
-                        containerStyle={styles.datePicker}
-                    />
-                </View>
-
                 <View style={styles.tripContent}>
                     {logData.length > 0 ? (
                         <FlatList
@@ -543,7 +578,7 @@ const TripSheet = () => {
                     )}
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -552,7 +587,7 @@ export default TripSheet;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
         flex: 1,
@@ -561,19 +596,6 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
         ...shadows.small,
-    },
-    datePickerContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        backgroundColor: customColors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    datePicker: {
-        width: "48%",
-        backgroundColor: customColors.white,
     },
     tripContent: {
         flex: 1,
