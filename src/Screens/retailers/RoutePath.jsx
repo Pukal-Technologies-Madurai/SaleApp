@@ -437,7 +437,6 @@ const styles = StyleSheet.create({
     routeId: {
         textAlign: "center",
         ...typography.body2(),
-        fontSize: 11,
         fontWeight: "500",
     },
     activeText: {
@@ -463,7 +462,7 @@ const styles = StyleSheet.create({
     },
     activateButtonText: {
         color: customColors.white,
-        fontSize: 14,
+        ...typography.subtitle1(),
         fontWeight: "bold",
         textAlign: "center",
     },
@@ -479,7 +478,7 @@ const styles = StyleSheet.create({
     },
     deleteButtonText: {
         color: customColors.white,
-        fontSize: 16,
+        ...typography.body1(),
         fontWeight: "bold",
         textAlign: "center",
     },

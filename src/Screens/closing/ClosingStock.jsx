@@ -185,40 +185,50 @@ const ClosingStock = ({ route }) => {
     };
 
     const VisitEntry = async () => {
-        const formData = new FormData();
-        formData.append("Mode", 1);
-        formData.append("Retailer_Id", item.Retailer_Id);
-        formData.append("Latitude", location.latitude.toString());
-        formData.append("Longitude", location.longitude.toString());
-        formData.append("Narration", "The stock entry has been updated.");
-        formData.append("EntryBy", userId);
+        let finalLatitude = location.latitude;
+        let finalLongitude = location.longitude;
+
+        if (!location.latitude || !location.longitude) {
+            finalLatitude = 9.9475;
+            finalLongitude = 78.1454;
+            ToastAndroid.show("Using default location", ToastAndroid.SHORT);
+        }
 
         try {
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", item.Retailer_Id);
+            formData.append("Latitude", finalLatitude.toString());
+            formData.append("Longitude", finalLongitude.toString());
+            formData.append(
+                "Narration",
+                "The closing stock entry has been updated.",
+            );
+            formData.append("EntryBy", userId);
+
             const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 body: formData,
             });
 
-            if (!response.ok) {
-                throw new Error(`Network response was not ok`);
-            }
-
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                navigation.navigate("HomeScreen");
+                return true;
             } else {
                 throw new Error(data.message);
             }
         } catch (err) {
-            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
-            console.error("Error submitting form:", err);
+            ToastAndroid.show(
+                `Visit log error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+            return false;
         }
     };
 
     // Save function
     const saveClosingStock = async () => {
-        VisitEntry();
         const closingStockValues = prepareClosingStockData();
 
         if (closingStockValues.length === 0) {
@@ -232,7 +242,9 @@ const ClosingStock = ({ route }) => {
 
         setIsSubmitting(true);
         try {
-            // Format the request body according to backend expectations
+            const visitEntrySuccess = await VisitEntry();
+            if (!visitEntrySuccess) return;
+
             const currentDate = new Date().toISOString().split("T")[0];
 
             const stockInputValue = {
@@ -251,12 +263,12 @@ const ClosingStock = ({ route }) => {
                 })),
             };
 
-            console.log("stockInputValue:", stockInputValue);
+            // console.log("stockInputValue:", stockInputValue);
 
-            console.log(
-                "Closing Stock Input Value:",
-                JSON.stringify(stockInputValue, null, 2),
-            );
+            // console.log(
+            //     "Closing Stock Input Value:",
+            //     JSON.stringify(stockInputValue, null, 2),
+            // );
 
             const response = await fetch(API.closingStock(), {
                 method: isEdit ? "PUT" : "POST",
@@ -268,7 +280,7 @@ const ClosingStock = ({ route }) => {
 
             // Parse the response body
             const responseText = await response.text();
-            console.log("Response Text:", responseText);
+            // console.log("Response Text:", responseText);
 
             let data;
             try {
@@ -307,9 +319,9 @@ const ClosingStock = ({ route }) => {
             setShowModal(false);
         }
 
-        console.log(
-            `Sending ${closingStockValues.length} changed products out of ${brandsData.reduce((total, brand) => total + brand.GroupedProductArray.length, 0)} total products`,
-        );
+        // console.log(
+        //     `Sending ${closingStockValues.length} changed products out of ${brandsData.reduce((total, brand) => total + brand.GroupedProductArray.length, 0)} total products`,
+        // );
     };
 
     const renderProductItem = ({ item }) => {

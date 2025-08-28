@@ -13,17 +13,17 @@ import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import NetInfo from "@react-native-community/netinfo";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import Share from "react-native-share";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import NetInfo from "@react-native-community/netinfo";
 import RNFS from "react-native-fs";
+import Share from "react-native-share";
 import AttendanceInfo from "./attendance/AttendanceInfo";
-import { customColors, typography, spacing, shadows } from "../Config/helper";
 import AppHeader from "../Components/AppHeader";
-import Dashboard from "./Dashboard";
 import assetImages from "../Config/Image";
+import Dashboard from "./Dashboard";
+import { customColors, typography, spacing, shadows } from "../Config/helper";
 
 const HomeScreen = () => {
     const navigation = useNavigation();
@@ -122,21 +122,21 @@ const HomeScreen = () => {
             backgroundColor: "#ECFEFF",
         },
         {
-            title: "Receipts Info",
+            title: "Receipts",
             iconLibrary: "Ionicons",
             iconName: "receipt-outline",
             navigate: "ReceiptInfo",
             color: "#84CC16",
             backgroundColor: "#F7FEE7",
         },
-        {
-            title: "Bills Collection",
-            iconLibrary: "MaterialIcons",
-            iconName: "receipt-long",
-            navigate: "BillSummary",
-            color: "#EC4899",
-            backgroundColor: "#FDF2F8",
-        },
+        // {
+        //     title: "Bills Collection",
+        //     iconLibrary: "MaterialIcons",
+        //     iconName: "receipt-long",
+        //     navigate: "BillSummary",
+        //     color: "#EC4899",
+        //     backgroundColor: "#FDF2F8",
+        // },
     ];
 
     const renderIcon = (iconLibrary, iconName, color) => {
@@ -214,7 +214,6 @@ const HomeScreen = () => {
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-            {/* <StatusBar backgroundColor={customColors.primaryDark} /> */}
             <AppHeader
                 navigation={navigation}
                 showDrawer={true}

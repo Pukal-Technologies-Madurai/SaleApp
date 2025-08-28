@@ -29,12 +29,13 @@ export const API = {
     MyLastAttendance: () => `${baseURL}api/empAttendance/attendance?UserId=`,
 
     retailers: () => `${baseURL}api/masters/retailers?Company_Id=`,
-    retailerName: () => `${baseURL}api/masters/retailers/dropDown?Company_Id=`,
+    retailerName: () => `${baseURL}api/masters/retailers/dropDown`,
     retailerLocation: () => `${baseURL}api/masters/retailers/location`,
     retailerInfo: () => `${baseURL}api/masters/retailers/info?Retailer_Id=`,
 
     uom: () => `${baseURL}api/masters/uom`,
     groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
+    stockValueWithProduct: () => `${baseURL}api/masters/products/withStock`,
     productPacks: () => `${baseURL}api/masters/products/packs?Company_Id=`,
     closingStock: () => `${baseURL}api/masters/retailers/closingStock`,
     productClosingStock: () =>
@@ -44,12 +45,28 @@ export const API = {
     closingStockReport: () =>
         `${baseURL}api/masters/retailers/closingStock/myEntry?UserId=`,
 
+    retailersClosingStockDropDown: () =>
+        `${baseURL}api/masters/retailers/whoHasClosingStock`,
+
+    retailerClosingDetailedInfo: () =>
+        `${baseURL}api/reports/customerClosingStock/retailerBased/detailedInfo?Retailer_Id=`,
+
+    soldItemsForRetailer: () =>
+        `${baseURL}api/reports/customerClosingStock/soldItems`,
+
+    itemAvailableInRetailer: () =>
+        `${baseURL}api/reports/customerClosingStock/itemSearch?Item_Id=`,
+
     delivery: () =>
         `${baseURL}api/delivery/deliveryOrderList?Delivery_Person_Id=`,
     todayDelivery: () => `${baseURL}api/delivery/deliveryOrderList?`,
     deliveryPut: () => `${baseURL}api/delivery/deliveryOrderMobile`,
     deliveryTripSheet: () =>
         `${baseURL}api/delivery/deliveryTripSheet?Fromdate=`,
+    pendingDeliveryList: () =>
+        `${baseURL}api/delivery/deliveryOrderListData?Fromdate=`,
+    pendingSalesOrder: () =>
+        `${baseURL}api/reports/reportsNonconvert/sales?Fromdate=`,
 
     visitedLog: () => `${baseURL}api/empAttendance/visitLogs`,
     saleOrder: () => `${baseURL}api/sales/saleOrder`,

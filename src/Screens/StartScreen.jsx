@@ -2,8 +2,8 @@ import { View, StyleSheet, StatusBar, Image } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { customColors } from "../Config/helper";
 import assetImages from "../Config/Image";
+import { customColors } from "../Config/helper";
 
 const StartScreen = () => {
     const navigation = useNavigation();

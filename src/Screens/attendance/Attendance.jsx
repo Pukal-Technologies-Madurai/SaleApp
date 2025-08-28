@@ -103,7 +103,7 @@ const Attendance = locationData => {
             Longitude,
             Start_KM_Pic,
         });
-        console.log("Submitting formValues:", formValues);
+        // console.log("Submitting formValues:", formValues);
     };
 
     return (

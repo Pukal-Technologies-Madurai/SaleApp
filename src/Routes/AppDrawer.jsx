@@ -13,7 +13,7 @@ const AppDrawer = () => {
             screenOptions={{
                 drawerStyle: {
                     backgroundColor: customColors.white,
-                    width: "75%",
+                    width: "65%",
                     ...shadows.large,
                 },
                 // drawerType: "front",

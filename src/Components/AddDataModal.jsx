@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
         borderColor: customColors.lightGrey,
         borderRadius: 8,
         padding: 12,
-        fontSize: 16,
+        ...typography.body1(),
         marginBottom: 24,
     },
     modalActions: {
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     },
     errorText: {
         color: "#ff0000",
-        fontSize: 14,
+        ...typography.caption(),
         marginTop: -16,
         marginBottom: 16,
     },

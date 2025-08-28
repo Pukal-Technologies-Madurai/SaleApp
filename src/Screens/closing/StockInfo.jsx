@@ -10,15 +10,14 @@ import {
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Feather";
 
 import { customColors, typography } from "../../Config/helper";
 import { fetchClosingStock } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
-import DatePickerButton from "../../Components/DatePickerButton";
 import FilterModal from "../../Components/FilterModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const StockInfo = () => {
     const navigation = useNavigation();
@@ -27,6 +26,7 @@ const StockInfo = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [expandedRetailerId, setExpandedRetailerId] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [dateVisible, setDateVisible] = useState(false);
     const [summaryDetails, setSummaryDetails] = useState([]);
     const rotationAnimation = useRef(new Animated.Value(0)).current;
 
@@ -53,6 +53,26 @@ const StockInfo = () => {
         setSelectedDate(date);
     };
 
+    const renderSummaryCard = (
+        icon,
+        title,
+        value,
+        onPress,
+        isDisabled = false,
+    ) => (
+        <TouchableOpacity
+            style={[styles.summaryCard, isDisabled]}
+            onPress={!isDisabled ? onPress : undefined} // Disable the click if isDisabled is true
+            activeOpacity={isDisabled ? 1 : 0.7} // Prevent visual feedback when disabled
+        >
+            <View style={styles.summaryCardIconContainer}>
+                <Icon name={icon} color={styles.iconColors[icon]} size={24} />
+            </View>
+            <Text style={styles.summaryCardTitle}>{title}</Text>
+            <Text style={styles.summaryCardValue}>{value}</Text>
+        </TouchableOpacity>
+    );
+
     const calculateSummary = () => {
         const productSummary = {};
 
@@ -76,36 +96,12 @@ const StockInfo = () => {
             .sort((a, b) => b.ST_Qty - a.ST_Qty); // Sort by quantity descending
     };
 
+    const summary = calculateSummary();
+
     const handleModalPreview = () => {
-        const summary = calculateSummary();
         setSummaryDetails(summary);
         setModalVisible(true);
     };
-
-    const summary = calculateSummary();
-
-    const renderSummaryCard = (
-        icon,
-        title,
-        value,
-        onPress,
-        isDisabled = false,
-    ) => (
-        <TouchableOpacity
-            style={[
-                styles.summaryCard,
-                isDisabled && styles.disabledCard, // Apply a different style if disabled
-            ]}
-            onPress={!isDisabled ? onPress : null} // Disable the click if isDisabled is true
-            activeOpacity={isDisabled ? 1 : 0.7} // Prevent visual feedback when disabled
-        >
-            <View style={styles.summaryCardIconContainer}>
-                <Icon name={icon} color={styles.iconColors[icon]} size={24} />
-            </View>
-            <Text style={styles.summaryCardTitle}>{title}</Text>
-            <Text style={styles.summaryCardValue}>{value}</Text>
-        </TouchableOpacity>
-    );
 
     const toggleRetailerExpand = retailerId => {
         Animated.timing(rotationAnimation, {
@@ -128,7 +124,7 @@ const StockInfo = () => {
     };
 
     const handleCloseModal = () => {
-        setModalVisible(false);
+        setDateVisible(false);
     };
 
     return (
@@ -136,31 +132,23 @@ const StockInfo = () => {
             <AppHeader
                 title="Closing Stock Summary"
                 navigation={navigation}
-                // showRightIcon={true}
-                // rightIconLibrary="MaterialIcon"
-                // rightIconName="filter-list"
-                // onRightPress={() => setModalVisible(true)}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setDateVisible(true)}
             />
 
-            {/* <FilterModal
-                visible={modalVisible}
+            <FilterModal
+                visible={dateVisible}
                 fromDate={selectedDate}
                 onFromDateChange={handleDateChange}
-                onApply={() => setModalVisible(false)}
+                onApply={() => setDateVisible(false)}
                 onClose={handleCloseModal}
                 title="Select Date Range"
                 fromLabel="From Date"
-            /> */}
+            />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="Select Stock Date"
-                        date={selectedDate}
-                        onDateChange={handleDateChange}
-                    />
-                </View>
-
                 <View style={styles.summaryCardsContainer}>
                     {renderSummaryCard(
                         "users",
@@ -171,7 +159,7 @@ const StockInfo = () => {
                     )}
                     {renderSummaryCard(
                         "list",
-                        "Product Types",
+                        "Products",
                         summary.length,
                         null,
                         true,
@@ -323,28 +311,38 @@ const StockInfo = () => {
                                 </Text>
                             </View>
 
-                            <View style={styles.modalView}>
-                                {summaryDetails.map((product, index) => (
-                                    <View
-                                        key={index}
-                                        style={styles.modalTableRow}>
-                                        <Text
-                                            style={styles.modalProductName}
-                                            numberOfLines={2}>
-                                            {product.Product_Name}
-                                        </Text>
+                            <ScrollView
+                                style={styles.modalView}
+                                showsVerticalScrollIndicator={false}>
+                                {summaryDetails.length === 0 ? (
+                                    <Text style={styles.emptyText}>
+                                        No summary available for this date.
+                                    </Text>
+                                ) : (
+                                    summaryDetails.map((product, index) => (
                                         <View
-                                            style={
-                                                styles.modalQuantityContainer
-                                            }>
+                                            key={index}
+                                            style={styles.modalTableRow}>
                                             <Text
-                                                style={styles.modalProductQty}>
-                                                {product.ST_Qty}
+                                                style={styles.modalProductName}
+                                                numberOfLines={2}>
+                                                {product.Product_Name}
                                             </Text>
+                                            <View
+                                                style={
+                                                    styles.modalQuantityContainer
+                                                }>
+                                                <Text
+                                                    style={
+                                                        styles.modalProductQty
+                                                    }>
+                                                    {product.ST_Qty}
+                                                </Text>
+                                            </View>
                                         </View>
-                                    </View>
-                                ))}
-                            </View>
+                                    ))
+                                )}
+                            </ScrollView>
                         </View>
 
                         <View style={styles.modalFooter}>
@@ -373,10 +371,6 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-    },
-    datePickerContainer: {
-        marginHorizontal: 16,
-        marginBottom: 16,
     },
     summaryCardsContainer: {
         flexDirection: "row",
@@ -501,12 +495,12 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.5)",
         justifyContent: "center",
-        // alignItems: "center",
-        // padding: 20,
+        alignItems: "center",
+        padding: 20,
     },
     modalContainer: {
         width: "90%",
-        height: "80%",
+        maxHeight: "80%", // Change to maxHeight
         backgroundColor: customColors.white,
         borderRadius: 16,
         elevation: 5,
@@ -517,8 +511,7 @@ const styles = StyleSheet.create({
         },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
-        // overflow: "hidden",
-        // position: "relative",
+        overflow: "hidden",
     },
     modalHeader: {
         flexDirection: "row",
@@ -531,13 +524,13 @@ const styles = StyleSheet.create({
     },
     modalTitle: {
         ...typography.h6(),
-        color: customColors.text,
+        color: customColors.black,
     },
     modalCloseIcon: {
         padding: 8,
     },
     modalContent: {
-        minHeight: 0,
+        flex: 1,
         backgroundColor: customColors.white,
     },
     modalTableHeader: {
@@ -549,7 +542,6 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.grey50,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
-        // zIndex: 1,
     },
     modalHeaderText: {
         ...typography.subtitle2(),
@@ -562,8 +554,8 @@ const styles = StyleSheet.create({
         flex: 0.4,
     },
     modalView: {
+        flex: 1, // Change this to flex: 1
         backgroundColor: customColors.white,
-        height: "60%",
     },
     modalTableRow: {
         flexDirection: "row",
@@ -577,7 +569,7 @@ const styles = StyleSheet.create({
     },
     modalProductName: {
         ...typography.body2(),
-        color: customColors.text,
+        color: customColors.black,
         flex: 1,
         marginRight: 16,
     },
@@ -587,6 +579,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         minWidth: 60,
+        alignItems: "center",
     },
     modalProductQty: {
         ...typography.subtitle2(),

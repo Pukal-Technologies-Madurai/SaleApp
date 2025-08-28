@@ -1,430 +1,413 @@
 import {
-    ActivityIndicator,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
+    FlatList,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import { customColors, typography } from "../../Config/helper";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API } from "../../Config/Endpoint";
-import AppHeader from "../../Components/AppHeader";
+import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import AppHeader from "../../Components/AppHeader";
+import { customColors, typography } from "../../Config/helper";
+import FilterModal from "../../Components/FilterModal";
+import { useQuery } from "@tanstack/react-query";
+import {
+    fetchRetailerClosingInfo,
+    fetchRetailersClosingDropDown,
+    fetchRetailerSoldItems,
+    fetchProductsAvailableInRetailer,
+} from "../../Api/retailers";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const RetailerStock = () => {
     const navigation = useNavigation();
-    const [loading, setLoading] = useState(true);
-    const [stockData, setStockData] = useState([]);
-    const [expandedAreas, setExpandedAreas] = useState({});
-    const [expandedRetailers, setExpandedRetailers] = useState({});
-    const [lastUpdatedDate, setLastUpdatedDate] = useState("");
-    const [overallTotal, setOverallTotal] = useState(0);
-    const [viewMode, setViewMode] = useState("area"); // 'area' or 'brand'
-    const [brandData, setBrandData] = useState({});
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedFromDate, setSelectedFromDate] = useState(() => {
+        const currentDate = new Date();
+        const day = currentDate.getDate();
+        const previousMonthDate = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth() - 1,
+            day,
+        );
+        return previousMonthDate;
+    });
+    const [selectedToDate, setSelectedToDate] = useState(new Date());
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const Company_Id = await AsyncStorage.getItem("Company_Id");
+    const [selectedRetailer, setSelectedRetailer] = useState(null);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [searchType, setSearchType] = useState("retailer"); // "retailer" or "item"
 
-                fetchStock(Company_Id);
-            } catch (err) {
-                console.error(err);
-            }
-        })();
-    }, []);
-
-    const fetchStock = async cID => {
-        try {
-            const url = `${API.closingStockAreaBased()}${cID}`;
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                setStockData(data.data);
-            } else {
-                console.log("Failed to fetch logs: ", data.message);
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
+    const handleFromDateChange = date => {
+        if (date) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
         }
     };
 
-    useEffect(() => {
-        if (stockData.length > 0) {
-            calculateOverallTotalAndLatestDate();
-            organizeBrandData();
+    const handleToDateChange = date => {
+        if (date) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
         }
-    }, [stockData]);
-
-    const calculateOverallTotalAndLatestDate = () => {
-        let total = 0;
-        let latestDate = "";
-
-        stockData.forEach(area => {
-            area.Retailer.forEach(retailer => {
-                retailer.Closing_Stock.forEach(stock => {
-                    total += stock.Previous_Balance * stock.Item_Rate;
-
-                    // Find the latest date
-                    if (
-                        !latestDate ||
-                        new Date(stock.Cl_Date) > new Date(latestDate)
-                    ) {
-                        latestDate = stock.Cl_Date;
-                    }
-                });
-            });
-        });
-
-        setOverallTotal(total);
-        setLastUpdatedDate(latestDate);
     };
 
-    const toggleArea = areaId => {
-        setExpandedAreas(prev => ({
-            ...prev,
-            [areaId]: !prev[areaId],
-        }));
+    const handleSearchTypeChange = type => {
+        setSearchType(type);
+        setSelectedRetailer(null);
+        setSelectedProduct(null);
     };
 
-    const toggleRetailer = retailerId => {
-        setExpandedRetailers(prev => ({
-            ...prev,
-            [retailerId]: !prev[retailerId],
-        }));
+    const { data: retailersInfo = [] } = useQuery({
+        queryKey: ["retailersInfo"],
+        queryFn: fetchRetailersClosingDropDown,
+    });
+
+    const { data: productsInfo = [] } = useQuery({
+        queryKey: ["productsInfo"],
+        queryFn: fetchRetailerSoldItems,
+        select: data => {
+            return data?.data || [];
+        },
+        enabled: searchType === "item",
+    });
+
+    const { data: retailerStockData = [] } = useQuery({
+        queryKey: [
+            "fetchRetailerSoldItems",
+            selectedRetailer,
+            selectedFromDate?.toISOString(),
+            selectedToDate?.toISOString(),
+        ],
+        queryFn: () =>
+            fetchRetailerClosingInfo(
+                selectedRetailer,
+                selectedFromDate?.toISOString().split("T")[0], // Format for API
+                selectedToDate?.toISOString().split("T")[0], // Format for API
+            ),
+        enabled:
+            !!selectedRetailer &&
+            !!selectedFromDate &&
+            !!selectedToDate &&
+            searchType === "retailer",
+        select: data => {
+            return data?.data || [];
+        },
+    });
+
+    const { data: itemStockData = [] } = useQuery({
+        queryKey: [
+            "fetchProductsAvailableInRetailer",
+            selectedProduct,
+            selectedFromDate?.toISOString(),
+            selectedToDate?.toISOString(),
+        ],
+        queryFn: () =>
+            fetchProductsAvailableInRetailer(
+                selectedProduct,
+                selectedFromDate?.toISOString().split("T")[0], // Format for API
+                selectedToDate?.toISOString().split("T")[0], // Format for API
+            ),
+        enabled:
+            !!selectedProduct &&
+            !!selectedFromDate &&
+            !!selectedToDate &&
+            searchType === "item",
+        select: data => {
+            return data?.data || [];
+        },
+    });
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
     };
 
-    const calculateAreaTotal = area => {
-        let total = 0;
-        area.Retailer.forEach(retailer => {
-            retailer.Closing_Stock.forEach(stock => {
-                total += stock.Previous_Balance * stock.Item_Rate;
-            });
-        });
-        return total;
-    };
+    const renderStockCard = ({ item }) => {
+        const isRetailerSearch = searchType === "retailer";
 
-    const calculateRetailerTotal = retailer => {
-        let total = 0;
-        retailer.Closing_Stock.forEach(stock => {
-            total += stock.Previous_Balance * stock.Item_Rate;
-        });
-        return total;
-    };
+        return (
+            <View style={styles.stockCard}>
+                <View style={styles.stockHeader}>
+                    <Text style={styles.productName} numberOfLines={2}>
+                        {searchType === "item"
+                            ? item.Retailer_Name?.trim() || "Unknown Retailer"
+                            : item.Product_Name?.trim() || "Unknown Product"}
+                    </Text>
+                    <View style={styles.stockBadge}>
+                        <Text style={styles.stockBadgeText}>
+                            {isRetailerSearch
+                                ? item.ClosingQTY || item.Bill_Qty
+                                : item.stockQuantityOfItem}{" "}
+                            units
+                        </Text>
+                    </View>
+                </View>
 
-    const formatDate = dateString => {
-        if (!dateString) return "N/A";
-        const options = { year: "numeric", month: "short", day: "numeric" };
-        return new Date(dateString).toLocaleDateString(undefined, options);
-    };
-
-    const organizeBrandData = () => {
-        const brands = {};
-
-        stockData.forEach(area => {
-            area.Retailer.forEach(retailer => {
-                retailer.Closing_Stock.forEach(stock => {
-                    if (!brands[stock.Brand]) {
-                        brands[stock.Brand] = {
-                            Brand_Name: stock.Brand_Name,
-                            products: {},
-                            totalAmount: 0,
-                        };
-                    }
-
-                    if (!brands[stock.Brand].products[stock.Item_Id]) {
-                        brands[stock.Brand].products[stock.Item_Id] = {
-                            Product_Name: stock.Product_Name,
-                            Item_Rate: stock.Item_Rate,
-                            totalQuantity: 0,
-                            totalValue: 0,
-                        };
-                    }
-
-                    brands[stock.Brand].products[stock.Item_Id].totalQuantity +=
-                        stock.Previous_Balance;
-                    brands[stock.Brand].products[stock.Item_Id].totalValue +=
-                        stock.Previous_Balance * stock.Item_Rate;
-                    brands[stock.Brand].totalAmount +=
-                        stock.Previous_Balance * stock.Item_Rate;
-                });
-            });
-        });
-
-        setBrandData(brands);
-    };
-
-    const renderBrandView = () => (
-        <ScrollView style={styles.container}>
-            <View style={styles.summaryContainer}>
-                <Text style={styles.lastUpdatedText}>
-                    Last Updated: {formatDate(lastUpdatedDate)}
-                </Text>
-                <Text style={styles.overallTotalText}>
-                    Overall Total: ₹{overallTotal.toFixed(2)}
-                </Text>
-            </View>
-
-            {Object.entries(brandData).map(([brandId, brand]) => (
-                <View key={brandId} style={styles.areaContainer}>
-                    <TouchableOpacity
-                        style={styles.areaHeader}
-                        onPress={() => toggleArea(brandId)}>
-                        <View style={styles.areaHeaderContent}>
-                            <Icon
-                                name={
-                                    expandedAreas[brandId]
-                                        ? "expand-less"
-                                        : "expand-more"
-                                }
-                                size={24}
-                                color="#333"
-                            />
-                            <Text style={styles.areaName}>
-                                {brand.Brand_Name}
-                            </Text>
-                            <Text style={styles.areaTotal}>
-                                ₹{brand.totalAmount.toFixed(2)}
+                <View style={styles.stockDetails}>
+                    <View style={styles.stockRow}>
+                        <View style={styles.stockItem}>
+                            <Text style={styles.stockLabel}>Rate:</Text>
+                            <Text style={styles.stockValue}>
+                                ₹
+                                {isRetailerSearch
+                                    ? item.Product_Rate
+                                    : item.stockRateOfItem}
                             </Text>
                         </View>
-                    </TouchableOpacity>
+                        <View style={styles.stockItem}>
+                            <Text style={styles.stockLabel}>Value:</Text>
+                            <Text style={styles.stockValue}>
+                                ₹
+                                {isRetailerSearch
+                                    ? (
+                                          (item.ClosingQTY || item.Bill_Qty) *
+                                          item.Product_Rate
+                                      ).toFixed(2)
+                                    : item.stockValueOfItem?.toFixed(2)}
+                            </Text>
+                        </View>
+                    </View>
 
-                    {expandedAreas[brandId] && (
-                        <View style={styles.stockList}>
-                            {Object.entries(brand.products).map(
-                                ([productId, product]) => (
-                                    <View
-                                        key={productId}
-                                        style={styles.stockItem}>
-                                        <Text style={styles.productName}>
-                                            {product.Product_Name}
-                                        </Text>
-                                        <View style={styles.stockDetails}>
-                                            <Text style={styles.stockText}>
-                                                Quantity:{" "}
-                                                {product.totalQuantity}
-                                            </Text>
-                                            <Text style={styles.stockText}>
-                                                Rate: ₹{product.Item_Rate}
-                                            </Text>
-                                            <Text style={styles.stockValue}>
-                                                Value: ₹
-                                                {product.totalValue.toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                ),
-                            )}
+                    {isRetailerSearch && (
+                        <View style={styles.stockRow}>
+                            <View style={styles.stockItem}>
+                                <Text style={styles.stockLabel}>
+                                    Billed Qty:
+                                </Text>
+                                <Text style={styles.stockValue}>
+                                    {item.Bill_Qty || 0}
+                                </Text>
+                            </View>
+                            <View style={styles.stockItem}>
+                                <Text style={styles.stockLabel}>
+                                    Closing Qty:
+                                </Text>
+                                <Text style={styles.stockValue}>
+                                    {item.ClosingQTY || 0}
+                                </Text>
+                            </View>
                         </View>
                     )}
+
+                    <View style={styles.dateRow}>
+                        {item.deliveryDisplayDate && (
+                            <Text style={styles.dateText}>
+                                Delivery: {item.deliveryDisplayDate}
+                            </Text>
+                        )}
+                        {item.closingDisplayDate && (
+                            <Text style={styles.dateText}>
+                                Closing: {item.closingDisplayDate}
+                            </Text>
+                        )}
+                    </View>
                 </View>
-            ))}
-        </ScrollView>
+            </View>
+        );
+    };
+
+    const getSummaryData = () => {
+        const data =
+            searchType === "retailer" ? retailerStockData : itemStockData;
+
+        const totalItems = data.length;
+        const totalQuantity = data.reduce((sum, item) => {
+            return (
+                sum +
+                (searchType === "retailer"
+                    ? item.ClosingQTY || item.Bill_Qty || 0
+                    : item.stockQuantityOfItem || 0)
+            );
+        }, 0);
+        const totalValue = data.reduce((sum, item) => {
+            return (
+                sum +
+                (searchType === "retailer"
+                    ? (item.ClosingQTY || item.Bill_Qty || 0) *
+                      (item.Product_Rate || 0)
+                    : item.stockValueOfItem || 0)
+            );
+        }, 0);
+
+        return { totalItems, totalQuantity, totalValue };
+    };
+
+    const renderSummaryCard = (
+        icon,
+        title,
+        value,
+        color = customColors.primary,
+    ) => (
+        <View style={styles.summaryCard}>
+            <View
+                style={[
+                    styles.summaryIconContainer,
+                    { backgroundColor: color + "20" },
+                ]}>
+                <Icon name={icon} size={24} color={color} />
+            </View>
+            <Text style={styles.summaryTitle}>{title}</Text>
+            <Text style={[styles.summaryValue, { color }]}>{value}</Text>
+        </View>
     );
+
+    const currentData =
+        searchType === "retailer" ? retailerStockData : itemStockData;
+    const { totalItems, totalQuantity, totalValue } = getSummaryData();
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 navigation={navigation}
-                title="Retailers Stock Info"
+                title="Stock Summary"
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
-                rightIconName={viewMode === "area" ? "store" : "local-offer"}
-                onRightPress={() =>
-                    setViewMode(viewMode === "area" ? "brand" : "area")
-                }
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Filter options"
+                fromLabel="From Date"
+                toLabel="To Date"
             />
 
             <View style={styles.contentContainer}>
-                {loading ? (
-                    <ActivityIndicator
-                        size="large"
-                        color={customColors.primary}
-                        style={{ flex: 1 }}
-                    />
-                ) : viewMode === "area" ? (
-                    <ScrollView style={styles.container}>
-                        <View style={styles.summaryContainer}>
-                            <Text style={styles.lastUpdatedText}>
-                                Last Updated: {formatDate(lastUpdatedDate)}
-                            </Text>
-                            <Text style={styles.overallTotalText}>
-                                Overall Total: ₹{overallTotal.toFixed(2)}
+                {/* Search Type Toggle */}
+                <View style={styles.toggleContainer}>
+                    <TouchableOpacity
+                        style={[
+                            styles.toggleButton,
+                            searchType === "retailer" &&
+                                styles.toggleButtonActive,
+                        ]}
+                        onPress={() => handleSearchTypeChange("retailer")}>
+                        <Icon
+                            name="store"
+                            size={18}
+                            color={
+                                searchType === "retailer"
+                                    ? customColors.white
+                                    : customColors.grey600
+                            }
+                        />
+                        <Text
+                            style={[
+                                styles.toggleButtonText,
+                                searchType === "retailer" &&
+                                    styles.toggleButtonTextActive,
+                            ]}>
+                            By Retailer
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.toggleButton,
+                            searchType === "item" && styles.toggleButtonActive,
+                        ]}
+                        onPress={() => handleSearchTypeChange("item")}>
+                        <Icon
+                            name="inventory"
+                            size={18}
+                            color={
+                                searchType === "item"
+                                    ? customColors.white
+                                    : customColors.grey600
+                            }
+                        />
+                        <Text
+                            style={[
+                                styles.toggleButtonText,
+                                searchType === "item" &&
+                                    styles.toggleButtonTextActive,
+                            ]}>
+                            By Item
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Dropdowns */}
+                <View style={styles.dropdownsContainer}>
+                    {searchType === "retailer" ? (
+                        <EnhancedDropdown
+                            data={retailersInfo}
+                            labelField="Retailer_Name"
+                            valueField="Retailer_Id"
+                            placeholder="Select Retailer"
+                            value={selectedRetailer}
+                            onChange={value => {
+                                setSelectedRetailer(value.Retailer_Id);
+                            }}
+                            containerStyle={styles.dropdown}
+                        />
+                    ) : (
+                        <EnhancedDropdown
+                            data={productsInfo}
+                            labelField="Item_Name"
+                            valueField="Item_Id"
+                            placeholder="Select Product"
+                            value={selectedProduct}
+                            onChange={value => {
+                                setSelectedProduct(value.Item_Id);
+                            }}
+                            containerStyle={styles.dropdown}
+                        />
+                    )}
+                </View>
+
+                {/* Summary Cards */}
+                {currentData.length > 0 && (
+                    <View style={styles.summaryContainer}>
+                        {renderSummaryCard("list", "Items", totalItems)}
+                        {renderSummaryCard(
+                            "shopping-cart",
+                            "Quantity",
+                            totalQuantity.toFixed(1),
+                            customColors.success,
+                        )}
+                        {renderSummaryCard(
+                            "attach-money",
+                            "Value",
+                            `₹${totalValue.toFixed(2)}`,
+                            customColors.warning,
+                        )}
+                    </View>
+                )}
+
+                {/* Stock List */}
+                <FlatList
+                    data={currentData}
+                    renderItem={renderStockCard}
+                    keyExtractor={(item, index) => `${item.Item_Id}-${index}`}
+                    contentContainerStyle={styles.stockList}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyContainer}>
+                            <Icon
+                                name="inventory-2"
+                                size={64}
+                                color={customColors.grey400}
+                            />
+                            <Text style={styles.emptyTitle}>No Stock Data</Text>
+                            <Text style={styles.emptySubtitle}>
+                                {searchType === "retailer"
+                                    ? "Select a retailer to view stock information"
+                                    : "Select a product to view availability"}
                             </Text>
                         </View>
-
-                        {stockData.map(area => (
-                            <View
-                                key={area.Area_Id}
-                                style={styles.areaContainer}>
-                                <TouchableOpacity
-                                    style={styles.areaHeader}
-                                    onPress={() => toggleArea(area.Area_Id)}>
-                                    <View style={styles.areaHeaderContent}>
-                                        <Icon
-                                            name={
-                                                expandedAreas[area.Area_Id]
-                                                    ? "expand-less"
-                                                    : "expand-more"
-                                            }
-                                            size={24}
-                                            color="#333"
-                                        />
-                                        <Text style={styles.areaName}>
-                                            {area.Area_Name ||
-                                                `Area ${area.Area_Id}`}
-                                        </Text>
-                                        <Text style={styles.areaTotal}>
-                                            ₹
-                                            {calculateAreaTotal(area).toFixed(
-                                                2,
-                                            )}
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-
-                                {expandedAreas[area.Area_Id] && (
-                                    <View style={styles.retailersList}>
-                                        {area.Retailer.map(retailer => (
-                                            <View
-                                                key={retailer.Retailer_Id}
-                                                style={
-                                                    styles.retailerContainer
-                                                }>
-                                                <TouchableOpacity
-                                                    style={
-                                                        styles.retailerHeader
-                                                    }
-                                                    onPress={() =>
-                                                        toggleRetailer(
-                                                            retailer.Retailer_Id,
-                                                        )
-                                                    }>
-                                                    <View
-                                                        style={
-                                                            styles.retailerHeaderContent
-                                                        }>
-                                                        <Icon
-                                                            name={
-                                                                expandedRetailers[
-                                                                    retailer
-                                                                        .Retailer_Id
-                                                                ]
-                                                                    ? "remove"
-                                                                    : "add"
-                                                            }
-                                                            size={20}
-                                                            color="#666"
-                                                        />
-                                                        <Text
-                                                            style={
-                                                                styles.retailerName
-                                                            }>
-                                                            {
-                                                                retailer.Retailer_Name
-                                                            }
-                                                        </Text>
-                                                        <Text
-                                                            style={
-                                                                styles.retailerTotal
-                                                            }>
-                                                            ₹
-                                                            {calculateRetailerTotal(
-                                                                retailer,
-                                                            ).toFixed(2)}
-                                                        </Text>
-                                                    </View>
-                                                </TouchableOpacity>
-
-                                                {expandedRetailers[
-                                                    retailer.Retailer_Id
-                                                ] && (
-                                                    <View
-                                                        style={
-                                                            styles.stockList
-                                                        }>
-                                                        {retailer.Closing_Stock.map(
-                                                            stock => (
-                                                                <View
-                                                                    key={
-                                                                        stock.Item_Id
-                                                                    }
-                                                                    style={
-                                                                        styles.stockItem
-                                                                    }>
-                                                                    <Text
-                                                                        style={
-                                                                            styles.productName
-                                                                        }>
-                                                                        {
-                                                                            stock.Product_Name
-                                                                        }
-                                                                    </Text>
-                                                                    <View
-                                                                        style={
-                                                                            styles.stockDetails
-                                                                        }>
-                                                                        <Text
-                                                                            style={
-                                                                                styles.stockText
-                                                                            }>
-                                                                            Balance:{" "}
-                                                                            {
-                                                                                stock.Previous_Balance
-                                                                            }
-                                                                        </Text>
-                                                                        <Text
-                                                                            style={
-                                                                                styles.stockText
-                                                                            }>
-                                                                            Rate:
-                                                                            ₹
-                                                                            {
-                                                                                stock.Item_Rate
-                                                                            }
-                                                                        </Text>
-                                                                        <Text
-                                                                            style={
-                                                                                styles.stockValue
-                                                                            }>
-                                                                            Value:
-                                                                            ₹
-                                                                            {(
-                                                                                stock.Previous_Balance *
-                                                                                stock.Item_Rate
-                                                                            ).toFixed(
-                                                                                2,
-                                                                            )}
-                                                                        </Text>
-                                                                    </View>
-                                                                </View>
-                                                            ),
-                                                        )}
-                                                    </View>
-                                                )}
-                                            </View>
-                                        ))}
-                                    </View>
-                                )}
-                            </View>
-                        ))}
-                    </ScrollView>
-                ) : (
-                    renderBrandView()
-                )}
+                    )}
+                />
             </View>
         </SafeAreaView>
     );
@@ -435,123 +418,170 @@ export default RetailerStock;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: customColors.primaryDark,
     },
     contentContainer: {
-        width: "100%",
-        height: "100%",
+        flex: 1,
         backgroundColor: customColors.white,
-        borderRadius: 7.5,
-    },
-    areaContainer: {
-        marginBottom: 8,
-        backgroundColor: customColors.white,
-        borderRadius: 8,
-        overflow: "hidden",
-        marginHorizontal: 12,
-        marginTop: 8,
-        elevation: 2,
-    },
-    areaHeader: {
         padding: 16,
-        backgroundColor: "#f8f8f8",
     },
-    areaHeaderContent: {
+    toggleContainer: {
+        flexDirection: "row",
+        backgroundColor: customColors.grey100,
+        borderRadius: 8,
+        padding: 4,
+        marginBottom: 16,
+    },
+    toggleButton: {
+        flex: 1,
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        gap: 6,
     },
-    areaName: {
+    toggleButtonActive: {
+        backgroundColor: customColors.primary,
+    },
+    toggleButtonText: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        fontWeight: "500",
+    },
+    toggleButtonTextActive: {
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    dropdownsContainer: {
+        marginBottom: 16,
+    },
+    dropdown: {
+        marginBottom: 8,
+    },
+    summaryContainer: {
+        flexDirection: "row",
+        gap: 12,
+        marginBottom: 16,
+    },
+    summaryCard: {
         flex: 1,
-        ...typography.h6(),
-        fontWeight: "bold",
-        marginLeft: 8,
-    },
-    areaTotal: {
-        ...typography.h6(),
-        fontWeight: "bold",
-        color: "#2196F3",
-    },
-    retailersList: {
-        paddingHorizontal: 8,
-    },
-    retailerContainer: {
-        marginVertical: 4,
         backgroundColor: customColors.white,
-        borderRadius: 4,
-        overflow: "hidden",
-        borderWidth: 1,
-        borderColor: "#eee",
-    },
-    retailerHeader: {
-        padding: 12,
-    },
-    retailerHeaderContent: {
-        flexDirection: "row",
+        borderRadius: 12,
+        padding: 16,
         alignItems: "center",
+        elevation: 2,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
-    retailerName: {
-        flex: 1,
-        fontSize: 14,
-        marginLeft: 8,
+    summaryIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 8,
     },
-    retailerTotal: {
-        ...typography.body1(),
-        color: "#4CAF50",
+    summaryTitle: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginBottom: 4,
+    },
+    summaryValue: {
+        ...typography.subtitle2(),
         fontWeight: "bold",
     },
     stockList: {
-        paddingHorizontal: 12,
-        paddingBottom: 12,
+        paddingBottom: 20,
     },
-    stockItem: {
-        marginTop: 8,
-        padding: 8,
-        backgroundColor: "#f5f5f5",
-        borderRadius: 4,
+    stockCard: {
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        elevation: 2,
+        shadowColor: customColors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
-    productName: {
-        ...typography.body1(),
-        fontWeight: "500",
-        marginBottom: 4,
-    },
-    stockDetails: {
+    stockHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginTop: 4,
+        alignItems: "flex-start",
+        marginBottom: 12,
     },
-    stockText: {
-        ...typography.body2(),
-        color: "#666",
+    productName: {
+        ...typography.subtitle1(),
+        fontWeight: "600",
+        color: customColors.grey900,
+        flex: 1,
+        marginRight: 12,
+    },
+    stockBadge: {
+        backgroundColor: customColors.primary + "20",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    stockBadgeText: {
+        ...typography.caption(),
+        color: customColors.primary,
+        fontWeight: "600",
+    },
+    stockDetails: {
+        gap: 8,
+    },
+    stockRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
+    stockItem: {
+        flex: 1,
+    },
+    stockLabel: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginBottom: 2,
     },
     stockValue: {
         ...typography.body2(),
-        fontWeight: "500",
-        color: "#666",
+        fontWeight: "600",
+        color: customColors.grey900,
     },
-
-    summaryContainer: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        borderRadius: 8,
-        padding: 12,
-        marginHorizontal: 16,
-        marginTop: 10,
-        marginBottom: 10,
-    },
-    lastUpdatedText: {
-        ...typography.body1(),
-        color: "#555",
-        marginBottom: 4,
-    },
-    overallTotalText: {
-        ...typography.h6(),
-        fontWeight: "bold",
-        color: customColors.primary,
-    },
-    headerButtons: {
+    dateRow: {
         flexDirection: "row",
-        alignItems: "center",
-        gap: 15,
+        gap: 16,
+        marginTop: 4,
     },
-    viewToggle: {
-        marginRight: 5,
+    dateText: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        fontStyle: "italic",
+    },
+    emptyContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 60,
+    },
+    emptyTitle: {
+        ...typography.h6(),
+        color: customColors.grey600,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    emptySubtitle: {
+        ...typography.body2(),
+        color: customColors.grey500,
+        textAlign: "center",
+        paddingHorizontal: 32,
     },
 });
