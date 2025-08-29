@@ -7,16 +7,22 @@ import {
     ScrollView,
     Dimensions,
 } from "react-native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { customColors, typography } from "../Config/helper";
-import AppHeader from "../Components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import AppHeader from "../Components/AppHeader";
+import { customColors, typography } from "../Config/helper";
 
 const { width } = Dimensions.get("window");
 
 const StatisticsScreen = ({ route, navigation }) => {
-    const { title, userCount, kilometersCount, visitData, deliveryData } =
-        route.params;
+    const {
+        title,
+        userCount,
+        kilometersCount,
+        visitData,
+        deliveryData,
+        routeData,
+    } = route.params;
     const [expandedUser, setExpandedUser] = React.useState(null);
 
     const formatTime = dateString => {
@@ -143,7 +149,26 @@ const StatisticsScreen = ({ route, navigation }) => {
                             style={styles.userCountName}
                             numberOfLines={3}
                             ellipsizeMode="tail">
-                            {name}
+                            {name} {"\n"}
+                            {title !== "Check-In's" && (
+                                <Text
+                                    style={[
+                                        styles.routeText,
+                                        {
+                                            color:
+                                                routeData &&
+                                                routeData[name]?.routeNames
+                                                    ?.length > 0
+                                                    ? "#2ECC71"
+                                                    : "#E74C3C",
+                                        },
+                                    ]}>
+                                    {routeData &&
+                                    routeData[name]?.routeNames?.length > 0
+                                        ? `(${routeData[name].routeNames.join(", ")})`
+                                        : "No Route Set"}
+                                </Text>
+                            )}
                         </Text>
                         {title === "Check-In's" && (
                             <Icon
@@ -293,6 +318,10 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         marginRight: 16,
+    },
+    routeText: {
+        ...typography.caption(),
+        fontStyle: "italic",
     },
     userCountName: {
         flexWrap: "wrap",

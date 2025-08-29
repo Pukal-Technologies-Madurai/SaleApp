@@ -11,7 +11,6 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
 import Accordion from "../../Components/Accordion";
 import { API } from "../../Config/Endpoint";
@@ -24,7 +23,8 @@ import {
 import FilterModal from "../../Components/FilterModal";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const SalesAdmin = () => {
+const SalesAdmin = ({ route }) => {
+    const { selectedDate: passedDate } = route.params || {};
     const navigation = useNavigation();
     const [companyId, setCompanyId] = useState(null);
     const [logData, setLogData] = useState([]);
@@ -36,7 +36,6 @@ const SalesAdmin = () => {
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [productSummary, setProductSummary] = useState([]);
-    const [expandedItemId, setExpandedItemId] = useState(null);
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandList, setBrandList] = useState([]);
     const [showSearch, setShowSearch] = useState(false);
@@ -50,10 +49,12 @@ const SalesAdmin = () => {
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
 
                 // Set initial dates to today
-                const today = new Date();
-                setSelectedFromDate(today);
-                setSelectedToDate(today);
-                const formattedDate = today.toISOString().split("T")[0];
+                const initialDate = passedDate
+                    ? new Date(passedDate)
+                    : new Date();
+                setSelectedFromDate(initialDate);
+                setSelectedToDate(initialDate);
+                const formattedDate = initialDate.toISOString().split("T")[0];
 
                 setCompanyId(Number(Company_Id));
                 fetchSalesPerson(Company_Id);
@@ -69,7 +70,7 @@ const SalesAdmin = () => {
                 console.log("Error in useEffect:", err);
             }
         })();
-    }, []);
+    }, [passedDate]);
 
     // Add new useEffect for date changes
     useEffect(() => {
@@ -568,6 +569,13 @@ const styles = StyleSheet.create({
         overflow: "hidden",
         ...shadows.small,
     },
+    content: {
+        margin: spacing.xs,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        borderRadius: 8,
+        backgroundColor: customColors.white,
+    },
     orderInfo: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -639,74 +647,7 @@ const styles = StyleSheet.create({
         color: customColors.primary,
         fontWeight: "700",
     },
-    content: {
-        margin: spacing.xs,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
-        borderRadius: 8,
-        backgroundColor: customColors.white,
-    },
-    invoiceHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        backgroundColor: customColors.grey50,
-        borderTopLeftRadius: 8,
-        borderTopRightRadius: 8,
-    },
-    invoiceTitle: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-    },
-    invoiceDate: {
-        ...typography.body2(),
-        color: customColors.grey700,
-    },
-    invoiceBody: {
-        padding: spacing.sm,
-    },
-    invoiceProducts: {
-        marginBottom: spacing.sm,
-    },
-    productRowHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        backgroundColor: customColors.grey50,
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    invoiceCell: {
-        flex: 1,
-        textAlign: "center",
-        ...typography.caption(),
-    },
-    productNameCell: {
-        flex: 2,
-        flexWrap: "wrap",
-        textAlign: "left",
-        paddingRight: spacing.xs,
-    },
-    productRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey100,
-    },
-    totalRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
-    },
+
     totalLabel: {
         ...typography.subtitle2(),
         color: customColors.grey900,
@@ -714,105 +655,6 @@ const styles = StyleSheet.create({
     totalValue: {
         ...typography.subtitle2(),
         color: customColors.primary,
-    },
-    dropdown: {
-        width: "100%",
-        backgroundColor: customColors.white,
-    },
-    tabContainer: {
-        flexDirection: "row",
-        marginHorizontal: spacing.md,
-        marginTop: spacing.md,
-        backgroundColor: customColors.white,
-        borderRadius: 8,
-        ...shadows.small,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: spacing.sm,
-        alignItems: "center",
-        borderBottomWidth: 2,
-        borderBottomColor: "transparent",
-    },
-    activeTab: {
-        borderBottomColor: customColors.primary,
-    },
-    tabText: {
-        ...typography.subtitle2(),
-        color: customColors.grey700,
-    },
-    activeTabText: {
-        color: customColors.primary,
-        fontWeight: "600",
-    },
-    tableContainer: {
-        marginTop: spacing.sm,
-        padding: spacing.md,
-        paddingBottom: spacing.xl * 11,
-    },
-    tableHeader: {
-        backgroundColor: customColors.primaryLight,
-        padding: spacing.sm,
-    },
-    headerRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    productHeaderCell: {
-        flex: 2,
-    },
-    quantityHeaderCell: {
-        flex: 1,
-    },
-    amountHeaderCell: {
-        flex: 1,
-    },
-    summaryRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: spacing.sm,
-    },
-    summaryText: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-    },
-    tableBody: {
-        marginTop: spacing.sm,
-    },
-    tableRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: spacing.sm,
-    },
-    evenRow: {
-        backgroundColor: customColors.grey100,
-    },
-    oddRow: {
-        backgroundColor: customColors.white,
-    },
-    tableCell: {
-        flex: 1,
-        textAlign: "center",
-        ...typography.caption(),
-    },
-    productCell: {
-        flex: 2,
-        flexWrap: "wrap",
-        textAlign: "left",
-        paddingRight: spacing.xs,
-    },
-    quantityCell: {
-        flex: 1,
-    },
-    amountCell: {
-        flex: 1,
-    },
-    headerText: {
-        ...typography.subtitle1(),
-        color: customColors.grey900,
     },
     retailersScrollContainer: {
         flex: 1,
@@ -823,81 +665,11 @@ const styles = StyleSheet.create({
     bottomSpacer: {
         height: spacing.xxl * 2,
     },
-    retailerContainer: {
-        marginBottom: spacing.md,
-        backgroundColor: customColors.white,
-        borderRadius: 8,
-        overflow: "hidden",
-        ...shadows.small,
-    },
-    retailerHeader: {
-        backgroundColor: customColors.primary,
-        padding: spacing.md,
-    },
-    retailerHeaderContent: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    retailerContent: {
-        padding: spacing.md,
-    },
-    orderHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: spacing.sm,
-        paddingBottom: spacing.xs,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    orderId: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-    },
-    orderDate: {
-        ...typography.body2(),
-        color: customColors.grey700,
-    },
-    productsList: {
-        marginTop: spacing.sm,
-    },
-    productHeader: {
-        flexDirection: "row",
-        backgroundColor: customColors.grey50,
-        padding: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    orderTotal: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: spacing.sm,
-        paddingTop: spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
-    },
-    totalAmount: {
-        ...typography.subtitle2(),
-        color: customColors.primary,
-        fontWeight: "600",
-    },
-    retailerProductCell: {
-        flex: 1,
-        textAlign: "right",
-        ...typography.body2(),
-    },
-    retailerProductNameCell: {
-        flex: 3,
-        textAlign: "left",
-        paddingRight: spacing.sm,
-    },
     searchHeader: {
         flexDirection: "row",
         alignItems: "center",
         marginBottom: spacing.sm,
     },
-
     searchIcon: {
         padding: spacing.xs,
         borderRadius: 50,
@@ -905,7 +677,6 @@ const styles = StyleSheet.create({
         marginLeft: spacing.sm,
         ...shadows.small,
     },
-
     searchContainer: {
         marginBottom: spacing.sm,
         borderRadius: 8,

@@ -9,6 +9,25 @@ export const fetchProducts = async userId => {
     return data.data;
 };
 
+export const fetchProductsWithStockValue = async () => {
+    try {
+        const url = API.stockValueWithProduct();
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        // console.log("fetchProducts", `${API.products()}${userId}`);
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    } catch (err) {
+        console.error("Error fetching products with stock value:", err);
+    }
+};
+
 export const fetchUOM = async () => {
     const res = await fetch(API.uom());
     const data = await res.json();

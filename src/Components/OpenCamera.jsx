@@ -1,24 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
-import { 
-    View, 
-    Text, 
-    TouchableOpacity, 
-    Image, 
-    StyleSheet, 
-    ActivityIndicator, 
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    Image,
+    StyleSheet,
+    ActivityIndicator,
     Alert,
-    SafeAreaView
+    SafeAreaView,
 } from "react-native";
-import { Camera, useCameraDevice, useCameraPermission } from "react-native-vision-camera";
+import {
+    Camera,
+    useCameraDevice,
+    useCameraPermission,
+} from "react-native-vision-camera";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { customColors, typography } from "../Config/helper";
 import ImageResizer from "@bam.tech/react-native-image-resizer";
-import RNFS from 'react-native-fs';
+import RNFS from "react-native-fs";
 
 const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     const navigation = useNavigation();
-    const device = useCameraDevice('back');
+    const device = useCameraDevice("back");
     const camera = useRef(null);
     const { hasPermission, requestPermission } = useCameraPermission();
 
@@ -27,19 +31,19 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState(null);
 
-    const compressImage = async (imagePath) => {
+    const compressImage = async imagePath => {
         try {
             const result = await ImageResizer.createResizedImage(
                 imagePath,
-                640,        // Max width
-                640,        // Max height
+                640, // Max width
+                640, // Max height
                 "JPEG",
-                50,         // Quality (0-100)
-                0           // Rotation angle
+                50, // Quality (0-100)
+                0, // Rotation angle
             );
 
             const fileStats = await RNFS.stat(result.uri);
-            console.log("Compressed image size: ", fileStats.size / 1024, "KB");
+            // console.log("Compressed image size: ", fileStats.size / 1024, "KB");
 
             return result.uri;
         } catch (error) {
@@ -63,10 +67,10 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
                     [
                         {
                             text: "Open Settings",
-                            onPress: () => Linking.openSettings()
+                            onPress: () => Linking.openSettings(),
                         },
-                        { text: "Cancel", style: "cancel" }
-                    ]
+                        { text: "Cancel", style: "cancel" },
+                    ],
                 );
             }
         } catch (err) {
@@ -86,15 +90,15 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
 
         try {
             const photo = await camera.current.takePhoto({
-                qualityPrioritization: 'balanced',
+                qualityPrioritization: "balanced",
                 enableAutoRedEyeReduction: true,
                 enableAutoStabilization: true,
-                flash: 'off',
-                enableShutterSound: true
+                flash: "off",
+                enableShutterSound: true,
             });
 
             let finalPhotoPath = photo.path;
-            
+
             // Compress image if enabled
             if (enableCompression) {
                 finalPhotoPath = await compressImage(photo.path);
@@ -123,7 +127,7 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
                     onClose();
                 }
             } else {
-                navigation.navigate('AddCustomer', { imageUri: photoPath });
+                navigation.navigate("AddCustomer", { imageUri: photoPath });
             }
         } catch (err) {
             console.error("Save Photo Error:", err);
@@ -150,7 +154,7 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.closeButton}
                     onPress={() => {
                         if (onClose) {
@@ -171,36 +175,50 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
 
             {error && (
                 <View style={styles.errorContainer}>
-                    <Icon name="warning" size={20} color={customColors.accent2} />
+                    <Icon
+                        name="warning"
+                        size={20}
+                        color={customColors.accent2}
+                    />
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
             )}
 
             {photoPath ? (
                 <View style={styles.previewContainer}>
-                    <Image 
-                        style={styles.previewImage} 
-                        source={{ uri: 'file://' + photoPath }} 
+                    <Image
+                        style={styles.previewImage}
+                        source={{ uri: "file://" + photoPath }}
                     />
                     <View style={styles.buttonContainer}>
-                        <TouchableOpacity 
-                            style={[styles.button, styles.retakeButton]} 
-                            onPress={retakePhoto}
-                        >
-                            <Icon name="refresh" size={24} color={customColors.white} />
+                        <TouchableOpacity
+                            style={[styles.button, styles.retakeButton]}
+                            onPress={retakePhoto}>
+                            <Icon
+                                name="refresh"
+                                size={24}
+                                color={customColors.white}
+                            />
                             <Text style={styles.buttonText}>Retake</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
-                            style={[styles.button, styles.saveButton, isSaving && styles.buttonDisabled]} 
+                        <TouchableOpacity
+                            style={[
+                                styles.button,
+                                styles.saveButton,
+                                isSaving && styles.buttonDisabled,
+                            ]}
                             onPress={savePhoto}
-                            disabled={isSaving}
-                        >
+                            disabled={isSaving}>
                             {isSaving ? (
                                 <ActivityIndicator color={customColors.white} />
                             ) : (
                                 <>
-                                    <Icon name="checkmark" size={24} color={customColors.white} />
+                                    <Icon
+                                        name="checkmark"
+                                        size={24}
+                                        color={customColors.white}
+                                    />
                                     <Text style={styles.buttonText}>Save</Text>
                                 </>
                             )}
@@ -208,16 +226,22 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
                     </View>
                 </View>
             ) : (
-                <TouchableOpacity 
-                    style={[styles.captureButton, isCapturing && styles.buttonDisabled]} 
+                <TouchableOpacity
+                    style={[
+                        styles.captureButton,
+                        isCapturing && styles.buttonDisabled,
+                    ]}
                     onPress={takePhoto}
-                    disabled={isCapturing}
-                >
+                    disabled={isCapturing}>
                     {isCapturing ? (
                         <ActivityIndicator color={customColors.white} />
                     ) : (
                         <>
-                            <Icon name="camera" size={24} color={customColors.white} />
+                            <Icon
+                                name="camera"
+                                size={24}
+                                color={customColors.white}
+                            />
                             <Text style={styles.buttonText}>Capture</Text>
                         </>
                     )}
@@ -236,8 +260,8 @@ const styles = StyleSheet.create({
     },
     loadingContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         backgroundColor: customColors.black,
     },
     loadingText: {
@@ -247,39 +271,39 @@ const styles = StyleSheet.create({
     },
     previewContainer: {
         flex: 1,
-        justifyContent: 'space-between',
+        justifyContent: "space-between",
         padding: 20,
     },
     previewImage: {
-        width: '100%',
-        height: '70%',
+        width: "100%",
+        height: "70%",
         borderRadius: 12,
         marginTop: 20,
     },
     buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
+        flexDirection: "row",
+        justifyContent: "space-around",
         marginBottom: 20,
     },
     button: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 25,
         gap: 8,
     },
     captureButton: {
-        position: 'absolute',
+        position: "absolute",
         bottom: 40,
-        alignSelf: 'center',
+        alignSelf: "center",
         backgroundColor: customColors.primary,
         paddingVertical: 15,
         paddingHorizontal: 30,
         borderRadius: 25,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         gap: 8,
     },
     retakeButton: {
@@ -296,13 +320,13 @@ const styles = StyleSheet.create({
         color: customColors.white,
     },
     errorContainer: {
-        position: 'absolute',
+        position: "absolute",
         top: 20,
         left: 20,
         right: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: customColors.accent2 + '20',
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.accent2 + "20",
         padding: 12,
         borderRadius: 8,
         gap: 8,
@@ -313,12 +337,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
+        flexDirection: "row",
+        justifyContent: "flex-end",
         padding: 16,
         zIndex: 1,
     },
@@ -326,8 +350,8 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
     },
 });

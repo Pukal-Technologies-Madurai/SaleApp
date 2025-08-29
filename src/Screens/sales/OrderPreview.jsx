@@ -9,12 +9,15 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import RNHTMLtoPDF from "react-native-html-to-pdf";
-import Share from "react-native-share";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-
+import RNHTMLtoPDF from "react-native-html-to-pdf";
+import Share from "react-native-share";
+import Accordion from "../../Components/Accordion";
+import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
 import { API } from "../../Config/Endpoint";
 import {
     customColors,
@@ -22,10 +25,6 @@ import {
     spacing,
     typography,
 } from "../../Config/helper";
-import Accordion from "../../Components/Accordion";
-import AppHeader from "../../Components/AppHeader";
-import FilterModal from "../../Components/FilterModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const OrderPreview = () => {
     const navigation = useNavigation();

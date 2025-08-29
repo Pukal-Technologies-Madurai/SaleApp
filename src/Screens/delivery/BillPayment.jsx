@@ -26,6 +26,7 @@ import {
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LocationIndicator from "../../Components/LocationIndicator";
 
 const BillPayment = () => {
     const navigation = useNavigation();
@@ -40,8 +41,11 @@ const BillPayment = () => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [billAmounts, setBillAmounts] = useState({});
     const [narration, setNarration] = useState("");
-    const [location, setLocation] = useState(null);
     const [filteredRetailers, setFilteredRetailers] = useState([]);
+    const [location, setLocation] = useState({
+        latitude: null,
+        longitude: null,
+    });
 
     const paymentModes = [
         { label: "Cash", value: "CREATED-CASH" },
@@ -160,36 +164,45 @@ const BillPayment = () => {
     };
 
     const handleSubmitforVisitLog = async () => {
-        const formData = new FormData();
+        let finalLatitude = location.latitude;
+        let finalLongitude = location.longitude;
 
-        formData.append("Mode", 1);
-        formData.append("Retailer_Id", selectedRetailer);
-        formData.append("Latitude", 0);
-        formData.append("Longitude", 0);
-        formData.append("Narration", "The payment receipt has been created.");
-        formData.append("EntryBy", userId);
+        if (!location.latitude || !location.longitude) {
+            finalLatitude = 9.9475;
+            finalLongitude = 78.1454;
+            ToastAndroid.show("Using default location", ToastAndroid.SHORT);
+        }
 
         try {
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", selectedRetailer);
+            formData.append("Latitude", finalLatitude.toString());
+            formData.append("Longitude", finalLongitude.toString());
+            formData.append(
+                "Narration",
+                "The payment receipt has been created.",
+            );
+            formData.append("EntryBy", userId);
+
             const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 body: formData,
             });
 
-            if (!response.ok) {
-                throw new Error(`Network response was not ok`);
-            }
-
             const data = await response.json();
             if (data.success) {
-                // ToastAndroid.show(data.message, ToastAndroid.LONG);
-                // navigation.navigate("HomeScreen");
-                console.log("Visit log submitted successfully:", data);
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                return true;
             } else {
                 throw new Error(data.message);
             }
         } catch (err) {
-            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
-            console.error("Error submitting form:", err);
+            ToastAndroid.show(
+                `Visit log error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+            return false;
         }
     };
 
@@ -214,6 +227,9 @@ const BillPayment = () => {
         }
 
         try {
+            const visitEntrySuccess = await handleSubmitforVisitLog();
+            if (!visitEntrySuccess) return;
+
             // Map payment mode to backend format
             const paymentModeMap = {
                 cash: "CREATED-CASH",
@@ -256,7 +272,6 @@ const BillPayment = () => {
 
             // console.log(API.paymentCollection());
             // console.log(JSON.stringify(paymentData));
-            handleSubmitforVisitLog();
 
             const data = await response.json();
             // console.log("Server response:", data);
@@ -266,7 +281,7 @@ const BillPayment = () => {
                     "Success",
                     data.message || "Payment submitted successfully",
                 );
-                navigation.goBack();
+                navigation.navigate("HomeScreen");
                 setShowPaymentScreen(false);
                 // Reset states
                 setSelectedBills([]);
@@ -481,6 +496,13 @@ const BillPayment = () => {
     return (
         <SafeAreaView style={styles.container}>
             <AppHeader title="Retailer Receipts" navigation={navigation} />
+
+            <LocationIndicator
+                onLocationUpdate={locationData => setLocation(locationData)}
+                autoFetch={true}
+                autoFetchOnMount={true}
+                showComponent={false}
+            />
 
             <View style={styles.contentContainer}>
                 <View style={styles.content}>

@@ -8,33 +8,33 @@ import {
     Modal,
     Alert,
     ActivityIndicator,
+    ToastAndroid,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import CheckBox from "@react-native-community/checkbox";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import LocationIndicator from "../../Components/LocationIndicator";
+import { API } from "../../Config/Endpoint";
+import { createSaleOrder } from "../../Api/sales";
+import { fetchUOM, fetchProductsWithStockValue } from "../../Api/product";
+import {
+    createLiveSales,
+    fetchCreditLiveSale,
+    fetchDebitLiveSale,
+} from "../../Api/receipt";
 import {
     customColors,
     typography,
     shadows,
     spacing,
 } from "../../Config/helper";
-import AppHeader from "../../Components/AppHeader";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import { API } from "../../Config/Endpoint";
-import { createSaleOrder } from "../../Api/sales";
-import { fetchUOM, fetchProducts } from "../../Api/product";
-import {
-    createLiveSales,
-    fetchCreditLiveSale,
-    fetchDebitLiveSale,
-} from "../../Api/receipt";
-import LocationIndicator from "../../Components/LocationIndicator";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();
@@ -106,9 +106,8 @@ const Sales = ({ route }) => {
 
     const { data: productQueryData = { productData: [], brandData: [] } } =
         useQuery({
-            queryKey: ["product", uID],
-            queryFn: () => fetchProducts(uID),
-            enabled: !!uID,
+            queryKey: ["product"],
+            queryFn: () => fetchProductsWithStockValue(),
             select: data => {
                 const brands = Array.from(
                     new Set(data.map(item => item.Brand_Name)),
@@ -481,15 +480,24 @@ const Sales = ({ route }) => {
     });
 
     const handleSubmitforVisitLog = async () => {
-        const formData = new FormData();
-        formData.append("Mode", 1);
-        formData.append("Retailer_Id", item.Retailer_Id);
-        formData.append("Latitude", location.latitude.toString());
-        formData.append("Longitude", location.longitude.toString());
-        formData.append("Narration", "The Sale order has been created.");
-        formData.append("EntryBy", uID);
+        let finalLatitude = location.latitude;
+        let finalLongitude = location.longitude;
+
+        if (!location.latitude || !location.longitude) {
+            finalLatitude = 9.9475;
+            finalLongitude = 78.1454;
+            ToastAndroid.show("Using default location", ToastAndroid.SHORT);
+        }
 
         try {
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", item.Retailer_Id);
+            formData.append("Latitude", finalLatitude.toString());
+            formData.append("Longitude", finalLongitude.toString());
+            formData.append("Narration", "The Sale order has been created.");
+            formData.append("EntryBy", uID);
+
             const response = await fetch(API.visitedLog(), {
                 method: "POST",
                 body: formData,
@@ -502,13 +510,16 @@ const Sales = ({ route }) => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                // navigation.navigate("HomeScreen");
+                return true;
             } else {
                 throw new Error(data.message);
             }
         } catch (err) {
-            ToastAndroid.show("Error submitting form", ToastAndroid.LONG);
-            console.error("Error submitting form:", err);
+            ToastAndroid.show(
+                `Visit log error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+            return false;
         }
     };
 
@@ -519,6 +530,13 @@ const Sales = ({ route }) => {
                 "Error",
                 "Please add at least one product to the order",
             );
+            return;
+        }
+
+        if (
+            !initialValue.Product_Array.every(product => product.Item_Rate > 0)
+        ) {
+            Alert.alert("Error", "Please enter valid prices for all products");
             return;
         }
 
@@ -601,7 +619,8 @@ const Sales = ({ route }) => {
             return;
         }
 
-        handleSubmitforVisitLog();
+        const visitEntrySuccess = await handleSubmitforVisitLog();
+        if (!visitEntrySuccess) return;
 
         mutation.mutate(
             { orderData: initialValue },
@@ -1745,7 +1764,6 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey700,
         fontWeight: "500",
-        fontSize: 12,
     },
     paymentOptionTextSelected: {
         color: customColors.white,

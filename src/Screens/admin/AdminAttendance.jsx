@@ -2,14 +2,14 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DatePickerButton from "../../Components/DatePickerButton";
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { attendanceHistory, fetchSalePerson } from "../../Api/employee";
 import { customColors, shadows, typography } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
-import { SafeAreaView } from "react-native-safe-area-context";
+import FilterModal from "../../Components/FilterModal";
 
 const SummaryCard = ({ icon, title, value, color }) => (
     <View style={[styles.card, { backgroundColor: color }]}>
@@ -36,6 +36,7 @@ const AdminAttendance = () => {
 
     const [selectedFromDate, setSelectedFromDate] = useState(firstDayOfMonth);
     const [selectedToDate, setSelectedToDate] = useState(currentDate);
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -52,7 +53,7 @@ const AdminAttendance = () => {
         })();
     }, [selectedFromDate, selectedToDate]);
 
-    const finalUid = selectedCollector || uID;
+    const finalUid = selectedCollector?.value || uID;
 
     const { data: attendanceData = [] } = useQuery({
         queryKey: [
@@ -108,43 +109,57 @@ const AdminAttendance = () => {
         return data.filter(item => item.End_KM === null).length;
     };
 
+    const handleFromDateChange = date => {
+        if (date) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
+        }
+    };
+
+    const handleToDateChange = date => {
+        if (date) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
                 title="Attendance Report"
                 navigation={navigation}
-                showFilterDropdown={true}
-                filterDropdownData={dropDownValues}
-                selectedFilter={selectedCollector}
-                onFilterChange={item => {
-                    setSelectedCollector(item.value);
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Filter options"
+                fromLabel="From Date"
+                toLabel="To Date"
+                showSalesPerson={true}
+                salesPersonLabel="Select Sales Person"
+                salesPersonData={dropDownValues}
+                selectedSalesPerson={selectedCollector}
+                onSalesPersonChange={item => {
+                    setSelectedCollector(item);
                 }}
             />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <View style={styles.datePickerWrapper}>
-                        <DatePickerButton
-                            title="From Date"
-                            date={selectedFromDate}
-                            style={styles.datePicker}
-                            containerStyle={styles.datePickerContainerStyle}
-                            titleStyle={styles.datePickerTitle}
-                            onDateChange={date => setSelectedFromDate(date)}
-                        />
-                    </View>
-                    <View style={styles.datePickerWrapper}>
-                        <DatePickerButton
-                            title="To"
-                            date={selectedToDate}
-                            style={styles.datePicker}
-                            containerStyle={styles.datePickerContainerStyle}
-                            titleStyle={styles.datePickerTitle}
-                            onDateChange={date => setSelectedToDate(date)}
-                        />
-                    </View>
-                </View>
-
                 <View style={styles.summarySection}>
                     <SummaryCard
                         icon="calendar"
@@ -259,28 +274,6 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         paddingTop: 20,
         ...shadows.medium,
-    },
-    datePickerContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: 20,
-        marginBottom: 20,
-        gap: 10,
-    },
-    datePickerWrapper: {
-        flex: 1,
-        maxWidth: "48%",
-    },
-    datePicker: {
-        width: "100%",
-    },
-    datePickerContainerStyle: {
-        backgroundColor: customColors.white,
-    },
-    datePickerTitle: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-        marginBottom: 8,
     },
     summarySection: {
         flexDirection: "row",

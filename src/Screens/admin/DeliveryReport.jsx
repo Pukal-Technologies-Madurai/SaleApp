@@ -7,14 +7,12 @@ import {
     ScrollView,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
-import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const DeliveryTable = ({ deliveryData }) => {
     const [selectedFilter, setSelectedFilter] = useState("all");
@@ -137,7 +135,11 @@ const DeliveryTable = ({ deliveryData }) => {
                             numberOfLines={4}>
                             {item.Retailer_Name}
                         </Text>
-                        <Text style={[styles.cell, { flex: 2, fontSize: 12 }]}>
+                        <Text
+                            style={[
+                                styles.cell,
+                                { flex: 2, ...typography.body2() },
+                            ]}>
                             {item.Delivery_Person_Name}
                         </Text>
                         <View style={[styles.statusContainer, { flex: 2 }]}>
@@ -162,7 +164,8 @@ const DeliveryTable = ({ deliveryData }) => {
     );
 };
 
-const DeliveryReport = () => {
+const DeliveryReport = ({ route }) => {
+    const { selectedDate: passedDate } = route.params || {};
     const navigation = useNavigation();
     const [deliveryData, setDeliveryData] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -176,12 +179,17 @@ const DeliveryReport = () => {
         (async () => {
             try {
                 const today = new Date().toISOString().split("T")[0];
-                fetchDeliveryData(today);
+                // fetchDeliveryData(today);
+
+                if (passedDate) {
+                    setSelectedDate(passedDate);
+                    fetchDeliveryData(passedDate);
+                }
             } catch (err) {
                 console.log(err);
             }
         })();
-    }, []);
+    }, [passedDate]);
 
     const fetchDeliveryData = async today => {
         setIsLoading(true);

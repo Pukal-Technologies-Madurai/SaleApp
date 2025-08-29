@@ -11,24 +11,23 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import { API } from "../../Config/Endpoint";
 import {
     customColors,
     typography,
     shadows,
     spacing,
 } from "../../Config/helper";
-import DatePickerButton from "../../Components/DatePickerButton";
-import AppHeader from "../../Components/AppHeader";
-import { useQuery } from "@tanstack/react-query";
+import { API } from "../../Config/Endpoint";
 import { fetchUsers } from "../../Api/employee";
-import FilterModal from "../../Components/FilterModal";
 import { fetchDefaultAccountMaster } from "../../Api/receipt";
+import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
 import LocationIndicator from "../../Components/LocationIndicator";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const DeliveryUpdate = () => {
     const navigation = useNavigation();
@@ -211,20 +210,21 @@ const DeliveryUpdate = () => {
     });
 
     const handleSubmitforVisitLog = async () => {
+        let finalLatitude = location.latitude;
+        let finalLongitude = location.longitude;
+
         if (!location.latitude || !location.longitude) {
-            ToastAndroid.show(
-                "Location not available for visit log",
-                ToastAndroid.SHORT,
-            );
-            return false;
+            finalLatitude = 9.9475;
+            finalLongitude = 78.1454;
+            ToastAndroid.show("Using default location", ToastAndroid.SHORT);
         }
 
         try {
             const formData = new FormData();
             formData.append("Mode", 1);
             formData.append("Retailer_Id", selectedDelivery.Retailer_Id);
-            formData.append("Latitude", location.latitude.toString());
-            formData.append("Longitude", location.longitude.toString());
+            formData.append("Latitude", finalLatitude.toString());
+            formData.append("Longitude", finalLongitude.toString());
             formData.append("Narration", "The Sale delivery has been updated.");
             formData.append("EntryBy", userId);
 
@@ -240,12 +240,16 @@ const DeliveryUpdate = () => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
-                // navigation.navigate("HomeScreen");
+                return true;
             } else {
                 throw new Error(data.message);
             }
         } catch (err) {
-            console.error("Error submitting form:", err);
+            ToastAndroid.show(
+                `Visit log error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+            return false;
         }
     };
 
@@ -254,9 +258,10 @@ const DeliveryUpdate = () => {
         if (!selectedDelivery) return;
         setLoading(true);
 
-        await handleSubmitforVisitLog();
-
         try {
+            const visitEntrySuccess = await handleSubmitforVisitLog();
+            if (!visitEntrySuccess) return;
+
             // Use a reference for partial payment
             let paymentRef = null;
             // Handle partial payment for cash
@@ -281,8 +286,8 @@ const DeliveryUpdate = () => {
                 Do_No: selectedDelivery.Do_No,
                 Delivery_Time: isDelivered ? new Date().toISOString() : null,
                 Delivery_Location: isDelivered ? "MDU" : null, // Set to "MDU"
-                Delivery_Latitude: 0, // Set to 0
-                Delivery_Longitude: 0, // Set to 0
+                Delivery_Latitude: location.latitude.toString() || "0",
+                Delivery_Longitude: location.longitude.toString() || "0",
                 Delivery_Person_Id: callCenterId || userId,
                 Delivery_Status: finalDeliveryStatus,
                 Payment_Status: finalPaymentStatus,
@@ -342,6 +347,14 @@ const DeliveryUpdate = () => {
                 let credit_ledger_Id = selectedDelivery.Acc_Id;
                 let credit_ledger_name = selectedDelivery.Retailer_Name;
 
+                let transaction_type = "";
+
+                if (debit_ledger_name === "Cash Note Off") {
+                    transaction_type = "Cash";
+                } else if (debit_ledger_name === "Canara Bank (795956)") {
+                    transaction_type = "UPI";
+                }
+
                 if (
                     selectedDelivery.Acc_Id === "0" ||
                     selectedDelivery.Acc_Id === 0
@@ -361,6 +374,7 @@ const DeliveryUpdate = () => {
                     debit_ledger_name: debit_ledger_name,
                     credit_amount: paymentAmount,
                     created_by: userId,
+                    transaction_type: transaction_type,
                     receipt_date: new Date().toISOString().split("T")[0],
                     BillsDetails: [
                         {
@@ -420,7 +434,7 @@ const DeliveryUpdate = () => {
     };
 
     const renderUpdateScreen = () => (
-        <View style={styles.updateScreen}>
+        <SafeAreaView style={styles.updateScreen} edges={["top", "bottom"]}>
             <View style={styles.updateHeader}>
                 <TouchableOpacity
                     style={styles.backButton}
@@ -572,7 +586,7 @@ const DeliveryUpdate = () => {
                     )}
                 </View>
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 
     const handleCloseModal = () => {
@@ -755,18 +769,13 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.primaryDark,
     },
     updateHeader: {
         flexDirection: "row",
         alignItems: "center",
         padding: spacing.md,
-        backgroundColor: customColors.primary,
-        elevation: 4,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        backgroundColor: customColors.primaryDark,
     },
     backButton: {
         padding: spacing.xs,
@@ -779,6 +788,7 @@ const styles = StyleSheet.create({
     },
     updateContent: {
         flex: 1,
+        backgroundColor: customColors.white,
     },
     updateContentContainer: {
         padding: spacing.md,

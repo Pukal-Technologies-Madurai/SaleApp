@@ -2,14 +2,14 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import { customColors, typography, shadows } from "../../Config/helper";
 import { attendanceHistory } from "../../Api/employee";
+import { customColors, typography, shadows } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
-import DatePickerButton from "../../Components/DatePickerButton";
-import { SafeAreaView } from "react-native-safe-area-context";
+import FilterModal from "../../Components/FilterModal";
 
 const SummaryCard = ({ icon, title, value, color }) => (
     <View style={[styles.card, { backgroundColor: color }]}>
@@ -36,6 +36,7 @@ const AttendanceReport = () => {
 
     const [uID, setUID] = useState(null);
     const [userType, setUserType] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
     const [selectedFromDate, setSelectedFromDate] = useState(firstDayOfMonth);
     const [selectedToDate, setSelectedToDate] = useState(currentDate);
@@ -95,34 +96,36 @@ const AttendanceReport = () => {
         return data.filter(item => item.End_KM === null).length;
     };
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-            <AppHeader title="Attendance Summary" navigation={navigation} />
+            <AppHeader
+                title="Attendance Summary"
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="MaterialIcon"
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
+            />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={date => setSelectedFromDate(date)}
+                onToDateChange={date => setSelectedToDate(date)}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={true}
+                title="Select Date Range"
+                fromLabel="From Date"
+                toLabel="To Date"
+            />
 
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <View style={styles.datePickerWrapper}>
-                        <DatePickerButton
-                            title="From Date"
-                            date={selectedFromDate}
-                            style={styles.datePicker}
-                            containerStyle={styles.datePickerContainerStyle}
-                            titleStyle={styles.datePickerTitle}
-                            onDateChange={date => setSelectedFromDate(date)}
-                        />
-                    </View>
-                    <View style={styles.datePickerWrapper}>
-                        <DatePickerButton
-                            title="To"
-                            date={selectedToDate}
-                            style={styles.datePicker}
-                            containerStyle={styles.datePickerContainerStyle}
-                            titleStyle={styles.datePickerTitle}
-                            onDateChange={date => setSelectedToDate(date)}
-                        />
-                    </View>
-                </View>
-
                 <View style={styles.summarySection}>
                     <SummaryCard
                         icon="calendar"
@@ -237,28 +240,6 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         paddingTop: 20,
         ...shadows.medium,
-    },
-    datePickerContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: 20,
-        marginBottom: 20,
-        gap: 10,
-    },
-    datePickerWrapper: {
-        flex: 1,
-        maxWidth: "48%",
-    },
-    datePicker: {
-        width: "100%",
-    },
-    datePickerContainerStyle: {
-        backgroundColor: customColors.white,
-    },
-    datePickerTitle: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-        marginBottom: 8,
     },
     summarySection: {
         flexDirection: "row",

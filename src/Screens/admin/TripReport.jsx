@@ -8,26 +8,33 @@ import {
     FlatList,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography } from "../../Config/helper";
-import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 
-const TripReport = () => {
+const TripReport = ({ route }) => {
     const navigation = useNavigation();
+    const { selectedDate: passedDate } = route.params || {};
+
     const [logData, setLogData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
     useEffect(() => {
-        const fromDate = selectedFromDate.toISOString().split("T")[0];
-        const toDate = selectedToDate.toISOString().split("T")[0];
-        fetchTripSheet(fromDate, toDate);
-    }, []);
+        if (passedDate) {
+            const initialDate = new Date(passedDate);
+            setSelectedFromDate(initialDate);
+            setSelectedToDate(initialDate);
+
+            const fromDate = initialDate.toISOString().split("T")[0];
+            const toDate = initialDate.toISOString().split("T")[0];
+            fetchTripSheet(fromDate, toDate);
+        }
+    }, [passedDate]);
 
     const fetchTripSheet = async (from, to) => {
         try {
@@ -353,9 +360,6 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-    },
-    datePicker: {
-        width: "100%",
     },
     content: {
         flex: 1,

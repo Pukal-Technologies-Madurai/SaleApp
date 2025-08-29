@@ -2,9 +2,10 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import IconMaterial from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
-import DatePickerButton from "../../Components/DatePickerButton";
+import FilterModal from "../../Components/FilterModal";
 import { fetchSaleOrderRetilerWise } from "../../Api/sales";
 import {
     customColors,
@@ -12,7 +13,6 @@ import {
     typography,
     spacing,
 } from "../../Config/helper";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const SaleHistory = ({ route }) => {
     const { item } = route.params;
@@ -26,6 +26,7 @@ const SaleHistory = ({ route }) => {
 
     const [selectedFromDate, setSelectedFromDate] = useState(from);
     const [selectedToDate, setSelectedToDate] = useState(to);
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -50,14 +51,17 @@ const SaleHistory = ({ route }) => {
         enabled: !!item.Retailer_Id || !!selectedFromDate || !!selectedToDate,
     });
 
-    const handleDateChange = async (date, type) => {
-        if (date) {
-            const formattedDate = date.toISOString().split("T")[0];
-            if (type === "from") {
-                setSelectedFromDate(formattedDate);
-            } else {
-                setSelectedToDate(formattedDate);
-            }
+    const handleFromDateChange = date => {
+        if (date instanceof Date && !isNaN(date)) {
+            const newFromDate = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(newFromDate);
+        }
+    };
+
+    const handleToDateChange = date => {
+        if (date instanceof Date && !isNaN(date)) {
+            const newToDate = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(newToDate);
         }
     };
 
@@ -77,35 +81,35 @@ const SaleHistory = ({ route }) => {
         return acc;
     }, {});
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <View style={styles.mainContainer}>
-                <AppHeader title="Order History" navigation={navigation} />
+                <AppHeader
+                    title="Order Summary"
+                    navigation={navigation}
+                    showRightIcon={true}
+                    rightIconLibrary="MaterialIcon"
+                    rightIconName="filter-list"
+                    onRightPress={() => setModalVisible(true)}
+                />
 
-                <View style={styles.datePickerRow}>
-                    <View style={styles.datePickerWrapper}>
-                        <DatePickerButton
-                            date={new Date(selectedFromDate)}
-                            onDateChange={date => {
-                                handleDateChange(date, "from");
-                            }}
-                            mode="date"
-                            title="From Date"
-                            containerStyle={styles.datePickerContainer}
-                        />
-                    </View>
-                    <View style={styles.datePickerWrapper}>
-                        <DatePickerButton
-                            date={new Date(selectedToDate)}
-                            onDateChange={date => {
-                                handleDateChange(date, "to");
-                            }}
-                            mode="date"
-                            title="To Date"
-                            containerStyle={styles.datePickerContainer}
-                        />
-                    </View>
-                </View>
+                <FilterModal
+                    visible={modalVisible}
+                    fromDate={selectedFromDate}
+                    toDate={selectedToDate}
+                    onFromDateChange={handleFromDateChange}
+                    onToDateChange={handleToDateChange}
+                    onApply={() => setModalVisible(false)}
+                    onClose={handleCloseModal}
+                    showToDate={true}
+                    title="Select Date Range"
+                    fromLabel="From Date"
+                    toLabel="To Date"
+                />
 
                 <ScrollView
                     style={styles.scrollContainer}
@@ -232,21 +236,6 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingVertical: spacing.sm,
-    },
-    datePickerRow: {
-        flexDirection: "row",
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        backgroundColor: customColors.white,
-        ...shadows.small,
-        marginBottom: spacing.sm,
-    },
-    datePickerWrapper: {
-        flex: 1,
-        marginHorizontal: spacing.xs,
-    },
-    datePickerContainer: {
-        width: "100%",
     },
     dateGroup: {
         marginBottom: spacing.md,

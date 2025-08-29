@@ -14,7 +14,6 @@ import { useNavigation } from "@react-navigation/native";
 import FilterModal from "../../Components/FilterModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
-import { fetchSalePerson } from "../../Api/employee";
 import {
     customColors,
     typography,
@@ -24,9 +23,10 @@ import {
 import { API } from "../../Config/Endpoint";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const ReceiptAdmin = () => {
+const ReceiptAdmin = ({ route }) => {
+    const { selectedDate: passedDate } = route.params || {};
+
     const navigation = useNavigation();
-    const [userId, setUserId] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
@@ -40,15 +40,17 @@ const ReceiptAdmin = () => {
     useEffect(() => {
         (async () => {
             const companyId = await AsyncStorage.getItem("Company_Id");
-            const userId = await AsyncStorage.getItem("UserId");
             if (companyId) {
                 fetchSalesPerson(companyId);
             }
-            if (userId) {
-                setUserId(userId);
+
+            if (passedDate) {
+                const initialDate = new Date(passedDate);
+                setSelectedFromDate(initialDate);
+                setSelectedToDate(initialDate);
             }
         })();
-    }, []);
+    }, [passedDate]);
 
     const fetchSalesPerson = async companyId => {
         try {

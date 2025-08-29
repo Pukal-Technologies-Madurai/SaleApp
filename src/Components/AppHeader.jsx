@@ -192,7 +192,6 @@ const styles = {
     badgeText: {
         ...typography.caption(),
         color: customColors.white,
-        fontSize: 12,
         fontWeight: "bold",
     },
     placeholder: {

@@ -8,8 +8,9 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { API } from "../../Config/Endpoint";
 import {
     customColors,
@@ -17,10 +18,8 @@ import {
     shadows,
     spacing,
 } from "../../Config/helper";
-import DatePickerButton from "../../Components/DatePickerButton";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripSheet = () => {
     const navigation = useNavigation();

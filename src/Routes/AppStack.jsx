@@ -46,6 +46,7 @@ import RoutePath from "../Screens/retailers/RoutePath";
 import CreateReceipts from "../Screens/bills/CreateReceipts";
 import ReceiptInfo from "../Screens/bills/ReceiptInfo";
 import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
+import PendingSales from "../Screens/pending/PendingSales";
 
 const Stack = createStackNavigator();
 
@@ -80,7 +81,6 @@ const AppStack = () => {
                 component={CustomersDetails}
             />
             <Stack.Screen name="EditCustomer" component={EditCustomer} />
-            <Stack.Screen name="RetailerMapView" component={RetailerMapView} />
             <Stack.Screen name="RetailerVisit" component={RetailerVisit} />
             <Stack.Screen name="RetailerLog" component={RetailerVisitLog} />
             <Stack.Screen name="TodayLog" component={TodayLog} />
@@ -88,12 +88,11 @@ const AppStack = () => {
             <Stack.Screen name="EditOrder" component={EditSaleOrder} />
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
+            <Stack.Screen name="PendingSales" component={PendingSales} />
 
             <Stack.Screen name="ClosingStock" component={ClosingStock} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
 
-            <Stack.Screen name="BillPayment" component={BillPayment} />
-            <Stack.Screen name="BillSummary" component={BillSummary} />
             <Stack.Screen name="DeliveryUpdate" component={DeliveryUpdate} />
             <Stack.Screen name="TripDetails" component={TripDetails} />
             <Stack.Screen name="TripSheet" component={TripSheet} />
@@ -114,6 +113,9 @@ const AppStack = () => {
             <Stack.Screen name="OpenCamera" component={OpenCamera} />
 
             {/* Not Used */}
+            <Stack.Screen name="RetailerMapView" component={RetailerMapView} />
+            <Stack.Screen name="BillPayment" component={BillPayment} />
+            <Stack.Screen name="BillSummary" component={BillSummary} />
             <Stack.Screen name="Sales" component={Sales} />
             <Stack.Screen name="StockClosing" component={StockClosing} />
             <Stack.Screen

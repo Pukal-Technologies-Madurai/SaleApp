@@ -1,5 +1,4 @@
 import {
-    ImageBackground,
     Modal,
     StyleSheet,
     Text,
@@ -9,12 +8,12 @@ import {
     View,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { customColors, typography } from "../Config/helper";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API } from "../Config/Endpoint";
 import { useNavigation } from "@react-navigation/native";
-import AppHeader from "../Components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import AppHeader from "../Components/AppHeader";
+import { API } from "../Config/Endpoint";
+import { customColors, typography } from "../Config/helper";
 
 const ProfileScreen = () => {
     const navigation = useNavigation();

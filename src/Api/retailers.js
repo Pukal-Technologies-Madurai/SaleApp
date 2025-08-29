@@ -48,8 +48,8 @@ export const fetchRetailers = async companyId => {
     return json.data;
 };
 
-export const fetchRetailersName = async companyId => {
-    const res = await fetch(`${API.retailerName()}${companyId}`);
+export const fetchRetailersName = async () => {
+    const res = await fetch(API.retailerName());
     const json = await res.json();
 
     if (!json.success) throw new Error(json.message);
@@ -58,6 +58,43 @@ export const fetchRetailersName = async companyId => {
 
 export const fetchRetailerInfo = async retailerId => {
     const res = await fetch(`${API.retailerInfo()}${retailerId}`);
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
+export const fetchRetailersClosingDropDown = async () => {
+    const res = await fetch(API.retailersClosingStockDropDown());
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
+export const fetchRetailerClosingInfo = async (retailerId, from, to) => {
+    const res = await fetch(
+        `${API.retailerClosingDetailedInfo()}${retailerId}&Fromdate=${from}&Todate=${to}`,
+    );
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
+// soldItemsForRetailer
+export const fetchRetailerSoldItems = async () => {
+    const res = await fetch(API.soldItemsForRetailer());
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
+export const fetchProductsAvailableInRetailer = async (itemId, from, to) => {
+    const res = await fetch(
+        `${API.itemAvailableInRetailer()}${itemId}&Fromdate=${from}&Todate=${to}`,
+    );
     const json = await res.json();
 
     if (!json.success) throw new Error(json.message);

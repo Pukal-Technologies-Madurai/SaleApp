@@ -119,11 +119,19 @@ const CreateReceipts = () => {
         select: data => {
             if (!data || !Array.isArray(data)) return [];
             // Filter bills that have pending amounts
-            return data.filter(
-                bill => bill.Total_Invoice_value > bill.Paid_Amount,
-            );
+            return data
+                .filter(bill => bill.Total_Invoice_value > bill.Paid_Amount)
+                .map((bill, index) => ({
+                    ...bill,
+                    // Create a unique identifier using invoice number and index
+                    uniqueId: `${bill.Do_Inv_No}_${index}`,
+                    // Keep original Do_Id but add a backup identifier
+                    originalDoId: bill.Do_Id,
+                }));
         },
     });
+
+    console.log("Pending Bills:", pendingBills);
 
     const handleRetailerSelect = item => {
         if (item && item.Retailer_id) {
@@ -149,15 +157,19 @@ const CreateReceipts = () => {
 
     const handleBillSelection = billId => {
         setSelectedBills(prev => {
+            let newSelection;
             if (prev.includes(billId)) {
-                const newSelection = prev.filter(id => id !== billId);
-                setSelectAll(newSelection.length === pendingBills.length);
-                return newSelection;
+                newSelection = prev.filter(id => id !== billId);
             } else {
-                const newSelection = [...prev, billId];
-                setSelectAll(newSelection.length === pendingBills.length);
-                return newSelection;
+                newSelection = [...prev, billId];
             }
+
+            setSelectAll(
+                newSelection.length === pendingBills.length &&
+                    pendingBills.length > 0,
+            );
+
+            return newSelection;
         });
     };
 
@@ -166,7 +178,9 @@ const CreateReceipts = () => {
             setSelectedBills([]);
             setSelectAll(false);
         } else {
-            setSelectedBills(pendingBills.map(bill => bill.Do_Id));
+            // Use uniqueId instead of Do_Id
+            const allBillIds = pendingBills.map(bill => bill.uniqueId);
+            setSelectedBills(allBillIds);
             setSelectAll(true);
         }
     };
@@ -177,7 +191,7 @@ const CreateReceipts = () => {
             if (enteredAmount && !isNaN(enteredAmount)) {
                 return total + parseFloat(enteredAmount);
             }
-            const bill = pendingBills.find(b => b.Do_Id === billId);
+            const bill = pendingBills.find(b => b.uniqueId === billId);
             const pendingAmount = bill
                 ? bill.Total_Invoice_value - bill.Paid_Amount
                 : 0;
@@ -193,12 +207,13 @@ const CreateReceipts = () => {
     };
 
     const handleSubmitforVisitLog = async () => {
+        let finalLatitude = location.latitude;
+        let finalLongitude = location.longitude;
+
         if (!location.latitude || !location.longitude) {
-            ToastAndroid.show(
-                "Location not available for visit log",
-                ToastAndroid.SHORT,
-            );
-            return false;
+            finalLatitude = 9.9475;
+            finalLongitude = 78.1454;
+            ToastAndroid.show("Using default location", ToastAndroid.SHORT);
         }
 
         try {
@@ -206,8 +221,8 @@ const CreateReceipts = () => {
             const formData = new FormData();
             formData.append("Mode", 1);
             formData.append("Retailer_Id", selectedRetailer.Retailer_id);
-            formData.append("Latitude", location.latitude.toString());
-            formData.append("Longitude", location.longitude.toString());
+            formData.append("Latitude", finalLatitude.toString());
+            formData.append("Longitude", finalLongitude.toString());
             formData.append("Narration", "The receipt has been created.");
             formData.append("EntryBy", userId);
 
@@ -219,11 +234,16 @@ const CreateReceipts = () => {
             const data = await response.json();
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
+                return true;
             } else {
                 throw new Error(data.message);
             }
         } catch (err) {
-            console.error("Error submitting form:", err);
+            ToastAndroid.show(
+                `Visit log error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+            return false;
         }
     };
 
@@ -251,10 +271,9 @@ const CreateReceipts = () => {
         }
 
         setShowReceiptView(true);
-        // Initialize receipt amounts with pending amounts
         const initialAmounts = {};
         selectedBills.forEach(billId => {
-            const bill = pendingBills.find(b => b.Do_Id === billId);
+            const bill = pendingBills.find(b => b.uniqueId === billId);
             if (bill) {
                 const pendingAmount =
                     bill.Total_Invoice_value - bill.Paid_Amount;
@@ -291,6 +310,16 @@ const CreateReceipts = () => {
             return;
         }
 
+        let transaction_type = "";
+
+        if (selectedAmountType?.Account_Name === "Cash Note Off") {
+            transaction_type = "Cash";
+        } else if (
+            selectedAmountType?.Account_Name === "Canara Bank (795956)"
+        ) {
+            transaction_type = "UPI";
+        }
+
         let credit_ledger_Id = selectedRetailer.value;
         let credit_ledger_name = selectedRetailer.label;
 
@@ -301,7 +330,8 @@ const CreateReceipts = () => {
 
         try {
             const userId = await AsyncStorage.getItem("UserId");
-            await handleSubmitforVisitLog();
+            const visitEntrySuccess = await handleSubmitforVisitLog();
+            if (!visitEntrySuccess) return;
 
             const resBody = {
                 receipt_voucher_type_id: 10,
@@ -314,9 +344,10 @@ const CreateReceipts = () => {
                 debit_ledger_name: selectedAmountType?.Account_Name,
                 credit_amount: getTotalSelectedAmount(),
                 created_by: userId,
+                transaction_type: transaction_type,
                 receipt_date: selectedDate.toISOString(),
                 BillsDetails: selectedBills.map(billId => {
-                    const bill = pendingBills.find(b => b.Do_Id === billId);
+                    const bill = pendingBills.find(b => b.uniqueId === billId);
                     const receiptAmount = receiptAmounts[billId]
                         ? parseFloat(receiptAmounts[billId])
                         : bill
@@ -324,7 +355,7 @@ const CreateReceipts = () => {
                           : 0;
 
                     return {
-                        bill_id: billId,
+                        bill_id: bill?.originalDoId || bill?.Do_Id || billId, // Use original Do_Id for API
                         bill_name: bill?.Do_Inv_No || billId,
                         bill_amount: receiptAmount,
                         Credit_Amo: receiptAmount,
@@ -353,13 +384,13 @@ const CreateReceipts = () => {
     };
 
     const renderBillCard = bill => {
-        const isSelected = selectedBills.includes(bill.Do_Id);
+        const isSelected = selectedBills.includes(bill.uniqueId);
 
         return (
             <TouchableOpacity
-                key={bill.Do_Id}
+                key={bill.uniqueId}
                 style={[styles.billCard, isSelected && styles.selectedBillCard]}
-                onPress={() => handleBillSelection(bill.Do_Id)}
+                onPress={() => handleBillSelection(bill.uniqueId)}
                 activeOpacity={0.7}>
                 <View style={styles.billHeader}>
                     <View style={styles.billHeaderLeft}>
@@ -556,7 +587,7 @@ const CreateReceipts = () => {
                 style={styles.receiptContent}
                 showsVerticalScrollIndicator={false}>
                 {selectedBills.map(billId => {
-                    const bill = pendingBills.find(b => b.Do_Id === billId);
+                    const bill = pendingBills.find(b => b.uniqueId === billId);
                     if (!bill) return null;
 
                     return (

@@ -8,601 +8,563 @@ import {
     RefreshControl,
     ScrollView,
 } from "react-native";
-import React, { useEffect, useMemo, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
-import DatePickerButton from "../Components/DatePickerButton";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import AntDesignIcons from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import AntDesignIcons from "react-native-vector-icons/AntDesign";
+import DatePickerButton from "../Components/DatePickerButton";
 import { API } from "../Config/Endpoint";
 import { customColors, typography, spacing, shadows } from "../Config/helper";
+import { fetchRoutes } from "../Api/retailers";
 
 const Dashboard = () => {
     const navigation = useNavigation();
-    const [isPollingActive, setIsPollingActive] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
-    const [companyId, setCompanyId] = useState();
-    const [uIdT, setUIdT] = useState(null);
+    const queryClient = useQueryClient();
+
+    // Reduced state variables - combine related states
+    const [userDetails, setUserDetails] = useState({
+        companyId: null,
+        uIdT: null,
+    });
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split("T")[0],
     );
+    const [isPollingActive, setIsPollingActive] = useState(true);
 
-    const [attendanceData, setAttendanceData] = useState([]);
-    const [attendanceCount, setAttendanceCount] = useState({});
-    const [visitData, setVisitData] = useState([]);
-    const [userCount, setUserCount] = useState({});
-    const [saleData, setSaleData] = useState([]);
-    const [saleCount, setSaleCount] = useState({});
-    const [totalProductsSold, setTotalProductsSold] = useState(0);
-    const [totalOrderAmount, setTotalOrderAmount] = useState(0);
-    const [deliveryData, setDeliveryData] = useState([]);
-    const [tripSheetData, setTripSheetData] = useState([]);
-    const [receipts, setReceipts] = useState([]);
-    const [kilometersCount, setKilometersCount] = useState({});
-    const [refreshing, setRefreshing] = useState(false);
-    const [newReceiptData, setNewReceiptData] = useState([]);
+    // Consolidated dashboard data state
+    const [dashboardData, setDashboardData] = useState({
+        attendanceData: [],
+        attendanceCount: {},
+        routeData: [],
+        visitData: [],
+        userCount: {},
+        saleData: [],
+        saleCount: {},
+        totalProductsSold: 0,
+        totalOrderAmount: 0,
+        deliveryData: [],
+        tripSheetData: [],
+        kilometersCount: {},
+        newReceiptData: 0,
+    });
 
     const POLLING_INTERVAL = 90000; // 90 seconds
 
+    // Load user details once on mount
     useEffect(() => {
         const loadUserDetails = async () => {
             try {
-                const storeUserTypeId =
-                    await AsyncStorage.getItem("userTypeId");
-                const Company_Id = await AsyncStorage.getItem("Company_Id");
+                const [storeUserTypeId, Company_Id] = await Promise.all([
+                    AsyncStorage.getItem("userTypeId"),
+                    AsyncStorage.getItem("Company_Id"),
+                ]);
 
-                setCompanyId(Company_Id);
-
-                setUIdT(storeUserTypeId);
-
-                await fetchAllData();
+                setUserDetails({
+                    companyId: Company_Id,
+                    uIdT: storeUserTypeId,
+                });
             } catch (err) {
-                console.log(err);
+                console.error("Error loading user details:", err);
             }
         };
 
         loadUserDetails();
     }, []);
 
-    const fetchAllData = async () => {
-        if (!companyId || !uIdT) return;
-
-        const today = new Date().toISOString().split("T")[0];
-        try {
-            await Promise.all([
-                fetchVisitersLog(today),
-                fetchSaleOrder(today, today, companyId),
-                fetchAttendanceInfo(today, today, uIdT),
-                fetchDeliveryData(today),
-                fetchTripSheet(today, today),
-                fetchCollectionReceipts(today, today),
-                fetchReceiptData(today, today),
-            ]);
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        }
-    };
-
-    const fetchVisitersLog = async (fromDate, id = "") => {
-        setIsLoading(true);
-        // Clear the visit data before fetching new data
-        setVisitData([]);
-        setUserCount({}); // Also clear the user count
-
-        try {
+    // Optimized API functions with better error handling
+    const apiService = {
+        fetchVisitersLog: async (fromDate, id = "") => {
             const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}`;
-            // console.log(url)
-
-            const response = await fetch(url, {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            });
-
+            const response = await fetch(url);
             const data = await response.json();
-            if (data.success === true) {
-                setVisitData(data.data);
-            } else {
-                console.log("Failed to fetch logs:", data.message);
-            }
-            setIsLoading(false);
-        } catch (error) {
-            console.log("Error fetching logs:", error);
-        }
-    };
+            return data.success ? data.data : [];
+        },
 
-    const fetchSaleOrder = async (from, to, company, userId = "") => {
-        setIsLoading(true);
-
-        setSaleData([]);
-        setSaleCount({});
-        setTotalOrderAmount(0);
-        setTotalProductsSold(0);
-
-        try {
-            let url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
-            // console.log(url);
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
+        fetchSaleOrder: async (from, to, company, userId = "") => {
+            const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
+            const response = await fetch(url);
             const data = await response.json();
+            return data.success ? data.data : [];
+        },
 
-            if (data.success === true) {
-                setSaleData(data.data);
-                calculateProductSummaryAndTotals(data.data);
-            } else {
-                console.log("Failed to fetch logs: ", data.message);
-            }
-            setIsLoading(false);
-        } catch (error) {
-            console.log("Error fetching logs: ", error);
-        }
-    };
-
-    const calculateProductSummaryAndTotals = orders => {
-        const summary = {};
-        let totalAmount = 0;
-        let productCount = 0;
-
-        orders.forEach(order => {
-            totalAmount += order.Total_Invoice_value;
-
-            order.Products_List.forEach(product => {
-                productCount += product.Total_Qty;
-
-                if (!summary[product.Product_Name]) {
-                    summary[product.Product_Name] = {
-                        productName: product.Product_Name,
-                        totalQty: 0,
-                        totalAmount: 0,
-                        timesSold: 0,
-                    };
-                }
-
-                summary[product.Product_Name].totalQty += product.Total_Qty;
-                summary[product.Product_Name].totalAmount += product.Amount;
-                summary[product.Product_Name].timesSold += 1;
-            });
-        });
-
-        setTotalOrderAmount(totalAmount);
-        setTotalProductsSold(productCount);
-    };
-
-    const fetchAttendanceInfo = async (from, to, userTypeID) => {
-        setIsLoading(true);
-        try {
+        fetchAttendanceInfo: async (from, to, userTypeID) => {
             const url = `${API.attendanceHistory()}From=${from}&To=${to}&UserTypeID=${userTypeID}`;
-            // console.log(url);
-
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
+            const response = await fetch(url);
             const data = await response.json();
-            if (data?.success) {
-                setAttendanceData(data.data || []);
-            } else {
-                // Reset attendance data if fetch fails
-                setAttendanceData([]);
-            }
-            setIsLoading(false);
-        } catch (err) {
-            console.log(err);
-        }
-    };
+            return data.success ? data.data : [];
+        },
 
-    const fetchDeliveryData = async today => {
-        setIsLoading(true);
-        try {
+        fetchDeliveryData: async today => {
             const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}`;
-            // console.log(url);
-
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
+            const response = await fetch(url);
             const data = await response.json();
-            if (data?.success) {
-                setDeliveryData(data.data || []);
-            } else {
-                // Reset delivery data if fetch fails
-                setDeliveryData([]);
-            }
-            setIsLoading(false);
-        } catch (err) {
-            console.log(err);
-        }
-    };
+            return data.success ? data.data : [];
+        },
 
-    const fetchTripSheet = async (from, to) => {
-        setIsLoading(true);
-        try {
+        fetchTripSheet: async (from, to) => {
             const url = `${API.deliveryTripSheet()}${from}&Todate=${to}`;
-            // console.log("Fetching from URL:", url);
-
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
+            const response = await fetch(url);
             const data = await response.json();
+            return data.success ? data.data : [];
+        },
 
-            if (data.success) {
-                setTripSheetData(data.data || []);
-            } else {
-                setTripSheetData([]);
-            }
-            setIsLoading(false);
-        } catch (err) {
-            console.error("Error fetching trip sheet:", err);
-        }
-    };
-
-    // Fix the fetchReceiptData function
-    const fetchReceiptData = async (from, to) => {
-        try {
+        fetchReceiptData: async (from, to) => {
             const url = `${API.getReceipt()}${from}&Todate=${to}`;
             const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
             const data = await response.json();
 
             if (data.success && data.data) {
-                // Fix: Properly calculate the total sum
-                const total = data.data.reduce((sum, receipt) => {
-                    return sum + (receipt.credit_amount || 0); // Fixed: added return
-                }, 0);
-                setNewReceiptData(total);
-            } else {
-                setNewReceiptData(0); // Set to 0 instead of empty array
+                return data.data.reduce(
+                    (sum, receipt) => sum + (receipt.credit_amount || 0),
+                    0,
+                );
             }
-        } catch (error) {
-            console.error("Error fetching receipt data:", error);
-            setNewReceiptData(0);
-        }
-    };
+            return 0;
+        },
 
-    const fetchCollectionReceipts = async (from, to) => {
-        try {
+        fetchCollectionReceipts: async (from, to) => {
             const url = `${API.paymentCollection()}?Fromdate=${from}&Todate=${to}`;
             const response = await fetch(url);
             const data = await response.json();
-            if (data.success) {
-                setReceipts(data.data);
-            }
-        } catch (err) {
-            console.error(err);
-        }
+            return data.success ? data.data : [];
+        },
+
+        fetchUserRoutes: async (today, userId) => {
+            const url = `${API.setRoutePath()}?date=${today}&User_Id=${userId}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
+        },
     };
 
-    useEffect(() => {
-        let intervalId;
+    // Consolidated data fetching with React Query
+    const {
+        data: allDashboardData = {},
+        isLoading,
+        refetch,
+        isRefetching,
+    } = useQuery({
+        queryKey: [
+            "dashboardData",
+            selectedDate,
+            userDetails.companyId,
+            userDetails.uIdT,
+        ],
+        queryFn: async () => {
+            if (!userDetails.companyId || !userDetails.uIdT) return {};
 
-        if (isPollingActive) {
-            fetchAllData();
-            intervalId = setInterval(fetchAllData, POLLING_INTERVAL);
-        }
+            try {
+                // Fetch all data in parallel
+                const [
+                    visitData,
+                    saleData,
+                    attendanceData,
+                    deliveryData,
+                    tripSheetData,
+                    newReceiptData,
+                    collectionReceiptData,
+                ] = await Promise.allSettled([
+                    apiService.fetchVisitersLog(selectedDate),
+                    apiService.fetchSaleOrder(
+                        selectedDate,
+                        selectedDate,
+                        userDetails.companyId,
+                    ),
+                    apiService.fetchAttendanceInfo(
+                        selectedDate,
+                        selectedDate,
+                        userDetails.uIdT,
+                    ),
+                    apiService.fetchDeliveryData(selectedDate),
+                    apiService.fetchTripSheet(selectedDate, selectedDate),
+                    apiService.fetchReceiptData(selectedDate, selectedDate),
+                    apiService.fetchCollectionReceipts(
+                        selectedDate,
+                        selectedDate,
+                    ),
+                ]);
 
-        return () => {
-            if (intervalId) {
-                clearInterval(intervalId);
+                // Extract data from settled promises
+                const extractData = result =>
+                    result.status === "fulfilled" ? result.value : [];
+                const extractValue = result =>
+                    result.status === "fulfilled" ? result.value : 0;
+
+                const finalVisitData = extractData(visitData);
+                const finalSaleData = extractData(saleData);
+                const finalAttendanceData = extractData(attendanceData);
+                const finalDeliveryData = extractData(deliveryData);
+                const finalTripSheetData = extractData(tripSheetData);
+                const finalReceiptData = extractValue(newReceiptData);
+
+                // Process attendance data and fetch routes
+                let routeData = [];
+                let attendanceCount = {};
+                let kilometersCount = {};
+
+                if (finalAttendanceData.length > 0) {
+                    const uniqueAttendance = finalAttendanceData.filter(
+                        (item, index, self) =>
+                            index ===
+                            self.findIndex(t => t.User_Name === item.User_Name),
+                    );
+
+                    // Process attendance count
+                    attendanceCount = uniqueAttendance.reduce((entry, item) => {
+                        const userName = item.User_Name || "Unknown";
+                        const userId = item.UserId || "Unknown";
+                        entry[userName] = { count: 1, userId };
+                        return entry;
+                    }, {});
+
+                    // Fetch routes for all users in parallel
+                    const routePromises = uniqueAttendance.map(async item => {
+                        try {
+                            const routes = await apiService.fetchUserRoutes(
+                                selectedDate,
+                                item.UserId,
+                            );
+                            return {
+                                userId: item.UserId,
+                                userName: item.User_Name,
+                                routes: routes,
+                            };
+                        } catch (error) {
+                            return {
+                                userId: item.UserId,
+                                userName: item.User_Name,
+                                routes: [],
+                            };
+                        }
+                    });
+
+                    routeData = await Promise.all(routePromises);
+
+                    // Calculate kilometers
+                    kilometersCount = finalAttendanceData.reduce(
+                        (entry, item) => {
+                            const userName = item.User_Name || "Unknown";
+                            const kmTraveled =
+                                item.End_KM && item.Start_KM
+                                    ? Math.max(0, item.End_KM - item.Start_KM)
+                                    : 0;
+
+                            if (!entry[userName]) {
+                                entry[userName] = {
+                                    totalKm: kmTraveled,
+                                    details: [
+                                        {
+                                            startKm: item.Start_KM,
+                                            endKm: item.End_KM,
+                                            date: item.Start_Date,
+                                        },
+                                    ],
+                                };
+                            } else {
+                                entry[userName].totalKm += kmTraveled;
+                                entry[userName].details.push({
+                                    startKm: item.Start_KM,
+                                    endKm: item.End_KM,
+                                    date: item.Start_Date,
+                                });
+                            }
+                            return entry;
+                        },
+                        {},
+                    );
+                }
+
+                // Process visit data
+                const userCount = finalVisitData.reduce((entry, item) => {
+                    const userName = item.EntryByGet;
+                    entry[userName] = (entry[userName] || 0) + 1;
+                    return entry;
+                }, {});
+
+                // Process sale data
+                const saleCount = finalSaleData.reduce((entry, item) => {
+                    const salesPerson = item.Sales_Person_Name;
+                    if (entry[salesPerson]) {
+                        entry[salesPerson].count++;
+                        entry[salesPerson].totalValue +=
+                            item.Total_Invoice_value;
+                    } else {
+                        entry[salesPerson] = {
+                            count: 1,
+                            totalValue: item.Total_Invoice_value,
+                        };
+                    }
+                    return entry;
+                }, {});
+
+                // Calculate totals
+                const totalOrderAmount = finalSaleData.reduce(
+                    (sum, order) => sum + order.Total_Invoice_value,
+                    0,
+                );
+                const totalProductsSold = finalSaleData.reduce(
+                    (count, order) => {
+                        return (
+                            count +
+                            order.Products_List.reduce(
+                                (productCount, product) => {
+                                    return productCount + product.Total_Qty;
+                                },
+                                0,
+                            )
+                        );
+                    },
+                    0,
+                );
+
+                // Extract the collection data
+                const finalCollectionReceiptData = extractData(
+                    collectionReceiptData,
+                );
+
+                const totalCollectionAmount = finalCollectionReceiptData.reduce(
+                    (sum, receipt) =>
+                        sum + (receipt.total_amount || receipt.amount || 0),
+                    0,
+                );
+
+                return {
+                    visitData: finalVisitData,
+                    saleData: finalSaleData,
+                    attendanceData: finalAttendanceData,
+                    deliveryData: finalDeliveryData,
+                    tripSheetData: finalTripSheetData,
+                    newReceiptData: finalReceiptData,
+                    collectionReceiptData: extractData(collectionReceiptData),
+                    routeData,
+                    attendanceCount,
+                    kilometersCount,
+                    userCount,
+                    saleCount,
+                    totalOrderAmount,
+                    totalProductsSold,
+                    totalCollectionAmount,
+                };
+            } catch (error) {
+                console.error("Error fetching dashboard data:", error);
+                return {};
             }
-        };
-    }, [isPollingActive, companyId, uIdT]);
+        },
+        enabled: !!(userDetails.companyId && userDetails.uIdT),
+        staleTime: 30000, // 30 seconds
+        cacheTime: 300000, // 5 minutes
+        refetchInterval: isPollingActive ? POLLING_INTERVAL : false,
+    });
 
+    // Fetch route names separately as it doesn't change often
+    const { data: fetchUserIndividualRoute = [] } = useQuery({
+        queryKey: ["fetchUserIndividualRoute"],
+        queryFn: fetchRoutes,
+        staleTime: 600000, // 10 minutes
+        cacheTime: 1800000, // 30 minutes
+    });
+
+    // Optimized route names function
+    const getUserRouteNames = useCallback(() => {
+        if (!allDashboardData.routeData || !fetchUserIndividualRoute.length)
+            return {};
+
+        const userRouteMapping = {};
+        allDashboardData.routeData.forEach(user => {
+            const routeNames = user.routes.map(route => {
+                const routeInfo = fetchUserIndividualRoute.find(
+                    r => r.Route_Id === route.Route_Id,
+                );
+                return routeInfo ? routeInfo.Route_Name : "Unknown Route";
+            });
+
+            userRouteMapping[user.userName] = {
+                userId: user.userId,
+                routeNames,
+                routeIds: user.routes.map(r => r.Route_Id),
+            };
+        });
+
+        return userRouteMapping;
+    }, [allDashboardData.routeData, fetchUserIndividualRoute]);
+
+    // Handle date change
+    const handleDateChange = useCallback(async date => {
+        if (date) {
+            const formattedDate = date.toISOString().split("T")[0];
+            setSelectedDate(formattedDate);
+            setIsPollingActive(false);
+            // Query will automatically refetch due to key change
+        }
+    }, []);
+
+    // Return to today
+    const returnToToday = useCallback(() => {
+        const today = new Date().toISOString().split("T")[0];
+        setSelectedDate(today);
+        setIsPollingActive(true);
+    }, []);
+
+    // Handle refresh
+    const onRefresh = useCallback(async () => {
+        await refetch();
+    }, [refetch]);
+
+    // Handle app state changes
     useEffect(() => {
         const subscription = AppState.addEventListener(
             "change",
             nextAppState => {
                 if (nextAppState === "active") {
                     setIsPollingActive(true);
-                    fetchAllData();
                 } else if (nextAppState === "background") {
                     setIsPollingActive(false);
                 }
             },
         );
 
-        return () => {
-            subscription.remove();
-        };
+        return () => subscription.remove();
     }, []);
 
-    const getAttendanceCount = () => {
-        if (!attendanceData || attendanceData.length === 0) {
-            setAttendanceCount({});
-            return;
-        }
-
-        const uniqueAttendance = attendanceData.filter(
-            (item, index, self) =>
-                index === self.findIndex(t => t.User_Name === item.User_Name),
-        );
-
-        const count = uniqueAttendance.reduce((entry, item) => {
-            const userName = item.User_Name || "Unknown";
-            entry[userName] = (entry[userName] || 0) + 1;
-            return entry;
-        }, {});
-
-        setAttendanceCount(count);
-    };
-
-    const getVisitUserBasedCount = () => {
-        const count = visitData.reduce((entry, item) => {
-            if (entry[item.EntryByGet]) {
-                entry[item.EntryByGet]++;
-            } else {
-                entry[item.EntryByGet] = 1;
-            }
-            return entry;
-        }, {});
-        setUserCount(count);
-    };
-
-    const getSaleUserCount = () => {
-        const result = saleData.reduce((entry, item) => {
-            if (entry[item.Sales_Person_Name]) {
-                entry[item.Sales_Person_Name].count++;
-                entry[item.Sales_Person_Name].totalValue +=
-                    item.Total_Invoice_value;
-            } else {
-                entry[item.Sales_Person_Name] = {
-                    count: 1,
-                    totalValue: item.Total_Invoice_value,
-                };
-            }
-
-            return entry;
-        }, {});
-        setSaleCount(result);
-    };
-
-    useEffect(() => {
-        if (visitData && visitData.length > 0) {
-            getVisitUserBasedCount();
-        }
-        if (saleData && saleData.length > 0) {
-            getSaleUserCount();
-        }
-        if (attendanceData && attendanceData.length > 0) {
-            getAttendanceCount();
-            calculateAttendanceStats();
-        } else {
-            // Reset attendance count if no data
-            setAttendanceCount({});
-        }
-    }, [visitData, saleData, attendanceData]);
-
-    const calculateAttendanceStats = () => {
-        if (!attendanceData || attendanceData.length === 0) {
-            setAttendanceCount({});
-            setKilometersCount({});
-            return;
-        }
-
-        // Calculate unique users and their attendance count
-        const uniqueAttendance = attendanceData.filter(
-            (item, index, self) =>
-                index === self.findIndex(t => t.User_Name === item.User_Name),
-        );
-
-        const attendCount = uniqueAttendance.reduce((entry, item) => {
-            const userName = item.User_Name || "Unknown";
-            entry[userName] = (entry[userName] || 0) + 1;
-            return entry;
-        }, {});
-
-        // Calculate kilometers for each user
-        const kmCount = attendanceData.reduce((entry, item) => {
-            const userName = item.User_Name || "Unknown";
-            const kmTraveled =
-                item.End_KM && item.Start_KM
-                    ? Math.max(0, item.End_KM - item.Start_KM)
-                    : 0;
-
-            if (!entry[userName]) {
-                entry[userName] = {
-                    totalKm: kmTraveled,
-                    details: [
-                        {
-                            startKm: item.Start_KM,
-                            endKm: item.End_KM,
-                            date: item.Start_Date,
-                        },
-                    ],
-                };
-            } else {
-                entry[userName].totalKm += kmTraveled;
-                entry[userName].details.push({
-                    startKm: item.Start_KM,
-                    endKm: item.End_KM,
-                    date: item.Start_Date,
-                });
-            }
-            return entry;
-        }, {});
-
-        setAttendanceCount(attendCount);
-        setKilometersCount(kmCount);
-    };
-
-    const handleDateChange = async date => {
-        if (date) {
-            const formattedDate = date.toISOString().split("T")[0];
-            setSelectedDate(formattedDate);
-            setIsPollingActive(false);
-            await Promise.all([
-                fetchVisitersLog(formattedDate),
-                fetchSaleOrder(formattedDate, formattedDate, companyId),
-                fetchAttendanceInfo(formattedDate, formattedDate, uIdT),
-                fetchCollectionReceipts(formattedDate, formattedDate),
-                fetchDeliveryData(formattedDate),
-                fetchTripSheet(formattedDate, formattedDate),
-                fetchReceiptData(formattedDate, formattedDate),
-            ]);
-        }
-    };
-
-    const returnToToday = async () => {
-        const today = new Date().toISOString().split("T")[0];
-        setSelectedDate(today);
-        setIsPollingActive(true);
-        await fetchAllData();
-    };
-
-    const onRefresh = React.useCallback(async () => {
-        setRefreshing(true);
-        try {
-            await fetchAllData();
-        } catch (error) {
-            console.error("Error refreshing data:", error);
-        } finally {
-            setRefreshing(false);
-        }
-    }, [companyId, uIdT]);
-
+    // Memoized stats data
     const statsData = useMemo(
         () => [
             {
                 icon: "human-greeting-variant",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Attendance",
-                value: Object.keys(attendanceCount).length,
+                value: Object.keys(allDashboardData.attendanceCount || {})
+                    .length,
                 color: "#10B981",
                 backgroundColor: "#ECFDF5",
-                onPress: () =>
+                onPress: () => {
+                    const routeNames = getUserRouteNames();
                     navigation.navigate("Statistics", {
                         title: "Attendance",
-                        userCount: attendanceCount,
-                        kilometersCount: kilometersCount,
-                    }),
+                        userCount: allDashboardData.attendanceCount,
+                        kilometersCount: allDashboardData.kilometersCount,
+                        routeData: routeNames,
+                    });
+                },
             },
             {
                 icon: "map-marker-account-outline",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Check-ins",
-                value: visitData.length,
+                value: allDashboardData.visitData?.length || 0,
                 color: "#8B5CF6",
                 backgroundColor: "#F3E8FF",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Check-In's",
-                        userCount: userCount,
-                        visitData: visitData,
+                        userCount: allDashboardData.userCount,
+                        visitData: allDashboardData.visitData,
                     }),
             },
             {
                 icon: "chart-areaspline",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Total Sales",
-                value: saleData.length,
+                value: allDashboardData.saleData?.length || 0,
                 color: "#3B82F6",
                 backgroundColor: "#DBEAFE",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Sales",
-                        userCount: saleCount,
+                        userCount: allDashboardData.saleCount,
                     }),
             },
             {
                 icon: "currency-rupee",
                 iconLibrary: "MaterialIcons",
                 label: "Sales Amount",
-                value: `₹${totalOrderAmount.toLocaleString("en-IN")}`,
+                value: `₹${(allDashboardData.totalOrderAmount || 0).toLocaleString("en-IN")}`,
                 color: "#EF4444",
                 backgroundColor: "#FEF2F2",
-                onPress: () => navigation.navigate("SalesAdmin"),
-            },
-            {
-                icon: "receipt-long",
-                iconLibrary: "MaterialIcons",
-                label: "Bills",
-                value: `₹${receipts
-                    .map(total => total.total_amount)
-                    .reduce((acc, curr) => acc + curr, 0)
-                    .toLocaleString("en-IN")}`,
-                color: "#059669",
-                backgroundColor: "#D1FAE5",
-                onPress: () => navigation.navigate("BillAdminView"),
+                onPress: () =>
+                    navigation.navigate("SalesAdmin", {
+                        selectedDate: selectedDate,
+                    }),
             },
             {
                 icon: "receipt",
                 iconLibrary: "MaterialIcons",
                 label: "Receipts",
-                value: `₹${newReceiptData.toLocaleString("en-IN")}`, // Fixed: Format as currency
+                value: `₹${(allDashboardData.newReceiptData || 0).toLocaleString("en-IN")}`,
+                color: "#059669",
+                backgroundColor: "#D1FAE5",
+                onPress: () =>
+                    navigation.navigate("ReceiptAdmin", {
+                        selectedDate: selectedDate,
+                    }),
+            },
+            {
+                icon: "receipt-long",
+                iconLibrary: "MaterialIcons",
+                label: "Bills",
+                value: `₹${(allDashboardData.totalCollectionAmount || 0).toLocaleString("en-IN")}`,
                 color: "#EC4899",
                 backgroundColor: "#FDF2F8",
-                onPress: () => navigation.navigate("ReceiptAdmin"),
+                onPress: () => navigation.navigate("BillAdminView"),
             },
             {
                 icon: "local-shipping",
                 iconLibrary: "MaterialIcons",
                 label: "Delivery",
                 value: `${
-                    deliveryData.filter(
+                    allDashboardData.deliveryData?.filter(
                         item =>
                             item.DeliveryStatusName === "Delivered" ||
                             item.DeliveryStatusName === "Pending",
-                    ).length
-                }/${deliveryData.length || 0}`,
+                    ).length || 0
+                }/${allDashboardData.deliveryData?.length || 0}`,
                 color: "#DC2626",
                 backgroundColor: "#FEE2E2",
-                onPress: () => navigation.navigate("DeliveryReport"),
+                onPress: () =>
+                    navigation.navigate("DeliveryReport", {
+                        selectedDate: selectedDate,
+                    }),
             },
             {
                 icon: "truck-delivery",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Trip Count",
-                value: tripSheetData.length,
+                value: allDashboardData.tripSheetData?.length || 0,
                 color: "#F59E0B",
                 backgroundColor: "#FEF3C7",
-                onPress: () => navigation.navigate("TripReport"),
+                onPress: () =>
+                    navigation.navigate("TripReport", {
+                        selectedDate: selectedDate,
+                    }),
             },
             {
                 icon: "warehouse",
                 iconLibrary: "MaterialCommunityIcons",
-                label: "Outlet Stock",
-                value: "",
+                label: "Stock",
+                value: "Retailer's",
                 color: "#7C3AED",
                 backgroundColor: "#EDE9FE",
                 onPress: () => navigation.navigate("RetailerStock"),
             },
+            {
+                icon: "receipt",
+                iconLibrary: "MaterialIcons",
+                label: "Orders",
+                value: "Pending",
+                color: "#EC4899",
+                backgroundColor: "#FDF2F8",
+                onPress: () => navigation.navigate("PendingSales"),
+            },
         ],
-        [
-            attendanceCount,
-            visitData,
-            saleData,
-            totalProductsSold,
-            totalOrderAmount,
-            deliveryData,
-            tripSheetData,
-            receipts,
-            newReceiptData, // Added to dependency array
-        ],
+        [allDashboardData, getUserRouteNames, navigation],
     );
 
-    const renderIcon = (iconLibrary, iconName, color) => {
-        const iconProps = {
-            name: iconName,
-            size: 24,
-            color: color,
-        };
+    // Memoized icon renderer
+    const renderIcon = useCallback((iconLibrary, iconName, color) => {
+        const iconProps = { name: iconName, size: 24, color };
 
         switch (iconLibrary) {
             case "MaterialIcons":
@@ -614,7 +576,7 @@ const Dashboard = () => {
             default:
                 return <MaterialIcons {...iconProps} />;
         }
-    };
+    }, []);
 
     if (isLoading) {
         return (
@@ -632,7 +594,7 @@ const Dashboard = () => {
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
+                        refreshing={isRefetching}
                         onRefresh={onRefresh}
                         colors={[customColors.primary]}
                         tintColor={customColors.primary}
@@ -717,6 +679,7 @@ const Dashboard = () => {
 
 export default Dashboard;
 
+// Keep existing styles...
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -730,8 +693,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         gap: spacing.md,
+        paddingVertical: "50%",
     },
     loadingText: {
+        textAlign: "center",
         ...typography.body1(),
         color: customColors.grey600,
     },
