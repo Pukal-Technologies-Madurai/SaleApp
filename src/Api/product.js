@@ -13,7 +13,7 @@ export const fetchProductsWithStockValue = async () => {
     try {
         const url = API.stockValueWithProduct();
         const response = await fetch(url, {
-            method: "POST",
+            method: "GET",
             headers: {
                 "Content-Type": "application/json",
             },
@@ -62,7 +62,8 @@ export const fetchRetailerClosingStock = async Retailer_Id => {
 };
 
 export const fetchClosingStock = async ({ id, day }) => {
-    const res = await fetch(`${API.closingStockReport()}${id}&reqDate=${day}`);
+    const url = `${API.closingStockReport()}${id}&reqDate=${day}`;
+    const res = await fetch(url);
     const data = await res.json();
 
     if (!data.success) throw new Error(data.message);

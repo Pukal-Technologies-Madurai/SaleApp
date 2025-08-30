@@ -514,13 +514,12 @@ const Dashboard = () => {
                 icon: "local-shipping",
                 iconLibrary: "MaterialIcons",
                 label: "Delivery",
-                value: `${
-                    allDashboardData.deliveryData?.filter(
-                        item =>
-                            item.DeliveryStatusName === "Delivered" ||
-                            item.DeliveryStatusName === "Pending",
-                    ).length || 0
-                }/${allDashboardData.deliveryData?.length || 0}`,
+                value: `${allDashboardData.deliveryData?.filter(
+                    item =>
+                        item.DeliveryStatusName === "Delivered" ||
+                        item.DeliveryStatusName === "Pending",
+                ).length || 0
+                    }/${allDashboardData.deliveryData?.length || 0}`,
                 color: "#DC2626",
                 backgroundColor: "#FEE2E2",
                 onPress: () =>
@@ -614,21 +613,21 @@ const Dashboard = () => {
 
                     {selectedDate !==
                         new Date().toISOString().split("T")[0] && (
-                        <TouchableOpacity
-                            style={styles.todayButton}
-                            onPress={returnToToday}
-                            activeOpacity={0.8}>
-                            <MaterialIcons
-                                name="today"
-                                size={20}
-                                color={customColors.white}
-                                style={styles.todayIcon}
-                            />
-                            <Text style={styles.todayButtonText}>
-                                Return to Today
-                            </Text>
-                        </TouchableOpacity>
-                    )}
+                            <TouchableOpacity
+                                style={styles.todayButton}
+                                onPress={returnToToday}
+                                activeOpacity={0.8}>
+                                <MaterialIcons
+                                    name="today"
+                                    size={20}
+                                    color={customColors.white}
+                                    style={styles.todayIcon}
+                                />
+                                <Text style={styles.todayButtonText}>
+                                    Return to Today
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                 </View>
 
                 {/* Stats Grid */}
