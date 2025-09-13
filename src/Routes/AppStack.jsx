@@ -47,6 +47,7 @@ import CreateReceipts from "../Screens/bills/CreateReceipts";
 import ReceiptInfo from "../Screens/bills/ReceiptInfo";
 import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
 import PendingSales from "../Screens/pending/PendingSales";
+import VisitLogSummary from "../Screens/admin/VisitLogSummary";
 
 const Stack = createStackNavigator();
 
@@ -109,6 +110,7 @@ const AppStack = () => {
             <Stack.Screen name="SalesAdmin" component={SalesAdmin} />
             <Stack.Screen name="SalesReport" component={SalesReport} />
             <Stack.Screen name="TripReport" component={TripReport} />
+            <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
 
             <Stack.Screen name="OpenCamera" component={OpenCamera} />
 

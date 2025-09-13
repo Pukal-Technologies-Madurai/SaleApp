@@ -11,11 +11,16 @@ import {
     Dimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
 import { useMutation } from "@tanstack/react-query";
+import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/AntDesign";
+import AppHeader from "../../Components/AppHeader";
+import assetImages from "../../Config/Image";
+import LocationIndicator from "../../Components/LocationIndicator";
 import { API } from "../../Config/Endpoint";
+import { updateRetailerLocation } from "../../Api/retailers";
 import {
     customColors,
     typography,
@@ -23,11 +28,6 @@ import {
     spacing,
     componentStyles,
 } from "../../Config/helper";
-import LocationIndicator from "../../Components/LocationIndicator";
-import assetImages from "../../Config/Image";
-import AppHeader from "../../Components/AppHeader";
-import { updateRetailerLocation } from "../../Api/retailers";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const CustomersDetails = ({ route }) => {
     const { item } = route.params;
@@ -213,12 +213,12 @@ const CustomersDetails = ({ route }) => {
                             item.AllLocations[0] &&
                             item.AllLocations[0].latitude &&
                             item.AllLocations[0].longitude)) && (
-                        <ActionButton
-                            label="Maps"
-                            icon={assetImages.locationStatus}
-                            onPress={openMap}
-                        />
-                    )}
+                            <ActionButton
+                                label="Maps"
+                                icon={assetImages.locationStatus}
+                                onPress={openMap}
+                            />
+                        )}
 
                     <ActionButton
                         label="Update Location"

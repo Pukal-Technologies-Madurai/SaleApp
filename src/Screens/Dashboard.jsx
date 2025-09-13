@@ -33,6 +33,7 @@ const Dashboard = () => {
         new Date().toISOString().split("T")[0],
     );
     const [isPollingActive, setIsPollingActive] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     // Consolidated dashboard data state
     const [dashboardData, setDashboardData] = useState({
@@ -355,8 +356,13 @@ const Dashboard = () => {
         },
         enabled: !!(userDetails.companyId && userDetails.uIdT),
         staleTime: 30000, // 30 seconds
-        cacheTime: 300000, // 5 minutes
+        cacheTime: 60000, // Changed from 200000 to 60000 (1 minute)
         refetchInterval: isPollingActive ? POLLING_INTERVAL : false,
+        retry: 2, // Add retry option
+        retryDelay: 1000, // Add retry delay
+        onError: (error) => {
+            console.error('Dashboard data fetch error:', error);
+        }
     });
 
     // Fetch route names separately as it doesn't change often
@@ -410,8 +416,20 @@ const Dashboard = () => {
 
     // Handle refresh
     const onRefresh = useCallback(async () => {
-        await refetch();
-    }, [refetch]);
+        setRefreshing(true);
+        try {
+            // Invalidate and refetch all queries
+            await Promise.all([
+                queryClient.invalidateQueries('dashboardData'),
+                queryClient.invalidateQueries('fetchUserIndividualRoute')
+            ]);
+            await refetch();
+        } catch (error) {
+            console.error('Refresh failed:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [queryClient, refetch]);
 
     // Handle app state changes
     useEffect(() => {
@@ -593,7 +611,7 @@ const Dashboard = () => {
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
-                        refreshing={isRefetching}
+                        refreshing={refreshing || isRefetching} // Add isRefetching
                         onRefresh={onRefresh}
                         colors={[customColors.primary]}
                         tintColor={customColors.primary}

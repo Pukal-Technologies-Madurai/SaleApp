@@ -184,15 +184,13 @@ export const updateRetailerLocation = async ({ userId, location, item }) => {
 };
 
 export const visitEntryLog = async ({ toDate, uId }) => {
-    const response = await fetch(
-        `${API.visitedLog()}?reqDate=${toDate}&UserId=${uId}`,
-        {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
+    const url = `${API.visitedLog()}?reqDate=${toDate}&UserId=${uId}`;
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
         },
-    );
+    });
 
     const data = await response.json();
 
