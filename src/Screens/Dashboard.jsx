@@ -519,15 +519,15 @@ const Dashboard = () => {
                         selectedDate: selectedDate,
                     }),
             },
-            {
-                icon: "receipt-long",
-                iconLibrary: "MaterialIcons",
-                label: "Bills",
-                value: `₹${(allDashboardData.totalCollectionAmount || 0).toLocaleString("en-IN")}`,
-                color: "#EC4899",
-                backgroundColor: "#FDF2F8",
-                onPress: () => navigation.navigate("BillAdminView"),
-            },
+            // {
+            //     icon: "receipt-long",
+            //     iconLibrary: "MaterialIcons",
+            //     label: "Bills",
+            //     value: `₹${(allDashboardData.totalCollectionAmount || 0).toLocaleString("en-IN")}`,
+            //     color: "#EC4899",
+            //     backgroundColor: "#FDF2F8",
+            //     onPress: () => navigation.navigate("BillAdminView"),
+            // },
             {
                 icon: "local-shipping",
                 iconLibrary: "MaterialIcons",
@@ -611,7 +611,7 @@ const Dashboard = () => {
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing || isRefetching} // Add isRefetching
+                        refreshing={refreshing || isRefetching}
                         onRefresh={onRefresh}
                         colors={[customColors.primary]}
                         tintColor={customColors.primary}
@@ -650,7 +650,46 @@ const Dashboard = () => {
 
                 {/* Stats Grid */}
                 <View style={styles.statsContainer}>
-                    <Text style={styles.sectionTitle}>Analytics</Text>
+                    <View style={styles.sectionHeader} >
+                        <View style={styles.titleContainer}>
+                            <Text style={styles.sectionTitle}>Analytics</Text>
+                            <Text style={styles.sectionSubtitle}>
+                                {selectedDate === new Date().toISOString().split("T")[0]
+                                    ? "Today's Overview"
+                                    : `Overview for ${new Date(selectedDate).toLocaleDateString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric'
+                                    })}`
+                                }
+                            </Text>
+                        </View>
+                        <View style={styles.headerButtonContainer}>
+                            <TouchableOpacity
+                                style={styles.headerButton}
+                                onPress={onRefresh}
+                                activeOpacity={0.7}
+                            >
+                                <AntDesignIcons
+                                    name="reload1"
+                                    size={18}
+                                    color={customColors.primary}
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.headerButton}
+                                onPress={() => navigation.navigate("SwitchCompany")}
+                                activeOpacity={0.7}
+                            >
+                                <AntDesignIcons
+                                    name="swap"
+                                    size={18}
+                                    color={customColors.primary}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                     <View style={styles.gridContainer}>
                         {statsData.map((stat, index) => (
                             <TouchableOpacity
@@ -752,6 +791,51 @@ const styles = StyleSheet.create({
     statsContainer: {
         paddingHorizontal: spacing.lg,
         paddingBottom: spacing.xl,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: spacing.lg,
+        paddingHorizontal: spacing.xs,
+    },
+    titleContainer: {
+        flex: 1,
+        marginRight: spacing.md,
+    },
+    sectionTitle: {
+        ...typography.h5(),
+        color: customColors.grey900,
+        fontWeight: "700",
+        marginBottom: spacing.xs,
+        letterSpacing: 0.3,
+    },
+    sectionSubtitle: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        fontWeight: "500",
+        lineHeight: 16,
+    },
+    headerButtonContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.xs,
+        ...shadows.small,
+        borderWidth: 1,
+        borderColor: customColors.grey100,
+    },
+    headerButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
     sectionTitle: {
         ...typography.h5(),

@@ -10,6 +10,7 @@ import Dashboard from "../Screens/Dashboard";
 import StatisticsScreen from "../Screens/StatisticsScreen";
 import ProfileScreen from "../Screens/ProfileScreen";
 import LoginPortal from "../Screens/login/LoginPortal";
+import SwitchCompany from "../Screens/login/SwitchCompany";
 import Customers from "../Screens/retailers/Customers";
 import CustomersDetails from "../Screens/retailers/CustomersDetails";
 import AddCustomer from "../Screens/retailers/AddCustomer";
@@ -73,6 +74,7 @@ const AppStack = () => {
             <Stack.Screen name="EndDay" component={EndDay} />
 
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
+            <Stack.Screen name="SwitchCompany" component={SwitchCompany} />
 
             <Stack.Screen name="RoutePath" component={RoutePath} />
             <Stack.Screen name="AddCustomer" component={AddCustomer} />

@@ -45,21 +45,28 @@ const LoginPortal = () => {
 
                 if (companies.length === 1) {
                     setSelectedCompany(companies[0]);
+                    await AsyncStorage.setItem("baseURL", companies[0].Web_Api);
+                    setBaseUrl(companies[0].Web_Api);
                     setStep(2);
                 } else {
                     setStep(2);
                 }
             } else {
-                ToastAndroid.show(jsonData.message, ToastAndroid.LONG);
+                ToastAndroid.show(jsonData.message || "Username not found. Please try again.", ToastAndroid.LONG);
+                handleUsernameReset();
             }
         } catch (err) {
             console.error(err);
+            handleUsernameReset();
         }
     };
 
-    const handleCompanySelect = company => {
+    const handleCompanySelect = async company => {
         setSelectedCompany(company);
         setModalVisible(false);
+
+        await AsyncStorage.setItem("baseURL", company.Web_Api);
+        setBaseUrl(company.Web_Api);
     };
 
     const handleLogin = async () => {
@@ -73,6 +80,9 @@ const LoginPortal = () => {
                 password,
                 "ly4@&gr$vnh905RyB>?%#@-(KSMT",
             ).toString();
+
+            await AsyncStorage.setItem("baseURL", selectedCompany.Web_Api);
+            setBaseUrl(selectedCompany.Web_Api);
 
             const response = await fetch(API.userPortalLogin(), {
                 method: "POST",
@@ -93,6 +103,7 @@ const LoginPortal = () => {
 
             if (data.success) {
                 getUserAuth(data.data.Web_Api, data.data.Autheticate_Id);
+                await AsyncStorage.setItem("password", password);
             } else {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
             }
@@ -106,7 +117,7 @@ const LoginPortal = () => {
         try {
             setBaseUrl(webApi);
 
-            const url = `${webApi}api/authorization/userAuthmobile`;
+            const url = `${API.getUserAuthMob()}`;
 
             const response = await fetch(url, {
                 method: "GET",
@@ -160,6 +171,15 @@ const LoginPortal = () => {
         setCompanies([]);
         setStep(1);
         setModalVisible(false);
+    };
+
+    const handleUsernameReset = () => {
+        setPassword("");
+        setSelectedCompany(null);
+        setCompanies([]);
+        setStep(1);
+        setModalVisible(false);
+        // Keep the username so user can edit it
     };
 
     return (
@@ -224,6 +244,22 @@ const LoginPortal = () => {
                                     onChangeText={setUserName}
                                 />
                             </View>
+
+                            {companies.length === 0 && (
+                                <TouchableOpacity
+                                    style={styles.backButton}
+                                    onPress={handleUsernameReset}>
+                                    <AntIcon
+                                        name="arrowleft"
+                                        size={22}
+                                        color={customColors.primaryDark}
+                                    />
+                                    <Text style={styles.backButtonText}>
+                                        Change Username
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+
                             {companies.length > 1 && (
                                 <TouchableOpacity
                                     style={styles.selectButton}
@@ -244,6 +280,19 @@ const LoginPortal = () => {
                                         color="#888"
                                     />
                                 </TouchableOpacity>
+                            )}
+
+                            {companies.length === 1 && selectedCompany && (
+                                <View style={styles.companyDisplayWrapper}>
+                                    <FontAwesomeIcon
+                                        name="building-shield"
+                                        size={22}
+                                        color={customColors.grey500}
+                                    />
+                                    <Text style={styles.companyDisplayText}>
+                                        {selectedCompany.Company_Name}
+                                    </Text>
+                                </View>
                             )}
 
                             <Modal
@@ -479,5 +528,39 @@ const styles = StyleSheet.create({
         color: customColors.primaryDark,
         fontWeight: "600",
         ...typography.body1(),
+    },
+    backButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: customColors.grey100,
+        borderRadius: 12,
+        height: 42,
+        paddingHorizontal: 16,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    backButtonText: {
+        color: customColors.primaryDark,
+        fontWeight: "500",
+        marginLeft: 8,
+        ...typography.body2(),
+    },
+    companyDisplayWrapper: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 52,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    companyDisplayText: {
+        flex: 1,
+        ...typography.body1(),
+        color: customColors.primaryDark,
+        marginLeft: 12,
+        fontWeight: "600",
     },
 });

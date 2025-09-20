@@ -211,7 +211,7 @@ const AdminAttendance = () => {
                                         style={[
                                             styles.tableRow,
                                             index % 2 === 0 &&
-                                                styles.alternateRow,
+                                            styles.alternateRow,
                                         ]}
                                         key={item.Id}>
                                         <Text style={styles.cell}>
