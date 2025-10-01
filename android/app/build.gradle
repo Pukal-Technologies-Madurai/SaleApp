@@ -86,8 +86,8 @@ android {
         applicationId "com.PukalVirpanai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 26
-        versionName "4.1.1"
+        versionCode 28
+        versionName "4.1.3"
     }
     signingConfigs {
         release {

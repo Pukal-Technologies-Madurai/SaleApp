@@ -34,6 +34,7 @@ const CustomersDetails = ({ route }) => {
     const navigation = useNavigation();
 
     const [userId, setUserId] = useState("");
+    const [companyName, setCompanyName] = useState("");
     const [selectedImage, setSelectedImage] = useState(null);
     const [showImageModal, setShowImageModal] = useState(false);
 
@@ -43,6 +44,9 @@ const CustomersDetails = ({ route }) => {
     useEffect(() => {
         AsyncStorage.getItem("UserId").then(id => {
             setUserId(id);
+        });
+        AsyncStorage.getItem("companyName").then(name => {
+            setCompanyName(name);
         });
     }, []);
 
@@ -167,15 +171,28 @@ const CustomersDetails = ({ route }) => {
                             })
                         }
                     />
-                    <ActionButton
-                        label="Order"
-                        icon={assetImages.salesOrder}
-                        onPress={() =>
-                            navigation.navigate("Sales", {
-                                item,
-                            })
-                        }
-                    />
+
+                    {companyName === "SM TRADERS" ? (
+                        <ActionButton
+                            label="PoS Order"
+                            icon={assetImages.salesOrder}
+                            onPress={() =>
+                                navigation.navigate("PosOrder", {
+                                    item,
+                                })
+                            }
+                        />
+                    ) : (
+                        <ActionButton
+                            label="Order"
+                            icon={assetImages.salesOrder}
+                            onPress={() =>
+                                navigation.navigate("Sales", {
+                                    item,
+                                })
+                            }
+                        />
+                    )}
 
                     <ActionButton
                         label="Edit"

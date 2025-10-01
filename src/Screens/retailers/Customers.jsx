@@ -5,15 +5,13 @@ import {
     TouchableOpacity,
     StyleSheet,
     TextInput,
-    FlatList,
-    StatusBar,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
-
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { fetchRetailers, fetchRoutePathData } from "../../Api/retailers";
@@ -438,7 +436,7 @@ const Customers = () => {
                     </View>
                 </View>
 
-                <FlatList
+                <FlashList
                     data={filteredRetailers}
                     renderItem={renderItem}
                     keyExtractor={keyExtractor}

@@ -45,6 +45,8 @@ export const customColors = {
     white: "#FFFFFF",
     background: "#F5F5F5",
 
+    border: "#EEEEEE",
+
     // Grey scale
     grey50: "#FAFAFA",
     grey100: "#F5F5F5",

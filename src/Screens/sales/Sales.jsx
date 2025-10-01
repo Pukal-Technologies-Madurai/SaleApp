@@ -174,7 +174,7 @@ const Sales = ({ route }) => {
 
     const handleQuantityChange = useCallback(
         (productId, quantity, rate, product) => {
-            const newQuantity = Math.max(0, parseInt(quantity) || 0);
+            const newQuantity = Math.max(0, parseFloat(quantity) || 0);
             const selectedUOM = selectedUOMs[productId] || product.UOM_Id;
 
             setInitialValue(prev => {
@@ -215,6 +215,25 @@ const Sales = ({ route }) => {
         [selectedUOMs],
     );
 
+    const handleQuantityInputChange = useCallback((productId, value, rate, product) => {
+        // Allow empty value or valid decimal numbers
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            // Update display value immediately
+            setOrderQuantities(prev => ({
+                ...prev,
+                [productId]: value,
+            }));
+
+            // Only update the product array if it's a valid number
+            if (value !== "" && !value.endsWith('.') && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
+                handleQuantityChange(productId, value, rate, product);
+            } else if (value === "" || (parseFloat(value) === 0 && !value.endsWith('.'))) {
+                // Remove from product array if empty or zero
+                handleQuantityChange(productId, "0", rate, product);
+            }
+        }
+    }, [handleQuantityChange]);
+
     const handleUOMChange = useCallback(
         (productId, uomId) => {
             // Update local state for UOM selection
@@ -252,7 +271,7 @@ const Sales = ({ route }) => {
                         updatedProductArray.push({
                             Item_Id: productId,
                             Product_Id: productId,
-                            Bill_Qty: parseInt(orderQuantities[productId] || 0),
+                            Bill_Qty: parseFloat(orderQuantities[productId] || 0),
                             Item_Rate:
                                 editedPrices[productId] || product.Item_Rate,
                             UOM: uomId,
@@ -271,50 +290,55 @@ const Sales = ({ route }) => {
 
     const handlePriceChange = useCallback(
         (productId, price) => {
-            // Update the display value immediately
-            setPriceInputValues(prev => ({
-                ...prev,
-                [productId]: price,
-            }));
-
-            // Only update the actual price if it's a valid number
-            const numericPrice = price === "" ? 0 : parseFloat(price);
-            if (!isNaN(numericPrice)) {
-                setEditedPrices(prev => ({
+            // Allow empty value or valid decimal numbers (including trailing dots)
+            if (price === "" || /^\d*\.?\d*$/.test(price)) {
+                // Update the display value immediately - preserves trailing dots
+                setPriceInputValues(prev => ({
                     ...prev,
-                    [productId]: numericPrice,
+                    [productId]: price,
                 }));
+            }
 
-                // Update Product_Array with new price
-                setInitialValue(prev => {
-                    const updatedProductArray = [...prev.Product_Array];
-                    const existingIndex = updatedProductArray.findIndex(
-                        item => item.Item_Id === productId,
-                    );
-
-                    if (existingIndex !== -1) {
-                        updatedProductArray[existingIndex] = {
-                            ...updatedProductArray[existingIndex],
-                            Item_Rate: numericPrice,
-                        };
-                    } else if (orderQuantities[productId]) {
-                        const product = filteredProducts.find(
-                            p => p.Product_Id === productId,
-                        );
-                        updatedProductArray.push({
-                            Item_Id: productId,
-                            Product_Id: productId,
-                            Bill_Qty: parseInt(orderQuantities[productId]),
-                            Item_Rate: numericPrice,
-                            UOM: selectedUOMs[productId] || product.UOM_Id,
-                        });
-                    }
-
-                    return {
+            // Only update the actual price if it's a valid complete number
+            if (price !== "" && !price.endsWith('.') && !isNaN(parseFloat(price))) {
+                const numericPrice = parseFloat(price);
+                if (numericPrice >= 0) {
+                    setEditedPrices(prev => ({
                         ...prev,
-                        Product_Array: updatedProductArray,
-                    };
-                });
+                        [productId]: numericPrice,
+                    }));
+
+                    // Update Product_Array with new price
+                    setInitialValue(prev => {
+                        const updatedProductArray = [...prev.Product_Array];
+                        const existingIndex = updatedProductArray.findIndex(
+                            item => item.Item_Id === productId,
+                        );
+
+                        if (existingIndex !== -1) {
+                            updatedProductArray[existingIndex] = {
+                                ...updatedProductArray[existingIndex],
+                                Item_Rate: numericPrice,
+                            };
+                        } else if (orderQuantities[productId] && parseFloat(orderQuantities[productId]) > 0) {
+                            const product = filteredProducts.find(
+                                p => p.Product_Id === productId,
+                            );
+                            updatedProductArray.push({
+                                Item_Id: productId,
+                                Product_Id: productId,
+                                Bill_Qty: parseFloat(orderQuantities[productId]),
+                                Item_Rate: numericPrice,
+                                UOM: selectedUOMs[productId] || product.UOM_Id,
+                            });
+                        }
+
+                        return {
+                            ...prev,
+                            Product_Array: updatedProductArray,
+                        };
+                    });
+                }
             }
         },
         [orderQuantities, filteredProducts, selectedUOMs],
@@ -772,7 +796,7 @@ const Sales = ({ route }) => {
                                                         {
                                                             color:
                                                                 product.CL_Qty >
-                                                                0
+                                                                    0
                                                                     ? customColors.success
                                                                     : customColors.error,
                                                         },
@@ -793,24 +817,25 @@ const Sales = ({ route }) => {
                                             </Text>
                                             <TextInput
                                                 style={styles.quantityInput}
-                                                keyboardType="numeric"
+                                                keyboardType="decimal-pad"
                                                 value={
                                                     orderQuantities[
-                                                        product.Product_Id
+                                                    product.Product_Id
                                                     ] || ""
                                                 }
                                                 onChangeText={quantity =>
-                                                    handleQuantityChange(
+                                                    handleQuantityInputChange(
                                                         product.Product_Id,
                                                         quantity,
                                                         product.Item_Rate,
                                                         product,
                                                     )
                                                 }
-                                                placeholder="0"
+                                                placeholder="0.0"
                                                 placeholderTextColor={
                                                     customColors.grey
                                                 }
+                                                selectTextOnFocus={true}
                                             />
                                         </View>
 
@@ -828,7 +853,7 @@ const Sales = ({ route }) => {
                                                 placeholder="UOM"
                                                 value={
                                                     selectedUOMs[
-                                                        product.Product_Id
+                                                    product.Product_Id
                                                     ] || product.UOM_Id
                                                 }
                                                 onChange={item =>
@@ -871,16 +896,16 @@ const Sales = ({ route }) => {
                                                             product.Product_Id
                                                         ] !== undefined
                                                             ? priceInputValues[
-                                                                  product
-                                                                      .Product_Id
-                                                              ]
+                                                            product
+                                                                .Product_Id
+                                                            ]
                                                             : String(
-                                                                  editedPrices[
-                                                                      product
-                                                                          .Product_Id
-                                                                  ] ||
-                                                                      product.Item_Rate,
-                                                              )
+                                                                editedPrices[
+                                                                product
+                                                                    .Product_Id
+                                                                ] ||
+                                                                product.Item_Rate,
+                                                            )
                                                     }
                                                     onChangeText={price =>
                                                         handlePriceChange(
@@ -892,10 +917,10 @@ const Sales = ({ route }) => {
                                                         handlePriceFocus(
                                                             product.Product_Id,
                                                             editedPrices[
-                                                                product
-                                                                    .Product_Id
+                                                            product
+                                                                .Product_Id
                                                             ] ||
-                                                                product.Item_Rate,
+                                                            product.Item_Rate,
                                                         )
                                                     }
                                                     onBlur={() =>
@@ -1019,7 +1044,7 @@ const Sales = ({ route }) => {
                                         (isCreditLoading ||
                                             isDebitLoading ||
                                             !creditLedgerInfo.isValid) &&
-                                            styles.liveSaleToggleDisabled,
+                                        styles.liveSaleToggleDisabled,
                                     ]}
                                     onPress={() => {
                                         if (isCreditLoading || isDebitLoading)
@@ -1060,8 +1085,8 @@ const Sales = ({ route }) => {
                                                     !creditLedgerInfo.isValid
                                                         ? customColors.warning
                                                         : isLiveSale
-                                                          ? customColors.success
-                                                          : customColors.grey500
+                                                            ? customColors.success
+                                                            : customColors.grey500
                                                 }
                                             />
                                         )}
@@ -1072,8 +1097,8 @@ const Sales = ({ route }) => {
                                                     color: !creditLedgerInfo.isValid
                                                         ? customColors.warning
                                                         : isLiveSale
-                                                          ? customColors.success
-                                                          : customColors.grey700,
+                                                            ? customColors.success
+                                                            : customColors.grey700,
                                                 },
                                             ]}>
                                             Live Sale
@@ -1083,8 +1108,8 @@ const Sales = ({ route }) => {
                                             {isCreditLoading || isDebitLoading
                                                 ? "Loading account info..."
                                                 : !creditLedgerInfo.isValid
-                                                  ? "Account setup required"
-                                                  : "Complete sale instantly"}
+                                                    ? "Account setup required"
+                                                    : "Complete sale instantly"}
                                         </Text>
                                     </View>
                                     <View
@@ -1095,8 +1120,8 @@ const Sales = ({ route }) => {
                                                     !creditLedgerInfo.isValid
                                                         ? customColors.grey300
                                                         : isLiveSale
-                                                          ? customColors.success
-                                                          : customColors.grey300,
+                                                            ? customColors.success
+                                                            : customColors.grey300,
                                             },
                                         ]}>
                                         <View
@@ -1105,7 +1130,7 @@ const Sales = ({ route }) => {
                                                 {
                                                     marginLeft:
                                                         isLiveSale &&
-                                                        creditLedgerInfo.isValid
+                                                            creditLedgerInfo.isValid
                                                             ? 21
                                                             : 2,
                                                 },
@@ -1126,7 +1151,7 @@ const Sales = ({ route }) => {
                                             style={[
                                                 styles.paymentOption,
                                                 paymentMethod === "cash" &&
-                                                    styles.paymentOptionSelected,
+                                                styles.paymentOptionSelected,
                                             ]}
                                             onPress={() =>
                                                 handlePaymentMethodChange(
@@ -1146,7 +1171,7 @@ const Sales = ({ route }) => {
                                                 style={[
                                                     styles.paymentOptionText,
                                                     paymentMethod === "cash" &&
-                                                        styles.paymentOptionTextSelected,
+                                                    styles.paymentOptionTextSelected,
                                                 ]}>
                                                 Cash
                                             </Text>
@@ -1156,7 +1181,7 @@ const Sales = ({ route }) => {
                                             style={[
                                                 styles.paymentOption,
                                                 paymentMethod === "bank" &&
-                                                    styles.paymentOptionSelected,
+                                                styles.paymentOptionSelected,
                                             ]}
                                             onPress={() =>
                                                 handlePaymentMethodChange(
@@ -1176,7 +1201,7 @@ const Sales = ({ route }) => {
                                                 style={[
                                                     styles.paymentOptionText,
                                                     paymentMethod === "bank" &&
-                                                        styles.paymentOptionTextSelected,
+                                                    styles.paymentOptionTextSelected,
                                                 ]}>
                                                 Bank
                                             </Text>
@@ -1186,7 +1211,7 @@ const Sales = ({ route }) => {
                                             style={[
                                                 styles.paymentOption,
                                                 paymentMethod === "credit" &&
-                                                    styles.paymentOptionSelected,
+                                                styles.paymentOptionSelected,
                                             ]}
                                             onPress={() =>
                                                 handlePaymentMethodChange(
@@ -1206,8 +1231,8 @@ const Sales = ({ route }) => {
                                                 style={[
                                                     styles.paymentOptionText,
                                                     paymentMethod ===
-                                                        "credit" &&
-                                                        styles.paymentOptionTextSelected,
+                                                    "credit" &&
+                                                    styles.paymentOptionTextSelected,
                                                 ]}>
                                                 Credit
                                             </Text>
@@ -1217,61 +1242,61 @@ const Sales = ({ route }) => {
                                     {/* Payment Amount Input (only for cash/bank) */}
                                     {(paymentMethod === "cash" ||
                                         paymentMethod === "bank") && (
-                                        <View
-                                            style={
-                                                styles.partialAmountContainer
-                                            }>
-                                            <Text
-                                                style={
-                                                    styles.partialAmountLabel
-                                                }>
-                                                Payment Amount:
-                                            </Text>
                                             <View
                                                 style={
-                                                    styles.amountInputContainer
+                                                    styles.partialAmountContainer
                                                 }>
                                                 <Text
                                                     style={
-                                                        styles.currencySymbol
+                                                        styles.partialAmountLabel
                                                     }>
-                                                    ₹
+                                                    Payment Amount:
                                                 </Text>
-                                                <TextInput
-                                                    style={styles.amountInput}
-                                                    value={partialAmount}
-                                                    onChangeText={
-                                                        handleAmountChange
-                                                    }
-                                                    onFocus={handleAmountFocus}
-                                                    keyboardType="numeric"
-                                                    placeholder={orderTotal.toString()}
-                                                    placeholderTextColor={
-                                                        customColors.grey400
-                                                    }
-                                                    selectTextOnFocus={true}
-                                                    returnKeyType="done"
-                                                />
+                                                <View
+                                                    style={
+                                                        styles.amountInputContainer
+                                                    }>
+                                                    <Text
+                                                        style={
+                                                            styles.currencySymbol
+                                                        }>
+                                                        ₹
+                                                    </Text>
+                                                    <TextInput
+                                                        style={styles.amountInput}
+                                                        value={partialAmount}
+                                                        onChangeText={
+                                                            handleAmountChange
+                                                        }
+                                                        onFocus={handleAmountFocus}
+                                                        keyboardType="numeric"
+                                                        placeholder={orderTotal.toString()}
+                                                        placeholderTextColor={
+                                                            customColors.grey400
+                                                        }
+                                                        selectTextOnFocus={true}
+                                                        returnKeyType="done"
+                                                    />
+                                                    <Text
+                                                        style={
+                                                            styles.totalAmountText
+                                                        }>
+                                                        Total: ₹
+                                                        {orderTotal.toFixed(2)}
+                                                    </Text>
+                                                </View>
                                                 <Text
                                                     style={
-                                                        styles.totalAmountText
+                                                        styles.partialAmountHint
                                                     }>
-                                                    Total: ₹
-                                                    {orderTotal.toFixed(2)}
+                                                    {partialAmount &&
+                                                        parseFloat(partialAmount) <
+                                                        orderTotal
+                                                        ? `Remaining: ₹${(orderTotal - parseFloat(partialAmount || 0)).toFixed(2)} (Credit)`
+                                                        : "Amount auto-filled. Tap to modify for partial payment"}
                                                 </Text>
                                             </View>
-                                            <Text
-                                                style={
-                                                    styles.partialAmountHint
-                                                }>
-                                                {partialAmount &&
-                                                parseFloat(partialAmount) <
-                                                    orderTotal
-                                                    ? `Remaining: ₹${(orderTotal - parseFloat(partialAmount || 0)).toFixed(2)} (Credit)`
-                                                    : "Amount auto-filled. Tap to modify for partial payment"}
-                                            </Text>
-                                        </View>
-                                    )}
+                                        )}
                                 </View>
                             )}
 

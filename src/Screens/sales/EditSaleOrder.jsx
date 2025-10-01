@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,7 +18,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { API } from "../../Config/Endpoint";
-import { fetchProducts } from "../../Api/product";
+import { fetchCostCenter, fetchProducts } from "../../Api/product";
 import { fetchRetailersName } from "../../Api/retailers";
 import { customColors, typography } from "../../Config/helper";
 
@@ -38,10 +38,15 @@ const EditSaleOrder = ({ route }) => {
         VoucherType: item.VoucherType,
         Product_Array: item.Products_List,
         Sales_Person_Id: item.Sales_Person_Id,
+        Staff_Involved_List: item.Staff_Involved_List || [],
     };
 
     const [uID, setUID] = useState();
+    const [companyName, setCompanyName] = useState("");
     const [stockInputValue, setStockInputValue] = useState(initialStockValue);
+    const [showFilter, setShowFilter] = useState(false);
+    const [selectedBrokerId, setSelectedBrokerId] = useState(null);
+    const [selectedTransportId, setSelectedTransportId] = useState(null);
     const [editableProducts, setEditableProducts] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [showAddProducts, setShowAddProducts] = useState(false);
@@ -58,6 +63,10 @@ const EditSaleOrder = ({ route }) => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
                 setUID(userId);
+
+                AsyncStorage.getItem("companyName").then(name => {
+                    setCompanyName(name);
+                });
 
                 if (item.Products_List && item.Products_List.length > 0) {
                     const initialEditableProducts = item.Products_List.map(
@@ -80,6 +89,31 @@ const EditSaleOrder = ({ route }) => {
 
         initialize();
     }, [item.Products_List]);
+
+    useEffect(() => {
+        // Initialize broker and transport from Staff_Involved_List
+        if (item?.Staff_Involved_List && item.Staff_Involved_List.length > 0) {
+            // Find broker from Staff_Involved_List
+            const brokerFromList = item.Staff_Involved_List.find(
+                staff => staff.EmpType === "Broker" || staff.Cost_Center_Type_Id === 3
+            );
+
+            // Find transport from Staff_Involved_List
+            const transportFromList = item.Staff_Involved_List.find(
+                staff => staff.EmpType === "Transport" || staff.Cost_Center_Type_Id === 2
+            );
+
+            if (brokerFromList) {
+                // Convert to string for dropdown value
+                setSelectedBrokerId(String(brokerFromList.Involved_Emp_Id));
+            }
+
+            if (transportFromList) {
+                // Convert to string for dropdown value
+                setSelectedTransportId(String(transportFromList.Involved_Emp_Id));
+            }
+        }
+    }, [item?.Staff_Involved_List]);
 
     const {
         data: productQueryData = {
@@ -140,6 +174,66 @@ const EditSaleOrder = ({ route }) => {
         },
     });
 
+    const { data: rawCostCenters = [] } = useQuery({
+        queryKey: ["costCenters"],
+        queryFn: fetchCostCenter,
+    });
+
+    const { brokersData, transportData } = useMemo(() => {
+        const Broker_User_Type = 3;
+        const Transport_User_Type = 2;
+
+        const broker = rawCostCenters.filter(item => item.User_Type === Broker_User_Type);
+        const transport = rawCostCenters.filter(item => item.User_Type === Transport_User_Type);
+
+        return { brokersData: broker, transportData: transport };
+    }, [rawCostCenters]);
+
+    useEffect(() => {
+        const staffInvolvedList = [];
+
+        // Add selected broker if valid
+        if (selectedBrokerId && brokersData.length > 0) {
+            const selectedBroker = brokersData.find(broker =>
+                String(broker.Cost_Center_Id) === String(selectedBrokerId)
+            );
+
+            if (selectedBroker) {
+                staffInvolvedList.push({
+                    Id: "",
+                    So_Id: item.So_Id || "",
+                    Involved_Emp_Id: parseInt(selectedBroker.Cost_Center_Id),
+                    EmpName: selectedBroker.Cost_Center_Name || "",
+                    Cost_Center_Type_Id: selectedBroker.User_Type || 3,
+                    EmpType: selectedBroker.UserTypeGet || "Broker"
+                });
+            }
+        }
+
+        // Add selected transport if valid
+        if (selectedTransportId && transportData.length > 0) {
+            const selectedTransport = transportData.find(transport =>
+                String(transport.Cost_Center_Id) === String(selectedTransportId)
+            );
+
+            if (selectedTransport) {
+                staffInvolvedList.push({
+                    Id: "",
+                    So_Id: item.So_Id || "",
+                    Involved_Emp_Id: parseInt(selectedTransport.Cost_Center_Id),
+                    EmpName: selectedTransport.Cost_Center_Name || "",
+                    Cost_Center_Type_Id: selectedTransport.User_Type || 2,
+                    EmpType: selectedTransport.UserTypeGet || "Transport"
+                });
+            }
+        }
+
+        setStockInputValue(prev => ({
+            ...prev,
+            Staff_Involved_List: staffInvolvedList
+        }));
+    }, [selectedBrokerId, selectedTransportId, brokersData, transportData, item.So_Id]);
+
     const handleRetailerChange = item => {
         setSelectedRetailer(item.value);
 
@@ -149,16 +243,6 @@ const EditSaleOrder = ({ route }) => {
             Retailer_Id: item.value,
             Retailer_Name: item.label,
         }));
-    };
-
-    const getCurrentRetailerName = () => {
-        const currentRetailer = fetchRetailerName.find(
-            retailer =>
-                retailer.value.toString() === selectedRetailer.toString(),
-        );
-        return currentRetailer
-            ? currentRetailer.label
-            : stockInputValue.Retailer_Name;
     };
 
     const calculateTotal = products => {
@@ -322,6 +406,7 @@ const EditSaleOrder = ({ route }) => {
             selectedProductGroup
         ) {
             const existingProductIds = editableProducts.map(p => p.Item_Id);
+            const isSMTraders = companyName === "SM TRADERS";
 
             setFilteredProducts(
                 productQueryData.productData.filter(product => {
@@ -331,13 +416,14 @@ const EditSaleOrder = ({ route }) => {
                     const notAlreadyAdded = !existingProductIds.includes(
                         product.Product_Id.toString(),
                     );
+
                     const isActive = product.IsActive === 1; // Only show active products
 
                     return (
                         matchesBrand &&
                         matchesGroup &&
                         notAlreadyAdded &&
-                        isActive
+                        (isSMTraders ? isActive : false) // If SM TRADERS, show only active products; else show all
                     );
                 }),
             );
@@ -439,12 +525,51 @@ const EditSaleOrder = ({ route }) => {
                 </View>
                 <View style={styles.headerSection}>
                     <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => setShowAddProducts(!showAddProducts)}>
+                        style={[styles.addButton, showFilter && { opacity: 1 }]}
+                        onPress={() => setShowFilter(!showFilter)}
+                    >
+                        <Icon name="filter-list" size={20} color={customColors.white} />
+                        <Text style={styles.addButtonText}>Filters</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.addButton, showAddProducts && { opacity: 0.6 }]}
+                        onPress={() => setShowAddProducts(!showAddProducts)}
+                        disabled={showAddProducts}
+                    >
                         <Icon name="add" size={20} color={customColors.white} />
                         <Text style={styles.addButtonText}>Add Products</Text>
                     </TouchableOpacity>
                 </View>
+
+                {showFilter && (
+                    <View style={styles.expandableFilters}>
+                        <View style={styles.additionalFiltersRow}>
+                            <View style={styles.fullWidthFilter}>
+                                <EnhancedDropdown
+                                    data={brokersData}
+                                    labelField="Cost_Center_Name"
+                                    valueField="Cost_Center_Id"
+                                    placeholder="Select Broker"
+                                    value={selectedBrokerId}
+                                    onChange={item => setSelectedBrokerId(item?.Cost_Center_Id)}
+                                    searchPlaceholder="Search brokers..."
+                                />
+                            </View>
+                            <View style={styles.fullWidthFilter}>
+                                <EnhancedDropdown
+                                    data={transportData}
+                                    labelField="Cost_Center_Name"
+                                    valueField="Cost_Center_Id"
+                                    placeholder="Select Transport"
+                                    value={selectedTransportId}
+                                    onChange={item => setSelectedTransportId(item?.Cost_Center_Id)}
+                                    searchPlaceholder="Search transport..."
+                                />
+                            </View>
+                        </View>
+                    </View>
+                )}
 
                 <ScrollView style={styles.productsContainer}>
                     {/* Existing Products */}
@@ -525,7 +650,7 @@ const EditSaleOrder = ({ route }) => {
                     {showAddProducts && (
                         <View style={styles.addProductsSection}>
                             <View style={styles.addProductsHeader}>
-                                <Text style={styles.sectionTitle}>
+                                <Text style={styles.addProductsSectionTitle}>
                                     Add New Products
                                 </Text>
                                 <TouchableOpacity
@@ -571,6 +696,28 @@ const EditSaleOrder = ({ route }) => {
                             {/* Products List */}
                             {filteredProducts.length > 0 && (
                                 <View style={styles.productsListContainer}>
+                                    {/* Action Buttons */}
+                                    {filteredProducts.length > 0 && (
+                                        <View style={styles.addProductsActions}>
+                                            <TouchableOpacity
+                                                style={styles.cancelAddButton}
+                                                onPress={handleCloseAddProducts}>
+                                                <Text
+                                                    style={styles.cancelAddButtonText}>
+                                                    Cancel
+                                                </Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={styles.confirmAddButton}
+                                                onPress={handleAddNewProducts}>
+                                                <Text
+                                                    style={styles.confirmAddButtonText}>
+                                                    Add Selected
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                     <Text style={styles.productsListTitle}>
                                         Available Products (
                                         {filteredProducts.length})
@@ -601,8 +748,8 @@ const EditSaleOrder = ({ route }) => {
                                                         style={
                                                             styles.productDetails
                                                         }>
-                                                        {product.PackGet} •{" "}
-                                                        {product.Units}
+                                                        {product.Units} •{" "}₹
+                                                        {product.Item_Rate}
                                                     </Text>
                                                 </View>
 
@@ -684,29 +831,6 @@ const EditSaleOrder = ({ route }) => {
                                         </Text>
                                     </View>
                                 )}
-
-                            {/* Action Buttons */}
-                            {filteredProducts.length > 0 && (
-                                <View style={styles.addProductsActions}>
-                                    <TouchableOpacity
-                                        style={styles.cancelAddButton}
-                                        onPress={handleCloseAddProducts}>
-                                        <Text
-                                            style={styles.cancelAddButtonText}>
-                                            Cancel
-                                        </Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={styles.confirmAddButton}
-                                        onPress={handleAddNewProducts}>
-                                        <Text
-                                            style={styles.confirmAddButtonText}>
-                                            Add Selected
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
                         </View>
                     )}
                 </ScrollView>
@@ -840,7 +964,7 @@ const styles = StyleSheet.create({
     },
     headerSection: {
         flexDirection: "row",
-        justifyContent: "flex-end",
+        justifyContent: "space-between",
         alignItems: "center",
         padding: 16,
         borderBottomWidth: 1,
@@ -859,6 +983,16 @@ const styles = StyleSheet.create({
         ...typography.body2(),
         color: customColors.white,
         fontWeight: "600",
+    },
+    expandableFilters: {
+        // marginTop: 6,
+    },
+    additionalFiltersRow: {
+        flexDirection: "column",
+        marginHorizontal: 16,
+    },
+    fullWidthFilter: {
+        width: "100%",
     },
     productsContainer: {
         flex: 1,
@@ -936,8 +1070,38 @@ const styles = StyleSheet.create({
     addProductsSection: {
         marginTop: 24,
         paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        borderTopWidth: 2,
+        borderTopColor: customColors.primary,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        marginHorizontal: 8,
+        elevation: 4, // Android shadow
+        shadowColor: customColors.primary, // iOS shadow
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: customColors.primary + "20", // 20% opacity
+    },
+    addProductsHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
+    },
+    addProductsSectionTitle: {
+        ...typography.subtitle1(),
+        fontWeight: "bold",
+        color: customColors.primary,
+        marginBottom: 0,
     },
     dropdownsContainer: {
         flexDirection: "row",
@@ -1096,14 +1260,10 @@ const styles = StyleSheet.create({
         color: customColors.white,
         fontWeight: "600",
     },
-    addProductsHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
-    },
     closeAddButton: {
-        padding: 4,
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: customColors.grey100,
     },
     productsListContainer: {
         marginTop: 8,

@@ -43,6 +43,7 @@ export const API = {
     district: () => `${baseURL}api/masters/district`,
 
     users: () => `${baseURL}api/masters/users?Company_id=`,
+    costCenterData: () => `${baseURL}api/dataEntry/costCenter/`,
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
@@ -145,4 +146,5 @@ export const API = {
     areaRetailers: () =>
         `${baseURL}api/masters/retailers/areaRetailers?Company_Id=`,
     products: () => `${baseURL}api/masters/products?Company_Id=`,
+    posOrderBranch: () => `${baseURL}api/masters/posbranch`,
 };
