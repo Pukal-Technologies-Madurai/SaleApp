@@ -287,23 +287,62 @@ const SalesAdmin = ({ route }) => {
         });
     };
 
-    const filteredLogData = logData.filter(order =>
-        selectedBrand === "All"
-            ? true
-            : order.Products_List.some(
-                  p => p.BrandGet?.trim() === selectedBrand,
-              ),
-    );
+    // const filteredLogData = logData.filter(order =>
+    //     selectedBrand === "All"
+    //         ? true
+    //         : order.Products_List.some(
+    //             p => p.BrandGet?.trim() === selectedBrand,
+    //         ),
+    // );
 
+    // Modified filtering to show only orders with selected brand products
+    const getFilteredDataByBrand = () => {
+        if (selectedBrand === "All") {
+            return logData;
+        }
+
+        // Filter orders and products by selected brand
+        return logData.map(order => {
+            const filteredProducts = order.Products_List.filter(
+                product => product.BrandGet?.trim() === selectedBrand
+            );
+
+            if (filteredProducts.length > 0) {
+                // Calculate new total for filtered products only
+                const brandTotal = filteredProducts.reduce(
+                    (sum, product) => sum + (product.Amount || product.Final_Amo || 0),
+                    0
+                );
+
+                return {
+                    ...order,
+                    Products_List: filteredProducts,
+                    Total_Invoice_value: brandTotal, // Override with brand-specific total
+                    Original_Total: order.Total_Invoice_value // Keep original for reference
+                };
+            }
+            return null;
+        }).filter(order => order !== null); // Remove orders with no matching brand products
+    };
+
+    const filteredLogData = getFilteredDataByBrand();
     const filteredTotalSales = filteredLogData.length;
 
-    const filteredTotalAmount = filteredLogData.reduce(
-        (sum, order) => sum + (order.Total_Invoice_value || 0),
-        0,
-    );
+    const filteredTotalAmount = filteredLogData.reduce((sum, order) => {
+        if (selectedBrand === "All") {
+            return sum + (order.Total_Invoice_value || 0);
+        } else {
+            // For specific brand, sum only the brand products
+            const brandAmount = order.Products_List.reduce(
+                (productSum, product) => productSum + (product.Amount || product.Final_Amo || 0),
+                0
+            );
+            return sum + brandAmount;
+        }
+    }, 0);
 
     const filteredOrderData = filteredLogData.filter(order =>
-        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase()),
+        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const handleCloseModal = () => {
@@ -408,7 +447,7 @@ const SalesAdmin = ({ route }) => {
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
-                                    Total Sales
+                                    {selectedBrand === "All" ? "Total Sales" : `${selectedBrand} Sales`}
                                 </Text>
                                 <Text style={styles.statValue}>
                                     {filteredTotalSales}
@@ -417,7 +456,7 @@ const SalesAdmin = ({ route }) => {
 
                             <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
-                                    Total Amount
+                                    {selectedBrand === "All" ? "Total Amount" : `${selectedBrand} Amount`}
                                 </Text>
                                 <Text style={styles.statValue}>
                                     {filteredTotalAmount

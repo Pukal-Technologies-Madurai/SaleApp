@@ -10,6 +10,7 @@ import Dashboard from "../Screens/Dashboard";
 import StatisticsScreen from "../Screens/StatisticsScreen";
 import ProfileScreen from "../Screens/ProfileScreen";
 import LoginPortal from "../Screens/login/LoginPortal";
+import SwitchCompany from "../Screens/login/SwitchCompany";
 import Customers from "../Screens/retailers/Customers";
 import CustomersDetails from "../Screens/retailers/CustomersDetails";
 import AddCustomer from "../Screens/retailers/AddCustomer";
@@ -47,6 +48,9 @@ import CreateReceipts from "../Screens/bills/CreateReceipts";
 import ReceiptInfo from "../Screens/bills/ReceiptInfo";
 import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
 import PendingSales from "../Screens/pending/PendingSales";
+import VisitLogSummary from "../Screens/admin/VisitLogSummary";
+import PosOrder from "../Screens/sales/PosOrder";
+import PosEditOrder from "../Screens/sales/PosEditOrder";
 
 const Stack = createStackNavigator();
 
@@ -72,6 +76,7 @@ const AppStack = () => {
             <Stack.Screen name="EndDay" component={EndDay} />
 
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
+            <Stack.Screen name="SwitchCompany" component={SwitchCompany} />
 
             <Stack.Screen name="RoutePath" component={RoutePath} />
             <Stack.Screen name="AddCustomer" component={AddCustomer} />
@@ -89,6 +94,8 @@ const AppStack = () => {
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
             <Stack.Screen name="PendingSales" component={PendingSales} />
+            <Stack.Screen name="PosOrder" component={PosOrder} />
+            <Stack.Screen name="PosEditOrder" component={PosEditOrder} />
 
             <Stack.Screen name="ClosingStock" component={ClosingStock} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
@@ -109,6 +116,7 @@ const AppStack = () => {
             <Stack.Screen name="SalesAdmin" component={SalesAdmin} />
             <Stack.Screen name="SalesReport" component={SalesReport} />
             <Stack.Screen name="TripReport" component={TripReport} />
+            <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
 
             <Stack.Screen name="OpenCamera" component={OpenCamera} />
 

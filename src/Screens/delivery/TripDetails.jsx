@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { customColors, typography } from "../../Config/helper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripDetails = ({ route, navigation }) => {
     const { tripNo, tripDate, retailers, deliveryPerson } = route.params;
@@ -164,15 +165,15 @@ const TripDetails = ({ route, navigation }) => {
                                     item.paymentStatus === 3
                                         ? customColors.success
                                         : item.paymentStatus === 1
-                                          ? customColors.grey
-                                          : customColors.warning,
+                                            ? customColors.grey
+                                            : customColors.warning,
                             },
                         ]}>
                         {item.paymentStatus === 3
                             ? "Paid"
                             : item.paymentStatus === 1
-                              ? "Credit"
-                              : "Pending"}
+                                ? "Credit"
+                                : "Pending"}
                     </Text>
                 </View>
             </View>
@@ -180,7 +181,7 @@ const TripDetails = ({ route, navigation }) => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <View style={styles.overlay}>
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -206,7 +207,7 @@ const TripDetails = ({ route, navigation }) => {
                             ]}
                             onPress={() => handleSummaryCardTap(null)}>
                             <Text style={styles.summaryTitle}>
-                                Total Collection
+                                Total
                             </Text>
                             <Text style={styles.summaryAmount}>
                                 ₹{paymentSummary.totalAmount.toFixed(2)}
@@ -224,7 +225,7 @@ const TripDetails = ({ route, navigation }) => {
                             ]}
                             onPress={() => handleSummaryCardTap("cash")}>
                             <Text style={styles.summaryTitle}>
-                                Cash Collected
+                                Cash
                             </Text>
                             <Text style={styles.summaryAmount}>
                                 ₹{paymentSummary.cashPaidAmount.toFixed(2)}
@@ -261,8 +262,8 @@ const TripDetails = ({ route, navigation }) => {
                                 {filterType === "cash"
                                     ? "Cash Collected"
                                     : filterType === "credit"
-                                      ? "Credit/Other"
-                                      : "All"}{" "}
+                                        ? "Credit/Other"
+                                        : "All"}{" "}
                                 Orders
                             </Text>
                             <TouchableOpacity
@@ -299,16 +300,18 @@ const TripDetails = ({ route, navigation }) => {
                     />
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: customColors.primaryDark,
     },
     overlay: {
         flex: 1,
+        width: "100%",
         backgroundColor: customColors.primaryDark,
     },
     headerContainer: {
@@ -324,8 +327,8 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+        // borderTopLeftRadius: 16,
+        // borderTopRightRadius: 16,
         overflow: "hidden",
     },
     tripInfoContainer: {
@@ -425,7 +428,7 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     summaryAmount: {
-        ...typography.h6(),
+        ...typography.subtitle2(),
         color: customColors.white,
         fontWeight: "600",
     },

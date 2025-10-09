@@ -35,14 +35,32 @@ const EnhancedDropdown = ({
     const [searchQuery, setSearchQuery] = useState("");
     const [animation] = useState(new Animated.Value(0));
 
+    const removeSplChar = (str) => String(str).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+    const reactSelectFilterLogic = (option, inputValue) => {
+        const normalizedLabel = removeSplChar(option.label);
+        const normalizedInput = removeSplChar(inputValue);
+
+        return normalizedLabel.includes(normalizedInput);
+    };
+
     const filteredData =
         data?.filter(item => {
             if (!item || !item[labelField]) return false;
-            return item[labelField]
-                .toString()
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase());
+
+            if (searchQuery.trim()) {
+                const option = { label: item[labelField] };
+                return reactSelectFilterLogic(option, searchQuery);
+            }
+
+            return true;
         }) || [];
+
+    const handleSearchInputChange = (text) => {
+        const filteredText = text.replace(/[^a-zA-Z0-9\s]/g, "");
+
+        setSearchQuery(filteredText);
+    };
 
     const toggleModal = () => {
         setModalVisible(!modalVisible);
@@ -181,8 +199,11 @@ const EnhancedDropdown = ({
                                 style={styles.searchInput}
                                 placeholder={searchPlaceholder}
                                 value={searchQuery}
-                                onChangeText={setSearchQuery}
+                                onChangeText={handleSearchInputChange}
                                 placeholderTextColor={customColors.grey}
+                                autoCorrect={false}
+                                autoCapitalize="none"
+                                maxLength={50}
                             />
                         </View>
 

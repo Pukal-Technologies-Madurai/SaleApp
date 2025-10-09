@@ -1,10 +1,30 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
 // let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
 // let baseURL = "http://test.erpsmt.in/";
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
 
-export const setBaseUrl = url => {
+const initializeBaseURL = async () => {
+    try {
+        const storedURL = await AsyncStorage.getItem("baseURL");
+        if (storedURL) {
+            baseURL = storedURL;
+        }
+    } catch (error) {
+        console.error("Error loading baseURL from AsyncStorage:", error);
+    }
+};
+
+initializeBaseURL();
+
+export const setBaseUrl = async url => {
     baseURL = url;
+    try {
+        await AsyncStorage.setItem("baseURL", url);
+    } catch (error) {
+        console.error("Error saving baseURL to AsyncStorage:", error);
+    }
 };
 
 export const API = {
@@ -23,6 +43,7 @@ export const API = {
     district: () => `${baseURL}api/masters/district`,
 
     users: () => `${baseURL}api/masters/users?Company_id=`,
+    costCenterData: () => `${baseURL}api/dataEntry/costCenter/`,
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
@@ -125,4 +146,5 @@ export const API = {
     areaRetailers: () =>
         `${baseURL}api/masters/retailers/areaRetailers?Company_Id=`,
     products: () => `${baseURL}api/masters/products?Company_Id=`,
+    posOrderBranch: () => `${baseURL}api/masters/posbranch`,
 };

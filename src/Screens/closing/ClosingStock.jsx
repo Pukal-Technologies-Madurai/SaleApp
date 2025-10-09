@@ -23,6 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const ClosingStock = ({ route }) => {
     const navigation = useNavigation();
     const { item, isEdit } = route.params;
+    console.log("ClosingStock Route Params:", isEdit);
     const [userId, setUserId] = useState(null);
     const [expandedGroups, setExpandedGroups] = useState({});
     const [quantities, setQuantities] = useState({});
@@ -299,7 +300,7 @@ const ClosingStock = ({ route }) => {
                 } else {
                     ToastAndroid.show(
                         (data && data.message) ||
-                            "Unknown response from server",
+                        "Unknown response from server",
                         ToastAndroid.LONG,
                     );
                 }

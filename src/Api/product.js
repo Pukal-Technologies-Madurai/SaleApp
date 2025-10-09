@@ -2,18 +2,44 @@ import { API } from "../Config/Endpoint";
 
 export const fetchProducts = async userId => {
     const response = await fetch(`${API.products()}${userId}`);
-    // console.log("fetchProducts", `${API.products()}${userId}`);
+    // console.log('fetchProducts', `${API.products()}${userId}`);
     const data = await response.json();
 
     if (!data.success) throw new Error(data.message);
     return data.data;
 };
 
+export const fetchPosOrderBranch = async () => {
+    try {
+        const url = API.posOrderBranch();
+        const response = await fetch(url);
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    } catch (err) {
+        console.error("Error fetching pos order branch:", err);
+    }
+};
+
+export const fetchCostCenter = async () => {
+    try {
+        const url = API.costCenterData();
+        const response = await fetch(url);
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    } catch (err) {
+        console.error("Error fetching cost center:", err);
+    }
+};
+
 export const fetchProductsWithStockValue = async () => {
     try {
         const url = API.stockValueWithProduct();
         const response = await fetch(url, {
-            method: "POST",
+            method: "GET",
             headers: {
                 "Content-Type": "application/json",
             },
@@ -62,7 +88,8 @@ export const fetchRetailerClosingStock = async Retailer_Id => {
 };
 
 export const fetchClosingStock = async ({ id, day }) => {
-    const res = await fetch(`${API.closingStockReport()}${id}&reqDate=${day}`);
+    const url = `${API.closingStockReport()}${id}&reqDate=${day}`;
+    const res = await fetch(url);
     const data = await res.json();
 
     if (!data.success) throw new Error(data.message);

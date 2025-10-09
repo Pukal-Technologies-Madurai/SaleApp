@@ -157,14 +157,14 @@ const StatisticsScreen = ({ route, navigation }) => {
                                         {
                                             color:
                                                 routeData &&
-                                                routeData[name]?.routeNames
-                                                    ?.length > 0
+                                                    routeData[name]?.routeNames
+                                                        ?.length > 0
                                                     ? "#2ECC71"
                                                     : "#E74C3C",
                                         },
                                     ]}>
                                     {routeData &&
-                                    routeData[name]?.routeNames?.length > 0
+                                        routeData[name]?.routeNames?.length > 0
                                         ? `(${routeData[name].routeNames.join(", ")})`
                                         : "No Route Set"}
                                 </Text>
@@ -205,58 +205,58 @@ const StatisticsScreen = ({ route, navigation }) => {
 
                 {title === "Check-In's" || title === "Sales"
                     ? expandedUser === name && (
-                          <View style={styles.visitDetailsContainer}>
-                              <View style={styles.newUserCountContainer}>
-                                  <Text
-                                      style={[
-                                          styles.userCountName,
-                                          visitData.filter(
-                                              visit =>
-                                                  visit.EntryByGet === name &&
-                                                  visit.IsExistingRetailer ===
-                                                      1,
-                                          ).length > 0
-                                              ? { color: "#2ECC71" }
-                                              : {},
-                                      ]}>
-                                      isExisting:{" "}
-                                      {
-                                          visitData.filter(
-                                              visit =>
-                                                  visit.EntryByGet === name &&
-                                                  visit.IsExistingRetailer ===
-                                                      1,
-                                          ).length
-                                      }
-                                  </Text>
-                                  <Text
-                                      style={[
-                                          styles.userCountName,
-                                          visitData.filter(
-                                              visit =>
-                                                  visit.EntryByGet === name &&
-                                                  visit.IsExistingRetailer ===
-                                                      0,
-                                          ).length > 0
-                                              ? { color: "#E74C3C" }
-                                              : {},
-                                          { marginLeft: -18 },
-                                      ]}>
-                                      isNew:{" "}
-                                      {
-                                          visitData.filter(
-                                              visit =>
-                                                  visit.EntryByGet === name &&
-                                                  visit.IsExistingRetailer ===
-                                                      0,
-                                          ).length
-                                      }
-                                  </Text>
-                              </View>
+                        <View style={styles.visitDetailsContainer}>
+                            <View style={styles.newUserCountContainer}>
+                                <Text
+                                    style={[
+                                        styles.userCountName,
+                                        visitData.filter(
+                                            visit =>
+                                                visit.EntryByGet === name &&
+                                                visit.IsExistingRetailer ===
+                                                1,
+                                        ).length > 0
+                                            ? { color: "#2ECC71" }
+                                            : {},
+                                    ]}>
+                                    isExisting:{" "}
+                                    {
+                                        visitData.filter(
+                                            visit =>
+                                                visit.EntryByGet === name &&
+                                                visit.IsExistingRetailer ===
+                                                1,
+                                        ).length
+                                    }
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.userCountName,
+                                        visitData.filter(
+                                            visit =>
+                                                visit.EntryByGet === name &&
+                                                visit.IsExistingRetailer ===
+                                                0,
+                                        ).length > 0
+                                            ? { color: "#E74C3C" }
+                                            : {},
+                                        { marginLeft: -18 },
+                                    ]}>
+                                    isNew:{" "}
+                                    {
+                                        visitData.filter(
+                                            visit =>
+                                                visit.EntryByGet === name &&
+                                                visit.IsExistingRetailer ===
+                                                0,
+                                        ).length
+                                    }
+                                </Text>
+                            </View>
 
-                              {renderVisitDetails(name)}
-                          </View>
-                      )
+                            {renderVisitDetails(name)}
+                        </View>
+                    )
                     : null}
             </View>
         ));
@@ -271,9 +271,9 @@ const StatisticsScreen = ({ route, navigation }) => {
                 showBackButton={true}
                 showRightIcon={true}
                 rightIconLibrary="FontAwesome"
-                rightIconName={title !== "Check-In's" && "users"}
+                rightIconName={title !== "Check-In's" ? "users" : "map-o"}
                 onRightPress={() => {
-                    navigation.navigate("AdminAttendance");
+                    navigation.navigate(title !== "Check-In's" ? "AdminAttendance" : "VisitLogSummary");
                 }}
             />
 

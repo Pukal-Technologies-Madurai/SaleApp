@@ -23,7 +23,7 @@ const AppHeader = ({
     showRightIcon = false,
     rightIconName = "",
     rightIconLibrary = "MaterialIcons",
-    onRightPress = () => {},
+    onRightPress = () => { },
     showBack = true,
     showDrawer = false,
     subtitle = "",
@@ -34,7 +34,7 @@ const AppHeader = ({
     filterTitle = "",
     filterDropdownData = [],
     selectedFilter = "",
-    onFilterChange = () => {},
+    onFilterChange = () => { },
 }) => {
     const RightIcon = iconLibraries[rightIconLibrary];
 
@@ -165,7 +165,7 @@ const styles = {
     },
     subtitleText: {
         ...typography.caption(),
-        color: customColors.grey400,
+        color: customColors.grey200,
     },
     iconButton: {
         width: 40,

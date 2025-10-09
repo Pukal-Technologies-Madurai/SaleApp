@@ -181,7 +181,7 @@ const HomeScreen = () => {
 
             if (srcUri.startsWith("http")) {
                 // dev mode: download the asset to cache
-                const destPath = `${RNFS.CachesDirectoryPath}/qr_code.jpg`;
+                const destPath = `${RNFS.TemporaryDirectoryPath}/qr_code.jpg`;
                 await RNFS.downloadFile({ fromUrl: srcUri, toFile: destPath })
                     .promise;
                 urlToShare = `file://${destPath}`;

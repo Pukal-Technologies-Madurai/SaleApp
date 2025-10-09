@@ -171,7 +171,7 @@ const StockInfo = () => {
                             (total, product) => total + product.ST_Qty,
                             0,
                         ),
-                        handleModalPreview,
+                        // handleModalPreview,
                     )}
                 </View>
 
@@ -187,7 +187,7 @@ const StockInfo = () => {
                             style={[
                                 styles.retailerCard,
                                 expandedRetailerId === entry.ST_Id &&
-                                    styles.retailerCardExpanded,
+                                styles.retailerCardExpanded,
                             ]}
                             onPress={() => toggleRetailerExpand(entry.ST_Id)}
                             activeOpacity={0.7}>
@@ -222,7 +222,7 @@ const StockInfo = () => {
                                                 {
                                                     rotate:
                                                         expandedRetailerId ===
-                                                        entry.ST_Id
+                                                            entry.ST_Id
                                                             ? rotate
                                                             : "0deg",
                                                 },
@@ -246,10 +246,10 @@ const StockInfo = () => {
                                                 style={[
                                                     styles.productRow,
                                                     productIndex ===
-                                                        entry.ProductCount
-                                                            .length -
-                                                            1 &&
-                                                        styles.lastProductRow,
+                                                    entry.ProductCount
+                                                        .length -
+                                                    1 &&
+                                                    styles.lastProductRow,
                                                 ]}>
                                                 <Text
                                                     style={styles.productName}
