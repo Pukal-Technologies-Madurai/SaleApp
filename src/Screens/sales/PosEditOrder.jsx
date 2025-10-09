@@ -18,11 +18,11 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { API } from "../../Config/Endpoint";
-import { fetchCostCenter, fetchProducts } from "../../Api/product";
+import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
 import { fetchRetailersName } from "../../Api/retailers";
 import { customColors, typography } from "../../Config/helper";
 
-const EditSaleOrder = ({ route }) => {
+const PosEditOrder = ({ route }) => {
     const navigation = useNavigation();
     const { item } = route.params;
 
@@ -42,7 +42,6 @@ const EditSaleOrder = ({ route }) => {
     };
 
     const [uID, setUID] = useState();
-    const [companyName, setCompanyName] = useState("");
     const [stockInputValue, setStockInputValue] = useState(initialStockValue);
     const [showFilter, setShowFilter] = useState(false);
     const [selectedBrokerId, setSelectedBrokerId] = useState(null);
@@ -53,8 +52,8 @@ const EditSaleOrder = ({ route }) => {
     const [total, setTotal] = useState(0);
     const [selectedRetailer, setSelectedRetailer] = useState(item.Retailer_Id);
 
+    // Change from brandData to POS Brand for SM TRADERS
     const [selectedBrand, setSelectedBrand] = useState(null);
-    const [selectedProductGroup, setSelectedProductGroup] = useState(null);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [newProductQuantities, setNewProductQuantities] = useState([]);
 
@@ -79,33 +78,35 @@ const EditSaleOrder = ({ route }) => {
                     calculateTotal(initialEditableProducts);
                 }
             } catch (err) {
-                console.log(err);
+                console.error(err);
             }
         };
 
         initialize();
     }, [item.Products_List]);
 
+    // Add POS Order Branch query for SM TRADERS dropdown
+    const { data: branchDropdownData = [] } = useQuery({
+        queryKey: ["posOrderBranch"],
+        queryFn: fetchPosOrderBranch,
+    });
+
     useEffect(() => {
         // Initialize broker and transport from Staff_Involved_List
         if (item?.Staff_Involved_List && item.Staff_Involved_List.length > 0) {
-            // Find broker from Staff_Involved_List
             const brokerFromList = item.Staff_Involved_List.find(
                 staff => staff.EmpType === "Broker" || staff.Cost_Center_Type_Id === 3
             );
 
-            // Find transport from Staff_Involved_List
             const transportFromList = item.Staff_Involved_List.find(
                 staff => staff.EmpType === "Transport" || staff.Cost_Center_Type_Id === 2
             );
 
             if (brokerFromList) {
-                // Convert to string for dropdown value
                 setSelectedBrokerId(String(brokerFromList.Involved_Emp_Id));
             }
 
             if (transportFromList) {
-                // Convert to string for dropdown value
                 setSelectedTransportId(String(transportFromList.Involved_Emp_Id));
             }
         }
@@ -114,47 +115,13 @@ const EditSaleOrder = ({ route }) => {
     const {
         data: productQueryData = {
             productData: [],
-            brandData: [],
-            productGroupData: [],
         },
     } = useQuery({
         queryKey: ["product", uID],
-        queryFn: () => fetchProducts(uID),
-        enabled: !!uID,
+        queryFn: () => fetchProductsWithStockValue(),
         select: data => {
-            if (!data)
-                return {
-                    productData: [],
-                    brandData: [],
-                    productGroupData: [],
-                };
-
-            // Get unique brands (filter out empty Brand_Name)
-            const brands = Array.from(
-                new Set(data.map(item => item.Brand_Name)),
-            )
-                .filter(brand => brand && brand.trim() !== "")
-                .sort()
-                .map(brand => ({
-                    label: brand,
-                    value: brand,
-                }));
-
-            // Get all product groups for reference (will be filtered later)
-            const allProductGroups = Array.from(
-                new Set(data.map(item => item.Pro_Group)),
-            )
-                .filter(group => group && group.trim() !== "")
-                .sort()
-                .map(group => ({
-                    label: group,
-                    value: group,
-                }));
-
             return {
                 productData: data || [],
-                brandData: brands,
-                productGroupData: allProductGroups,
             };
         },
     });
@@ -188,7 +155,6 @@ const EditSaleOrder = ({ route }) => {
     useEffect(() => {
         const staffInvolvedList = [];
 
-        // Add selected broker if valid
         if (selectedBrokerId && brokersData.length > 0) {
             const selectedBroker = brokersData.find(broker =>
                 String(broker.Cost_Center_Id) === String(selectedBrokerId)
@@ -206,7 +172,6 @@ const EditSaleOrder = ({ route }) => {
             }
         }
 
-        // Add selected transport if valid
         if (selectedTransportId && transportData.length > 0) {
             const selectedTransport = transportData.find(transport =>
                 String(transport.Cost_Center_Id) === String(selectedTransportId)
@@ -230,10 +195,64 @@ const EditSaleOrder = ({ route }) => {
         }));
     }, [selectedBrokerId, selectedTransportId, brokersData, transportData, item.So_Id]);
 
+    const transformedBranchData = useMemo(() => {
+        return branchDropdownData.map(brand => ({
+            label: brand.POS_Brand_Name,
+            value: String(brand.POS_Brand_Id), // Convert to string for consistency
+            ...brand // Keep original data
+        }));
+    }, [branchDropdownData]);
+
+    // Handle brand selection for SM TRADERS (POS_Brand_Id)
+    const handleBrandSelection = item => {
+        console.log("Selected item:", item); // Debug log to see the structure
+        // For SM TRADERS: Convert to string to match dropdown expectations
+        setSelectedBrand(String(item.value));
+        setNewProductQuantities([]); // Clear quantities when changing brand
+    };
+
+    // Update the useEffect for filtering products - SM TRADERS specific
+    useEffect(() => {
+        if (productQueryData?.productData && showAddProducts) {
+            const existingProductIds = editableProducts.map(p => p.Item_Id);
+
+            if (selectedBrand) {
+                // For SM TRADERS: Filter by POS_Brand_Id and show only active products
+                let filteredData = productQueryData.productData.filter(product => {
+                    const isActive = product.IsActive === 1;
+                    const notAlreadyAdded = !existingProductIds.includes(
+                        product.Product_Id.toString(),
+                    );
+                    const matchesBrand = product.Pos_Brand_Id === parseInt(selectedBrand);
+
+                    return isActive && notAlreadyAdded && matchesBrand;
+                });
+
+                setFilteredProducts(filteredData);
+            } else {
+                // No brand selected, don't show any products
+                setFilteredProducts([]);
+            }
+        } else {
+            setFilteredProducts([]);
+        }
+    }, [
+        selectedBrand,
+        productQueryData?.productData,
+        showAddProducts,
+        editableProducts,
+    ]);
+
+    // Reset states when closing add products section
+    const handleCloseAddProducts = () => {
+        setShowAddProducts(false);
+        setSelectedBrand(null);
+        setFilteredProducts([]);
+        setNewProductQuantities([]);
+    };
+
     const handleRetailerChange = item => {
         setSelectedRetailer(item.value);
-
-        // Update stockInputValue with new retailer details
         setStockInputValue(prev => ({
             ...prev,
             Retailer_Id: item.value,
@@ -257,7 +276,6 @@ const EditSaleOrder = ({ route }) => {
             [field]: value,
         };
 
-        // Recalculate amount if qty or rate changed
         if (field === "Bill_Qty" || field === "Item_Rate") {
             const qty = parseFloat(updatedProducts[index].Bill_Qty) || 0;
             const rate = parseFloat(updatedProducts[index].Item_Rate) || 0;
@@ -344,103 +362,9 @@ const EditSaleOrder = ({ route }) => {
         setEditableProducts(updatedProducts);
         calculateTotal(updatedProducts);
 
-        // Reset new product form
         setNewProductQuantities([]);
         setShowAddProducts(false);
         setSelectedBrand(null);
-        setSelectedProductGroup(null);
-    };
-
-    // New state for filtered product groups based on selected brand
-    const [filteredProductGroups, setFilteredProductGroups] = useState([]);
-
-    // Function to get product groups for selected brand
-    const getProductGroupsForBrand = brandName => {
-        if (!brandName || !productQueryData.productData) return [];
-
-        const groupsForBrand = Array.from(
-            new Set(
-                productQueryData.productData
-                    .filter(product => product.Brand_Name === brandName)
-                    .map(product => product.Pro_Group),
-            ),
-        )
-            .filter(group => group && group.trim() !== "")
-            .sort()
-            .map(group => ({
-                label: group,
-                value: group,
-            }));
-
-        return groupsForBrand;
-    };
-
-    // Handle brand selection
-    const handleBrandSelection = item => {
-        setSelectedBrand(item.value);
-        setSelectedProductGroup(null); // Reset product group
-        setFilteredProducts([]); // Clear products
-        setNewProductQuantities([]); // Clear quantities
-
-        // Get product groups for this brand
-        const groupsForBrand = getProductGroupsForBrand(item.value);
-        setFilteredProductGroups(groupsForBrand);
-    };
-
-    // Handle product group selection
-    const handleProductGroupSelection = item => {
-        setSelectedProductGroup(item.value);
-        setNewProductQuantities([]); // Clear quantities when changing group
-    };
-
-    // Update the useEffect for filtering products
-    useEffect(() => {
-        if (
-            productQueryData?.productData &&
-            showAddProducts &&
-            selectedBrand &&
-            selectedProductGroup
-        ) {
-            const existingProductIds = editableProducts.map(p => p.Item_Id);
-
-            setFilteredProducts(
-                productQueryData.productData.filter(product => {
-                    const matchesBrand = product.Brand_Name === selectedBrand;
-                    const matchesGroup =
-                        product.Pro_Group === selectedProductGroup;
-                    const notAlreadyAdded = !existingProductIds.includes(
-                        product.Product_Id.toString(),
-                    );
-
-                    // const isActive = product.IsActive === 1; // Only show active products
-
-                    return (
-                        matchesBrand &&
-                        matchesGroup &&
-                        notAlreadyAdded
-                        // && (isSMTraders ? isActive : true)
-                    );
-                }),
-            );
-        } else {
-            setFilteredProducts([]);
-        }
-    }, [
-        selectedBrand,
-        selectedProductGroup,
-        productQueryData?.productData,
-        showAddProducts,
-        editableProducts,
-    ]);
-
-    // Reset states when closing add products section
-    const handleCloseAddProducts = () => {
-        setShowAddProducts(false);
-        setSelectedBrand(null);
-        setSelectedProductGroup(null);
-        setFilteredProductGroups([]);
-        setFilteredProducts([]);
-        setNewProductQuantities([]);
     };
 
     const handleSubmit = async () => {
@@ -486,7 +410,6 @@ const EditSaleOrder = ({ route }) => {
                 Alert.alert("Error", data.message);
             }
         } catch (err) {
-            // console.log(err);
             Alert.alert("Error", "Failed to update order");
         }
     };
@@ -518,6 +441,7 @@ const EditSaleOrder = ({ route }) => {
                         containerStyle={styles.retailerDropdown}
                     />
                 </View>
+
                 <View style={styles.headerSection}>
                     <TouchableOpacity
                         style={[styles.addButton, showFilter && { opacity: 1 }]}
@@ -641,7 +565,7 @@ const EditSaleOrder = ({ route }) => {
                         </View>
                     ))}
 
-                    {/* Add New Products Section */}
+                    {/* Add New Products Section - SM TRADERS Specific */}
                     {showAddProducts && (
                         <View style={styles.addProductsSection}>
                             <View style={styles.addProductsHeader}>
@@ -659,114 +583,78 @@ const EditSaleOrder = ({ route }) => {
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={styles.dropdownsContainer}>
-                                {/* Brand Dropdown */}
-                                <EnhancedDropdown
-                                    data={productQueryData.brandData}
-                                    labelField="label"
-                                    valueField="value"
-                                    placeholder="Select Brand"
-                                    value={selectedBrand}
-                                    onChange={handleBrandSelection}
-                                    containerStyle={styles.dropdown}
-                                />
+                            {/* SM TRADERS: Single Brand Dropdown */}
+                            <View style={styles.smTradersContainer}>
 
-                                {/* Product Group Dropdown - Disabled until brand is selected */}
-                                <EnhancedDropdown
-                                    data={filteredProductGroups}
-                                    labelField="label"
-                                    valueField="value"
-                                    placeholder={
-                                        selectedBrand
-                                            ? "Select Group"
-                                            : "Brand First"
-                                    }
-                                    value={selectedProductGroup}
-                                    onChange={handleProductGroupSelection}
-                                    containerStyle={styles.dropdown}
-                                    disable={!selectedBrand}
-                                />
+                                <View style={styles.smTradersBrandContainer}>
+                                    <EnhancedDropdown
+                                        data={transformedBranchData}
+                                        labelField="label"
+                                        valueField="value"
+                                        placeholder="Select Brand"
+                                        value={selectedBrand}
+                                        onChange={handleBrandSelection}
+                                        containerStyle={styles.dropdown}
+                                        searchPlaceholder="Search brands..."
+                                    />
+                                </View>
+
+                                {selectedBrand && (
+                                    <View style={styles.brandInfoContainer}>
+                                        <Text style={styles.productCountText}>
+                                            ({filteredProducts.length} products available)
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
 
-                            {/* Products List */}
-                            {filteredProducts.length > 0 && (
+                            {/* Products List - Only show when brand is selected */}
+                            {selectedBrand && filteredProducts.length > 0 && (
                                 <View style={styles.productsListContainer}>
-                                    {/* Action Buttons */}
-                                    {filteredProducts.length > 0 && (
-                                        <View style={styles.addProductsActions}>
-                                            <TouchableOpacity
-                                                style={styles.cancelAddButton}
-                                                onPress={handleCloseAddProducts}>
-                                                <Text
-                                                    style={styles.cancelAddButtonText}>
-                                                    Cancel
-                                                </Text>
-                                            </TouchableOpacity>
+                                    <View style={styles.addProductsActions}>
+                                        <TouchableOpacity
+                                            style={styles.cancelAddButton}
+                                            onPress={handleCloseAddProducts}>
+                                            <Text style={styles.cancelAddButtonText}>
+                                                Cancel
+                                            </Text>
+                                        </TouchableOpacity>
 
-                                            <TouchableOpacity
-                                                style={styles.confirmAddButton}
-                                                onPress={handleAddNewProducts}>
-                                                <Text
-                                                    style={styles.confirmAddButtonText}>
-                                                    Add Selected
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                    <Text style={styles.productsListTitle}>
-                                        Available Products (
-                                        {filteredProducts.length})
-                                    </Text>
+                                        <TouchableOpacity
+                                            style={styles.confirmAddButton}
+                                            onPress={handleAddNewProducts}>
+                                            <Text style={styles.confirmAddButtonText}>
+                                                Add Selected
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
 
                                     {filteredProducts.map((product, index) => {
-                                        const existingQuantity =
-                                            newProductQuantities.find(
-                                                q =>
-                                                    q.Item_Id ===
-                                                    product.Product_Id.toString(),
-                                            );
+                                        const existingQuantity = newProductQuantities.find(
+                                            q => q.Item_Id === product.Product_Id.toString(),
+                                        );
 
                                         return (
-                                            <View
-                                                key={index}
-                                                style={styles.productRow}>
-                                                <View
-                                                    style={styles.productInfo}>
+                                            <View key={index} style={styles.productRow}>
+                                                <View style={styles.productInfo}>
                                                     <Text
-                                                        style={
-                                                            styles.productName
-                                                        }
+                                                        style={styles.productName}
                                                         numberOfLines={2}>
-                                                        {product.Product_Name}
+                                                        {product.Short_Name || product.Product_Name}
                                                     </Text>
-                                                    <Text
-                                                        style={
-                                                            styles.productDetails
-                                                        }>
-                                                        {product.Units} •{" "}₹
-                                                        {product.Item_Rate}
+                                                    <Text style={styles.productDetails}>
+                                                        <Text>{product.PackGet} {product.Units} • ₹{product.Item_Rate}</Text>
+                                                        <Text style={styles.productSeparator}> • </Text>
+                                                        <Text style={{ color: customColors.success }}>Stock: {product.CL_Qty}</Text>
                                                     </Text>
                                                 </View>
 
                                                 <View style={styles.inputGroup}>
-                                                    <View
-                                                        style={
-                                                            styles.inputContainer
-                                                        }>
-                                                        <Text
-                                                            style={
-                                                                styles.inputLabel
-                                                            }>
-                                                            Qty
-                                                        </Text>
+                                                    <View style={styles.inputContainer}>
+                                                        <Text style={styles.inputLabel}>Qty</Text>
                                                         <TextInput
-                                                            style={
-                                                                styles.quantityInput
-                                                            }
-                                                            value={
-                                                                existingQuantity?.Bill_Qty ||
-                                                                ""
-                                                            }
+                                                            style={styles.quantityInput}
+                                                            value={existingQuantity?.Bill_Qty || ""}
                                                             onChangeText={text =>
                                                                 handleNewProductQuantityChange(
                                                                     product.Product_Id.toString(),
@@ -779,20 +667,10 @@ const EditSaleOrder = ({ route }) => {
                                                         />
                                                     </View>
 
-                                                    <View
-                                                        style={
-                                                            styles.inputContainer
-                                                        }>
-                                                        <Text
-                                                            style={
-                                                                styles.inputLabel
-                                                            }>
-                                                            Rate
-                                                        </Text>
+                                                    <View style={styles.inputContainer}>
+                                                        <Text style={styles.inputLabel}>Rate</Text>
                                                         <TextInput
-                                                            style={
-                                                                styles.rateInput
-                                                            }
+                                                            style={styles.rateInput}
                                                             value={
                                                                 existingQuantity?.Item_Rate ||
                                                                 product.Item_Rate.toString()
@@ -815,17 +693,22 @@ const EditSaleOrder = ({ route }) => {
                                 </View>
                             )}
 
-                            {/* No Products Message */}
-                            {selectedBrand &&
-                                selectedProductGroup &&
-                                filteredProducts.length === 0 && (
-                                    <View style={styles.noProductsContainer}>
-                                        <Text style={styles.noProductsText}>
-                                            No products available for the
-                                            selected brand and group.
-                                        </Text>
-                                    </View>
-                                )}
+                            {/* No Products Messages */}
+                            {selectedBrand && filteredProducts.length === 0 && (
+                                <View style={styles.noProductsContainer}>
+                                    <Text style={styles.noProductsText}>
+                                        No active products available for the selected brand.
+                                    </Text>
+                                </View>
+                            )}
+
+                            {!selectedBrand && (
+                                <View style={styles.noProductsContainer}>
+                                    <Text style={styles.noProductsText}>
+                                        Please select a brand to view active products.
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     )}
                 </ScrollView>
@@ -836,7 +719,7 @@ const EditSaleOrder = ({ route }) => {
                     </Text>
                 </View>
 
-                {/* Preview Modal */}
+                {/* Modal remains the same... */}
                 <Modal
                     animationType="slide"
                     transparent={true}
@@ -853,41 +736,24 @@ const EditSaleOrder = ({ route }) => {
                                 {editableProducts
                                     .filter(p => parseFloat(p.Bill_Qty) > 0)
                                     .map((product, index) => {
-                                        const qty = parseFloat(
-                                            product.Bill_Qty,
-                                        );
-                                        const rate = parseFloat(
-                                            product.Item_Rate,
-                                        );
+                                        const qty = parseFloat(product.Bill_Qty);
+                                        const rate = parseFloat(product.Item_Rate);
                                         const amount = qty * rate;
 
                                         return (
-                                            <View
-                                                key={index}
-                                                style={styles.modalProductRow}>
+                                            <View key={index} style={styles.modalProductRow}>
                                                 <Text
-                                                    style={
-                                                        styles.modalProductName
-                                                    }
+                                                    style={styles.modalProductName}
                                                     numberOfLines={2}>
                                                     {product.Product_Name}
                                                 </Text>
-                                                <Text
-                                                    style={
-                                                        styles.modalProductQty
-                                                    }>
+                                                <Text style={styles.modalProductQty}>
                                                     {qty}
                                                 </Text>
-                                                <Text
-                                                    style={
-                                                        styles.modalProductRate
-                                                    }>
+                                                <Text style={styles.modalProductRate}>
                                                     ₹{rate.toFixed(2)}
                                                 </Text>
-                                                <Text
-                                                    style={
-                                                        styles.modalProductAmount
-                                                    }>
+                                                <Text style={styles.modalProductAmount}>
                                                     ₹{amount.toFixed(2)}
                                                 </Text>
                                             </View>
@@ -939,8 +805,9 @@ const EditSaleOrder = ({ route }) => {
     );
 };
 
-export default EditSaleOrder;
+export default PosEditOrder;
 
+// Add these new styles to your existing StyleSheet:
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -1109,8 +976,7 @@ const styles = StyleSheet.create({
     addProductsActions: {
         flexDirection: "row",
         gap: 12,
-        marginTop: 16,
-        marginBottom: 24,
+        marginBottom: 16,
     },
     cancelAddButton: {
         flex: 1,
@@ -1261,13 +1127,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.grey100,
     },
     productsListContainer: {
-        marginTop: 8,
-    },
-    productsListTitle: {
-        ...typography.subtitle2(),
-        fontWeight: "600",
-        color: customColors.grey800,
-        marginBottom: 12,
+        marginTop: 4,
     },
     productDetails: {
         ...typography.caption(),
@@ -1284,4 +1144,26 @@ const styles = StyleSheet.create({
         textAlign: "center",
         fontStyle: "italic",
     },
-});
+    smTradersContainer: {
+        marginBottom: 16,
+    },
+    smTradersBrandContainer: {
+        marginBottom: 12,
+    },
+    brandInfoContainer: {
+        backgroundColor: customColors.primary + "10",
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: customColors.primary,
+    },
+    productCountText: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "500",
+    },
+    productSeparator: {
+        color: customColors.grey400,
+    },
+})

@@ -225,16 +225,33 @@ const Customers = () => {
         }
     }, [selectedRoute, showAllRetailers]);
 
+    // Add the helper function at the top of your component or in a separate utils file
+    const removeSplChar = (str) => String(str).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+    const reactSelectFilterLogic = (option, inputValue) => {
+        const normalizedLabel = removeSplChar(option.label);
+        const normalizedInput = removeSplChar(inputValue);
+
+        return normalizedLabel.includes(normalizedInput);
+    };
+
+    const handleSearchInputChange = (text) => {
+        // Remove special characters from input but keep spaces for better UX
+        const filteredText = text.replace(/[^a-zA-Z0-9\s]/g, "");
+
+        setSearchQuery(filteredText);
+        filterRetailers(selectedRoute, selectedArea, filteredText);
+    };
+
     const filterRetailers = (routeId, areaId, search) => {
         if (showAllRetailers) {
             // When showing all retailers, only apply search filter
             let filtered = [...retailers];
             if (search) {
-                filtered = filtered.filter(i =>
-                    i.Retailer_Name.toLowerCase().includes(
-                        search.toLowerCase(),
-                    ),
-                );
+                filtered = filtered.filter(retailer => {
+                    const option = { label: retailer.Retailer_Name };
+                    return reactSelectFilterLogic(option, search);
+                });
             }
             setFilteredRetailers(filtered);
             return;
@@ -246,9 +263,11 @@ const Customers = () => {
         if (routeId) filtered = filtered.filter(i => i.Route_Id === routeId);
         if (areaId) filtered = filtered.filter(i => i.Area_Id === areaId);
         if (search)
-            filtered = filtered.filter(i =>
-                i.Retailer_Name.toLowerCase().includes(search.toLowerCase()),
-            );
+            filtered = filtered.filter(retailer => {
+                // Use the custom filter logic
+                const option = { label: retailer.Retailer_Name };
+                return reactSelectFilterLogic(option, search);
+            });
 
         setFilteredRetailers(filtered);
     };
@@ -383,14 +402,10 @@ const Customers = () => {
                                 placeholder="Search retailers..."
                                 placeholderTextColor={customColors.grey}
                                 value={searchQuery}
-                                onChangeText={text => {
-                                    setSearchQuery(text);
-                                    filterRetailers(
-                                        selectedRoute,
-                                        selectedArea,
-                                        text,
-                                    );
-                                }}
+                                onChangeText={handleSearchInputChange}
+                                autoCapitalize="words"
+                                autoFocus={false}
+                                selectTextOnFocus={true}
                             />
 
                             {(searchQuery || selectedRoute || selectedArea) && (

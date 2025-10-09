@@ -30,6 +30,7 @@ const OrderPreview = () => {
     const navigation = useNavigation();
 
     const [logData, setLogData] = useState([]);
+    const [companyName, setCompanyName] = useState("");
     const [retailerInfo, setRetailerInfo] = useState({});
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -48,6 +49,8 @@ const OrderPreview = () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
+                const Company_Name = await AsyncStorage.getItem("companyName");
+                setCompanyName(Company_Name);
 
                 if (
                     selectedFromDate instanceof Date &&
@@ -551,7 +554,9 @@ const OrderPreview = () => {
     };
 
     const editOption = item => {
-        navigation.navigate("EditOrder", {
+        const isSMTraders = companyName === "SM TRADERS";
+
+        navigation.navigate(isSMTraders ? "PosEditOrder" : "EditOrder", {
             item: {
                 ...item,
                 Retailer_Id: item.Retailer_Id,

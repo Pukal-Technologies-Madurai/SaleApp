@@ -50,6 +50,7 @@ import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
 import PendingSales from "../Screens/pending/PendingSales";
 import VisitLogSummary from "../Screens/admin/VisitLogSummary";
 import PosOrder from "../Screens/sales/PosOrder";
+import PosEditOrder from "../Screens/sales/PosEditOrder";
 
 const Stack = createStackNavigator();
 
@@ -94,6 +95,7 @@ const AppStack = () => {
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
             <Stack.Screen name="PendingSales" component={PendingSales} />
             <Stack.Screen name="PosOrder" component={PosOrder} />
+            <Stack.Screen name="PosEditOrder" component={PosEditOrder} />
 
             <Stack.Screen name="ClosingStock" component={ClosingStock} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
