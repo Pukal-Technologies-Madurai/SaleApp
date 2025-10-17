@@ -15,12 +15,10 @@ export const createSaleOrder = async ({ orderData }) => {
     return data;
 };
 
-export const fetchSaleOrder = async ({ from, to, company, userId = "" }) => {
-    const salesPersonIdParam = userId || "";
-
-    const res = await fetch(
-        `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${salesPersonIdParam}&Sales_Person_Id=${salesPersonIdParam}`,
-    );
+export const fetchSaleOrder = async ({ from, to, company, userId }) => {
+    const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
+    // console.log("fetchSaleOrder url:", url);
+    const res = await fetch(url);
 
     const data = await res.json();
 
