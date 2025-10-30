@@ -83,6 +83,7 @@ const Customers = () => {
     const [filteredRetailers, setFilteredRetailers] = useState([]);
     const [routes, setRoutes] = useState([]);
     const [areas, setAreas] = useState([]);
+    const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
@@ -230,14 +231,15 @@ const Customers = () => {
 
     const reactSelectFilterLogic = (option, inputValue) => {
         const normalizedLabel = removeSplChar(option.label);
+        const normalizedMobile = removeSplChar(option.mobile || "");
         const normalizedInput = removeSplChar(inputValue);
 
-        return normalizedLabel.includes(normalizedInput);
+        return normalizedLabel.includes(normalizedInput) || normalizedMobile.includes(normalizedInput);
     };
 
     const handleSearchInputChange = (text) => {
         // Remove special characters from input but keep spaces for better UX
-        const filteredText = text.replace(/[^a-zA-Z0-9\s]/g, "");
+        const filteredText = text.replace(/[^a-zA-Z0-9]/g, "");
 
         setSearchQuery(filteredText);
         filterRetailers(selectedRoute, selectedArea, filteredText);
@@ -249,7 +251,10 @@ const Customers = () => {
             let filtered = [...retailers];
             if (search) {
                 filtered = filtered.filter(retailer => {
-                    const option = { label: retailer.Retailer_Name };
+                    const option = {
+                        label: retailer.Retailer_Name,
+                        mobile: retailer.Mobile_No
+                    };
                     return reactSelectFilterLogic(option, search);
                 });
             }
@@ -265,7 +270,10 @@ const Customers = () => {
         if (search)
             filtered = filtered.filter(retailer => {
                 // Use the custom filter logic
-                const option = { label: retailer.Retailer_Name };
+                const option = {
+                    label: retailer.Retailer_Name,
+                    mobile: retailer.Mobile_No
+                };
                 return reactSelectFilterLogic(option, search);
             });
 
@@ -353,41 +361,43 @@ const Customers = () => {
 
             <View style={styles.contentContainer}>
                 <View style={styles.filterSection}>
-                    <View style={styles.dropdownColumn}>
-                        <View style={styles.dropdownContainer}>
-                            <EnhancedDropdown
-                                data={getAvailableRoutes()}
-                                labelField="label"
-                                valueField="value"
-                                placeholder="Select Route"
-                                value={selectedRoute}
-                                onChange={item => {
-                                    setSelectedRoute(item.value);
-                                    setSelectedArea(null);
-                                }}
-                                disabled={showAllRetailers}
-                            />
-                        </View>
+                    {showFilterDropdown && (
+                        <View style={styles.dropdownColumn}>
+                            <View style={styles.dropdownContainer}>
+                                <EnhancedDropdown
+                                    data={getAvailableRoutes()}
+                                    labelField="label"
+                                    valueField="value"
+                                    placeholder="Select Route"
+                                    value={selectedRoute}
+                                    onChange={item => {
+                                        setSelectedRoute(item.value);
+                                        setSelectedArea(null);
+                                    }}
+                                    disabled={showAllRetailers}
+                                />
+                            </View>
 
-                        <View style={styles.dropdownContainer}>
-                            <EnhancedDropdown
-                                data={areas}
-                                labelField="label"
-                                valueField="value"
-                                placeholder="Select Area"
-                                value={selectedArea}
-                                onChange={item => {
-                                    setSelectedArea(item.value);
-                                    filterRetailers(
-                                        selectedRoute,
-                                        item.value,
-                                        searchQuery,
-                                    );
-                                }}
-                                disabled={showAllRetailers}
-                            />
+                            <View style={styles.dropdownContainer}>
+                                <EnhancedDropdown
+                                    data={areas}
+                                    labelField="label"
+                                    valueField="value"
+                                    placeholder="Select Area"
+                                    value={selectedArea}
+                                    onChange={item => {
+                                        setSelectedArea(item.value);
+                                        filterRetailers(
+                                            selectedRoute,
+                                            item.value,
+                                            searchQuery,
+                                        );
+                                    }}
+                                    disabled={showAllRetailers}
+                                />
+                            </View>
                         </View>
-                    </View>
+                    )}
 
                     <View style={styles.searchRow}>
                         <View style={styles.searchContainer}>
@@ -399,13 +409,14 @@ const Customers = () => {
                             />
                             <TextInput
                                 style={styles.searchInput}
-                                placeholder="Search retailers..."
+                                placeholder="Search by name or mobile..."
                                 placeholderTextColor={customColors.grey}
                                 value={searchQuery}
                                 onChangeText={handleSearchInputChange}
                                 autoCapitalize="words"
                                 autoFocus={false}
                                 selectTextOnFocus={true}
+                                keyboardType="default"
                             />
 
                             {(searchQuery || selectedRoute || selectedArea) && (
@@ -432,22 +443,32 @@ const Customers = () => {
                         </View>
 
                         {/* Toggle button to show all retailers - moved outside */}
-                        <TouchableOpacity
-                            onPress={toggleShowAllRetailers}
-                            style={[
-                                styles.toggleButton,
-                                showAllRetailers && styles.toggleButtonActive,
-                            ]}>
+                        {existingRouteData && existingRouteData.length > 0 && showFilterDropdown ? (
+                            <TouchableOpacity
+                                onPress={toggleShowAllRetailers}
+                                style={[
+                                    styles.toggleButton,
+                                    showAllRetailers && styles.toggleButtonActive,
+                                ]}>
+                                <Icon
+                                    name="visibility"
+                                    size={20}
+                                    color={
+                                        showAllRetailers
+                                            ? customColors.white
+                                            : customColors.grey100
+                                    }
+                                />
+                            </TouchableOpacity>
+                        ) : <TouchableOpacity onPress={() => {
+                            setShowFilterDropdown(!showFilterDropdown);
+                        }} style={styles.toggleButton}>
                             <Icon
-                                name="visibility"
+                                name="filter-list"
                                 size={20}
-                                color={
-                                    showAllRetailers
-                                        ? customColors.white
-                                        : customColors.grey
-                                }
+                                color={customColors.grey600}
                             />
-                        </TouchableOpacity>
+                        </TouchableOpacity>}
                     </View>
                 </View>
 

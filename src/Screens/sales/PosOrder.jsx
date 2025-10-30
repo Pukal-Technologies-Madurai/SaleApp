@@ -5,11 +5,14 @@ import { useNavigation } from "@react-navigation/native";
 import { customColors, shadows, spacing, typography } from "../../Config/helper";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import FeatherIcon from "react-native-vector-icons/Feather";
+import RNHTMLtoPDF from "react-native-html-to-pdf";
+import Share from "react-native-share";
 import AppHeader from "../../Components/AppHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { createSaleOrder } from "../../Api/sales";
 import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
+import { API } from "../../Config/Endpoint";
 
 const PosOrder = ({ route }) => {
     const { item } = route.params;
@@ -21,6 +24,9 @@ const PosOrder = ({ route }) => {
     const [selectedTransportId, setSelectedTransportId] = useState(null);
     const [selectedBrokerId, setSelectedBrokerId] = useState(null);
     const [showFilter, setShowFilter] = useState(false);
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
     const [orderData, setOrderData] = useState({
         Company_Id: item.Company_Id,
@@ -47,41 +53,519 @@ const PosOrder = ({ route }) => {
     const { data: productData = [], isLoading: isProductLoading } = useQuery({
         queryKey: ["masterDataProducts"],
         queryFn: () => fetchProductsWithStockValue(),
-        // enabled: !!item.Company_Id,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
     });
 
     const { data: rawCostCenters = [], isLoading: isCostCenterLoading } = useQuery({
         queryKey: ["costCenters"],
         queryFn: fetchCostCenter,
+        enabled: showFilter,
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 15 * 60 * 1000, // 15 minutes
     });
 
     const { brokersData, transportData } = useMemo(() => {
         const Broker_User_Type = 3;
         const Transport_User_Type = 2;
 
-        const broker = rawCostCenters.filter(item => item.User_Type === Broker_User_Type);
-        const transport = rawCostCenters.filter(item => item.User_Type === Transport_User_Type);
+        // Use filter only once and cache results
+        const brokers = [];
+        const transports = [];
 
-        return { brokersData: broker, transportData: transport };
+        rawCostCenters.forEach(item => {
+            if (item.User_Type === Broker_User_Type) {
+                brokers.push(item);
+            } else if (item.User_Type === Transport_User_Type) {
+                transports.push(item);
+            }
+        });
+
+        return { brokersData: brokers, transportData: transports };
     }, [rawCostCenters]);
+
+    const downloadItemPDF = async (item) => {
+        try {
+            const pdfPath = await generateItemPDF(item.generalInfo, item);
+            if (pdfPath) {
+                try {
+                    await Share.open({
+                        url: `file://${pdfPath}`,
+                        title: "Sale Order",
+                        message: "Here is your order preview in PDF format",
+                        showAppsToView: true,
+                        subject: "Sale Order Receipt",
+                        // Optional: Add print-specific filename
+                        filename: `receipt-${item?.So_Inv_No || item?.So_Id || Date.now()}.pdf`,
+                    });
+                } catch (shareError) {
+                    // Silently handle user cancellation
+                    if (shareError.message && shareError.message.includes("User did not share")) {
+                        return; // User cancelled, do nothing
+                    }
+                    throw shareError; // Re-throw other errors
+                }
+            } else {
+                Alert.alert("Error", "Failed to generate PDF. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            Alert.alert("Error", "Something went wrong. Please try again.");
+        }
+    };
+
+    const generateItemPDF = async (generalInfo, orderDataFromResponse) => {
+        try {
+            const { generalInfo: genInfo, productDetails, staffInvolved } = orderDataFromResponse;
+
+            const response = await fetch(`${API.retailerInfo()}${genInfo.Retailer_Id}`);
+            const data = await response.json();
+
+            let currentRetailerInfo = null;
+            if (data.success && data.data && data.data.length > 0) {
+                currentRetailerInfo = data.data[0];
+            }
+
+            const safeNum = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+            const rupee = (n) =>
+                safeNum(n).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+
+            const products = Array.isArray(productDetails) ? productDetails : [];
+            const brokerNames = staffInvolved
+                ?.filter(staff => staff.EmpType === "Broker")
+                ?.map(broker => broker.EmpName)
+                ?.join(", ") || "—";
+
+            const transportNames = staffInvolved
+                ?.filter(staff => staff.EmpType === "Transport")
+                ?.map(transport => transport.EmpName)
+                ?.join(", ") || "—";
+
+            const numberOfBags = products.reduce((sum, p) => {
+                const packWeight = parseFloat(p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
+                const totalKg = parseFloat(p.Bill_Qty) || 0;
+                const bags = packWeight > 0 ? (totalKg / packWeight) : 0;
+                return sum + bags; // Remove the conditional that was returning strings
+            }, 0);
+
+            const totalWeight = products.reduce((sum, p) => {
+                const packWeight = parseFloat(p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
+                const bags = parseFloat(p.Bill_Qty) || 0;
+                return sum + (bags * packWeight);
+            }, 0);
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta
+                    name="viewport"
+                    content="width=80mm, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+                    />
+                    <title>Quotation</title>
+                    <style>
+                    @page {
+                        size: 80mm auto;
+                        margin: 0mm;
+                    }
+
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+
+                    body {
+                        width: 80mm;
+                        font-family: "Courier New", monospace;
+                        font-size: 11px;
+                        padding: 3mm;
+                        color: #000;
+                        line-height: 1.3;
+                    }
+
+                    .header {
+                        text-align: center;
+                        font-size: 16px;
+                        font-weight: 700;
+                        border-bottom: 0.75px solid #000;
+                        padding-bottom: 2mm;
+                        margin-bottom: 3mm;
+                        letter-spacing: 1px;
+                    }
+
+                    .top-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 2mm;
+                        font-size: 10px;
+                    }
+
+                    .info-section {
+                        border-top: 0.75px solid #000;
+                        border-bottom: 0.75px solid #000;
+                        padding: 1mm 0;
+                    }
+
+                    .info-row {
+                        display: flex;
+                        min-height: 4.5mm;
+                        align-items: center;
+                        padding: 1mm 0;
+                    }
+
+                    .info-label {
+                        font-weight: 700;
+                        min-width: 26mm;
+                        font-size: 10px;
+                        flex-shrink: 0;
+                    }
+
+                    .info-value {
+                        flex: 1;
+                        font-size: 14px;
+                        font-weight: 800;
+                        padding-left: 2mm;
+                    }
+
+                    .table-container {
+                        margin-top: 3mm;
+                        border: 0.25px solid #000;
+                    }
+
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+
+                    thead th {
+                        border: 0.75px solid #000;
+                        padding: 2mm 1mm;
+                        text-align: center;
+                        font-size: 10px;
+                        font-weight: 700;
+                        background: #f5f5f5;
+                    }
+
+                    tbody td {
+                        border: 0.75px solid #000;
+                        padding: 1mm;
+                        text-align: center;
+                        font-size: 9px;
+                        vertical-align: middle;
+                    }
+
+                    .rate-cell {
+                        width: 18mm;
+                        padding: 2mm 1mm !important;
+                        line-height: 1.4;
+                    }
+
+                    .rate-value {
+                        display: block;
+                        font-size: 14px;
+                        font-weight: 900;
+                    }
+
+                    .rate-space {
+                        display: block;
+                        height: 3mm;
+                    }
+
+                    .item-cell {
+                        width: 32mm;
+                        text-align: left;
+                        padding-left: 2mm !important;
+                        font-size: 14px;
+                        font-weight: 900;
+                    }
+
+                    .bags-cell,
+                    .kgs-cell {
+                        width: 15mm;
+                        font-size: 14px;
+                        font-weight: 900;
+                    }
+
+                    .data-row {
+                        min-height: 12mm;
+                    }
+
+                    .total-row {
+                        background: #f8f8f8;
+                        border-top: 2px solid #000 !important;
+                    }
+
+                    .total-row td {
+                        font-weight: 700;
+                        font-size: 11px;
+                        padding: 2mm 1mm !important;
+                    }
+
+                    @media print {
+                        body {
+                        padding: 2mm;
+                        }
+                    }
+                    </style>
+                </head>
+                <body>
+                    <!-- Header -->
+                    <div class="header">QUOTATION</div>
+
+                    <!-- Top Info Row -->
+                    <div class="top-row">
+                    <div class="bold" style="font-size: 12px; font-weight: 900">
+                        <strong>DATE:</strong> ${generalInfo?.Created_on && `${new
+                    Date(generalInfo.Created_on).toLocaleDateString("en-GB")}/${new
+                        Date(generalInfo.Created_on).toLocaleTimeString("en-IN", {
+                            hour:
+                                "2-digit", minute: "2-digit", hour12: true,
+                        })}`}
+                    </div>
+                    <div style="margin-bottom: 3mm; font-size: 14px; font-weight: 900">
+                        <strong style="font-size: 14px; font-weight: 900">TAKEN:</strong>
+                        ${generalInfo?.Sales_Person_Name || generalInfo?.Created_BY_Name || "—"
+                }
+                    </div>
+                    </div>
+
+                    <!-- Info Section -->
+                    <div class="info-section">
+                    <div class="info-row">
+                        <div class="info-label">PARTY NAME:</div>
+                        <div class="info-value">
+                        ${currentRetailerInfo?.retailerTamilName ||
+                currentRetailerInfo?.Retailer_Name || generalInfo.Retailer_Name || "—"
+                }
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">LOCATION:</div>
+                        <div class="info-value">
+                        ${[currentRetailerInfo?.Party_Mailing_Address ||
+                    currentRetailerInfo?.Reatailer_Address,].filter(Boolean).join(", ")
+                || currentRetailerInfo?.StateGet || generalInfo?.Retailer_Name || "—"
+                }
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">PH.NO:</div>
+                        <div class="info-value">
+                        ${currentRetailerInfo?.Mobile_No ||
+                currentRetailerInfo?.Party_Mailing_Address?.match(
+                    /(\d{3}[-\s]?\d{3}[-\s]?\d{4}|\d{10})/)?.[0] || "—"}
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">TRANSPORT:</div>
+                        <div class="info-value">${transportNames || "—"}</div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">BROKER:</div>
+                        <div class="info-value">${brokerNames || "—"}</div>
+                    </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-container">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th style="width: 18mm">RATE</th>
+                            <th style="width: 32mm">ITEM NAME</th>
+                            <th style="width: 15mm">BAGS</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        ${products.length ? products.map((p) => {
+                        const packWeight =
+                            parseFloat(p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
+                        const totalKg = parseFloat(p.Bill_Qty) || 0;
+                        const bags = packWeight >
+                            0 ? (totalKg / packWeight) : 0; return `
+                        <tr class="data-row">
+                            <td class="rate-cell">
+                            <span class="rate-value">₹${rupee(p?.Item_Rate ?? 0)}</span>
+                            <span class="rate-space"></span>
+                            </td>
+                            <td class="item-cell">
+                            ${p.Product_Short_Name || p?.Product_Name}
+                            </td>
+                            <td class="bags-cell">${bags > 0 ? bags.toFixed(1) : "0"}</td>
+                        </tr>
+                        `;
+                    }).join("") : Array.from({ length: 6 }, () => `
+                        <tr class="data-row">
+                            <td class="rate-cell">
+                            <span class="rate-space"></span>
+                            </td>
+                            <td class="item-cell"></td>
+                            <td class="bags-cell"></td>
+                        </tr>
+                        ` ).join("")}
+
+                        <!-- Total Row -->
+                        <tr class="total-row">
+                            <td style="font-weight: 900; font-size: 13px">
+                            ₹${rupee(products.reduce((sum, p) => sum + (parseFloat(p.Bill_Qty)
+                        || 0) * (parseFloat(p.Item_Rate) || 0), 0))}
+                            </td>
+                            <td style="font-weight: 900; font-size: 13px">
+                            ${totalWeight.toFixed(2)} KG
+                            </td>
+                            <td style="font-weight: 900; font-size: 13px">
+                            ${numberOfBags.toFixed(1)}
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Calculate approximate height based on content
+            const estimatedHeight = 400 + products.length * 30;
+
+            const options = {
+                html: htmlContent,
+                fileName: `sale-order-${genInfo?.So_Inv_No?.replace(/[^\w-]+/g, "_") || Date.now()}`,
+                directory: "Documents",
+                width: 226,
+                height: estimatedHeight,
+                padding: 0,
+                base64: false,
+            };
+
+            const pdf = await RNHTMLtoPDF.convert(options);
+            return pdf.filePath;
+        } catch (err) {
+            console.error("Error generating PDF:", err);
+            return null;
+        }
+    };
 
     const mutation = useMutation({
         mutationFn: createSaleOrder,
         onSuccess: data => {
-            Alert.alert("Success", data.message, [
-                {
-                    text: "Okay",
-                    onPress: () => {
-                        setShowOrderSummary(false);
-                        navigation.goBack();
+            if (data.success && data.others?.createdSaleOrder) {
+                Alert.alert("Success", data.message, [
+                    {
+                        text: "Print Receipt",
+                        onPress: async () => {
+                            try {
+                                await downloadItemPDF(data.others.createdSaleOrder);
+                            } catch (err) {
+                                Alert.alert("Error", "Failed to generate receipt");
+                                console.error("PDF generation error:", err);
+                            } finally {
+                                setShowOrderSummary(false);
+                                navigation.replace("HomeScreen");
+                            }
+                        },
+                        style: "default",
                     },
-                },
-            ]);
+                    {
+                        text: "Done",
+                        onPress: () => {
+                            setShowOrderSummary(false);
+                            navigation.replace("HomeScreen");
+                        },
+                        style: "cancel",
+                    }
+                ]);
+            } else {
+                Alert.alert("Success", data.message, [
+                    {
+                        text: "Okay",
+                        onPress: () => {
+                            setShowOrderSummary(false);
+                            navigation.replace("HomeScreen");
+                        }
+                    }
+                ]);
+            }
         },
         onError: error => {
             Alert.alert("Error", error.message || "Failed to submit order");
         },
     });
+
+    const getCompleteOrderData = useCallback(() => {
+        return {
+            ...orderData,
+            Product_Array: Object.values(orderItems)
+                .filter(item => item.qty > 0 && item.rate > 0)
+                .map(item => {
+                    // Get the product data to access PackGet
+                    const product = productData.find(p => p.Product_Id === item.Product_Id);
+                    const packWeight = parseFloat(product?.PackGet || 0);
+                    const totalWeight = item.qty * packWeight;
+                    const totalAmount = totalWeight * item.rate;
+
+                    return {
+                        Item_Id: item.Product_Id,
+                        Bill_Qty: totalWeight, // Send total weight instead of bag count
+                        Item_Rate: item.rate,
+                        UOM: item.UOM_Id || 1,
+                        Product_Id: item.Product_Id,
+                        Bag_Count: item.qty, // Optional: send bag count separately
+                        Pack_Weight: packWeight, // Optional: send pack weight
+                        Total_Amount: totalAmount // Optional: send calculated total
+                    };
+                }),
+            Staff_Involved_List: (() => {
+                const list = [];
+
+                if (selectedBrokerId && brokersData.length > 0) {
+                    const selectedBroker = brokersData.find(broker =>
+                        String(broker.Cost_Center_Id) === String(selectedBrokerId)
+                    );
+
+                    if (selectedBroker) {
+                        list.push({
+                            Id: "",
+                            So_Id: "",
+                            Involved_Emp_Id: parseInt(selectedBroker.Cost_Center_Id),
+                            EmpName: selectedBroker.Cost_Center_Name || "",
+                            Cost_Center_Type_Id: selectedBroker.User_Type || 3,
+                            EmpType: selectedBroker.UserTypeGet || "Broker"
+                        });
+                    }
+                }
+
+                if (selectedTransportId && transportData.length > 0) {
+                    const selectedTransport = transportData.find(transport =>
+                        String(transport.Cost_Center_Id) === String(selectedTransportId)
+                    );
+
+                    if (selectedTransport) {
+                        list.push({
+                            Id: "",
+                            So_Id: "",
+                            Involved_Emp_Id: parseInt(selectedTransport.Cost_Center_Id),
+                            EmpName: selectedTransport.Cost_Center_Name || "",
+                            Cost_Center_Type_Id: selectedTransport.User_Type || 2,
+                            EmpType: selectedTransport.UserTypeGet || "Transport"
+                        });
+                    }
+                }
+
+                return list;
+            })()
+        };
+    }, [orderData, orderItems, selectedBrokerId, selectedTransportId, brokersData, transportData]);
 
     useEffect(() => {
         (async () => {
@@ -108,83 +592,54 @@ const PosOrder = ({ route }) => {
     }, []);
 
     useEffect(() => {
-        const productArray = Object.values(orderItems)
-            .filter(item => item.qty > 0 && item.rate > 0)
-            .map(item => ({
-                Item_Id: item.Product_Id,
-                Bill_Qty: item.qty,
-                Item_Rate: item.rate,
-                UOM: item.UOM_Id || 1, // Default UOM if not specified
-                Product_Id: item.Product_Id,
-            }));
+        const timeoutId = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 300); // 300ms debounce
 
-        setOrderData(prev => ({
-            ...prev,
-            Product_Array: productArray
-        }));
-    }, [orderItems]);
-
-    useEffect(() => {
-        const staffInvolvedList = [];
-
-        // Add selected broker if valid
-        if (selectedBrokerId && brokersData.length > 0) {
-            const selectedBroker = brokersData.find(broker =>
-                String(broker.Cost_Center_Id) === String(selectedBrokerId)
-            );
-
-            if (selectedBroker) {
-                staffInvolvedList.push({
-                    Id: "",
-                    So_Id: "",
-                    Involved_Emp_Id: parseInt(selectedBroker.Cost_Center_Id),
-                    EmpName: selectedBroker.Cost_Center_Name || "",
-                    Cost_Center_Type_Id: selectedBroker.User_Type || 3,
-                    EmpType: selectedBroker.UserTypeGet || "Broker"
-                });
-            }
-        }
-
-        // Add selected transport if valid
-        if (selectedTransportId && transportData.length > 0) {
-            const selectedTransport = transportData.find(transport =>
-                String(transport.Cost_Center_Id) === String(selectedTransportId)
-            );
-
-            if (selectedTransport) {
-                staffInvolvedList.push({
-                    Id: "",
-                    So_Id: "",
-                    Involved_Emp_Id: parseInt(selectedTransport.Cost_Center_Id),
-                    EmpName: selectedTransport.Cost_Center_Name || "",
-                    Cost_Center_Type_Id: selectedTransport.User_Type || 2,
-                    EmpType: selectedTransport.UserTypeGet || "Transport"
-                });
-            }
-        }
-
-        setOrderData(prev => ({
-            ...prev,
-            Staff_Involved_List: staffInvolvedList
-        }));
-    }, [selectedBrokerId, selectedTransportId, brokersData, transportData]);
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
 
     // Computed values
     const filteredProducts = useMemo(() => {
         if (!productData.length) return [];
 
-        const activeProducts = productData.filter(product => product.IsActive === 1);
+        // Start with active products
+        let filtered = productData.filter(product => product.IsActive === 1);
 
-        if (!selectedBrandId) return activeProducts;
+        // Apply brand filter
+        if (selectedBrandId) {
+            filtered = filtered.filter(product => product.Pos_Brand_Id === selectedBrandId);
+        }
 
-        return activeProducts.filter(product => product.Pos_Brand_Id === selectedBrandId);
-    }, [productData, selectedBrandId]);
+        // Apply search filter
+        if (debouncedSearch.trim()) {
+            const searchTerms = debouncedSearch.toLowerCase().trim().split(/\s+/);
+
+            filtered = filtered.filter(product => {
+                const searchableText = [
+                    product.Product_Name || '',
+                    product.Short_Name || ''
+                ].join(' ').toLowerCase();
+
+                // Check if all search terms are found in the searchable text
+                return searchTerms.every(term => searchableText.includes(term));
+            });
+        }
+
+        return filtered;
+    }, [productData, selectedBrandId, debouncedSearch]);
 
     const { totalAmount, orderCount } = useMemo(() => {
         const items = Object.values(orderItems).filter(item => item.qty > 0 && item.rate > 0);
-        const total = items.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+        const total = items.reduce((sum, item) => {
+            const product = productData.find(p => p.Product_Id === item.Product_Id);
+            const packWeight = parseFloat(product?.PackGet || 0);
+            const totalWeight = item.qty * packWeight;
+            const itemTotal = totalWeight * item.rate;
+            return sum + itemTotal;
+        }, 0);
         return { totalAmount: total, orderCount: items.length };
-    }, [orderItems]);
+    }, [orderItems, productData]);
 
     // Handlers
     const updateOrderItem = useCallback((productId, field, value) => {
@@ -218,7 +673,9 @@ const PosOrder = ({ route }) => {
     }, []);
 
     const handleSubmitOrder = async () => {
-        if (orderData.Product_Array.length === 0) {
+        const completeOrderData = getCompleteOrderData();
+
+        if (completeOrderData.Product_Array.length === 0) {
             Alert.alert(
                 "Error",
                 "Please add at least one product to the order"
@@ -226,7 +683,7 @@ const PosOrder = ({ route }) => {
             return;
         }
 
-        if (!orderData.Product_Array.every(product => product.Item_Rate > 0)) {
+        if (!completeOrderData.Product_Array.every(product => product.Item_Rate > 0)) {
             Alert.alert("Error", "Please enter valid prices for all products");
             return;
         }
@@ -234,24 +691,22 @@ const PosOrder = ({ route }) => {
         setIsSubmitting(true);
 
         mutation.mutate(
-            { orderData },
+            { orderData: completeOrderData },
             {
                 onSettled: () => setIsSubmitting(false),
             }
         );
     };
 
-    // Render functions
-    const renderProductCard = useCallback(({ item: product }) => {
-        const orderItem = orderItems[product.Product_Id];
+    const ProductCard = React.memo(({ product, orderItem, onUpdateOrder, onAddToOrder, onRemoveFromOrder }) => {
         const isInOrder = orderItem && orderItem.qty > 0;
+        const totalWeight = isInOrder ? (orderItem.qty * parseFloat(product.PackGet || 0)) : 0;
+        const totalAmount = isInOrder ? (totalWeight * (orderItem.rate || product.Item_Rate || 0)) : 0;
+        const bagQty = product.CL_Qty / (parseFloat(product.PackGet) || 1);
 
         return (
             <View style={styles.productCard}>
                 <View style={styles.productHeader}>
-                    <View style={styles.productIconContainer}>
-                        <Text style={styles.productIcon}>📦</Text>
-                    </View>
 
                     <View style={styles.productDetails}>
                         <Text style={styles.productName} numberOfLines={2}>
@@ -262,16 +717,19 @@ const PosOrder = ({ route }) => {
                                 {product.PackGet} {product.Units}
                             </Text>
                             <Text style={[styles.stockIndicator, product.CL_Qty > 0 ? styles.inStock : styles.outOfStock]}>
-                                {product.CL_Qty !== null ? `Stock: ${product.CL_Qty} ${product.Units}` : "Stock: N/A"}
+                                {bagQty === 0 ? "Out of Stock" : `${bagQty.toFixed(2)} Bags`}
                             </Text>
                         </View>
+                        <Text style={styles.baseRate}>
+                            Base Rate: ₹{(product.Item_Rate || 0).toFixed(2)} per {product.Units}
+                        </Text>
                     </View>
                 </View>
 
                 {/* Rate and Quantity Inputs */}
                 <View style={styles.inputSection}>
                     <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Rate</Text>
+                        <Text style={styles.inputLabel}>Rate per {product.Units}</Text>
                         <View style={styles.inputWrapper}>
                             <Text style={styles.currencySymbol}>₹</Text>
                             <TextInput
@@ -313,7 +771,7 @@ const PosOrder = ({ route }) => {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Qty</Text>
+                        <Text style={styles.inputLabel}>Bags</Text>
                         <View style={styles.quantityContainer}>
                             <TextInput
                                 style={styles.quantityInput}
@@ -375,9 +833,9 @@ const PosOrder = ({ route }) => {
                 <View style={styles.actionSection}>
                     {isInOrder && (
                         <View style={styles.totalSection}>
-                            <Text style={styles.totalLabel}>Total</Text>
+                            <Text style={styles.totalLabel}>Grand Total</Text>
                             <Text style={styles.totalAmount}>
-                                Total: ₹{(orderItem.qty * orderItem.rate).toFixed(2)}
+                                ₹{totalAmount.toFixed(2)}
                             </Text>
                         </View>
                     )}
@@ -400,6 +858,21 @@ const PosOrder = ({ route }) => {
                 </View>
             </View>
         );
+    });
+
+    // Render functions
+    const renderProductCard = useCallback(({ item: product }) => {
+        const orderItem = orderItems[product.Product_Id];
+
+        return (
+            <ProductCard
+                product={product}
+                orderItem={orderItem}
+                onUpdateOrder={updateOrderItem}
+                onAddToOrder={addToOrder}
+                onRemoveFromOrder={removeFromOrder}
+            />
+        );
     }, [orderItems, updateOrderItem, addToOrder, removeFromOrder]);
 
     const renderOrderSummary = () => (
@@ -420,17 +893,30 @@ const PosOrder = ({ route }) => {
                     data={Object.values(orderItems).filter(item => item.qty > 0)}
                     keyExtractor={item => item.Product_Id}
                     style={styles.summaryList}
-                    renderItem={({ item }) => (
-                        <View style={styles.summaryItem}>
-                            <View style={styles.summaryItemLeft}>
-                                <Text style={styles.summaryName}>{item.Product_Name}</Text>
-                                <Text style={styles.summaryItemMeta}>
-                                    {item.qty} × ₹{item.rate.toFixed(2)}
-                                </Text>
+                    renderItem={({ item }) => {
+                        const product = productData.find(p => p.Product_Id === item.Product_Id);
+                        const packWeight = parseFloat(product?.PackGet || 0);
+                        const totalWeight = item.qty * packWeight;
+                        const totalAmount = totalWeight * item.rate;
+
+                        return (
+                            <View style={styles.summaryItem}>
+                                <View style={styles.summaryItemLeft}>
+                                    <Text style={styles.summaryName}>{item.Short_Name || item.Product_Name}</Text>
+                                    <Text style={styles.summaryItemMeta}>
+                                        {item.qty} bags × {packWeight} kg = {totalWeight.toFixed(2)} kg
+                                    </Text>
+                                </View>
+                                <Text style={styles.summaryItemTotal}>₹{totalAmount.toFixed(2)}</Text>
+
+                                <View style={styles.summaryItemActions}>
+                                    <TouchableOpacity onPress={() => removeFromOrder(item.Product_Id)}>
+                                        <FeatherIcon name="delete" size={20} color={customColors.error} />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                            <Text style={styles.summaryItemTotal}>₹{(item.qty * item.rate).toFixed(2)}</Text>
-                        </View>
-                    )}
+                        );
+                    }}
                     showsVerticalScrollIndicator={false}
                 />
 
@@ -459,12 +945,15 @@ const PosOrder = ({ route }) => {
         </Modal>
     );
 
-    if (isBranchLoading || isProductLoading || isCostCenterLoading) {
+    if (isBranchLoading || isProductLoading || (showFilter && isCostCenterLoading)) {
         return (
             <SafeAreaView style={styles.container}>
                 <AppHeader title="Sales Order" navigation={navigation} />
                 <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Loading products...</Text>
+                    <ActivityIndicator size="large" color={customColors.primary} />
+                    <Text style={styles.loadingText}>
+                        {showFilter && isCostCenterLoading ? "Loading filters..." : "Loading products..."}
+                    </Text>
                 </View>
             </SafeAreaView>
         );
@@ -499,12 +988,28 @@ const PosOrder = ({ route }) => {
                             />
                         </View>
 
-                        <TouchableOpacity style={[styles.filterToggleButton, showFilter && styles.filterToggleButtonActive]}
+                        <TouchableOpacity style={[
+                            styles.filterToggleButton,
+                            showFilter && styles.filterToggleButtonActive,
+                            showFilter && isCostCenterLoading && styles.filterToggleButtonLoading
+                        ]}
                             onPress={() => { setShowFilter(!showFilter) }}
-                            activeOpacity={0.7}>
-                            <FeatherIcon name="sliders" size={20} color={showFilter ? customColors.white : customColors.primary} />
+                            activeOpacity={0.7}
+                            disabled={showFilter && isCostCenterLoading}>
+                            {showFilter && isCostCenterLoading ? (
+                                <ActivityIndicator
+                                    size={20}
+                                    color={showFilter ? customColors.white : customColors.primary}
+                                />
+                            ) : (
+                                <FeatherIcon
+                                    name="sliders"
+                                    size={20}
+                                    color={showFilter ? customColors.white : customColors.primary}
+                                />
+                            )}
                             <Text style={[styles.filterToggleText, showFilter && styles.filterToggleTextActive]}>
-                                Filters
+                                {showFilter && isCostCenterLoading ? "Loading..." : "Filters"}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -512,30 +1017,88 @@ const PosOrder = ({ route }) => {
                     {showFilter && (
                         <View style={styles.expandableFilters}>
                             <View style={styles.filterDivider} />
-                            <View style={styles.additionalFiltersRow}>
-                                <View style={styles.fullWidthFilter}>
-                                    <EnhancedDropdown
-                                        data={brokersData}
-                                        labelField="Cost_Center_Name"
-                                        valueField="Cost_Center_Id"
-                                        placeholder="Select Broker"
-                                        value={selectedBrokerId}
-                                        onChange={item => setSelectedBrokerId(item?.Cost_Center_Id)}
-                                        searchPlaceholder="Search brokers..."
-                                    />
+                            {isCostCenterLoading ? (
+                                <View style={styles.filtersLoadingContainer}>
+                                    <ActivityIndicator size="small" color={customColors.primary} />
+                                    <Text style={styles.filtersLoadingText}>Loading filter options...</Text>
                                 </View>
-                                <View style={styles.fullWidthFilter}>
-                                    <EnhancedDropdown
-                                        data={transportData}
-                                        labelField="Cost_Center_Name"
-                                        valueField="Cost_Center_Id"
-                                        placeholder="Select Transport"
-                                        value={selectedTransportId}
-                                        onChange={item => setSelectedTransportId(item?.Cost_Center_Id)}
-                                        searchPlaceholder="Search transport..."
-                                    />
+                            ) : (
+                                <View style={styles.additionalFiltersRow}>
+                                    <View style={styles.fullWidthFilter}>
+                                        <EnhancedDropdown
+                                            data={brokersData}
+                                            labelField="Cost_Center_Name"
+                                            valueField="Cost_Center_Id"
+                                            placeholder="Select Broker"
+                                            value={selectedBrokerId}
+                                            onChange={item => setSelectedBrokerId(item?.Cost_Center_Id)}
+                                            searchPlaceholder="Search brokers..."
+                                        />
+                                    </View>
+                                    <View style={styles.fullWidthFilter}>
+                                        <EnhancedDropdown
+                                            data={transportData}
+                                            labelField="Cost_Center_Name"
+                                            valueField="Cost_Center_Id"
+                                            placeholder="Select Transport"
+                                            value={selectedTransportId}
+                                            onChange={item => setSelectedTransportId(item?.Cost_Center_Id)}
+                                            searchPlaceholder="Search transport..."
+                                        />
+                                    </View>
                                 </View>
-                            </View>
+                            )}
+                        </View>
+                    )}
+                </View>
+
+                {/* Product Search */}
+                <View style={styles.productSearchContainer}>
+                    <View style={styles.productSearchWrapper}>
+                        <FeatherIcon
+                            name="search"
+                            size={20}
+                            color={customColors.grey500}
+                            style={styles.searchIcon}
+                        />
+                        <TextInput
+                            style={styles.productSearchInput}
+                            placeholder="Search products by name..."
+                            placeholderTextColor={customColors.grey500}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            clearButtonMode="while-editing"
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity
+                                onPress={() => setSearchQuery('')}
+                                style={styles.clearSearchButton}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <FeatherIcon
+                                    name="x"
+                                    size={18}
+                                    color={customColors.grey500}
+                                />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {debouncedSearch.trim() && (
+                        <View style={styles.searchResultContainer}>
+                            <Text style={styles.searchResultText}>
+                                {filteredProducts.length === 0
+                                    ? `No results for "${debouncedSearch}"`
+                                    : `${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''} found for "${debouncedSearch}"`
+                                }
+                            </Text>
+                            {searchQuery !== debouncedSearch && (
+                                <ActivityIndicator
+                                    size="small"
+                                    color={customColors.primary}
+                                    style={styles.searchLoader}
+                                />
+                            )}
                         </View>
                     )}
                 </View>
@@ -547,17 +1110,49 @@ const PosOrder = ({ route }) => {
                         <Text style={styles.sectionTitle}>({filteredProducts.length})</Text>
                     </View>
 
-                    <FlatList
-                        data={filteredProducts}
-                        renderItem={renderProductCard}
-                        keyExtractor={item => item.Product_Id}
-                        numColumns={1}
-                        contentContainerStyle={styles.productsList}
-                        showsVerticalScrollIndicator={false}
-                        removeClippedSubviews={true}
-                        maxToRenderPerBatch={10}
-                        windowSize={10}
-                    />
+                    {filteredProducts.length === 0 ? (
+                        <View style={styles.emptyStateContainer}>
+                            <FeatherIcon name="package" size={48} color={customColors.grey400} />
+                            <Text style={styles.emptyStateTitle}>
+                                {debouncedSearch.trim() ? 'No products found' : 'No products available'}
+                            </Text>
+                            <Text style={styles.emptyStateSubtitle}>
+                                {debouncedSearch.trim()
+                                    ? `Try adjusting your search "${debouncedSearch}" or filters`
+                                    : "Try selecting a different brand or check your filters"
+                                }
+                            </Text>
+                            {(debouncedSearch.trim() || selectedBrandId) && (
+                                <TouchableOpacity
+                                    style={styles.clearFiltersButton}
+                                    onPress={() => {
+                                        setSearchQuery('');
+                                        setSelectedBrandId(null);
+                                    }}
+                                >
+                                    <Text style={styles.clearFiltersText}>Clear filters</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={filteredProducts}
+                            renderItem={renderProductCard}
+                            keyExtractor={item => item.Product_Id}
+                            numColumns={1}
+                            contentContainerStyle={styles.productsList}
+                            showsVerticalScrollIndicator={false}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={10}
+                            windowSize={10}
+                            initialNumToRender={20}
+                            getItemLayout={(data, index) => ({
+                                length: 200, // Approximate height of each product card
+                                offset: 200 * index,
+                                index,
+                            })}
+                        />
+                    )}
                 </View>
             </View>
 
@@ -618,6 +1213,20 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         borderColor: customColors.primary,
     },
+    filterToggleButtonLoading: {
+        opacity: 0.7,
+    },
+    filtersLoadingContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 20,
+        gap: 12,
+    },
+    filtersLoadingText: {
+        ...typography.body2(),
+        color: customColors.grey600,
+    },
     filterToggleText: {
         ...typography.caption(),
         fontWeight: "600",
@@ -641,6 +1250,84 @@ const styles = StyleSheet.create({
     },
     fullWidthFilter: {
         width: "100%",
+    },
+    productSearchContainer: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        backgroundColor: customColors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
+    },
+    productSearchWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: customColors.grey100,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        paddingHorizontal: spacing.md,
+        height: 48,
+    },
+    searchIcon: {
+        marginRight: spacing.sm,
+    },
+    productSearchInput: {
+        flex: 1,
+        ...typography.body1(),
+        color: customColors.grey900,
+        padding: 0,
+    },
+    clearSearchButton: {
+        padding: spacing.xs,
+        marginLeft: spacing.sm,
+    },
+    searchResultContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing.xs,
+    },
+    searchLoader: {
+        marginLeft: spacing.sm,
+    },
+    searchResultText: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginTop: spacing.xs,
+        fontStyle: 'italic',
+    },
+    emptyStateContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 60,
+        paddingHorizontal: spacing.lg,
+    },
+    emptyStateTitle: {
+        ...typography.h6(),
+        fontWeight: '600',
+        color: customColors.grey700,
+        marginTop: spacing.md,
+        marginBottom: spacing.xs,
+        textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+        ...typography.body2(),
+        color: customColors.grey500,
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: spacing.lg,
+    },
+    clearFiltersButton: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        backgroundColor: customColors.primary,
+        borderRadius: 8,
+    },
+    clearFiltersText: {
+        ...typography.button(),
+        color: customColors.white,
+        fontWeight: '600',
     },
 
     productsSection: {
@@ -669,31 +1356,20 @@ const styles = StyleSheet.create({
     productRow: {
         justifyContent: 'space-between',
     },
+
     productCard: {
         backgroundColor: customColors.white,
         borderRadius: 12,
         padding: spacing.lg,
         marginBottom: spacing.md,
         marginHorizontal: spacing.xs,
-        ...shadows.medium,
+        ...shadows.small,
         borderWidth: 1,
         borderColor: customColors.grey200,
     },
     productHeader: {
         flexDirection: "row",
-        marginBottom: 20,
-    },
-    productIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: customColors.grey100,
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: spacing.md,
-    },
-    productIcon: {
-        fontSize: 20,
+        // marginBottom: 10,
     },
     productDetails: {
         marginBottom: spacing.md,
@@ -702,7 +1378,7 @@ const styles = StyleSheet.create({
         borderBottomColor: customColors.grey200,
     },
     productName: {
-        width: "80%",
+        // width: "100%",
         ...typography.body1(),
         fontWeight: "700",
         color: customColors.grey900,
@@ -711,7 +1387,7 @@ const styles = StyleSheet.create({
     },
     productMeta: {
         flexDirection: "row",
-        // justifyContent: "space-between",
+        // justifyContent: "space-around",
         alignItems: "center",
     },
     productUnits: {
@@ -726,6 +1402,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 12,
+    },
+    baseRate: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        fontWeight: "500",
+        marginTop: spacing.xs,
     },
     inStock: {
         backgroundColor: customColors.success + "20",
@@ -895,6 +1577,9 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         fontWeight: "600",
         color: "#059669",
+    },
+    summaryItemActions: {
+        marginLeft: 16,
     },
     summaryFooter: {
         padding: 20,

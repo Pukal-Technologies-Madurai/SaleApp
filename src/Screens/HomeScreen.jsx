@@ -31,6 +31,7 @@ const HomeScreen = () => {
     const [userTypeID, setUserTypeID] = useState("");
     const [error, setError] = useState(null);
     const [isQRVisible, setIsQRVisible] = useState(false);
+    const [companyName, setCompanyName] = useState("");
 
     const ADMIN_USER_TYPES = ["0", "1", "2"];
     const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
@@ -62,8 +63,10 @@ const HomeScreen = () => {
                 const storeUserTypeId =
                     await AsyncStorage.getItem("userTypeId");
                 setUserTypeID(storeUserTypeId);
+                const companyName = await AsyncStorage.getItem("companyName");
 
                 setName(userName || "");
+                setCompanyName(companyName || "");
             } catch (err) {
                 console.error("Error loading user details:", err);
                 setError("Failed to load user details");
@@ -250,7 +253,10 @@ const HomeScreen = () => {
                         <Dashboard />
                     ) : (
                         <View>
-                            <AttendanceInfo />
+                            {companyName === "SM TRADERS"
+                                ? null
+                                : <AttendanceInfo />
+                            }
 
                             <View style={styles.buttonContainer}>
                                 <View style={styles.sectionTitleContainer}>

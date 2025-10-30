@@ -22,7 +22,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const SalesReport = ({ navigation, route }) => {
     const {
         logData,
-        productSummary,
         selectedDate,
         isNotAdmin = true,
     } = route.params;
@@ -35,6 +34,31 @@ const SalesReport = ({ navigation, route }) => {
     //     "Product Summary:",
     //     logData.map(item => item.Products_List),
     // );
+
+    const calculateProductSummary = () => {
+        const productMap = {};
+
+        logData.forEach(order => {
+            order.Products_List.forEach(product => {
+                const productName = product.Product_Name.trim();
+
+                if (productMap[productName]) {
+                    productMap[productName].totalQty += product.Total_Qty || product.Bill_Qty;
+                    productMap[productName].totalAmount += parseFloat(product.Final_Amo || product.Amount);
+                } else {
+                    productMap[productName] = {
+                        productName: productName,
+                        totalQty: product.Total_Qty || product.Bill_Qty,
+                        totalAmount: parseFloat(product.Final_Amo || product.Amount)
+                    };
+                }
+            });
+        });
+
+        return Object.values(productMap);
+    };
+
+    const productSummary = calculateProductSummary();
 
     useEffect(() => {
         if (selectedDate) {
@@ -83,18 +107,10 @@ const SalesReport = ({ navigation, route }) => {
         }
     };
 
-    const totalVisitLogCount = visitLogLength + logData.length;
-    const totalQuantity = productSummary.reduce(
-        (sum, item) => sum + item.totalQty,
-        0,
-    );
-    const totalAmount = productSummary.reduce(
-        (sum, item) => sum + parseFloat(item.totalAmount),
-        0,
-    );
+    const selectedDateObj = new Date(selectedDate);
 
-    const fromDate = new Date(selectedDate).toLocaleDateString().split("T")[0];
-    const fromTime = new Date(selectedDate).toLocaleString("en-US", {
+    const fromDate = selectedDateObj.toLocaleDateString().split("T")[0];
+    const fromTime = selectedDateObj.toLocaleTimeString("en-IN", {
         hour: "numeric",
         minute: "numeric",
         hour12: true,
@@ -104,12 +120,12 @@ const SalesReport = ({ navigation, route }) => {
         selectedBrand === "All"
             ? true
             : logData.some(order =>
-                  order.Products_List.some(
-                      p =>
-                          p.Product_Name.trim() === item.productName.trim() &&
-                          p.BrandGet?.trim() === selectedBrand,
-                  ),
-              ),
+                order.Products_List.some(
+                    p =>
+                        p.Product_Name.trim() === item.productName.trim() &&
+                        p.BrandGet?.trim() === selectedBrand,
+                ),
+            ),
     );
 
     const filteredQuantity = filteredSummary.reduce(
@@ -257,14 +273,14 @@ const SalesReport = ({ navigation, route }) => {
                             selectedBrand === "All"
                                 ? true
                                 : logData.some(order =>
-                                      order.Products_List.some(
-                                          p =>
-                                              p.Product_Name.trim() ===
-                                                  item.productName.trim() &&
-                                              p.BrandGet?.trim() ===
-                                                  selectedBrand,
-                                      ),
-                                  ),
+                                    order.Products_List.some(
+                                        p =>
+                                            p.Product_Name.trim() ===
+                                            item.productName.trim() &&
+                                            p.BrandGet?.trim() ===
+                                            selectedBrand,
+                                    ),
+                                ),
                         )
                         .map((item, index) => (
                             <View
