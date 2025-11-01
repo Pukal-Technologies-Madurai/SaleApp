@@ -2,17 +2,17 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Modal, A
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { customColors, shadows, spacing, typography } from "../../Config/helper";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
-import AppHeader from "../../Components/AppHeader";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import { createSaleOrder } from "../../Api/sales";
-import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
 import { API } from "../../Config/Endpoint";
+import { createSaleOrder } from "../../Api/sales";
+import { customColors, shadows, spacing, typography } from "../../Config/helper";
+import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const PosOrder = ({ route }) => {
     const { item } = route.params;
@@ -599,30 +599,64 @@ const PosOrder = ({ route }) => {
         return () => clearTimeout(timeoutId);
     }, [searchQuery]);
 
+    const normalizeSearchText = (str) => {
+        return String(str)
+            .toLowerCase()
+            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Keep Tamil characters, alphanumeric, and spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
+    };
+
+    const fuzzyMatch = (text, search) => {
+        const normalizedText = normalizeSearchText(text);
+        const normalizedSearch = normalizeSearchText(search);
+
+        if (normalizedText.includes(normalizedSearch)) return true;
+
+        // Check if all characters of search exist in text (in order)
+        let searchIndex = 0;
+        for (let i = 0; i < normalizedText.length && searchIndex < normalizedSearch.length; i++) {
+            if (normalizedText[i] === normalizedSearch[searchIndex]) {
+                searchIndex++;
+            }
+        }
+        return searchIndex === normalizedSearch.length;
+    };
+
     // Computed values
     const filteredProducts = useMemo(() => {
         if (!productData.length) return [];
 
-        // Start with active products
         let filtered = productData.filter(product => product.IsActive === 1);
 
-        // Apply brand filter
         if (selectedBrandId) {
             filtered = filtered.filter(product => product.Pos_Brand_Id === selectedBrandId);
         }
 
-        // Apply search filter
         if (debouncedSearch.trim()) {
-            const searchTerms = debouncedSearch.toLowerCase().trim().split(/\s+/);
+            const searchTerms = debouncedSearch.trim().split(/\s+/);
 
             filtered = filtered.filter(product => {
-                const searchableText = [
-                    product.Product_Name || '',
-                    product.Short_Name || ''
-                ].join(' ').toLowerCase();
+                const searchableFields = [
+                    product.Product_Name || "",
+                    product.Short_Name || "",
+                    product.Brand_Name || ""
+                ];
 
-                // Check if all search terms are found in the searchable text
-                return searchTerms.every(term => searchableText.includes(term));
+                return searchTerms.every(term => {
+                    return searchableFields.some(field => {
+                        // Exact match (case insensitive)
+                        if (field.toLowerCase().includes(term.toLowerCase())) return true;
+
+                        // Normalized match (without special characters)
+                        if (normalizeSearchText(field).includes(normalizeSearchText(term))) return true;
+
+                        // Fuzzy match for typos
+                        if (term.length > 2 && fuzzyMatch(field, term)) return true;
+
+                        return false;
+                    });
+                });
             });
         }
 

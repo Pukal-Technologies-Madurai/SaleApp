@@ -5,6 +5,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     TextInput,
+    ActivityIndicator,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useNavigation } from "@react-navigation/native";
@@ -113,7 +114,7 @@ const Customers = () => {
         });
     }, []);
 
-    const { data: retailers = [] } = useQuery({
+    const { data: retailers = [], isLoading: isLoadingRetailers } = useQuery({
         queryKey: ["retailers", companyId],
         queryFn: () => fetchRetailers(companyId),
         enabled: !!companyId, // prevent fetch until companyId is ready
@@ -348,6 +349,25 @@ const Customers = () => {
         [],
     );
 
+    if (isLoadingRetailers) {
+        return (
+            <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+                <AppHeader
+                    title="Retailers"
+                    navigation={navigation}
+                    showRightIcon={true}
+                    rightIconLibrary="MaterialIcon"
+                    rightIconName="alt-route"
+                    onRightPress={() => navigation.navigate("RoutePath")}
+                />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={customColors.primary} />
+                    <Text style={styles.loadingText}>Loading retailers...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
@@ -500,6 +520,16 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+    },
+    loadingText: {
+        ...typography.body1(),
+        color: customColors.grey700,
     },
     filterSection: {
         padding: spacing.md,

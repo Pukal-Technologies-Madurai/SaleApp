@@ -109,8 +109,14 @@ const SalesReport = ({ navigation, route }) => {
 
     const selectedDateObj = new Date(selectedDate);
 
-    const fromDate = selectedDateObj.toLocaleDateString().split("T")[0];
-    const fromTime = selectedDateObj.toLocaleTimeString("en-IN", {
+    const fromDate = selectedDateObj.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    });
+
+    const fromTime = selectedDateObj.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
         hour: "numeric",
         minute: "numeric",
         hour12: true,

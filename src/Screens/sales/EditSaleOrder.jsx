@@ -568,78 +568,83 @@ const EditSaleOrder = ({ route }) => {
 
                 <ScrollView style={styles.productsContainer}>
                     {/* Existing Products */}
-                    <Text style={styles.sectionTitle}>Order Items</Text>
-                    {editableProducts.map((product, index) => (
-                        <View key={index} style={styles.productRow}>
-                            <View style={styles.productInfo}>
-                                <Text
-                                    style={styles.productName}
-                                    numberOfLines={2}>
-                                    {product.Product_Name}
-                                </Text>
-                            </View>
 
-                            <View style={styles.inputGroup}>
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Qty</Text>
-                                    <TextInput
-                                        style={styles.quantityInput}
-                                        value={product.Bill_Qty}
-                                        onChangeText={text =>
-                                            handleProductUpdate(
-                                                index,
-                                                "Bill_Qty",
-                                                text,
-                                            )
-                                        }
-                                        keyboardType="numeric"
-                                        placeholder="0"
-                                    />
+                    {!showAddProducts && (
+                        <>
+                            <Text style={styles.sectionTitle}>Order Items</Text>
+                            {editableProducts.map((product, index) => (
+                                <View key={index} style={styles.productRow}>
+                                    <View style={styles.productInfo}>
+                                        <Text
+                                            style={styles.productName}
+                                            numberOfLines={2}>
+                                            {product.Product_Name}
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <View style={styles.inputContainer}>
+                                            <Text style={styles.inputLabel}>Qty</Text>
+                                            <TextInput
+                                                style={styles.quantityInput}
+                                                value={product.Bill_Qty}
+                                                onChangeText={text =>
+                                                    handleProductUpdate(
+                                                        index,
+                                                        "Bill_Qty",
+                                                        text,
+                                                    )
+                                                }
+                                                keyboardType="numeric"
+                                                placeholder="0"
+                                            />
+                                        </View>
+
+                                        <View style={styles.inputContainer}>
+                                            <Text style={styles.inputLabel}>Rate</Text>
+                                            <TextInput
+                                                style={styles.rateInput}
+                                                value={product.Item_Rate}
+                                                onChangeText={text =>
+                                                    handleProductUpdate(
+                                                        index,
+                                                        "Item_Rate",
+                                                        text,
+                                                    )
+                                                }
+                                                keyboardType="decimal-pad"
+                                                placeholder="0.00"
+                                            />
+                                        </View>
+
+                                        <View style={styles.amountContainer}>
+                                            <Text style={styles.inputLabel}>
+                                                Amount
+                                            </Text>
+                                            <Text style={styles.amountText}>
+                                                ₹
+                                                {(
+                                                    (parseFloat(product.Bill_Qty) ||
+                                                        0) *
+                                                    (parseFloat(product.Item_Rate) || 0)
+                                                ).toFixed(2)}
+                                            </Text>
+                                        </View>
+
+                                        <TouchableOpacity
+                                            style={styles.removeButton}
+                                            onPress={() => handleRemoveProduct(index)}>
+                                            <Icon
+                                                name="delete"
+                                                size={20}
+                                                color={customColors.error}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Rate</Text>
-                                    <TextInput
-                                        style={styles.rateInput}
-                                        value={product.Item_Rate}
-                                        onChangeText={text =>
-                                            handleProductUpdate(
-                                                index,
-                                                "Item_Rate",
-                                                text,
-                                            )
-                                        }
-                                        keyboardType="decimal-pad"
-                                        placeholder="0.00"
-                                    />
-                                </View>
-
-                                <View style={styles.amountContainer}>
-                                    <Text style={styles.inputLabel}>
-                                        Amount
-                                    </Text>
-                                    <Text style={styles.amountText}>
-                                        ₹
-                                        {(
-                                            (parseFloat(product.Bill_Qty) ||
-                                                0) *
-                                            (parseFloat(product.Item_Rate) || 0)
-                                        ).toFixed(2)}
-                                    </Text>
-                                </View>
-
-                                <TouchableOpacity
-                                    style={styles.removeButton}
-                                    onPress={() => handleRemoveProduct(index)}>
-                                    <Icon
-                                        name="delete"
-                                        size={20}
-                                        color={customColors.error}
-                                    />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    ))}
+                            ))}
+                        </>
+                    )}
 
                     {/* Add New Products Section */}
                     {showAddProducts && (

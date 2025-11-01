@@ -9,24 +9,24 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import AppHeader from "../../Components/AppHeader";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { API } from "../../Config/Endpoint";
-import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
 import { fetchRetailersName } from "../../Api/retailers";
 import { customColors, typography } from "../../Config/helper";
+import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
 const PosEditOrder = ({ route }) => {
     const navigation = useNavigation();
     const { item } = route.params;
 
-    const initialStockValue = {
+    const initialStockValue = useMemo(() => ({
         So_Id: item.So_Id,
         Company_Id: item.Company_Id,
         ST_Date: new Date().toISOString().split("T")[0],
@@ -39,9 +39,10 @@ const PosEditOrder = ({ route }) => {
         Product_Array: item.Products_List,
         Sales_Person_Id: item.Sales_Person_Id,
         Staff_Involved_List: item.Staff_Involved_List || [],
-    };
+    }), [item]);
 
     const [uID, setUID] = useState();
+    const [isInitialized, setIsInitialized] = useState(false);
     const [stockInputValue, setStockInputValue] = useState(initialStockValue);
     const [showFilter, setShowFilter] = useState(false);
     const [selectedBrokerId, setSelectedBrokerId] = useState(null);
@@ -57,62 +58,110 @@ const PosEditOrder = ({ route }) => {
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [newProductQuantities, setNewProductQuantities] = useState([]);
 
+    const {
+        data: productQueryData = {
+            productData: [],
+        },
+    } = useQuery({
+        queryKey: ["product", uID],
+        queryFn: () => fetchProductsWithStockValue(),
+        select: data => {
+            return {
+                productData: data || [],
+            };
+        },
+    });
+
+    const extractPackWeight = useCallback((productName) => {
+        if (!productName) return 0;
+
+        // Extract number before "KG" (case insensitive)
+        const match = productName.match(/(\d+(?:\.\d+)?)\s*KG/i);
+        return match ? parseFloat(match[1]) : 0;
+    }, []);
+
+    const calculateTotal = useCallback(products => {
+        const newTotal = products.reduce((sum, product) => {
+            const bags = parseFloat(product.Bill_Qty) || 0;
+            const rate = parseFloat(product.Item_Rate) || 0;
+
+            // First try to get PackGet from product data, then fallback to product name
+            let packWeight = product.Pack_Weight || 0;
+
+            if (packWeight === 0) {
+                // Get the product data to access PackGet
+                const masterProduct = productQueryData.productData.find(
+                    p => p.Product_Id.toString() === product.Item_Id
+                );
+
+                if (masterProduct?.PackGet) {
+                    packWeight = parseFloat(masterProduct.PackGet);
+                } else {
+                    packWeight = extractPackWeight(product.Product_Name);
+                }
+            }
+
+            const totalWeight = bags * packWeight;
+            const amount = totalWeight * rate;
+
+            // console.log(`Calculate: ${product.Product_Name} - ${bags} bags × ${packWeight} kg × ₹${rate} = ₹${amount}`);
+            return sum + amount;
+        }, 0);
+        setTotal(isNaN(newTotal) ? 0 : newTotal);
+    }, [productQueryData.productData, extractPackWeight]);
+
     useEffect(() => {
         const initialize = async () => {
             try {
                 const userId = await AsyncStorage.getItem("Company_Id");
                 setUID(userId);
 
-                if (item.Products_List && item.Products_List.length > 0) {
-                    const initialEditableProducts = item.Products_List.map(
-                        product => {
-                            // Get the product data to access PackGet for conversion
-                            const productData = productQueryData.productData.find(
-                                p => p.Product_Id.toString() === product.Item_Id.toString()
-                            );
-                            const packWeight = parseFloat(productData?.PackGet || 0);
+                if (!isInitialized &&
+                    item.Products_List &&
+                    item.Products_List.length > 0 &&
+                    productQueryData?.productData &&
+                    productQueryData.productData.length > 0) {
 
-                            // Convert Bill_Qty (total kg) back to bags
-                            const totalKg = parseFloat(product.Bill_Qty) || 0;
-                            const bags = packWeight > 0 ? (totalKg / packWeight) : 0;
+                    const initialEditableProducts = item.Products_List.map(product => {
+                        const masterProduct = productQueryData.productData.find(
+                            p => p.Product_Id.toString() === product.Item_Id.toString()
+                        );
 
-                            return {
-                                Item_Id: product.Item_Id.toString(),
-                                Product_Name: product.Product_Name,
-                                Bill_Qty: bags.toString(), // Store as bags for UI
-                                Item_Rate: product.Item_Rate.toString(),
-                                Amount: product.Amount,
-                                isExisting: true,
-                                Original_Bill_Qty: totalKg, // Store original total kg for reference
-                            };
+                        let packWeight = 0;
+                        if (masterProduct?.PackGet) {
+                            packWeight = parseFloat(masterProduct.PackGet);
+                        } else {
+                            const match = product.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i);
+                            packWeight = match ? parseFloat(match[1]) : 1;
                         }
-                    );
+
+                        const totalKg = parseFloat(product.Bill_Qty) || 0;
+                        const bags = packWeight > 0 ? (totalKg / packWeight) : totalKg;
+
+                        return {
+                            Item_Id: product.Item_Id.toString(),
+                            Product_Name: product.Product_Name,
+                            Product_Short_Name: product.Product_Short_Name,
+                            Bill_Qty: bags.toString(),
+                            Item_Rate: product.Item_Rate.toString(),
+                            Amount: product.Amount,
+                            isExisting: true,
+                            Original_Bill_Qty: totalKg,
+                            Pack_Weight: packWeight,
+                        };
+                    });
+
                     setEditableProducts(initialEditableProducts);
                     calculateTotal(initialEditableProducts);
+                    setIsInitialized(true); // Mark as initialized
                 }
             } catch (err) {
                 console.error(err);
             }
         };
 
-        if (productQueryData?.productData?.length > 0) {
-            initialize();
-        }
-    }, [item.Products_List, productQueryData?.productData]);
-
-    const extractPackWeight = (productName) => {
-        if (!productName) return 0;
-
-        // Extract number before "KG" (case insensitive)
-        const match = productName.match(/(\d+(?:\.\d+)?)\s*KG/i);
-        return match ? parseFloat(match[1]) : 0;
-    };
-
-    // Add POS Order Branch query for SM TRADERS dropdown
-    const { data: branchDropdownData = [] } = useQuery({
-        queryKey: ["posOrderBranch"],
-        queryFn: fetchPosOrderBranch,
-    });
+        initialize();
+    }, [item.Products_List, productQueryData?.productData, isInitialized, calculateTotal]);
 
     useEffect(() => {
         // Initialize broker and transport from Staff_Involved_List
@@ -135,18 +184,10 @@ const PosEditOrder = ({ route }) => {
         }
     }, [item?.Staff_Involved_List]);
 
-    const {
-        data: productQueryData = {
-            productData: [],
-        },
-    } = useQuery({
-        queryKey: ["product", uID],
-        queryFn: () => fetchProductsWithStockValue(),
-        select: data => {
-            return {
-                productData: data || [],
-            };
-        },
+    // Add POS Order Branch query for SM TRADERS dropdown
+    const { data: branchDropdownData = [] } = useQuery({
+        queryKey: ["posOrderBranch"],
+        queryFn: fetchPosOrderBranch,
     });
 
     const { data: fetchRetailerName = [] } = useQuery({
@@ -174,6 +215,49 @@ const PosEditOrder = ({ route }) => {
 
         return { brokersData: broker, transportData: transport };
     }, [rawCostCenters]);
+
+    // Update the handleProductUpdate function to include PackGet calculation
+    const handleProductUpdate = (index, field, value) => {
+        const updatedProducts = [...editableProducts];
+        const currentProduct = updatedProducts[index];
+
+        // Get pack weight from stored value or master data
+        let packWeight = currentProduct.Pack_Weight || 0;
+
+        if (packWeight === 0) {
+            const masterProduct = productQueryData.productData.find(
+                p => p.Product_Id.toString() === currentProduct.Item_Id
+            );
+
+            if (masterProduct?.PackGet) {
+                packWeight = parseFloat(masterProduct.PackGet);
+            } else {
+                packWeight = extractPackWeight(currentProduct.Product_Name);
+            }
+        }
+
+        // Update the field
+        updatedProducts[index] = {
+            ...updatedProducts[index],
+            [field]: value,
+            Pack_Weight: packWeight, // Always store pack weight
+        };
+
+        // Recalculate amount if quantity or rate changes
+        if (field === "Bill_Qty" || field === "Item_Rate") {
+            const bags = parseFloat(updatedProducts[index].Bill_Qty) || 0;
+            const rate = parseFloat(updatedProducts[index].Item_Rate) || 0;
+            const totalWeight = bags * packWeight;
+
+            updatedProducts[index].Amount = totalWeight * rate;
+            updatedProducts[index].Total_Weight = totalWeight;
+
+            console.log(`Updated: ${bags} bags × ${packWeight} kg × ₹${rate} = ₹${totalWeight * rate}`);
+        }
+
+        setEditableProducts(updatedProducts);
+        calculateTotal(updatedProducts);
+    };
 
     useEffect(() => {
         const staffInvolvedList = [];
@@ -212,10 +296,19 @@ const PosEditOrder = ({ route }) => {
             }
         }
 
-        setStockInputValue(prev => ({
-            ...prev,
-            Staff_Involved_List: staffInvolvedList
-        }));
+        setStockInputValue(prev => {
+            const currentList = prev.Staff_Involved_List || [];
+            const newListString = JSON.stringify(staffInvolvedList);
+            const currentListString = JSON.stringify(currentList);
+
+            if (newListString !== currentListString) {
+                return {
+                    ...prev,
+                    Staff_Involved_List: staffInvolvedList
+                };
+            }
+            return prev;
+        });
     }, [selectedBrokerId, selectedTransportId, brokersData, transportData, item.So_Id]);
 
     const transformedBranchData = useMemo(() => {
@@ -227,12 +320,10 @@ const PosEditOrder = ({ route }) => {
     }, [branchDropdownData]);
 
     // Handle brand selection for SM TRADERS (POS_Brand_Id)
-    const handleBrandSelection = item => {
-        console.log("Selected item:", item); // Debug log to see the structure
-        // For SM TRADERS: Convert to string to match dropdown expectations
-        setSelectedBrand(String(item.value));
-        setNewProductQuantities([]); // Clear quantities when changing brand
-    };
+    const handleBrandSelection = useCallback((selectedItem) => {
+        setSelectedBrand(String(selectedItem.value));
+        setNewProductQuantities([]);
+    }, []);
 
     // Update the useEffect for filtering products - SM TRADERS specific
     useEffect(() => {
@@ -240,8 +331,7 @@ const PosEditOrder = ({ route }) => {
             const existingProductIds = editableProducts.map(p => p.Item_Id);
 
             if (selectedBrand) {
-                // For SM TRADERS: Filter by POS_Brand_Id and show only active products
-                let filteredData = productQueryData.productData.filter(product => {
+                const filteredData = productQueryData.productData.filter(product => {
                     const isActive = product.IsActive === 1;
                     const notAlreadyAdded = !existingProductIds.includes(
                         product.Product_Id.toString(),
@@ -253,7 +343,6 @@ const PosEditOrder = ({ route }) => {
 
                 setFilteredProducts(filteredData);
             } else {
-                // No brand selected, don't show any products
                 setFilteredProducts([]);
             }
         } else {
@@ -281,62 +370,6 @@ const PosEditOrder = ({ route }) => {
             Retailer_Id: item.value,
             Retailer_Name: item.label,
         }));
-    };
-
-    const calculateTotal = products => {
-        const newTotal = products.reduce((sum, product) => {
-            const bags = parseFloat(product.Bill_Qty) || 0;
-            const rate = parseFloat(product.Item_Rate) || 0;
-
-            // Get the product data to access PackGet
-            const productData = productQueryData.productData.find(
-                p => p.Product_Id.toString() === product.Item_Id
-            );
-
-            // First try to get PackGet from product data, then fallback to product name
-            let packWeight = parseFloat(productData?.PackGet || 0);
-            if (packWeight === 0 && productData?.Product_Name) {
-                packWeight = extractPackWeight(productData.Product_Name);
-            }
-
-            const totalWeight = bags * packWeight;
-            return sum + (totalWeight * rate);
-        }, 0);
-        setTotal(isNaN(newTotal) ? 0 : newTotal);
-    };
-
-    // Update the handleProductUpdate function to include PackGet calculation
-    const handleProductUpdate = (index, field, value) => {
-        const updatedProducts = [...editableProducts];
-        const currentProduct = updatedProducts[index];
-
-        // Get the product data to access PackGet
-        const productData = productQueryData.productData.find(
-            p => p.Product_Id.toString() === currentProduct.Item_Id
-        );
-
-        // First try to get PackGet from product data, then fallback to product name
-        let packWeight = parseFloat(productData?.PackGet || 0);
-        if (packWeight === 0 && productData?.Product_Name) {
-            packWeight = extractPackWeight(productData.Product_Name);
-        }
-
-        updatedProducts[index] = {
-            ...updatedProducts[index],
-            [field]: value,
-        };
-
-        if (field === "Bill_Qty" || field === "Item_Rate") {
-            const bags = parseFloat(updatedProducts[index].Bill_Qty) || 0;
-            const rate = parseFloat(updatedProducts[index].Item_Rate) || 0;
-            const totalWeight = bags * packWeight;
-            updatedProducts[index].Amount = totalWeight * rate;
-            updatedProducts[index].Total_Weight = totalWeight; // Store for display
-            updatedProducts[index].Pack_Weight = packWeight; // Store for display
-        }
-
-        setEditableProducts(updatedProducts);
-        calculateTotal(updatedProducts);
     };
 
     const handleRemoveProduct = index => {
@@ -514,6 +547,110 @@ const PosEditOrder = ({ route }) => {
         setModalVisible(true);
     };
 
+    const renderProductRow = (product, index) => {
+        // Get pack weight with multiple fallbacks
+        let packWeight = product.Pack_Weight || 0;
+
+        if (packWeight === 0) {
+            const masterProduct = productQueryData.productData.find(
+                p => p.Product_Id.toString() === product.Item_Id
+            );
+
+            if (masterProduct?.PackGet) {
+                packWeight = parseFloat(masterProduct.PackGet);
+            } else {
+                packWeight = extractPackWeight(product.Product_Name);
+            }
+        }
+
+        const bags = parseFloat(product.Bill_Qty) || 0;
+        const rate = parseFloat(product.Item_Rate) || 0;
+        const totalWeight = bags * packWeight;
+        const totalAmount = totalWeight * rate;
+
+        return (
+            <View key={index} style={styles.productRow}>
+                <View style={styles.productInfo}>
+                    <Text style={styles.productName} numberOfLines={2}>
+                        {product.Product_Short_Name || product.Product_Name}
+                    </Text>
+
+                    <View style={styles.productMetaRow}>
+                        <Text style={styles.productPackInfo}>
+                            Pack: {packWeight} kg/bag
+                        </Text>
+                        {product.Original_Bill_Qty && (
+                            <Text style={styles.originalQtyInfo}>
+                                Original: {product.Original_Bill_Qty} kg
+                            </Text>
+                        )}
+                    </View>
+
+                    {bags > 0 && (
+                        <View style={styles.calculationInfo}>
+                            <Text style={styles.calculationText}>
+                                {bags} bags × {packWeight} kg = {totalWeight.toFixed(2)} kg
+                            </Text>
+                            <Text style={styles.calculationText}>
+                                {totalWeight.toFixed(2)} kg × ₹{rate} = ₹{totalAmount.toFixed(2)}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.inputLabel}>Bags</Text>
+                        <TextInput
+                            style={styles.quantityInput}
+                            value={product.Bill_Qty}
+                            onChangeText={text =>
+                                handleProductUpdate(index, "Bill_Qty", text)
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="0"
+                        />
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.inputLabel}>Rate per kg</Text>
+                        <TextInput
+                            style={styles.rateInput}
+                            value={product.Item_Rate}
+                            onChangeText={text =>
+                                handleProductUpdate(index, "Item_Rate", text)
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="0.00"
+                        />
+                    </View>
+
+                    <View style={styles.amountContainer}>
+                        <Text style={styles.inputLabel}>Total Amount</Text>
+                        <Text style={styles.amountText}>
+                            ₹{totalAmount.toFixed(2)}
+                        </Text>
+                        {totalWeight > 0 && (
+                            <Text style={styles.weightText}>
+                                ({totalWeight.toFixed(2)} kg)
+                            </Text>
+                        )}
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveProduct(index)}>
+                        <Icon
+                            name="delete"
+                            size={20}
+                            color={customColors.error}
+                        />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
@@ -588,107 +725,19 @@ const PosEditOrder = ({ route }) => {
 
                 <ScrollView style={styles.productsContainer}>
                     {/* Existing Products */}
-                    <Text style={styles.sectionTitle}>Order Items</Text>
-                    {editableProducts.map((product, index) => {
-                        // Get the product data to access PackGet
-                        const productData = productQueryData.productData.find(
-                            p => p.Product_Id.toString() === product.Item_Id
-                        );
-
-                        // First try to get PackGet from product data, then fallback to product name
-                        let packWeight = parseFloat(productData?.PackGet || 0);
-                        if (packWeight === 0 && productData?.Product_Name) {
-                            packWeight = extractPackWeight(productData.Product_Name);
-                        }
-
-                        const bags = parseFloat(product.Bill_Qty) || 0;
-                        const rate = parseFloat(product.Item_Rate) || 0;
-                        const totalWeight = bags * packWeight;
-                        const totalAmount = totalWeight * rate;
-
-                        return (
-                            <View key={index} style={styles.productRow}>
-                                <View style={styles.productInfo}>
-                                    <Text style={styles.productName} numberOfLines={2}>
-                                        {product.Product_Name}
-                                    </Text>
-
-                                    {/* Show pack weight info */}
-                                    <Text style={styles.productPackInfo}>
-                                        Pack size: {packWeight} kg per bag
-                                        {product.Original_Bill_Qty && (
-                                            <Text style={styles.originalQtyInfo}>
-                                                {" "}(Original: {product.Original_Bill_Qty} kg total)
-                                            </Text>
-                                        )}
-                                    </Text>
-
-                                    {/* Show calculation breakdown when there's quantity */}
-                                    {/* {bags > 0 && (
-                                        <View style={styles.calculationBreakdown}>
-                                            <Text style={styles.calculationText}>
-                                                {bags} bags × {packWeight} kg = {totalWeight.toFixed(2)} kg
-                                            </Text>
-                                            <Text style={styles.calculationText}>
-                                                {totalWeight.toFixed(2)} kg × ₹{rate.toFixed(2)} = ₹{totalAmount.toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    )} */}
-                                </View>
-
-                                {/* Rest of the product row remains the same */}
-                                <View style={styles.inputGroup}>
-                                    <View style={styles.inputContainer}>
-                                        <Text style={styles.inputLabel}>Bags</Text>
-                                        <TextInput
-                                            style={styles.quantityInput}
-                                            value={product.Bill_Qty}
-                                            onChangeText={text =>
-                                                handleProductUpdate(index, "Bill_Qty", text)
-                                            }
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                        />
-                                    </View>
-
-                                    <View style={styles.inputContainer}>
-                                        <Text style={styles.inputLabel}>Rate per kg</Text>
-                                        <TextInput
-                                            style={styles.rateInput}
-                                            value={product.Item_Rate}
-                                            onChangeText={text =>
-                                                handleProductUpdate(index, "Item_Rate", text)
-                                            }
-                                            keyboardType="decimal-pad"
-                                            placeholder="0.00"
-                                        />
-                                    </View>
-
-                                    <View style={styles.amountContainer}>
-                                        <Text style={styles.inputLabel}>Total Amount</Text>
-                                        <Text style={styles.amountText}>
-                                            ₹{totalAmount.toFixed(2)}
-                                        </Text>
-                                        {totalWeight > 0 && (
-                                            <Text style={styles.weightText}>
-                                                ({totalWeight.toFixed(2)} kg)
-                                            </Text>
-                                        )}
-                                    </View>
-
-                                    <TouchableOpacity
-                                        style={styles.removeButton}
-                                        onPress={() => handleRemoveProduct(index)}>
-                                        <Icon
-                                            name="delete"
-                                            size={20}
-                                            color={customColors.error}
-                                        />
-                                    </TouchableOpacity>
-                                </View>
+                    {!showAddProducts && (<>
+                        <Text style={styles.sectionTitle}>Order Items ({editableProducts.length})</Text>
+                        {editableProducts.length === 0 ? (
+                            <View style={styles.emptyStateContainer}>
+                                <Text style={styles.emptyStateText}>
+                                    Loading order items...
+                                </Text>
                             </View>
-                        );
-                    })}
+                        ) : (
+                            editableProducts.map((product, index) => renderProductRow(product, index))
+                        )}
+                    </>
+                    )}
 
                     {/* Add New Products Section - SM TRADERS Specific */}
                     {showAddProducts && (
@@ -1052,6 +1101,30 @@ const styles = StyleSheet.create({
         ...typography.body1(),
         fontWeight: "600",
         color: customColors.grey900,
+    },
+    productMetaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    calculationInfo: {
+        backgroundColor: customColors.primary + "10",
+        borderRadius: 4,
+        padding: 6,
+        marginTop: 6,
+        borderLeftWidth: 2,
+        borderLeftColor: customColors.primary,
+    },
+    emptyStateContainer: {
+        padding: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyStateText: {
+        ...typography.body1(),
+        color: customColors.grey600,
+        fontStyle: 'italic',
     },
     inputGroup: {
         flexDirection: "row",
