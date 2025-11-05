@@ -1,5 +1,5 @@
-import { FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Modal, Alert, ActivityIndicator } from "react-native";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Modal, Alert, ActivityIndicator, ScrollView } from "react-native";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import { customColors, shadows, spacing, typography } from "../../Config/helper"
 import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import ProductItem from './ProductItem';
 
 const PosOrder = ({ route }) => {
     const { item } = route.params;
@@ -681,11 +682,88 @@ const PosOrder = ({ route }) => {
             ...prev,
             [productId]: {
                 ...prev[productId],
-                [field]: value === '' ? 0 : parseFloat(value) || 0,
+                [field]: value === "" ? 0 : parseFloat(value) || 0,
                 [`${field}Text`]: value // Store the text representation
             }
         }));
     }, []);
+
+    const handleRateChange = useCallback((value, productId, field) => {
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+            const numericValue = value === '' ? 0 : parseFloat(value) || 0;
+            const currentItem = orderItems[productId];
+            const isInOrder = currentItem && currentItem.qty > 0;
+
+            if (isInOrder) {
+                setOrderItems(prev => ({
+                    ...prev,
+                    [productId]: {
+                        ...prev[productId],
+                        rate: numericValue,
+                        rateText: value
+                    }
+                }));
+            } else if (numericValue > 0) {
+                const product = productData.find(p => p.Product_Id === productId);
+                setOrderItems(prev => ({
+                    ...prev,
+                    [productId]: {
+                        ...product,
+                        qty: 1,
+                        rate: numericValue,
+                        rateText: value
+                    }
+                }));
+            }
+        }
+    }, [orderItems, productData]);
+
+    const handleQtyChange = useCallback((value, productId, field) => {
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+            const numericValue = value === '' ? 0 : parseFloat(value) || 0;
+            const currentItem = orderItems[productId];
+            const isInOrder = currentItem && currentItem.qty > 0;
+
+            if (numericValue > 0) {
+                if (!isInOrder) {
+                    const product = productData.find(p => p.Product_Id === productId);
+                    setOrderItems(prev => ({
+                        ...prev,
+                        [productId]: {
+                            ...product,
+                            qty: numericValue,
+                            rate: product.Item_Rate || 0,
+                            qtyText: value
+                        }
+                    }));
+                } else {
+                    setOrderItems(prev => ({
+                        ...prev,
+                        [productId]: {
+                            ...prev[productId],
+                            qty: numericValue,
+                            qtyText: value
+                        }
+                    }));
+                }
+            } else if (value === '' || (isInOrder && numericValue === 0)) {
+                if (isInOrder) {
+                    if (value === '') {
+                        setOrderItems(prev => ({
+                            ...prev,
+                            [productId]: {
+                                ...prev[productId],
+                                qty: 0,
+                                qtyText: value
+                            }
+                        }));
+                    } else {
+                        removeFromOrder(productId);
+                    }
+                }
+            }
+        }
+    }, [orderItems, productData, removeFromOrder]);
 
     const addToOrder = useCallback((product) => {
         setOrderItems(prev => ({
@@ -705,6 +783,13 @@ const PosOrder = ({ route }) => {
             return updated;
         });
     }, []);
+
+    const stableHandlers = useMemo(() => ({
+        updateOrderItem,
+        addToOrder,
+        removeFromOrder,
+        setOrderItems
+    }), [updateOrderItem, addToOrder, removeFromOrder]);
 
     const handleSubmitOrder = async () => {
         const completeOrderData = getCompleteOrderData();
@@ -732,183 +817,46 @@ const PosOrder = ({ route }) => {
         );
     };
 
-    const ProductCard = React.memo(({ product, orderItem, onUpdateOrder, onAddToOrder, onRemoveFromOrder }) => {
-        const isInOrder = orderItem && orderItem.qty > 0;
-        const totalWeight = isInOrder ? (orderItem.qty * parseFloat(product.PackGet || 0)) : 0;
-        const totalAmount = isInOrder ? (totalWeight * (orderItem.rate || product.Item_Rate || 0)) : 0;
-        const bagQty = product.CL_Qty / (parseFloat(product.PackGet) || 1);
+    const IsolatedTextInput = React.memo(({
+        value,
+        onChangeText,
+        style,
+        placeholder,
+        placeholderTextColor,
+        keyboardType,
+        selectTextOnFocus,
+        textAlign,
+        productId,
+        field
+    }) => {
+        const [localValue, setLocalValue] = useState(value || '');
+
+        useEffect(() => {
+            setLocalValue(value || '');
+        }, [value]);
+
+        const handleChangeText = useCallback((text) => {
+            setLocalValue(text);
+            onChangeText(text, productId, field);
+        }, [onChangeText, productId, field]);
 
         return (
-            <View style={styles.productCard}>
-                <View style={styles.productHeader}>
-
-                    <View style={styles.productDetails}>
-                        <Text style={styles.productName} numberOfLines={2}>
-                            {product.Short_Name || product.Product_Name}
-                        </Text>
-                        <View style={styles.productMeta}>
-                            <Text style={styles.productUnits}>
-                                {product.PackGet} {product.Units}
-                            </Text>
-                            <Text style={[styles.stockIndicator, product.CL_Qty > 0 ? styles.inStock : styles.outOfStock]}>
-                                {bagQty === 0 ? "Out of Stock" : `${bagQty.toFixed(2)} Bags`}
-                            </Text>
-                        </View>
-                        <Text style={styles.baseRate}>
-                            Base Rate: ₹{(product.Item_Rate || 0).toFixed(2)} per {product.Units}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Rate and Quantity Inputs */}
-                <View style={styles.inputSection}>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Rate per {product.Units}</Text>
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.currencySymbol}>₹</Text>
-                            <TextInput
-                                style={styles.rateInput}
-                                value={isInOrder && orderItem.rateText !== undefined ? orderItem.rateText :
-                                    (isInOrder ? orderItem.rate.toString() : (product.Item_Rate || '').toString())}
-                                onChangeText={(value) => {
-                                    // Allow empty string, numbers, and decimal points
-                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                        const numericValue = value === '' ? 0 : parseFloat(value) || 0;
-                                        if (isInOrder) {
-                                            setOrderItems(prev => ({
-                                                ...prev,
-                                                [product.Product_Id]: {
-                                                    ...prev[product.Product_Id],
-                                                    rate: numericValue,
-                                                    rateText: value
-                                                }
-                                            }));
-                                        } else if (numericValue > 0) {
-                                            setOrderItems(prev => ({
-                                                ...prev,
-                                                [product.Product_Id]: {
-                                                    ...product,
-                                                    qty: 1,
-                                                    rate: numericValue,
-                                                    rateText: value
-                                                }
-                                            }));
-                                        }
-                                    }
-                                }}
-                                keyboardType="decimal-pad"
-                                placeholder="0.00"
-                                placeholderTextColor={customColors.grey500}
-                                selectTextOnFocus={true}
-                            />
-                        </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Bags</Text>
-                        <View style={styles.quantityContainer}>
-                            <TextInput
-                                style={styles.quantityInput}
-                                value={isInOrder && orderItem.qtyText !== undefined ? orderItem.qtyText :
-                                    (isInOrder ? orderItem.qty.toString() : "0")}
-                                onChangeText={(value) => {
-                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                        const numericValue = value === '' ? 0 : parseFloat(value) || 0;
-                                        if (numericValue > 0) {
-                                            if (!isInOrder) {
-                                                setOrderItems(prev => ({
-                                                    ...prev,
-                                                    [product.Product_Id]: {
-                                                        ...product,
-                                                        qty: numericValue,
-                                                        rate: product.Item_Rate || 0,
-                                                        qtyText: value
-                                                    }
-                                                }));
-                                            } else {
-                                                setOrderItems(prev => ({
-                                                    ...prev,
-                                                    [product.Product_Id]: {
-                                                        ...prev[product.Product_Id],
-                                                        qty: numericValue,
-                                                        qtyText: value
-                                                    }
-                                                }));
-                                            }
-                                        } else if (value === '' || (isInOrder && numericValue === 0)) {
-                                            if (isInOrder) {
-                                                if (value === '') {
-                                                    setOrderItems(prev => ({
-                                                        ...prev,
-                                                        [product.Product_Id]: {
-                                                            ...prev[product.Product_Id],
-                                                            qty: 0,
-                                                            qtyText: value
-                                                        }
-                                                    }));
-                                                } else {
-                                                    removeFromOrder(product.Product_Id);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }}
-                                keyboardType="decimal-pad"
-                                textAlign="center"
-                                placeholder="0"
-                                placeholderTextColor={customColors.grey500}
-                                selectTextOnFocus={true}
-                            />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Total and Action Button */}
-                <View style={styles.actionSection}>
-                    {isInOrder && (
-                        <View style={styles.totalSection}>
-                            <Text style={styles.totalLabel}>Grand Total</Text>
-                            <Text style={styles.totalAmount}>
-                                ₹{totalAmount.toFixed(2)}
-                            </Text>
-                        </View>
-                    )}
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, isInOrder ? styles.removeButton : styles.addButton]}
-                        onPress={() => {
-                            if (isInOrder) {
-                                removeFromOrder(product.Product_Id)
-                            } else {
-                                addToOrder(product);
-                            }
-                        }}
-                    >
-                        <Text style={[
-                            styles.actionButtonText,
-                            isInOrder ? styles.removeButtonText : styles.addButtonText
-                        ]}>{isInOrder ? "Remove" : "Add to Cart"}</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+            <TextInput
+                style={style}
+                value={localValue}
+                onChangeText={handleChangeText}
+                placeholder={placeholder}
+                placeholderTextColor={placeholderTextColor}
+                keyboardType={keyboardType}
+                selectTextOnFocus={selectTextOnFocus}
+                textAlign={textAlign}
+                blurOnSubmit={false}
+                returnKeyType="done"
+            />
         );
     });
 
     // Render functions
-    const renderProductCard = useCallback(({ item: product }) => {
-        const orderItem = orderItems[product.Product_Id];
-
-        return (
-            <ProductCard
-                product={product}
-                orderItem={orderItem}
-                onUpdateOrder={updateOrderItem}
-                onAddToOrder={addToOrder}
-                onRemoveFromOrder={removeFromOrder}
-            />
-        );
-    }, [orderItems, updateOrderItem, addToOrder, removeFromOrder]);
-
     const renderOrderSummary = () => (
         <Modal
             visible={showOrderSummary}
@@ -1169,23 +1117,30 @@ const PosOrder = ({ route }) => {
                             )}
                         </View>
                     ) : (
-                        <FlatList
-                            data={filteredProducts}
-                            renderItem={renderProductCard}
-                            keyExtractor={item => item.Product_Id}
-                            numColumns={1}
+                        <ScrollView
+                            style={{ flex: 1 }}
                             contentContainerStyle={styles.productsList}
                             showsVerticalScrollIndicator={false}
-                            removeClippedSubviews={true}
-                            maxToRenderPerBatch={10}
-                            windowSize={10}
-                            initialNumToRender={20}
-                            getItemLayout={(data, index) => ({
-                                length: 200, // Approximate height of each product card
-                                offset: 200 * index,
-                                index,
+                            keyboardShouldPersistTaps="always"
+                            keyboardDismissMode="none"
+                        >
+                            {filteredProducts.map((product) => {
+                                const orderItem = orderItems[product.Product_Id];
+                                return (
+                                    <ProductItem
+                                        key={product.Product_Id}
+                                        product={product}
+                                        orderItem={orderItem}
+                                        onRateChange={handleRateChange}
+                                        onQtyChange={handleQtyChange}
+                                        onAddToOrder={addToOrder}
+                                        onRemoveFromOrder={removeFromOrder}
+                                        styles={styles}
+                                    />
+                                );
                             })}
-                        />
+
+                        </ScrollView>
                     )}
                 </View>
             </View>
