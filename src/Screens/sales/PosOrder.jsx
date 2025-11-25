@@ -13,21 +13,31 @@ import { customColors, shadows, spacing, typography } from "../../Config/helper"
 import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import { useOrderStore } from "../../stores/orderStore";
 import ProductItem from './ProductItem';
 
 const PosOrder = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
     const [selectedBrandId, setSelectedBrandId] = useState(null);
-    const [orderItems, setOrderItems] = useState({});
-    const [showOrderSummary, setShowOrderSummary] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedTransportId, setSelectedTransportId] = useState(null);
-    const [selectedBrokerId, setSelectedBrokerId] = useState(null);
     const [showFilter, setShowFilter] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    const orderItems = useOrderStore((s) => s.orderItems);
+    const setItem = useOrderStore((s) => s.setItem); // Now this matches the store
+    const updateItemStore = useOrderStore((s) => s.updateItem);
+    const removeItemStore = useOrderStore((s) => s.removeItem);
+    const clearStore = useOrderStore((s) => s.clear);
+
+    const selectedBrokerId = useOrderStore((s) => s.selectedBrokerId);
+    const setSelectedBrokerId = useOrderStore((s) => s.setSelectedBrokerId);
+    const selectedTransportId = useOrderStore((s) => s.selectedTransportId);
+    const setSelectedTransportId = useOrderStore((s) => s.setSelectedTransportId);
+
+    const [showOrderSummary, setShowOrderSummary] = useState(false);
 
     const [orderData, setOrderData] = useState({
         Company_Id: item.Company_Id,
@@ -51,14 +61,49 @@ const PosOrder = ({ route }) => {
         queryFn: fetchPosOrderBranch,
     });
 
+    // Add this after your useQuery hook
+    useEffect(() => {
+        if (productData.length > 0) {
+            console.log("Products loaded:", productData.length);
+        }
+    }, [productData]);
+
     const { data: productData = [], isLoading: isProductLoading } = useQuery({
         queryKey: ["masterDataProducts"],
         queryFn: () => fetchProductsWithStockValue(),
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
         refetchOnWindowFocus: false,
-        refetchOnMount: false,
+        select: (rows) => {
+            return rows.filter((r) => r.IsActive === 1)
+                .map((r) => ({
+                    // Keep original field names for compatibility
+                    Product_Id: r.Product_Id,
+                    Product_Name: r.Product_Name,
+                    Short_Name: r.Short_Name,
+                    Product_Rate: r.Product_Rate,
+                    Units: r.Units,
+                    PackGet: r.PackGet,
+                    productImageUrl: r.productImageUrl,
+                    // Additional fields needed by ProductItem
+                    Item_Rate: r.Item_Rate || r.Product_Rate || 0,
+                    CL_Qty: r.CL_Qty || 0,
+                    Brand_Name: r.Brand_Name || "",
+                    Pos_Brand_Id: r.Pos_Brand_Id || 0,
+                    IsActive: r.IsActive,
+                    UOM_Id: r.UOM_Id || 1,
+                    // Legacy aliases for backward compatibility
+                    id: r.Product_Id,
+                    name: r.Product_Name,
+                    shortName: r.Short_Name,
+                    rate: r.Product_Rate,
+                    uom: r.Units,
+                    pack: r.PackGet,
+                    image: r.productImageUrl,
+                }))
+        }
     });
+
+    console.log("Products:", productData);
 
     const { data: rawCostCenters = [], isLoading: isCostCenterLoading } = useQuery({
         queryKey: ["costCenters"],
@@ -626,7 +671,7 @@ const PosOrder = ({ route }) => {
 
     // Computed values
     const filteredProducts = useMemo(() => {
-        if (!productData.length) return [];
+        if (isProductLoading || !productData.length) return [];
 
         let filtered = productData.filter(product => product.IsActive === 1);
 
@@ -646,23 +691,14 @@ const PosOrder = ({ route }) => {
 
                 return searchTerms.every(term => {
                     return searchableFields.some(field => {
-                        // Exact match (case insensitive)
-                        if (field.toLowerCase().includes(term.toLowerCase())) return true;
-
-                        // Normalized match (without special characters)
-                        if (normalizeSearchText(field).includes(normalizeSearchText(term))) return true;
-
-                        // Fuzzy match for typos
-                        if (term.length > 2 && fuzzyMatch(field, term)) return true;
-
-                        return false;
+                        return fuzzyMatch(field, term);
                     });
                 });
             });
         }
 
         return filtered;
-    }, [productData, selectedBrandId, debouncedSearch]);
+    }, [productData, selectedBrandId, debouncedSearch, isProductLoading]);
 
     const { totalAmount, orderCount } = useMemo(() => {
         const items = Object.values(orderItems).filter(item => item.qty > 0 && item.rate > 0);
@@ -678,117 +714,90 @@ const PosOrder = ({ route }) => {
 
     // Handlers
     const updateOrderItem = useCallback((productId, field, value) => {
-        setOrderItems(prev => ({
-            ...prev,
-            [productId]: {
-                ...prev[productId],
-                [field]: value === "" ? 0 : parseFloat(value) || 0,
-                [`${field}Text`]: value // Store the text representation
-            }
-        }));
+        if (field === "rate") {
+            handleRateChange(value, productId);
+        } else if (field === "qty") {
+            handleQtyChange(value, productId);
+        }
     }, []);
 
-    const handleRateChange = useCallback((value, productId, field) => {
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-            const numericValue = value === '' ? 0 : parseFloat(value) || 0;
+    const handleRateChange = useCallback((value, productId) => {
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            const numericValue = value === "" ? 0 : parseFloat(value) || 0;
             const currentItem = orderItems[productId];
             const isInOrder = currentItem && currentItem.qty > 0;
 
             if (isInOrder) {
-                setOrderItems(prev => ({
-                    ...prev,
-                    [productId]: {
-                        ...prev[productId],
-                        rate: numericValue,
-                        rateText: value
-                    }
-                }));
+                updateItemStore(productId, {
+                    rate: numericValue,
+                    rateText: value,
+                });
             } else if (numericValue > 0) {
                 const product = productData.find(p => p.Product_Id === productId);
-                setOrderItems(prev => ({
-                    ...prev,
-                    [productId]: {
+                if (product) {
+                    setItem(productId, {
                         ...product,
                         qty: 1,
                         rate: numericValue,
-                        rateText: value
-                    }
-                }));
+                        rateText: value,
+                    });
+                }
             }
         }
     }, [orderItems, productData]);
 
-    const handleQtyChange = useCallback((value, productId, field) => {
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-            const numericValue = value === '' ? 0 : parseFloat(value) || 0;
+    const handleQtyChange = useCallback((value, productId) => {
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            const numericValue = value === "" ? 0 : parseFloat(value) || 0;
             const currentItem = orderItems[productId];
             const isInOrder = currentItem && currentItem.qty > 0;
 
             if (numericValue > 0) {
                 if (!isInOrder) {
                     const product = productData.find(p => p.Product_Id === productId);
-                    setOrderItems(prev => ({
-                        ...prev,
-                        [productId]: {
+                    if (product) {
+                        setItem(productId, {
                             ...product,
                             qty: numericValue,
                             rate: product.Item_Rate || 0,
-                            qtyText: value
-                        }
-                    }));
-                } else {
-                    setOrderItems(prev => ({
-                        ...prev,
-                        [productId]: {
-                            ...prev[productId],
-                            qty: numericValue,
-                            qtyText: value
-                        }
-                    }));
-                }
-            } else if (value === '' || (isInOrder && numericValue === 0)) {
-                if (isInOrder) {
-                    if (value === '') {
-                        setOrderItems(prev => ({
-                            ...prev,
-                            [productId]: {
-                                ...prev[productId],
-                                qty: 0,
-                                qtyText: value
-                            }
-                        }));
-                    } else {
-                        removeFromOrder(productId);
+                            qtyText: value,
+                        });
                     }
+                } else {
+                    updateItemStore(productId, {
+                        qty: numericValue,
+                        qtyText: value,
+                    });
                 }
+            } else if (isInOrder && numericValue === 0) {
+                removeItemStore(productId);
             }
         }
-    }, [orderItems, productData, removeFromOrder]);
+    }, [orderItems, productData, setItem, updateItemStore, removeItemStore]);
 
     const addToOrder = useCallback((product) => {
-        setOrderItems(prev => ({
-            ...prev,
-            [product.Product_Id]: {
+        const current = orderItems[product.Product_Id];
+        if (current) {
+            updateItemStore(product.Product_Id, {
+                qty: (current.qty || 0) + 1,
+            })
+        } else {
+            setItem(product.Product_Id, {
                 ...product,
-                qty: (prev[product.Product_Id]?.qty || 0) + 1,
-                rate: product.Item_Rate || 0
-            }
-        }));
-    }, []);
+                qty: 1,
+                rate: product.Item_Rate || 0,
+            });
+        }
+    }, [orderItems, setItem, updateItemStore]);
 
     const removeFromOrder = useCallback((productId) => {
-        setOrderItems(prev => {
-            const updated = { ...prev };
-            delete updated[productId];
-            return updated;
-        });
-    }, []);
+        removeItemStore(productId);
+    }, [removeItemStore]);
 
     const stableHandlers = useMemo(() => ({
         updateOrderItem,
         addToOrder,
-        removeFromOrder,
-        setOrderItems
+        removeFromOrder
     }), [updateOrderItem, addToOrder, removeFromOrder]);
 
     const handleSubmitOrder = async () => {
@@ -930,7 +939,7 @@ const PosOrder = ({ route }) => {
     if (isBranchLoading || isProductLoading || (showFilter && isCostCenterLoading)) {
         return (
             <SafeAreaView style={styles.container}>
-                <AppHeader title="Sales Order" navigation={navigation} />
+                <AppHeader title="Sales Order" showBackButton onBackPress={() => navigation.goBack()} />
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={customColors.primary} />
                     <Text style={styles.loadingText}>

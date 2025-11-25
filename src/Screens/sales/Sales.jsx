@@ -42,6 +42,7 @@ const Sales = ({ route }) => {
 
     const [initialValue, setInitialValue] = useState({
         Company_Id: "",
+        Branch_Id: "",
         So_Date: new Date().toISOString().split("T")[0],
         Retailer_Id: item.Retailer_Id,
         Retailer_Name: item.Retailer_Name,
@@ -89,13 +90,23 @@ const Sales = ({ route }) => {
                 const branchId = await AsyncStorage.getItem("branchId");
                 setUID(userId);
                 if (companyId && userId) {
+                    let parsedBranchId = branchId;
+
+                    // Handle different formats: "[2]", "2", 2
+                    if (typeof branchId === "string") {
+                        // Remove brackets if present and parse to integer
+                        parsedBranchId = parseInt(branchId.replace(/[\[\]]/g, ''));
+                    } else {
+                        parsedBranchId = parseInt(branchId) || 1; // Default to 1 if invalid
+                    }
+
                     setInitialValue(prev => ({
                         ...prev,
                         Company_Id: companyId,
                         Sales_Person_Id: userId,
                         Created_by: userId,
                         Sales_Person_Name: userName,
-                        Branch_Id: branchId,
+                        Branch_Id: parsedBranchId,
                     }));
                 }
             } catch (err) {

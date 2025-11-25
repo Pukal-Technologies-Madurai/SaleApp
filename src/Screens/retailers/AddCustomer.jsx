@@ -76,9 +76,17 @@ const AddCustomer = () => {
             const userId = await AsyncStorage.getItem("UserId");
             const companyId = await AsyncStorage.getItem("Company_Id");
 
+            let parsedBranchId = branchId;
+
+            if (typeof branchId === "string") {
+                parsedBranchId = parseInt(branchId.replace(/[\[\]]/g, ''));
+            } else {
+                parsedBranchId = parseInt(branchId);
+            }
+
             setFormValues(prevState => ({
                 ...prevState,
-                Branch_Id: branchId || "",
+                Branch_Id: parsedBranchId || "",
                 Created_By: userId || "",
                 Company_Id: companyId || "",
             }));
@@ -393,7 +401,7 @@ const AddCustomer = () => {
                             style={[
                                 styles.submitButton,
                                 mutation.isPending &&
-                                    styles.submitButtonDisabled,
+                                styles.submitButtonDisabled,
                             ]}
                             onPress={handleSubmit}
                             disabled={mutation.isPending}>

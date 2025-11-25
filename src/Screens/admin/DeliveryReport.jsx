@@ -1,10 +1,10 @@
 import {
     ActivityIndicator,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
-    ScrollView,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -25,6 +25,9 @@ const DeliveryTable = ({ deliveryData }) => {
         }
         if (selectedFilter === "pending") {
             return item.DeliveryStatusName === "New"; // Show items with pending payment
+        }
+        if (selectedFilter === "return") {
+            return item.Delivery_Status === 6;
         }
         return true;
     });
@@ -61,7 +64,7 @@ const DeliveryTable = ({ deliveryData }) => {
                     style={[
                         styles.filterText,
                         selectedFilter === "delivered" &&
-                            styles.filterTextActive,
+                        styles.filterTextActive,
                     ]}>
                     Delivered
                 </Text>
@@ -80,6 +83,20 @@ const DeliveryTable = ({ deliveryData }) => {
                     Pending
                 </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+                style={[
+                    styles.filterButton,
+                    selectedFilter === "return" && styles.filterButtonActive,
+                ]}
+                onPress={() => setSelectedFilter("return")}>
+                <Text
+                    style={[
+                        styles.filterText,
+                        selectedFilter === "return" && styles.filterTextActive,
+                    ]}>
+                    Return
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 
@@ -91,6 +108,23 @@ const DeliveryTable = ({ deliveryData }) => {
         item => item.Delivery_Status === 1,
     ).length;
 
+    const returnDelivery = deliveryData.filter(
+        item => item.Delivery_Status === 6,
+    ).length;
+
+    const getDeliveryBadgeStyle = (status) => {
+        if (status === 6) return styles.returnBadge;
+        if (status === 7) return styles.deliveredBadge;
+        return styles.pendingBadge;
+    };
+
+    const getDeliveryStatus = (status) => {
+        if (status === 1) return "New";
+        if (status === 6) return "Returned";
+        if (status === 7) return "Delivered";
+        return "Pending";
+    };
+
     return (
         <View style={styles.tableContainer}>
             {/* Statistics Cards */}
@@ -99,7 +133,7 @@ const DeliveryTable = ({ deliveryData }) => {
                     <Text style={styles.statsNumber}>
                         {deliveryData.length}
                     </Text>
-                    <Text style={styles.statsLabel}>Total Orders</Text>
+                    <Text style={styles.statsLabel}>Total</Text>
                 </View>
                 <View style={styles.statsCard}>
                     <Text style={styles.statsNumber}>{totalDelivery}</Text>
@@ -108,6 +142,10 @@ const DeliveryTable = ({ deliveryData }) => {
                 <View style={styles.statsCard}>
                     <Text style={styles.statsNumber}>{pendingDelivery}</Text>
                     <Text style={styles.statsLabel}>Pending</Text>
+                </View>
+                <View style={styles.statsCard}>
+                    <Text style={styles.statsNumber}>{returnDelivery}</Text>
+                    <Text style={styles.statsLabel}>Return</Text>
                 </View>
             </View>
 
@@ -138,22 +176,18 @@ const DeliveryTable = ({ deliveryData }) => {
                         <Text
                             style={[
                                 styles.cell,
-                                { flex: 2, ...typography.body2() },
+                                { flex: 2, ...typography.caption(), textAlign: "center" },
                             ]}>
-                            {item.Delivery_Person_Name}
+                            {item.Delivery_Person_Name === "not available" ? "N/A" : item.Delivery_Person_Name}
                         </Text>
                         <View style={[styles.statusContainer, { flex: 2 }]}>
                             <View
                                 style={[
                                     styles.statusBadge,
-                                    item.DeliveryStatusName === "Delivered"
-                                        ? styles.deliveredBadge
-                                        : styles.pendingBadge,
+                                    getDeliveryBadgeStyle(item.Delivery_Status),
                                 ]}>
                                 <Text style={styles.statusText}>
-                                    {item.DeliveryStatusName === "Delivered"
-                                        ? "Delivered"
-                                        : "Pending"}
+                                    {getDeliveryStatus(item.Delivery_Status)}
                                 </Text>
                             </View>
                         </View>
@@ -165,7 +199,7 @@ const DeliveryTable = ({ deliveryData }) => {
 };
 
 const DeliveryReport = ({ route }) => {
-    const { selectedDate: passedDate } = route.params || {};
+    const { selectedDate: passedDate, selectedBranch } = route.params || {};
     const navigation = useNavigation();
     const [deliveryData, setDeliveryData] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -194,8 +228,8 @@ const DeliveryReport = ({ route }) => {
     const fetchDeliveryData = async today => {
         setIsLoading(true);
         try {
-            const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}`;
-
+            const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}&Branch_Id=${selectedBranch}`;
+            // console.log("Fetching delivery data from URL:", url);
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -386,6 +420,9 @@ const styles = StyleSheet.create({
     },
     pendingBadge: {
         backgroundColor: "#fff3e0",
+    },
+    returnBadge: {
+        backgroundColor: "#FFE4E4",
     },
     statusText: {
         ...typography.caption(),

@@ -24,7 +24,7 @@ import { API } from "../../Config/Endpoint";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const ReceiptAdmin = ({ route }) => {
-    const { selectedDate: passedDate } = route.params || {};
+    const { selectedDate: passedDate, selectedBranch } = route.params || {};
 
     const navigation = useNavigation();
     const [modalVisible, setModalVisible] = useState(false);
@@ -82,7 +82,7 @@ const ReceiptAdmin = ({ route }) => {
                 ? ""
                 : selectedSalesPerson.value;
 
-        const url = `${API.userInvoltedReceipts()}${createdByParam}&Fromdate=${fromDate}&Todate=${toDate}`;
+        const url = `${API.userInvoltedReceipts()}${createdByParam}&Fromdate=${fromDate}&Todate=${toDate}&Branch_Id=${selectedBranch || ""}`;
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -217,7 +217,7 @@ const ReceiptAdmin = ({ route }) => {
                 style={[
                     styles.filterButton,
                     selectedPaymentFilter === "all" &&
-                        styles.activeFilterButton,
+                    styles.activeFilterButton,
                 ]}
                 onPress={() => setSelectedPaymentFilter("all")}
                 activeOpacity={0.7}>
@@ -234,7 +234,7 @@ const ReceiptAdmin = ({ route }) => {
                     style={[
                         styles.filterButtonText,
                         selectedPaymentFilter === "all" &&
-                            styles.activeFilterButtonText,
+                        styles.activeFilterButtonText,
                     ]}>
                     All ({receiptData.length})
                 </Text>
@@ -244,7 +244,7 @@ const ReceiptAdmin = ({ route }) => {
                 style={[
                     styles.filterButton,
                     selectedPaymentFilter === "bank" &&
-                        styles.activeFilterButton,
+                    styles.activeFilterButton,
                 ]}
                 onPress={() => setSelectedPaymentFilter("bank")}
                 activeOpacity={0.7}>
@@ -261,7 +261,7 @@ const ReceiptAdmin = ({ route }) => {
                     style={[
                         styles.filterButtonText,
                         selectedPaymentFilter === "bank" &&
-                            styles.activeFilterButtonText,
+                        styles.activeFilterButtonText,
                     ]}>
                     Bank ({bankReceipts.length})
                 </Text>
@@ -271,7 +271,7 @@ const ReceiptAdmin = ({ route }) => {
                 style={[
                     styles.filterButton,
                     selectedPaymentFilter === "cash" &&
-                        styles.activeFilterButton,
+                    styles.activeFilterButton,
                 ]}
                 onPress={() => setSelectedPaymentFilter("cash")}
                 activeOpacity={0.7}>
@@ -288,7 +288,7 @@ const ReceiptAdmin = ({ route }) => {
                     style={[
                         styles.filterButtonText,
                         selectedPaymentFilter === "cash" &&
-                            styles.activeFilterButtonText,
+                        styles.activeFilterButtonText,
                     ]}>
                     Cash ({cashReceipts.length})
                 </Text>
@@ -313,8 +313,8 @@ const ReceiptAdmin = ({ route }) => {
                         {selectedPaymentFilter === "all"
                             ? "Total Receipts"
                             : selectedPaymentFilter === "bank"
-                              ? "Bank Receipts"
-                              : "Cash Receipts"}
+                                ? "Bank Receipts"
+                                : "Cash Receipts"}
                     </Text>
                 </View>
             </View>
@@ -331,8 +331,8 @@ const ReceiptAdmin = ({ route }) => {
                         {(selectedPaymentFilter === "all"
                             ? totalAmount
                             : selectedPaymentFilter === "bank"
-                              ? bankAmount
-                              : cashAmount
+                                ? bankAmount
+                                : cashAmount
                         ).toLocaleString("en-IN")}
                     </Text>
                     <Text style={styles.statLabel}>Total Amount</Text>
@@ -555,8 +555,8 @@ const ReceiptAdmin = ({ route }) => {
                                         {selectedPaymentFilter === "all"
                                             ? "All Receipts"
                                             : selectedPaymentFilter === "bank"
-                                              ? "Bank Receipts"
-                                              : "Cash Receipts"}
+                                                ? "Bank Receipts"
+                                                : "Cash Receipts"}
                                         ({filteredReceiptData.length})
                                     </Text>
                                 </View>

@@ -17,7 +17,7 @@ import FilterModal from "../../Components/FilterModal";
 
 const TripReport = ({ route }) => {
     const navigation = useNavigation();
-    const { selectedDate: passedDate } = route.params || {};
+    const { selectedDate: passedDate, selectedBranch } = route.params || {};
 
     const [logData, setLogData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -38,7 +38,7 @@ const TripReport = ({ route }) => {
 
     const fetchTripSheet = async (from, to) => {
         try {
-            const url = `${API.deliveryTripSheet()}${from}&Todate=${to}`;
+            const url = `${API.deliveryTripSheet()}${from}&Todate=${to}&Branch_Id=${selectedBranch || ""}`;
             const response = await fetch(url);
             const data = await response.json();
 
@@ -110,6 +110,7 @@ const TripReport = ({ route }) => {
                 let paid = 0;
                 let credit = 0;
                 let pending = 0;
+                let returns = 0;
 
                 trip.Product_Array?.forEach(product => {
                     const tripDetail = tripDetailsMap.get(product.Do_Id);
@@ -118,13 +119,15 @@ const TripReport = ({ route }) => {
                             paid++;
                         } else if (Number(tripDetail.Payment_Status) === 1) {
                             credit++;
+                        } else if (Number(tripDetail.Delivery_Status) === 6) {
+                            returns++;
                         } else {
                             pending++;
                         }
                     }
                 });
 
-                return { paid, credit, pending };
+                return { paid, credit, pending, returns };
             }, [trip.Product_Array, tripDetailsMap]);
 
             const deliveryPerson = useMemo(() => {
@@ -281,6 +284,41 @@ const TripReport = ({ route }) => {
                                                 { color: customColors.pending },
                                             ]}>
                                             Pending
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                        <View style={styles.statsContainer}>
+                            <View style={styles.statBox}>
+                                <Text style={styles.statTitle}>
+                                    Return Status
+                                </Text>
+                                {paymentStats.returns > 0 && (
+                                    <View style={styles.statDetails}>
+                                        <Text
+                                            style={[
+                                                styles.statValue,
+                                                { color: customColors.error },
+                                            ]}>
+                                            ↩️ {paymentStats.returns}/{deliveryStats.totalOrders}
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.statLabel,
+                                                { color: customColors.error },
+                                            ]}>
+                                            Returns
+                                        </Text>
+                                    </View>
+                                )}
+                                {paymentStats.returns === 0 && (
+                                    <View style={styles.statDetails}>
+                                        <Text style={styles.statValue}>
+                                            ↩️ 0/{deliveryStats.totalOrders}
+                                        </Text>
+                                        <Text style={styles.statLabel}>
+                                            Returns
                                         </Text>
                                     </View>
                                 )}

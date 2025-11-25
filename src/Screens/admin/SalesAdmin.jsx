@@ -24,7 +24,9 @@ import FilterModal from "../../Components/FilterModal";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SalesAdmin = ({ route }) => {
-    const { selectedDate: passedDate } = route.params || {};
+    const { selectedDate: passedDate, selectedBranch } = route.params || {};
+    // console.log("Selected Branch in SalesAdmin:", selectedBranch);
+
     const navigation = useNavigation();
     const [companyId, setCompanyId] = useState(null);
     const [logData, setLogData] = useState([]);
@@ -92,7 +94,7 @@ const SalesAdmin = ({ route }) => {
             const fromDate = new Date(from).toISOString().split("T")[0];
             const toDate = new Date(to).toISOString().split("T")[0];
 
-            let url = `${API.saleOrder()}?Fromdate=${fromDate}&Todate=${toDate}&Company_Id=${company}`;
+            let url = `${API.saleOrder()}?Fromdate=${fromDate}&Todate=${toDate}&Company_Id=${company}&Branch_Id=${selectedBranch || ""}`;
             // console.log("URL: ", url);
 
             if (userId && userId !== "all") {

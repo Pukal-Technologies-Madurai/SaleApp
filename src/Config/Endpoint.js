@@ -36,6 +36,7 @@ export const API = {
     getUserAuth: () => `${baseURL}api/authorization/userAuth`,
     getUserAuthMob: () => `${baseURL}api/authorization/userAuthmobile`,
     changePassword: () => `${baseURL}api/masters/users/changePassword`,
+    getBranches: () => `${baseURL}api/masters/branch`,
 
     routes: () => `${baseURL}api/masters/routes`,
     areas: () => `${baseURL}api/masters/areas`,
@@ -82,6 +83,7 @@ export const API = {
         `${baseURL}api/delivery/deliveryOrderList?Delivery_Person_Id=`,
     todayDelivery: () => `${baseURL}api/delivery/deliveryOrderList?`,
     deliveryPut: () => `${baseURL}api/delivery/deliveryOrderMobile`,
+    deliveryDetailsPut: () => `${baseURL}api/delivery/deliveryOrder`,
     deliveryTripSheet: () =>
         `${baseURL}api/delivery/deliveryTripSheet?Fromdate=`,
     pendingDeliveryList: () =>
@@ -105,6 +107,8 @@ export const API = {
         `${baseURL}api/receipt/receiptMaster?createdBy=`,
 
     getReceipt: () => `${baseURL}api/receipt/receiptMaster?Fromdate=`,
+
+    deliveryReturn: () => `${baseURL}api/reports/returnReports?Fromdate=`,
 
     salesLive: () => `${baseURL}api/sales/salesInvoice/liveSales`,
 

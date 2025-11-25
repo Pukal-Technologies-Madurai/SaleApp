@@ -89,6 +89,7 @@ const Customers = () => {
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const debounceRef = React.useRef(null);
     const [showAllRetailers, setShowAllRetailers] = useState(false);
 
     const renderItem = useCallback(
@@ -228,7 +229,7 @@ const Customers = () => {
     }, [selectedRoute, showAllRetailers]);
 
     // Add the helper function at the top of your component or in a separate utils file
-    const removeSplChar = (str) => String(str).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const removeSplChar = (str) => String(str).replace(/[^\w]/g, "").toLowerCase();
 
     const reactSelectFilterLogic = (option, inputValue) => {
         const normalizedLabel = removeSplChar(option.label);
@@ -240,10 +241,13 @@ const Customers = () => {
 
     const handleSearchInputChange = (text) => {
         // Remove special characters from input but keep spaces for better UX
-        const filteredText = text.replace(/[^a-zA-Z0-9]/g, "");
+        // const filteredText = text.replace(/[^a-zA-Z0-9]/g, "");
 
-        setSearchQuery(filteredText);
-        filterRetailers(selectedRoute, selectedArea, filteredText);
+        setSearchQuery(text);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            filterRetailers(selectedRoute, selectedArea, text);
+        }, 300);
     };
 
     const filterRetailers = (routeId, areaId, search) => {
@@ -433,9 +437,9 @@ const Customers = () => {
                                 placeholderTextColor={customColors.grey}
                                 value={searchQuery}
                                 onChangeText={handleSearchInputChange}
-                                autoCapitalize="words"
+                                autoCapitalize="none"
                                 autoFocus={false}
-                                selectTextOnFocus={true}
+                                selectTextOnFocus={false}
                                 keyboardType="default"
                             />
 
