@@ -1,42 +1,48 @@
 import {
     StyleSheet,
     Text,
-    View,
-    FlatList,
     TouchableOpacity,
+    View,
 } from "react-native";
 import React from "react";
+import { FlashList } from "@shopify/flash-list";
 import { useNavigation } from "@react-navigation/native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { customColors, typography } from "../../Config/helper";
-import {
-    fetchPendingDeliveryList,
-    fetchPendingSalesList,
-} from "../../Api/delivery";
+import { fetchPendingDeliveryList, fetchPendingSalesList } from "../../Api/delivery";
 
-const PendingSales = () => {
+const PendingSales = ({ route }) => {
+    const { selectedDate: passedDate, selectedBranch } = route.params || {};
+
     const navigation = useNavigation();
     const [modalVisible, setModalVisible] = React.useState(false);
-    const [selectedFromDate, setSelectedFromDate] = React.useState(new Date());
-    const [selectedToDate, setSelectedToDate] = React.useState(new Date());
-    const [activeTab, setActiveTab] = React.useState("delivery"); // 'delivery', 'sales', or 'products'
+    const [selectedFromDate, setSelectedFromDate] = React.useState(() => {
+        if (passedDate) {
+            return passedDate;
+        }
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return firstOfMonth.toISOString().split("T")[0];
+    });
+    const [selectedToDate, setSelectedToDate] = React.useState(new Date().toISOString().split("T")[0]);
+    const [activeTab, setActiveTab] = React.useState("delivery");
 
     const { data: pendingDelivery = [] } = useQuery({
-        queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate],
+        queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch],
         queryFn: () =>
-            fetchPendingDeliveryList(selectedFromDate, selectedToDate),
-        enabled: Boolean(selectedFromDate && selectedToDate),
+            fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch),
+        enabled: !!selectedFromDate && !!selectedToDate && !!selectedBranch,
     });
 
     const { data: pendingSales = [] } = useQuery({
-        queryKey: ["pendingSalesOrder", selectedFromDate, selectedToDate],
-        queryFn: () => fetchPendingSalesList(selectedFromDate, selectedToDate),
-        enabled: Boolean(selectedFromDate && selectedToDate),
+        queryKey: ["pendingSalesOrder", selectedFromDate, selectedToDate, selectedBranch],
+        queryFn: () => fetchPendingSalesList(selectedFromDate, selectedToDate, selectedBranch),
+        enabled: !!selectedFromDate && !!selectedToDate && !!selectedBranch,
     });
 
     // Filter only pending deliveries (Delivery_Status !== 7)
@@ -59,20 +65,23 @@ const PendingSales = () => {
                     Do_Inv_No: delivery.Do_Inv_No,
                     Retailer_Name: delivery.Retailer_Name,
                     Do_Date: delivery.Do_Date,
+                    Delivery_Status: delivery.Delivery_Status,
+                    DeliveryStatusName: delivery.DeliveryStatusName,
+                    Narration: delivery.Narration,
                 })) || [],
         );
 
     const handleFromDateChange = date => {
         if (date) {
             const newFromDate = date > selectedToDate ? selectedToDate : date;
-            setSelectedFromDate(newFromDate);
+            setSelectedFromDate(newFromDate.toISOString().split("T")[0]);
         }
     };
 
     const handleToDateChange = date => {
         if (date) {
             const newToDate = date < selectedFromDate ? selectedFromDate : date;
-            setSelectedToDate(newToDate);
+            setSelectedToDate(newToDate.toISOString().split("T")[0]);
         }
     };
 
@@ -310,7 +319,7 @@ const PendingSales = () => {
                             color={customColors.grey900}
                             style={styles.icon}
                         />
-                        <Text style={styles.value} numberOfLines={1}>
+                        <Text style={[styles.value, { color: customColors.error }]} numberOfLines={1}>
                             {item.Narration}
                         </Text>
                     </View>
@@ -320,9 +329,9 @@ const PendingSales = () => {
             <View
                 style={[
                     styles.statusBadge,
-                    { backgroundColor: customColors.warning },
+                    { backgroundColor: `${item.DeliveryStatusName === "Return" ? customColors.error : customColors.warning}` },
                 ]}>
-                <Text style={styles.statusText}>Pending</Text>
+                <Text style={styles.statusText}>{`${item.DeliveryStatusName === "Return" ? "Return" : "Pending"}`}</Text>
             </View>
         </View>
     );
@@ -354,7 +363,7 @@ const PendingSales = () => {
                         color={customColors.grey900}
                         style={styles.icon}
                     />
-                    <Text style={styles.value} numberOfLines={1}>
+                    <Text style={styles.value} numberOfLines={2}>
                         {item.Retailer_Name}
                     </Text>
                 </View>
@@ -394,72 +403,91 @@ const PendingSales = () => {
         </View>
     );
 
-    const ProductItem = ({ item }) => (
-        <View style={styles.deliveryCard}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.invoiceNumber}>{item.Product_Name}</Text>
-                <Text style={styles.invoiceValue}>
-                    {formatCurrency(item.Amount)}
-                </Text>
-            </View>
+    const ProductItem = ({ item }) => {
+        const isReturn = item.Delivery_Status === 6;
+        const isPending = item.Delivery_Status === 5;
 
-            <View style={styles.cardContent}>
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="branding-watermark"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>{item.BrandGet}</Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="receipt"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value} numberOfLines={1}>
-                        {item.Do_Inv_No}
+        return (
+            <View style={styles.deliveryCard}>
+                <View style={styles.cardHeader}>
+                    <Text style={styles.invoiceNumber} numberOfLines={2}>{item.Product_Name}</Text>
+                    <Text style={styles.invoiceValue}>
+                        {formatCurrency(item.Final_Amount || item.Amount)}
                     </Text>
                 </View>
 
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="store"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value} numberOfLines={1}>
-                        {item.Retailer_Name}
-                    </Text>
+                <View style={styles.cardContent}>
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="branding-watermark"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value}>{item.BrandGet || "N/A"}</Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="receipt"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value} numberOfLines={1}>
+                            {item.Do_Inv_No}
+                        </Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="store"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value} numberOfLines={1}>
+                            {item.Retailer_Name}
+                        </Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="production-quantity-limits"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value}>
+                            Qty: {item.Bill_Qty} {item.Unit_Name}
+                        </Text>
+                    </View>
                 </View>
 
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="production-quantity-limits"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>
-                        Qty: {item.Bill_Qty} {item.Unit_Name}
-                    </Text>
+                {isReturn && item.Narration && (
+                    <View style={[styles.infoRow, { paddingHorizontal: 12, paddingBottom: 8 }]}>
+                        <Icon
+                            name="error-outline"
+                            size={16}
+                            color={customColors.error}
+                            style={styles.icon}
+                        />
+                        <Text style={[styles.value, { color: customColors.error }]} numberOfLines={2}>
+                            Reason: {item.Narration.replace("Delivery cancelled - Reason: ", "")}
+                        </Text>
+                    </View>
+                )}
+
+                <View
+                    style={[
+                        styles.statusBadge,
+                        { backgroundColor: isReturn ? customColors.error : customColors.warning, marginTop: 12 },
+                    ]}>
+                    <Text style={styles.statusText}>{isReturn ? "Return" : "Pending"}</Text>
                 </View>
             </View>
-
-            <View
-                style={[
-                    styles.statusBadge,
-                    { backgroundColor: customColors.info, marginTop: 12 },
-                ]}>
-                <Text style={styles.statusText}>Product</Text>
-            </View>
-        </View>
-    );
+        )
+    };
 
     const renderContent = () => {
         let data, renderItem;
@@ -477,7 +505,7 @@ const PendingSales = () => {
 
         if (data.length > 0) {
             return (
-                <FlatList
+                <FlashList
                     data={data}
                     keyExtractor={item => {
                         if (activeTab === "delivery") {

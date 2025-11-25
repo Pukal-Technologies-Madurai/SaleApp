@@ -177,7 +177,7 @@ const CustomersDetails = ({ route }) => {
                             label="PoS Order"
                             icon={assetImages.salesOrder}
                             onPress={() =>
-                                navigation.navigate("PosOrder", {
+                                navigation.navigate("SMTSale", {
                                     item,
                                 })
                             }

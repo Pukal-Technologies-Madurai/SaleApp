@@ -1,32 +1,43 @@
-import { FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Modal, Alert, ActivityIndicator } from "react-native";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Modal, Alert, ActivityIndicator, ScrollView } from "react-native";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { customColors, shadows, spacing, typography } from "../../Config/helper";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
-import AppHeader from "../../Components/AppHeader";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import { createSaleOrder } from "../../Api/sales";
-import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
 import { API } from "../../Config/Endpoint";
+import { createSaleOrder } from "../../Api/sales";
+import { customColors, shadows, spacing, typography } from "../../Config/helper";
+import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
+import AppHeader from "../../Components/AppHeader";
+import EnhancedDropdown from "../../Components/EnhancedDropdown";
+import { useOrderStore } from "../../stores/orderStore";
+import ProductItem from './ProductItem';
 
 const PosOrder = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
     const [selectedBrandId, setSelectedBrandId] = useState(null);
-    const [orderItems, setOrderItems] = useState({});
-    const [showOrderSummary, setShowOrderSummary] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedTransportId, setSelectedTransportId] = useState(null);
-    const [selectedBrokerId, setSelectedBrokerId] = useState(null);
     const [showFilter, setShowFilter] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    const orderItems = useOrderStore((s) => s.orderItems);
+    const setItem = useOrderStore((s) => s.setItem); // Now this matches the store
+    const updateItemStore = useOrderStore((s) => s.updateItem);
+    const removeItemStore = useOrderStore((s) => s.removeItem);
+    const clearStore = useOrderStore((s) => s.clear);
+
+    const selectedBrokerId = useOrderStore((s) => s.selectedBrokerId);
+    const setSelectedBrokerId = useOrderStore((s) => s.setSelectedBrokerId);
+    const selectedTransportId = useOrderStore((s) => s.selectedTransportId);
+    const setSelectedTransportId = useOrderStore((s) => s.setSelectedTransportId);
+
+    const [showOrderSummary, setShowOrderSummary] = useState(false);
 
     const [orderData, setOrderData] = useState({
         Company_Id: item.Company_Id,
@@ -50,14 +61,49 @@ const PosOrder = ({ route }) => {
         queryFn: fetchPosOrderBranch,
     });
 
+    // Add this after your useQuery hook
+    useEffect(() => {
+        if (productData.length > 0) {
+            console.log("Products loaded:", productData.length);
+        }
+    }, [productData]);
+
     const { data: productData = [], isLoading: isProductLoading } = useQuery({
         queryKey: ["masterDataProducts"],
         queryFn: () => fetchProductsWithStockValue(),
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
         refetchOnWindowFocus: false,
-        refetchOnMount: false,
+        select: (rows) => {
+            return rows.filter((r) => r.IsActive === 1)
+                .map((r) => ({
+                    // Keep original field names for compatibility
+                    Product_Id: r.Product_Id,
+                    Product_Name: r.Product_Name,
+                    Short_Name: r.Short_Name,
+                    Product_Rate: r.Product_Rate,
+                    Units: r.Units,
+                    PackGet: r.PackGet,
+                    productImageUrl: r.productImageUrl,
+                    // Additional fields needed by ProductItem
+                    Item_Rate: r.Item_Rate || r.Product_Rate || 0,
+                    CL_Qty: r.CL_Qty || 0,
+                    Brand_Name: r.Brand_Name || "",
+                    Pos_Brand_Id: r.Pos_Brand_Id || 0,
+                    IsActive: r.IsActive,
+                    UOM_Id: r.UOM_Id || 1,
+                    // Legacy aliases for backward compatibility
+                    id: r.Product_Id,
+                    name: r.Product_Name,
+                    shortName: r.Short_Name,
+                    rate: r.Product_Rate,
+                    uom: r.Units,
+                    pack: r.PackGet,
+                    image: r.productImageUrl,
+                }))
+        }
     });
+
+    console.log("Products:", productData);
 
     const { data: rawCostCenters = [], isLoading: isCostCenterLoading } = useQuery({
         queryKey: ["costCenters"],
@@ -599,35 +645,60 @@ const PosOrder = ({ route }) => {
         return () => clearTimeout(timeoutId);
     }, [searchQuery]);
 
+    const normalizeSearchText = (str) => {
+        return String(str)
+            .toLowerCase()
+            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Keep Tamil characters, alphanumeric, and spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
+    };
+
+    const fuzzyMatch = (text, search) => {
+        const normalizedText = normalizeSearchText(text);
+        const normalizedSearch = normalizeSearchText(search);
+
+        if (normalizedText.includes(normalizedSearch)) return true;
+
+        // Check if all characters of search exist in text (in order)
+        let searchIndex = 0;
+        for (let i = 0; i < normalizedText.length && searchIndex < normalizedSearch.length; i++) {
+            if (normalizedText[i] === normalizedSearch[searchIndex]) {
+                searchIndex++;
+            }
+        }
+        return searchIndex === normalizedSearch.length;
+    };
+
     // Computed values
     const filteredProducts = useMemo(() => {
-        if (!productData.length) return [];
+        if (isProductLoading || !productData.length) return [];
 
-        // Start with active products
         let filtered = productData.filter(product => product.IsActive === 1);
 
-        // Apply brand filter
         if (selectedBrandId) {
             filtered = filtered.filter(product => product.Pos_Brand_Id === selectedBrandId);
         }
 
-        // Apply search filter
         if (debouncedSearch.trim()) {
-            const searchTerms = debouncedSearch.toLowerCase().trim().split(/\s+/);
+            const searchTerms = debouncedSearch.trim().split(/\s+/);
 
             filtered = filtered.filter(product => {
-                const searchableText = [
-                    product.Product_Name || '',
-                    product.Short_Name || ''
-                ].join(' ').toLowerCase();
+                const searchableFields = [
+                    product.Product_Name || "",
+                    product.Short_Name || "",
+                    product.Brand_Name || ""
+                ];
 
-                // Check if all search terms are found in the searchable text
-                return searchTerms.every(term => searchableText.includes(term));
+                return searchTerms.every(term => {
+                    return searchableFields.some(field => {
+                        return fuzzyMatch(field, term);
+                    });
+                });
             });
         }
 
         return filtered;
-    }, [productData, selectedBrandId, debouncedSearch]);
+    }, [productData, selectedBrandId, debouncedSearch, isProductLoading]);
 
     const { totalAmount, orderCount } = useMemo(() => {
         const items = Object.values(orderItems).filter(item => item.qty > 0 && item.rate > 0);
@@ -643,34 +714,91 @@ const PosOrder = ({ route }) => {
 
     // Handlers
     const updateOrderItem = useCallback((productId, field, value) => {
-        setOrderItems(prev => ({
-            ...prev,
-            [productId]: {
-                ...prev[productId],
-                [field]: value === '' ? 0 : parseFloat(value) || 0,
-                [`${field}Text`]: value // Store the text representation
-            }
-        }));
+        if (field === "rate") {
+            handleRateChange(value, productId);
+        } else if (field === "qty") {
+            handleQtyChange(value, productId);
+        }
     }, []);
+
+    const handleRateChange = useCallback((value, productId) => {
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            const numericValue = value === "" ? 0 : parseFloat(value) || 0;
+            const currentItem = orderItems[productId];
+            const isInOrder = currentItem && currentItem.qty > 0;
+
+            if (isInOrder) {
+                updateItemStore(productId, {
+                    rate: numericValue,
+                    rateText: value,
+                });
+            } else if (numericValue > 0) {
+                const product = productData.find(p => p.Product_Id === productId);
+                if (product) {
+                    setItem(productId, {
+                        ...product,
+                        qty: 1,
+                        rate: numericValue,
+                        rateText: value,
+                    });
+                }
+            }
+        }
+    }, [orderItems, productData]);
+
+    const handleQtyChange = useCallback((value, productId) => {
+        if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            const numericValue = value === "" ? 0 : parseFloat(value) || 0;
+            const currentItem = orderItems[productId];
+            const isInOrder = currentItem && currentItem.qty > 0;
+
+            if (numericValue > 0) {
+                if (!isInOrder) {
+                    const product = productData.find(p => p.Product_Id === productId);
+                    if (product) {
+                        setItem(productId, {
+                            ...product,
+                            qty: numericValue,
+                            rate: product.Item_Rate || 0,
+                            qtyText: value,
+                        });
+                    }
+                } else {
+                    updateItemStore(productId, {
+                        qty: numericValue,
+                        qtyText: value,
+                    });
+                }
+            } else if (isInOrder && numericValue === 0) {
+                removeItemStore(productId);
+            }
+        }
+    }, [orderItems, productData, setItem, updateItemStore, removeItemStore]);
 
     const addToOrder = useCallback((product) => {
-        setOrderItems(prev => ({
-            ...prev,
-            [product.Product_Id]: {
+        const current = orderItems[product.Product_Id];
+        if (current) {
+            updateItemStore(product.Product_Id, {
+                qty: (current.qty || 0) + 1,
+            })
+        } else {
+            setItem(product.Product_Id, {
                 ...product,
-                qty: (prev[product.Product_Id]?.qty || 0) + 1,
-                rate: product.Item_Rate || 0
-            }
-        }));
-    }, []);
+                qty: 1,
+                rate: product.Item_Rate || 0,
+            });
+        }
+    }, [orderItems, setItem, updateItemStore]);
 
     const removeFromOrder = useCallback((productId) => {
-        setOrderItems(prev => {
-            const updated = { ...prev };
-            delete updated[productId];
-            return updated;
-        });
-    }, []);
+        removeItemStore(productId);
+    }, [removeItemStore]);
+
+    const stableHandlers = useMemo(() => ({
+        updateOrderItem,
+        addToOrder,
+        removeFromOrder
+    }), [updateOrderItem, addToOrder, removeFromOrder]);
 
     const handleSubmitOrder = async () => {
         const completeOrderData = getCompleteOrderData();
@@ -698,183 +826,46 @@ const PosOrder = ({ route }) => {
         );
     };
 
-    const ProductCard = React.memo(({ product, orderItem, onUpdateOrder, onAddToOrder, onRemoveFromOrder }) => {
-        const isInOrder = orderItem && orderItem.qty > 0;
-        const totalWeight = isInOrder ? (orderItem.qty * parseFloat(product.PackGet || 0)) : 0;
-        const totalAmount = isInOrder ? (totalWeight * (orderItem.rate || product.Item_Rate || 0)) : 0;
-        const bagQty = product.CL_Qty / (parseFloat(product.PackGet) || 1);
+    const IsolatedTextInput = React.memo(({
+        value,
+        onChangeText,
+        style,
+        placeholder,
+        placeholderTextColor,
+        keyboardType,
+        selectTextOnFocus,
+        textAlign,
+        productId,
+        field
+    }) => {
+        const [localValue, setLocalValue] = useState(value || '');
+
+        useEffect(() => {
+            setLocalValue(value || '');
+        }, [value]);
+
+        const handleChangeText = useCallback((text) => {
+            setLocalValue(text);
+            onChangeText(text, productId, field);
+        }, [onChangeText, productId, field]);
 
         return (
-            <View style={styles.productCard}>
-                <View style={styles.productHeader}>
-
-                    <View style={styles.productDetails}>
-                        <Text style={styles.productName} numberOfLines={2}>
-                            {product.Short_Name || product.Product_Name}
-                        </Text>
-                        <View style={styles.productMeta}>
-                            <Text style={styles.productUnits}>
-                                {product.PackGet} {product.Units}
-                            </Text>
-                            <Text style={[styles.stockIndicator, product.CL_Qty > 0 ? styles.inStock : styles.outOfStock]}>
-                                {bagQty === 0 ? "Out of Stock" : `${bagQty.toFixed(2)} Bags`}
-                            </Text>
-                        </View>
-                        <Text style={styles.baseRate}>
-                            Base Rate: ₹{(product.Item_Rate || 0).toFixed(2)} per {product.Units}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Rate and Quantity Inputs */}
-                <View style={styles.inputSection}>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Rate per {product.Units}</Text>
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.currencySymbol}>₹</Text>
-                            <TextInput
-                                style={styles.rateInput}
-                                value={isInOrder && orderItem.rateText !== undefined ? orderItem.rateText :
-                                    (isInOrder ? orderItem.rate.toString() : (product.Item_Rate || '').toString())}
-                                onChangeText={(value) => {
-                                    // Allow empty string, numbers, and decimal points
-                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                        const numericValue = value === '' ? 0 : parseFloat(value) || 0;
-                                        if (isInOrder) {
-                                            setOrderItems(prev => ({
-                                                ...prev,
-                                                [product.Product_Id]: {
-                                                    ...prev[product.Product_Id],
-                                                    rate: numericValue,
-                                                    rateText: value
-                                                }
-                                            }));
-                                        } else if (numericValue > 0) {
-                                            setOrderItems(prev => ({
-                                                ...prev,
-                                                [product.Product_Id]: {
-                                                    ...product,
-                                                    qty: 1,
-                                                    rate: numericValue,
-                                                    rateText: value
-                                                }
-                                            }));
-                                        }
-                                    }
-                                }}
-                                keyboardType="decimal-pad"
-                                placeholder="0.00"
-                                placeholderTextColor={customColors.grey500}
-                                selectTextOnFocus={true}
-                            />
-                        </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Bags</Text>
-                        <View style={styles.quantityContainer}>
-                            <TextInput
-                                style={styles.quantityInput}
-                                value={isInOrder && orderItem.qtyText !== undefined ? orderItem.qtyText :
-                                    (isInOrder ? orderItem.qty.toString() : "0")}
-                                onChangeText={(value) => {
-                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                        const numericValue = value === '' ? 0 : parseFloat(value) || 0;
-                                        if (numericValue > 0) {
-                                            if (!isInOrder) {
-                                                setOrderItems(prev => ({
-                                                    ...prev,
-                                                    [product.Product_Id]: {
-                                                        ...product,
-                                                        qty: numericValue,
-                                                        rate: product.Item_Rate || 0,
-                                                        qtyText: value
-                                                    }
-                                                }));
-                                            } else {
-                                                setOrderItems(prev => ({
-                                                    ...prev,
-                                                    [product.Product_Id]: {
-                                                        ...prev[product.Product_Id],
-                                                        qty: numericValue,
-                                                        qtyText: value
-                                                    }
-                                                }));
-                                            }
-                                        } else if (value === '' || (isInOrder && numericValue === 0)) {
-                                            if (isInOrder) {
-                                                if (value === '') {
-                                                    setOrderItems(prev => ({
-                                                        ...prev,
-                                                        [product.Product_Id]: {
-                                                            ...prev[product.Product_Id],
-                                                            qty: 0,
-                                                            qtyText: value
-                                                        }
-                                                    }));
-                                                } else {
-                                                    removeFromOrder(product.Product_Id);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }}
-                                keyboardType="decimal-pad"
-                                textAlign="center"
-                                placeholder="0"
-                                placeholderTextColor={customColors.grey500}
-                                selectTextOnFocus={true}
-                            />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Total and Action Button */}
-                <View style={styles.actionSection}>
-                    {isInOrder && (
-                        <View style={styles.totalSection}>
-                            <Text style={styles.totalLabel}>Grand Total</Text>
-                            <Text style={styles.totalAmount}>
-                                ₹{totalAmount.toFixed(2)}
-                            </Text>
-                        </View>
-                    )}
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, isInOrder ? styles.removeButton : styles.addButton]}
-                        onPress={() => {
-                            if (isInOrder) {
-                                removeFromOrder(product.Product_Id)
-                            } else {
-                                addToOrder(product);
-                            }
-                        }}
-                    >
-                        <Text style={[
-                            styles.actionButtonText,
-                            isInOrder ? styles.removeButtonText : styles.addButtonText
-                        ]}>{isInOrder ? "Remove" : "Add to Cart"}</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+            <TextInput
+                style={style}
+                value={localValue}
+                onChangeText={handleChangeText}
+                placeholder={placeholder}
+                placeholderTextColor={placeholderTextColor}
+                keyboardType={keyboardType}
+                selectTextOnFocus={selectTextOnFocus}
+                textAlign={textAlign}
+                blurOnSubmit={false}
+                returnKeyType="done"
+            />
         );
     });
 
     // Render functions
-    const renderProductCard = useCallback(({ item: product }) => {
-        const orderItem = orderItems[product.Product_Id];
-
-        return (
-            <ProductCard
-                product={product}
-                orderItem={orderItem}
-                onUpdateOrder={updateOrderItem}
-                onAddToOrder={addToOrder}
-                onRemoveFromOrder={removeFromOrder}
-            />
-        );
-    }, [orderItems, updateOrderItem, addToOrder, removeFromOrder]);
-
     const renderOrderSummary = () => (
         <Modal
             visible={showOrderSummary}
@@ -948,7 +939,7 @@ const PosOrder = ({ route }) => {
     if (isBranchLoading || isProductLoading || (showFilter && isCostCenterLoading)) {
         return (
             <SafeAreaView style={styles.container}>
-                <AppHeader title="Sales Order" navigation={navigation} />
+                <AppHeader title="Sales Order" showBackButton onBackPress={() => navigation.goBack()} />
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={customColors.primary} />
                     <Text style={styles.loadingText}>
@@ -1135,23 +1126,30 @@ const PosOrder = ({ route }) => {
                             )}
                         </View>
                     ) : (
-                        <FlatList
-                            data={filteredProducts}
-                            renderItem={renderProductCard}
-                            keyExtractor={item => item.Product_Id}
-                            numColumns={1}
+                        <ScrollView
+                            style={{ flex: 1 }}
                             contentContainerStyle={styles.productsList}
                             showsVerticalScrollIndicator={false}
-                            removeClippedSubviews={true}
-                            maxToRenderPerBatch={10}
-                            windowSize={10}
-                            initialNumToRender={20}
-                            getItemLayout={(data, index) => ({
-                                length: 200, // Approximate height of each product card
-                                offset: 200 * index,
-                                index,
+                            keyboardShouldPersistTaps="always"
+                            keyboardDismissMode="none"
+                        >
+                            {filteredProducts.map((product) => {
+                                const orderItem = orderItems[product.Product_Id];
+                                return (
+                                    <ProductItem
+                                        key={product.Product_Id}
+                                        product={product}
+                                        orderItem={orderItem}
+                                        onRateChange={handleRateChange}
+                                        onQtyChange={handleQtyChange}
+                                        onAddToOrder={addToOrder}
+                                        onRemoveFromOrder={removeFromOrder}
+                                        styles={styles}
+                                    />
+                                );
                             })}
-                        />
+
+                        </ScrollView>
                     )}
                 </View>
             </View>

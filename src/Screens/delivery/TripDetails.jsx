@@ -71,6 +71,8 @@ const TripDetails = ({ route, navigation }) => {
                     return retailer.paymentStatus === 1;
                 case "pending":
                     return retailer.paymentStatus === 0;
+                case "returns":
+                    return retailer.Delivery_Status === 6;
                 default:
                     return true;
             }
@@ -148,10 +150,12 @@ const TripDetails = ({ route, navigation }) => {
                                 color:
                                     item.deliveryStatus === 7
                                         ? customColors.success
-                                        : customColors.warning,
+                                        : item.deliveryStatus === 6
+                                            ? customColors.error
+                                            : customColors.warning,
                             },
                         ]}>
-                        {item.deliveryStatus === 7 ? "Delivered" : "Pending"}
+                        {item.deliveryStatus === 7 ? "Delivered" : item.deliveryStatus === 6 ? "Return" : "Pending"}
                     </Text>
                 </View>
 

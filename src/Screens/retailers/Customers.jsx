@@ -5,6 +5,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     TextInput,
+    ActivityIndicator,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useNavigation } from "@react-navigation/native";
@@ -88,6 +89,7 @@ const Customers = () => {
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const debounceRef = React.useRef(null);
     const [showAllRetailers, setShowAllRetailers] = useState(false);
 
     const renderItem = useCallback(
@@ -113,7 +115,7 @@ const Customers = () => {
         });
     }, []);
 
-    const { data: retailers = [] } = useQuery({
+    const { data: retailers = [], isLoading: isLoadingRetailers } = useQuery({
         queryKey: ["retailers", companyId],
         queryFn: () => fetchRetailers(companyId),
         enabled: !!companyId, // prevent fetch until companyId is ready
@@ -227,7 +229,7 @@ const Customers = () => {
     }, [selectedRoute, showAllRetailers]);
 
     // Add the helper function at the top of your component or in a separate utils file
-    const removeSplChar = (str) => String(str).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const removeSplChar = (str) => String(str).replace(/[^\w]/g, "").toLowerCase();
 
     const reactSelectFilterLogic = (option, inputValue) => {
         const normalizedLabel = removeSplChar(option.label);
@@ -239,10 +241,13 @@ const Customers = () => {
 
     const handleSearchInputChange = (text) => {
         // Remove special characters from input but keep spaces for better UX
-        const filteredText = text.replace(/[^a-zA-Z0-9]/g, "");
+        // const filteredText = text.replace(/[^a-zA-Z0-9]/g, "");
 
-        setSearchQuery(filteredText);
-        filterRetailers(selectedRoute, selectedArea, filteredText);
+        setSearchQuery(text);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            filterRetailers(selectedRoute, selectedArea, text);
+        }, 300);
     };
 
     const filterRetailers = (routeId, areaId, search) => {
@@ -348,6 +353,25 @@ const Customers = () => {
         [],
     );
 
+    if (isLoadingRetailers) {
+        return (
+            <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+                <AppHeader
+                    title="Retailers"
+                    navigation={navigation}
+                    showRightIcon={true}
+                    rightIconLibrary="MaterialIcon"
+                    rightIconName="alt-route"
+                    onRightPress={() => navigation.navigate("RoutePath")}
+                />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={customColors.primary} />
+                    <Text style={styles.loadingText}>Loading retailers...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
@@ -413,9 +437,9 @@ const Customers = () => {
                                 placeholderTextColor={customColors.grey}
                                 value={searchQuery}
                                 onChangeText={handleSearchInputChange}
-                                autoCapitalize="words"
+                                autoCapitalize="none"
                                 autoFocus={false}
-                                selectTextOnFocus={true}
+                                selectTextOnFocus={false}
                                 keyboardType="default"
                             />
 
@@ -500,6 +524,16 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+    },
+    loadingText: {
+        ...typography.body1(),
+        color: customColors.grey700,
     },
     filterSection: {
         padding: spacing.md,

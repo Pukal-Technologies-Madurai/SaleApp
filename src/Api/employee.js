@@ -85,6 +85,14 @@ export const attendanceHistory = async ({ fromDay, toDay, id, uid }) => {
     return data.data;
 };
 
+export const fetchBranches = async () => {
+    const response = await fetch(API.getBranches());
+    const data = await response.json();
+
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
 export const fetchSalePerson = async companyId => {
     const response = await fetch(`${API.salesPerson()}${companyId}`);
     const data = await response.json();

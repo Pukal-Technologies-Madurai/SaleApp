@@ -33,6 +33,7 @@ const TripSheet = () => {
     // Status constants
     const DELIVERY_STATUS = {
         5: "Pending",
+        6: "Cancelled",
         7: "Delivered",
     };
 
@@ -192,9 +193,13 @@ const TripSheet = () => {
                         ? 1
                         : 0;
                 acc.totalOrders += 1;
+                acc.returnedCount +=
+                    tripDetail && Number(tripDetail.Delivery_Status) === 6
+                        ? 1
+                        : 0;
                 return acc;
             },
-            { totalAmount: 0, deliveredCount: 0, paidCount: 0, totalOrders: 0 },
+            { totalAmount: 0, deliveredCount: 0, paidCount: 0, totalOrders: 0, returnedCount: 0 },
         );
 
         return (
@@ -235,7 +240,7 @@ const TripSheet = () => {
                                     size={20}
                                     color={
                                         tripSummary.deliveredCount ===
-                                        tripSummary.totalOrders
+                                            tripSummary.totalOrders
                                             ? customColors.success
                                             : customColors.warning
                                     }
@@ -246,7 +251,7 @@ const TripSheet = () => {
                                         {
                                             color:
                                                 tripSummary.deliveredCount ===
-                                                tripSummary.totalOrders
+                                                    tripSummary.totalOrders
                                                     ? customColors.success
                                                     : customColors.warning,
                                         },
@@ -262,7 +267,7 @@ const TripSheet = () => {
                                     size={20}
                                     color={
                                         tripSummary.paidCount ===
-                                        tripSummary.totalOrders
+                                            tripSummary.totalOrders
                                             ? customColors.success
                                             : customColors.warning
                                     }
@@ -273,13 +278,24 @@ const TripSheet = () => {
                                         {
                                             color:
                                                 tripSummary.paidCount ===
-                                                tripSummary.totalOrders
+                                                    tripSummary.totalOrders
                                                     ? customColors.success
                                                     : customColors.warning,
                                         },
                                     ]}>
                                     {tripSummary.paidCount}/
                                     {tripSummary.totalOrders}
+                                </Text>
+                            </View>
+
+                            <View style={styles.metricItem}>
+                                <MaterialCommunityIcons
+                                    name="arrow-u-left-top"
+                                    size={20}
+                                    color={customColors.error}
+                                />
+                                <Text style={styles.metricValue}>
+                                    {tripSummary.returnedCount}
                                 </Text>
                             </View>
 
@@ -319,12 +335,12 @@ const TripSheet = () => {
                                             {
                                                 backgroundColor:
                                                     tripDetail &&
-                                                    Number(
-                                                        tripDetail.Payment_Status,
-                                                    ) === 3 &&
-                                                    Number(
-                                                        tripDetail.Delivery_Status,
-                                                    ) === 7
+                                                        Number(
+                                                            tripDetail.Payment_Status,
+                                                        ) === 3 &&
+                                                        Number(
+                                                            tripDetail.Delivery_Status,
+                                                        ) === 7
                                                         ? customColors.success50
                                                         : tripDetail &&
                                                             (Number(
@@ -333,8 +349,8 @@ const TripSheet = () => {
                                                                 Number(
                                                                     tripDetail.Delivery_Status,
                                                                 ) === 7)
-                                                          ? customColors.warning50
-                                                          : customColors.white,
+                                                            ? customColors.warning50
+                                                            : customColors.white,
                                             },
                                         ]}
                                         onPress={() =>
@@ -363,9 +379,9 @@ const TripSheet = () => {
                                                             size={14}
                                                             color={
                                                                 tripDetail &&
-                                                                Number(
-                                                                    tripDetail.Delivery_Status,
-                                                                ) === 7
+                                                                    Number(
+                                                                        tripDetail.Delivery_Status,
+                                                                    ) === 7
                                                                     ? customColors.success
                                                                     : customColors.warning
                                                             }
@@ -376,9 +392,9 @@ const TripSheet = () => {
                                                                 {
                                                                     color:
                                                                         tripDetail &&
-                                                                        Number(
-                                                                            tripDetail.Delivery_Status,
-                                                                        ) === 7
+                                                                            Number(
+                                                                                tripDetail.Delivery_Status,
+                                                                            ) === 7
                                                                             ? customColors.success
                                                                             : customColors.warning,
                                                                 },
@@ -398,9 +414,9 @@ const TripSheet = () => {
                                                             size={14}
                                                             color={
                                                                 tripDetail &&
-                                                                Number(
-                                                                    tripDetail.Payment_Status,
-                                                                ) === 3
+                                                                    Number(
+                                                                        tripDetail.Payment_Status,
+                                                                    ) === 3
                                                                     ? customColors.success
                                                                     : customColors.warning
                                                             }
@@ -411,9 +427,9 @@ const TripSheet = () => {
                                                                 {
                                                                     color:
                                                                         tripDetail &&
-                                                                        Number(
-                                                                            tripDetail.Payment_Status,
-                                                                        ) === 3
+                                                                            Number(
+                                                                                tripDetail.Payment_Status,
+                                                                            ) === 3
                                                                             ? customColors.success
                                                                             : customColors.warning,
                                                                 },

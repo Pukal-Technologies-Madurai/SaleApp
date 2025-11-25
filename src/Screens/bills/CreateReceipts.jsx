@@ -131,7 +131,7 @@ const CreateReceipts = () => {
         },
     });
 
-    console.log("Pending Bills:", pendingBills);
+    // console.log("Pending Bills:", pendingBills);
 
     const handleRetailerSelect = item => {
         if (item && item.Retailer_id) {
@@ -166,7 +166,7 @@ const CreateReceipts = () => {
 
             setSelectAll(
                 newSelection.length === pendingBills.length &&
-                    pendingBills.length > 0,
+                pendingBills.length > 0,
             );
 
             return newSelection;
@@ -351,8 +351,8 @@ const CreateReceipts = () => {
                     const receiptAmount = receiptAmounts[billId]
                         ? parseFloat(receiptAmounts[billId])
                         : bill
-                          ? bill.Total_Invoice_value - bill.Paid_Amount
-                          : 0;
+                            ? bill.Total_Invoice_value - bill.Paid_Amount
+                            : 0;
 
                     return {
                         bill_id: bill?.originalDoId || bill?.Do_Id || billId, // Use original Do_Id for API

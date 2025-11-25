@@ -132,14 +132,14 @@ const HomeScreen = () => {
             color: "#84CC16",
             backgroundColor: "#F7FEE7",
         },
-        // {
-        //     title: "Bills Collection",
-        //     iconLibrary: "MaterialIcons",
-        //     iconName: "receipt-long",
-        //     navigate: "BillSummary",
-        //     color: "#EC4899",
-        //     backgroundColor: "#FDF2F8",
-        // },
+        {
+            title: "Pending Invoices",
+            iconLibrary: "FontAwesome5",
+            iconName: "receipt",
+            navigate: "PendingInvoice",
+            color: "#EC4899",
+            backgroundColor: "#FDF2F8",
+        },
     ];
 
     const renderIcon = (iconLibrary, iconName, color) => {

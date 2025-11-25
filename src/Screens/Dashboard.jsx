@@ -1,12 +1,12 @@
 import {
+    AppState,
     ActivityIndicator,
+    RefreshControl,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
-    AppState,
-    RefreshControl,
-    ScrollView,
 } from "react-native";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -15,10 +15,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import AntDesignIcons from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import DatePickerButton from "../Components/DatePickerButton";
 import { API } from "../Config/Endpoint";
-import { customColors, typography, spacing, shadows } from "../Config/helper";
+import { fetchBranches } from "../Api/employee";
 import { fetchRoutes } from "../Api/retailers";
+import { customColors, typography, spacing, shadows } from "../Config/helper";
+import BranchFilterModal from "../Components/BranchFilterModal";
+import DatePickerButton from "../Components/DatePickerButton";
 
 const Dashboard = () => {
     const navigation = useNavigation();
@@ -35,22 +37,8 @@ const Dashboard = () => {
     const [isPollingActive, setIsPollingActive] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Consolidated dashboard data state
-    const [dashboardData, setDashboardData] = useState({
-        attendanceData: [],
-        attendanceCount: {},
-        routeData: [],
-        visitData: [],
-        userCount: {},
-        saleData: [],
-        saleCount: {},
-        totalProductsSold: 0,
-        totalOrderAmount: 0,
-        deliveryData: [],
-        tripSheetData: [],
-        kilometersCount: {},
-        newReceiptData: 0,
-    });
+    const [branchModalVisible, setBranchModalVisible] = useState(false);
+    const [selectedBranches, setSelectedBranches] = useState([]);
 
     const POLLING_INTERVAL = 90000; // 90 seconds
 
@@ -58,15 +46,50 @@ const Dashboard = () => {
     useEffect(() => {
         const loadUserDetails = async () => {
             try {
-                const [storeUserTypeId, Company_Id] = await Promise.all([
+                const [storeUserTypeId, Company_Id, branchId] = await Promise.all([
                     AsyncStorage.getItem("userTypeId"),
                     AsyncStorage.getItem("Company_Id"),
+                    AsyncStorage.getItem("branchId"),
                 ]);
 
                 setUserDetails({
                     companyId: Company_Id,
                     uIdT: storeUserTypeId,
                 });
+
+                if (branchId) {
+                    try {
+                        // Try parsing as JSON first (in case it was saved as an array from the modal)
+                        const parsedBranchIds = JSON.parse(branchId);
+                        if (Array.isArray(parsedBranchIds)) {
+                            const validBranchIds = parsedBranchIds
+                                .map(id => parseInt(id, 10))
+                                .filter(id => !isNaN(id));
+                            setSelectedBranches(validBranchIds);
+                            // console.log("Loaded branches from JSON array:", validBranchIds);
+                        } else if (typeof parsedBranchIds === 'number') {
+                            setSelectedBranches([parsedBranchIds]);
+                            // console.log("Loaded single branch from JSON:", [parsedBranchIds]);
+                            // Update storage to array format for consistency
+                            await AsyncStorage.setItem("branchId", JSON.stringify([parsedBranchIds]));
+                        }
+                    } catch (parseError) {
+                        // If JSON parse fails, treat as single value (legacy format)
+                        // console.log("JSON parse failed, treating as single value");
+                        const branchIdNum = parseInt(branchId, 10);
+                        if (!isNaN(branchIdNum)) {
+                            setSelectedBranches([branchIdNum]);
+                            // console.log("Loaded single branch:", [branchIdNum]);
+                            // Convert to new array format for consistency
+                            await AsyncStorage.setItem("branchId", JSON.stringify([branchIdNum]));
+                        }
+                    }
+                } else {
+                    // console.log("No branchId found in storage, setting empty array");
+                    setSelectedBranches([]);
+                }
+
+                // console.log("Initial selected branches:", selectedBranches);
             } catch (err) {
                 console.error("Error loading user details:", err);
             }
@@ -77,43 +100,30 @@ const Dashboard = () => {
 
     // Optimized API functions with better error handling
     const apiService = {
-        fetchVisitersLog: async (fromDate, id = "") => {
-            const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}`;
+        fetchAttendanceInfo: async (from, to, userTypeID, branchId) => {
+            const url = `${API.attendanceHistory()}From=${from}&To=${to}&UserTypeID=${userTypeID}&Branch_Id=${branchId}`;
             const response = await fetch(url);
             const data = await response.json();
             return data.success ? data.data : [];
         },
 
-        fetchSaleOrder: async (from, to, company, userId = "") => {
-            const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}`;
+        fetchVisitersLog: async (fromDate, id = "", branchId) => {
+            const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}&Branch_Id=${branchId}`;
             const response = await fetch(url);
             const data = await response.json();
             return data.success ? data.data : [];
         },
 
-        fetchAttendanceInfo: async (from, to, userTypeID) => {
-            const url = `${API.attendanceHistory()}From=${from}&To=${to}&UserTypeID=${userTypeID}`;
+        fetchSaleOrder: async (from, to, company, branchId, userId = "") => {
+            const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Branch_Id=${branchId}&Created_by=${userId}&Sales_Person_Id=${userId}`;
+            // console.log("Fetching sale order from URL:", url);
             const response = await fetch(url);
             const data = await response.json();
             return data.success ? data.data : [];
         },
 
-        fetchDeliveryData: async today => {
-            const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.success ? data.data : [];
-        },
-
-        fetchTripSheet: async (from, to) => {
-            const url = `${API.deliveryTripSheet()}${from}&Todate=${to}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.success ? data.data : [];
-        },
-
-        fetchReceiptData: async (from, to) => {
-            const url = `${API.getReceipt()}${from}&Todate=${to}`;
+        fetchReceiptData: async (from, to, branchId) => {
+            const url = `${API.getReceipt()}${from}&Todate=${to}&Branch_Id=${branchId}`;
             const response = await fetch(url);
             const data = await response.json();
 
@@ -124,6 +134,27 @@ const Dashboard = () => {
                 );
             }
             return 0;
+        },
+
+        fetchDeliveryData: async (today, branchId) => {
+            const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}&Branch_Id=${branchId}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
+        },
+
+        fetchTripSheet: async (from, to, branchId) => {
+            const url = `${API.deliveryTripSheet()}${from}&Todate=${to}&Branch_Id=${branchId}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
+        },
+
+        fetchDeliveryReturn: async (today, branchId) => {
+            const url = `${API.deliveryReturn()}${today}&Todate=${today}&Branch_Id=${branchId}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
         },
 
         fetchCollectionReceipts: async (from, to) => {
@@ -153,11 +184,26 @@ const Dashboard = () => {
             selectedDate,
             userDetails.companyId,
             userDetails.uIdT,
+            selectedBranches
         ],
         queryFn: async () => {
             if (!userDetails.companyId || !userDetails.uIdT) return {};
 
             try {
+                const getBranchIdParam = () => {
+                    if (selectedBranches.length === 0) {
+                        return ""; // No branch filter
+                    } else if (selectedBranches.length === 2) {
+                        return "";
+                    } else if (selectedBranches.length === 1) {
+                        return selectedBranches[0]; // Single branch
+                    } else {
+                        return selectedBranches.join(",");
+                    }
+                };
+
+                const branchIdParam = getBranchIdParam();
+
                 // Fetch all data in parallel
                 const [
                     visitData,
@@ -165,27 +211,32 @@ const Dashboard = () => {
                     attendanceData,
                     deliveryData,
                     tripSheetData,
-                    newReceiptData,
+                    receiptData,
                     collectionReceiptData,
+                    deliveryReturnData,
                 ] = await Promise.allSettled([
-                    apiService.fetchVisitersLog(selectedDate),
+                    apiService.fetchVisitersLog(selectedDate, "", branchIdParam),
                     apiService.fetchSaleOrder(
                         selectedDate,
                         selectedDate,
                         userDetails.companyId,
+                        branchIdParam,
+                        "",
                     ),
                     apiService.fetchAttendanceInfo(
                         selectedDate,
                         selectedDate,
                         userDetails.uIdT,
+                        branchIdParam,
                     ),
-                    apiService.fetchDeliveryData(selectedDate),
-                    apiService.fetchTripSheet(selectedDate, selectedDate),
-                    apiService.fetchReceiptData(selectedDate, selectedDate),
+                    apiService.fetchDeliveryData(selectedDate, branchIdParam),
+                    apiService.fetchTripSheet(selectedDate, selectedDate, branchIdParam),
+                    apiService.fetchReceiptData(selectedDate, selectedDate, branchIdParam),
                     apiService.fetchCollectionReceipts(
                         selectedDate,
                         selectedDate,
                     ),
+                    apiService.fetchDeliveryReturn(selectedDate, branchIdParam),
                 ]);
 
                 // Extract data from settled promises
@@ -199,7 +250,8 @@ const Dashboard = () => {
                 const finalAttendanceData = extractData(attendanceData);
                 const finalDeliveryData = extractData(deliveryData);
                 const finalTripSheetData = extractData(tripSheetData);
-                const finalReceiptData = extractValue(newReceiptData);
+                const finalReceiptData = extractValue(receiptData);
+                const finalDeliveryReturnData = extractData(deliveryReturnData); // Fixed
 
                 // Process attendance data and fetch routes
                 let routeData = [];
@@ -306,6 +358,7 @@ const Dashboard = () => {
                     (sum, order) => sum + order.Total_Invoice_value,
                     0,
                 );
+
                 const totalProductsSold = finalSaleData.reduce(
                     (count, order) => {
                         return (
@@ -340,6 +393,7 @@ const Dashboard = () => {
                     tripSheetData: finalTripSheetData,
                     newReceiptData: finalReceiptData,
                     collectionReceiptData: extractData(collectionReceiptData),
+                    deliveryReturnData: finalDeliveryReturnData,
                     routeData,
                     attendanceCount,
                     kilometersCount,
@@ -372,6 +426,37 @@ const Dashboard = () => {
         staleTime: 600000, // 10 minutes
         cacheTime: 1800000, // 30 minutes
     });
+
+    const { data: branchData = [] } = useQuery({
+        queryKey: ["branchData"],
+        queryFn: fetchBranches,
+        select: (rows) => {
+            return rows.map((row) => ({
+                label: row.BranchName,
+                value: row.BranchId,
+            }))
+        }
+    });
+
+    const handleBranchFilter = useCallback(async (branches) => {
+        setSelectedBranches(branches);
+
+        try {
+            // Save selected branches to AsyncStorage
+            if (branches.length > 0) {
+                await AsyncStorage.setItem("branchId", JSON.stringify(branches));
+            } else {
+                await AsyncStorage.removeItem("branchId");
+            }
+        } catch (error) {
+            console.error("Error saving selected branches:", error);
+        }
+        // console.log("Selected branches:", branches);
+    }, []);
+
+    const showBranchFilterModal = useCallback(() => {
+        setBranchModalVisible(true);
+    }, []);
 
     // Optimized route names function
     const getUserRouteNames = useCallback(() => {
@@ -505,6 +590,7 @@ const Dashboard = () => {
                 onPress: () =>
                     navigation.navigate("SalesAdmin", {
                         selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     }),
             },
             {
@@ -517,17 +603,9 @@ const Dashboard = () => {
                 onPress: () =>
                     navigation.navigate("ReceiptAdmin", {
                         selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     }),
             },
-            // {
-            //     icon: "receipt-long",
-            //     iconLibrary: "MaterialIcons",
-            //     label: "Bills",
-            //     value: `₹${(allDashboardData.totalCollectionAmount || 0).toLocaleString("en-IN")}`,
-            //     color: "#EC4899",
-            //     backgroundColor: "#FDF2F8",
-            //     onPress: () => navigation.navigate("BillAdminView"),
-            // },
             {
                 icon: "local-shipping",
                 iconLibrary: "MaterialIcons",
@@ -535,7 +613,7 @@ const Dashboard = () => {
                 value: `${allDashboardData.deliveryData?.filter(
                     item =>
                         item.DeliveryStatusName === "Delivered" ||
-                        item.DeliveryStatusName === "Pending",
+                        item.DeliveryStatusName === "Pending" || item.DeliveryStatusName === "Return",
                 ).length || 0
                     }/${allDashboardData.deliveryData?.length || 0}`,
                 color: "#DC2626",
@@ -543,6 +621,7 @@ const Dashboard = () => {
                 onPress: () =>
                     navigation.navigate("DeliveryReport", {
                         selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     }),
             },
             {
@@ -555,7 +634,32 @@ const Dashboard = () => {
                 onPress: () =>
                     navigation.navigate("TripReport", {
                         selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     }),
+            },
+            {
+                icon: "keyboard-return",
+                iconLibrary: "MaterialIcons",
+                label: "Return Items",
+                value: `${allDashboardData.deliveryReturnData?.length || 0}`,
+                color: "#ec7648ff",
+                backgroundColor: "#ffeedf",
+                onPress: () => navigation.navigate("DeliveryReturn", {
+                    selectedDate: selectedDate,
+                    selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                }),
+            },
+            {
+                icon: "receipt",
+                iconLibrary: "MaterialIcons",
+                label: "Pending",
+                value: "Invoice",
+                color: "#EC4899",
+                backgroundColor: "#FDF2F8",
+                onPress: () => navigation.navigate("PendingSales", {
+                    selectedDate: selectedDate,
+                    selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                }),
             },
             {
                 icon: "warehouse",
@@ -565,15 +669,6 @@ const Dashboard = () => {
                 color: "#7C3AED",
                 backgroundColor: "#EDE9FE",
                 onPress: () => navigation.navigate("RetailerStock"),
-            },
-            {
-                icon: "receipt",
-                iconLibrary: "MaterialIcons",
-                label: "Orders",
-                value: "Pending",
-                color: "#EC4899",
-                backgroundColor: "#FDF2F8",
-                onPress: () => navigation.navigate("PendingSales"),
             },
         ],
         [allDashboardData, getUserRouteNames, navigation],
@@ -678,6 +773,17 @@ const Dashboard = () => {
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={styles.headerButton}
+                                onPress={showBranchFilterModal}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialIcons
+                                    name="filter-list"
+                                    size={18}
+                                    color={customColors.primary}
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.headerButton}
                                 onPress={() => navigation.navigate("SwitchCompany")}
                                 activeOpacity={0.7}
                             >
@@ -729,6 +835,15 @@ const Dashboard = () => {
                     </View>
                 </View>
             </ScrollView>
+
+            <BranchFilterModal
+                visible={branchModalVisible}
+                onClose={() => setBranchModalVisible(false)}
+                branchData={branchData}
+                selectedBranches={selectedBranches}
+                onApplyFilter={handleBranchFilter}
+                title="Select Branches"
+            />
         </View>
     );
 };

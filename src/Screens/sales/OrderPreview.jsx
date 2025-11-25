@@ -1022,7 +1022,7 @@ const OrderPreview = () => {
     const handleSalesReportPress = () => {
         navigation.navigate("SalesReport", {
             logData,
-            selectedDate: selectedFromDate.toISOString(),
+            selectedDate: selectedFromDate,
             isNotAdmin: true,
         });
     };
