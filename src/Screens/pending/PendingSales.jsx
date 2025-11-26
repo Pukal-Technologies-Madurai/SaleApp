@@ -34,16 +34,16 @@ const PendingSales = ({ route }) => {
     const [activeTab, setActiveTab] = React.useState("delivery");
 
     const { data: pendingDelivery = [], isLoading: isLoadingPendingDelivery } = useQuery({
-        queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch],
+        queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch || ""],
         queryFn: () =>
-            fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch),
-        enabled: !!selectedFromDate && !!selectedToDate && !!selectedBranch,
+            fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch || ""),
+        enabled: !!selectedFromDate && !!selectedToDate,
     });
 
     const { data: pendingSales = [], isLoading: isLoadingPendingSales } = useQuery({
-        queryKey: ["pendingSalesOrder", selectedFromDate, selectedToDate, selectedBranch],
-        queryFn: () => fetchPendingSalesList(selectedFromDate, selectedToDate, selectedBranch),
-        enabled: !!selectedFromDate && !!selectedToDate && !!selectedBranch,
+        queryKey: ["pendingSalesOrder", selectedFromDate, selectedToDate, selectedBranch || ""],
+        queryFn: () => fetchPendingSalesList(selectedFromDate, selectedToDate, selectedBranch || ""),
+        enabled: !!selectedFromDate && !!selectedToDate,
     });
 
     // Filter only pending deliveries (Delivery_Status !== 7)
