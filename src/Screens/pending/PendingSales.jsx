@@ -1,4 +1,5 @@
 import {
+    ActivityIndicator,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -32,14 +33,14 @@ const PendingSales = ({ route }) => {
     const [selectedToDate, setSelectedToDate] = React.useState(new Date().toISOString().split("T")[0]);
     const [activeTab, setActiveTab] = React.useState("delivery");
 
-    const { data: pendingDelivery = [] } = useQuery({
+    const { data: pendingDelivery = [], isLoading: isLoadingPendingDelivery } = useQuery({
         queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch],
         queryFn: () =>
             fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch),
         enabled: !!selectedFromDate && !!selectedToDate && !!selectedBranch,
     });
 
-    const { data: pendingSales = [] } = useQuery({
+    const { data: pendingSales = [], isLoading: isLoadingPendingSales } = useQuery({
         queryKey: ["pendingSalesOrder", selectedFromDate, selectedToDate, selectedBranch],
         queryFn: () => fetchPendingSalesList(selectedFromDate, selectedToDate, selectedBranch),
         enabled: !!selectedFromDate && !!selectedToDate && !!selectedBranch,
@@ -47,41 +48,28 @@ const PendingSales = ({ route }) => {
 
     // Filter only pending deliveries (Delivery_Status !== 7)
     const pendingDeliveries = pendingDelivery.filter(
-        item => item.Delivery_Status !== 7,
+        item => item.Delivery_Status === 1,
+    );
+
+    const returnedDeliveries = pendingDelivery.filter(
+        item => item.Delivery_Status === 6,
     );
 
     const pendingSalesOrders = pendingSales.filter(
         item => item.isConverted !== 2,
     );
 
-    // Get all products from pending deliveries
-    const pendingProducts = pendingDelivery
-        .filter(item => item.Delivery_Status !== 7)
-        .flatMap(
-            delivery =>
-                delivery.Products_List?.map(product => ({
-                    ...product,
-                    Delivery_Order_id: delivery.Delivery_Order_id,
-                    Do_Inv_No: delivery.Do_Inv_No,
-                    Retailer_Name: delivery.Retailer_Name,
-                    Do_Date: delivery.Do_Date,
-                    Delivery_Status: delivery.Delivery_Status,
-                    DeliveryStatusName: delivery.DeliveryStatusName,
-                    Narration: delivery.Narration,
-                })) || [],
-        );
-
     const handleFromDateChange = date => {
         if (date) {
             const newFromDate = date > selectedToDate ? selectedToDate : date;
-            setSelectedFromDate(newFromDate.toISOString().split("T")[0]);
+            setSelectedFromDate(newFromDate);
         }
     };
 
     const handleToDateChange = date => {
         if (date) {
             const newToDate = date < selectedFromDate ? selectedFromDate : date;
-            setSelectedToDate(newToDate.toISOString().split("T")[0]);
+            setSelectedToDate(newToDate);
         }
     };
 
@@ -197,6 +185,27 @@ const PendingSales = ({ route }) => {
     const TabView = () => (
         <View style={styles.tabContainer}>
             <TouchableOpacity
+                style={[styles.tab, activeTab === "sales" && styles.activeTab]}
+                onPress={() => setActiveTab("sales")}>
+                <Icon
+                    name="shopping-cart"
+                    size={18}
+                    color={
+                        activeTab === "sales"
+                            ? customColors.white
+                            : customColors.grey900
+                    }
+                />
+                <Text
+                    style={[
+                        styles.tabText,
+                        activeTab === "sales" && styles.activeTabText,
+                    ]}>
+                    Sales ({pendingSalesOrders.length})
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
                 style={[
                     styles.tab,
                     activeTab === "delivery" && styles.activeTab,
@@ -221,37 +230,16 @@ const PendingSales = ({ route }) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-                style={[styles.tab, activeTab === "sales" && styles.activeTab]}
-                onPress={() => setActiveTab("sales")}>
-                <Icon
-                    name="shopping-cart"
-                    size={18}
-                    color={
-                        activeTab === "sales"
-                            ? customColors.white
-                            : customColors.grey900
-                    }
-                />
-                <Text
-                    style={[
-                        styles.tabText,
-                        activeTab === "sales" && styles.activeTabText,
-                    ]}>
-                    Sales ({pendingSalesOrders.length})
-                </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
                 style={[
                     styles.tab,
-                    activeTab === "products" && styles.activeTab,
+                    activeTab === "returned" && styles.activeTab,
                 ]}
-                onPress={() => setActiveTab("products")}>
+                onPress={() => setActiveTab("returned")}>
                 <Icon
-                    name="inventory"
+                    name="assignment-return"
                     size={18}
                     color={
-                        activeTab === "products"
+                        activeTab === "returned"
                             ? customColors.white
                             : customColors.grey900
                     }
@@ -259,9 +247,9 @@ const PendingSales = ({ route }) => {
                 <Text
                     style={[
                         styles.tabText,
-                        activeTab === "products" && styles.activeTabText,
+                        activeTab === "returned" && styles.activeTabText,
                     ]}>
-                    Products ({pendingProducts.length})
+                    Returns ({returnedDeliveries.length})
                 </Text>
             </TouchableOpacity>
         </View>
@@ -403,69 +391,64 @@ const PendingSales = ({ route }) => {
         </View>
     );
 
-    const ProductItem = ({ item }) => {
-        const isReturn = item.Delivery_Status === 6;
-        const isPending = item.Delivery_Status === 5;
+    const ReturnedItem = ({ item }) => (
+        <View style={styles.deliveryCard}>
+            <View style={styles.cardHeader}>
+                <Text style={styles.invoiceNumber}>{item.Do_Inv_No}</Text>
+                <Text style={styles.invoiceValue}>
+                    {formatCurrency(item.Total_Invoice_value)}
+                </Text>
+            </View>
 
-        return (
-            <View style={styles.deliveryCard}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.invoiceNumber} numberOfLines={2}>{item.Product_Name}</Text>
-                    <Text style={styles.invoiceValue}>
-                        {formatCurrency(item.Final_Amount || item.Amount)}
+            <View style={styles.cardContent}>
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="date-range"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value}>{formatDate(item.Do_Date)}</Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="store"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value} numberOfLines={2}>
+                        {item.Retailer_Name}
                     </Text>
                 </View>
 
-                <View style={styles.cardContent}>
-                    <View style={styles.infoRow}>
-                        <Icon
-                            name="branding-watermark"
-                            size={16}
-                            color={customColors.grey900}
-                            style={styles.icon}
-                        />
-                        <Text style={styles.value}>{item.BrandGet || "N/A"}</Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Icon
-                            name="receipt"
-                            size={16}
-                            color={customColors.grey900}
-                            style={styles.icon}
-                        />
-                        <Text style={styles.value} numberOfLines={1}>
-                            {item.Do_Inv_No}
-                        </Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Icon
-                            name="store"
-                            size={16}
-                            color={customColors.grey900}
-                            style={styles.icon}
-                        />
-                        <Text style={styles.value} numberOfLines={1}>
-                            {item.Retailer_Name}
-                        </Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Icon
-                            name="production-quantity-limits"
-                            size={16}
-                            color={customColors.grey900}
-                            style={styles.icon}
-                        />
-                        <Text style={styles.value}>
-                            Qty: {item.Bill_Qty} {item.Unit_Name}
-                        </Text>
-                    </View>
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="delivery-dining"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value}>
+                        {item.Delivery_Person_Name}
+                    </Text>
                 </View>
 
-                {isReturn && item.Narration && (
-                    <View style={[styles.infoRow, { paddingHorizontal: 12, paddingBottom: 8 }]}>
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="schedule"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value}>
+                        Returned: {formatDate(item.Delivery_Time)}
+                    </Text>
+                </View>
+
+                {item.Narration && (
+                    <View style={styles.infoRow}>
                         <Icon
                             name="error-outline"
                             size={16}
@@ -473,21 +456,41 @@ const PendingSales = ({ route }) => {
                             style={styles.icon}
                         />
                         <Text style={[styles.value, { color: customColors.error }]} numberOfLines={2}>
-                            Reason: {item.Narration.replace("Delivery cancelled - Reason: ", "")}
+                            {item.Narration.replace("Delivery cancelled - Reason: ", "")}
                         </Text>
                     </View>
                 )}
 
-                <View
-                    style={[
-                        styles.statusBadge,
-                        { backgroundColor: isReturn ? customColors.error : customColors.warning, marginTop: 12 },
-                    ]}>
-                    <Text style={styles.statusText}>{isReturn ? "Return" : "Pending"}</Text>
-                </View>
+                {item.Products_List && item.Products_List.length > 0 && (
+                    <View style={styles.productsInfo}>
+                        <Text style={styles.productsHeader}>
+                            Items Returned ({item.Products_List.length})
+                        </Text>
+                        {item.Products_List.slice(0, 2).map((product, index) => (
+                            <Text key={index} style={styles.productItem}>
+                                • {product.Product_Name} (Qty: {product.Total_Qty})
+                            </Text>
+                        ))}
+                        {item.Products_List.length > 2 && (
+                            <Text style={styles.moreProducts}>
+                                +{item.Products_List.length - 2} more items
+                            </Text>
+                        )}
+                    </View>
+                )}
             </View>
-        )
-    };
+
+            <View
+                style={[
+                    styles.statusBadge,
+                    { backgroundColor: customColors.error },
+                ]}>
+                <Text style={styles.statusText}>Returned</Text>
+            </View>
+        </View>
+    );
+
+    const isLoading = isLoadingPendingDelivery || isLoadingPendingSales;
 
     const renderContent = () => {
         let data, renderItem;
@@ -498,9 +501,18 @@ const PendingSales = ({ route }) => {
         } else if (activeTab === "sales") {
             data = pendingSalesOrders;
             renderItem = SalesItem;
-        } else {
-            data = pendingProducts;
-            renderItem = ProductItem;
+        } else if (activeTab === "returned") {
+            data = returnedDeliveries;
+            renderItem = ReturnedItem;
+        }
+
+        if (isLoading) {
+            return (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={customColors.primary} />
+                    <Text style={styles.loadingText}>Loading...</Text>
+                </View>
+            );
         }
 
         if (data.length > 0) {
@@ -508,12 +520,10 @@ const PendingSales = ({ route }) => {
                 <FlashList
                     data={data}
                     keyExtractor={item => {
-                        if (activeTab === "delivery") {
+                        if (activeTab === "delivery" || activeTab === "returned") {
                             return item.Delivery_Order_id.toString();
                         } else if (activeTab === "sales") {
                             return item.S_Id.toString();
-                        } else {
-                            return `${item.Delivery_Order_id}_${item.DO_St_Id}`;
                         }
                     }}
                     renderItem={renderItem}
@@ -525,7 +535,7 @@ const PendingSales = ({ route }) => {
             return (
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>
-                        No pending {activeTab} found
+                        No {activeTab === "returned" ? "returned deliveries" : `pending ${activeTab}`} found
                     </Text>
                 </View>
             );
@@ -665,6 +675,17 @@ const styles = StyleSheet.create({
     activeTabText: {
         color: customColors.white,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 60,
+    },
+    loadingText: {
+        ...typography.body1(),
+        color: customColors.grey600,
+        textAlign: "center",
+    },
     listContainer: {
         paddingHorizontal: 16,
         paddingBottom: 16,
@@ -729,6 +750,30 @@ const styles = StyleSheet.create({
         color: customColors.white,
         ...typography.overline(),
         fontWeight: "bold",
+    },
+    productsInfo: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey200,
+    },
+    productsHeader: {
+        ...typography.caption(),
+        fontWeight: "600",
+        color: customColors.primaryDark,
+        marginBottom: 4,
+    },
+    productItem: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        marginBottom: 2,
+        marginLeft: 8,
+    },
+    moreProducts: {
+        ...typography.caption(),
+        color: customColors.primary,
+        fontStyle: "italic",
+        marginLeft: 8,
     },
     emptyContainer: {
         flex: 1,
