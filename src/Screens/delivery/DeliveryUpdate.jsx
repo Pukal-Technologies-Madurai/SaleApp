@@ -59,10 +59,22 @@ const DeliveryUpdate = () => {
     const [updatedProducts, setUpdatedProducts] = useState([]);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [cancelReason, setCancelReason] = useState("");
+    const [hasProductChanges, setHasProductChanges] = useState(false);
+    const [selectedCancelReason, setSelectedCancelReason] = useState("");
 
     const deliveryStatus = { 5: "Pending", 6: "Cancelled", 7: "Delivered" };
     const paymentStatus = { 0: "Pending", 3: "Completed" };
     const paymentMode = { 1: "Cash", 2: "G-Pay", 3: "Credit" };
+
+    const cancelReasons = [
+        "Shop Closed",
+        "No Sale",
+        "Customer Unavailable",
+        "Payment Issue",
+        "Customer Cancelled",
+        "Stock Not Available",
+        "Other"
+    ];
 
     useEffect(() => {
         fetchDeliveryData();
@@ -150,20 +162,47 @@ const DeliveryUpdate = () => {
             );
             if (storedProducts) {
                 const parsedProducts = JSON.parse(storedProducts);
-                // console.log("Loaded stored products:", parsedProducts);
                 setUpdatedProducts(parsedProducts);
+                // Check if stored products have changes
+                setHasProductChanges(checkForProductChanges(parsedProducts, item.Products_List));
             } else {
-                setUpdatedProducts(
-                    item.Products_List ? [...item.Products_List] : [],
-                );
+                const originalProducts = item.Products_List ? [...item.Products_List] : [];
+                setUpdatedProducts(originalProducts);
+                setHasProductChanges(false); // No changes initially
             }
         } catch (error) {
             console.error("Error loading stored products:", error);
-            setUpdatedProducts(
-                item.Products_List ? [...item.Products_List] : [],
-            );
+            const originalProducts = item.Products_List ? [...item.Products_List] : [];
+            setUpdatedProducts(originalProducts);
+            setHasProductChanges(false);
         }
         setShowUpdateScreen(true);
+    };
+
+    const checkForProductChanges = (updatedProducts, originalProducts) => {
+        if (!originalProducts || !updatedProducts) return false;
+
+        // Check if number of products is different
+        if (updatedProducts.length !== originalProducts.length) return true;
+
+        // Check each product for changes
+        for (let i = 0; i < updatedProducts.length; i++) {
+            const updated = updatedProducts[i];
+            const original = originalProducts.find(p => p.Item_Id === updated.Item_Id);
+
+            if (!original) return true; // Product not found in original
+
+            // Check if quantity or other key values changed
+            if (
+                updated.Bill_Qty !== original.Bill_Qty ||
+                updated.Total_Qty !== original.Total_Qty ||
+                updated.Final_Amo !== original.Final_Amo
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     };
 
     // New function to handle product quantity updates
@@ -195,6 +234,8 @@ const DeliveryUpdate = () => {
                                     JSON.stringify(updated),
                                 ).catch(error => console.error("Storage error:", error));
 
+                                setHasProductChanges(checkForProductChanges(updated, selectedDelivery.Products_List));
+
                                 return updated;
                             });
                         }
@@ -220,6 +261,7 @@ const DeliveryUpdate = () => {
                 JSON.stringify(updated),
             ).catch(error => console.error("Storage error:", error));
 
+            setHasProductChanges(checkForProductChanges(updated, selectedDelivery.Products_List));
             // console.log("Updated products after quantity change:", updated);
             return updated;
         });
@@ -459,9 +501,8 @@ const DeliveryUpdate = () => {
                     onPress: () => {
                         setUpdatedProducts(prev => {
                             const updated = [...prev];
-                            updated.splice(productIndex, 1); // Remove the item at the specified index
+                            updated.splice(productIndex, 1);
 
-                            // Update AsyncStorage with the modified list
                             AsyncStorage.setItem(
                                 `updatedProducts_${selectedDelivery.Do_Id}`,
                                 JSON.stringify(updated),
@@ -469,13 +510,41 @@ const DeliveryUpdate = () => {
                                 console.error("Storage error:", error),
                             );
 
-                            // console.log(
-                            //     "Product removed, remaining products:",
-                            //     updated,
-                            // );
+                            // Check for changes after removal
+                            setHasProductChanges(checkForProductChanges(updated, selectedDelivery.Products_List));
 
                             return updated;
                         });
+                    },
+                },
+            ],
+        );
+    };
+
+    const handleResetProducts = () => {
+        Alert.alert(
+            "Reset Products",
+            "This will restore all products to their original quantities. Are you sure?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: "Reset All",
+                    style: "destructive",
+                    onPress: () => {
+                        const originalProducts = selectedDelivery.Products_List ?
+                            [...selectedDelivery.Products_List] : [];
+
+                        setUpdatedProducts(originalProducts);
+                        setHasProductChanges(false); // No changes after reset
+
+                        AsyncStorage.removeItem(
+                            `updatedProducts_${selectedDelivery.Do_Id}`
+                        ).catch(error => console.error("Reset storage error:", error));
+
+                        Alert.alert("Success", "All products have been reset to original quantities");
                     },
                 },
             ],
@@ -505,6 +574,18 @@ const DeliveryUpdate = () => {
                     <Text style={styles.productModalHeaderText}>
                         Adjust Product Quantities
                     </Text>
+                    {hasProductChanges && (
+                        <TouchableOpacity
+                            style={styles.resetButton}
+                            onPress={handleResetProducts}
+                        >
+                            <MaterialIcon
+                                name="refresh"
+                                size={24}
+                                color={customColors.white}
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <ScrollView style={styles.productModalContent}>
@@ -622,16 +703,63 @@ const DeliveryUpdate = () => {
                 <View style={styles.cancelModalContent}>
                     <Text style={styles.cancelModalTitle}>Cancel Delivery</Text>
                     <Text style={styles.cancelModalSubtitle}>
-                        Are you sure you want to cancel this delivery?
+                        Select a reason or enter a custom reason for cancellation
+                    </Text>
+
+                    {/* Predefined Reason Buttons */}
+                    <Text style={styles.reasonSectionTitle}>Common Reasons:</Text>
+                    <View style={styles.reasonButtonsContainer}>
+                        {cancelReasons.map((reason, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[
+                                    styles.reasonButton,
+                                    selectedCancelReason === reason && styles.selectedReasonButton
+                                ]}
+                                onPress={() => {
+                                    setSelectedCancelReason(reason);
+                                    if (reason === "Other") {
+                                        setCancelReason("");
+                                    } else {
+                                        setCancelReason(reason);
+                                    }
+                                }}
+                            >
+                                <Text style={[
+                                    styles.reasonButtonText,
+                                    selectedCancelReason === reason && styles.selectedReasonButtonText
+                                ]}>
+                                    {reason}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Custom Reason Input - Show when "Other" is selected or for additional details */}
+                    <Text style={styles.customReasonLabel}>
+                        {selectedCancelReason === "Other" ? "Enter custom reason:" : "Additional details (optional):"}
                     </Text>
                     <TextInput
                         style={styles.cancelReasonInput}
-                        placeholder="Enter reason for cancellation..."
-                        value={cancelReason}
-                        onChangeText={setCancelReason}
+                        placeholder={
+                            selectedCancelReason === "Other"
+                                ? "Enter reason for cancellation..."
+                                : "Add more details if needed..."
+                        }
+                        value={selectedCancelReason === "Other" ? cancelReason :
+                            (cancelReason === selectedCancelReason ? "" : cancelReason)}
+                        onChangeText={(text) => {
+                            if (selectedCancelReason === "Other") {
+                                setCancelReason(text);
+                            } else {
+                                // For additional details, combine with selected reason
+                                setCancelReason(selectedCancelReason + (text ? ` - ${text}` : ""));
+                            }
+                        }}
                         multiline
                         numberOfLines={3}
                     />
+
                     <View style={styles.cancelModalButtons}>
                         <TouchableOpacity
                             style={[
@@ -641,6 +769,7 @@ const DeliveryUpdate = () => {
                             onPress={() => {
                                 setShowCancelModal(false);
                                 setCancelReason("");
+                                setSelectedCancelReason("");
                             }}
                         >
                             <Text style={styles.cancelModalButtonTextSecondary}>
@@ -651,9 +780,10 @@ const DeliveryUpdate = () => {
                             style={[
                                 styles.cancelModalButton,
                                 styles.cancelModalButtonPrimary,
+                                (!cancelReason.trim()) && styles.disabledButton
                             ]}
                             onPress={handleCancelDelivery}
-                            disabled={loading}
+                            disabled={loading || !cancelReason.trim()}
                         >
                             <Text style={styles.cancelModalButtonTextPrimary}>
                                 {loading ? "Cancelling..." : "Cancel Delivery"}
@@ -1070,24 +1200,40 @@ const DeliveryUpdate = () => {
 
                             {/* Product count and management */}
                             <View style={styles.productSection}>
-                                <Text style={styles.sectionTitle}>
-                                    Products ({updatedProducts.length})
-                                </Text>
-                                <TouchableOpacity
-                                    style={styles.manageProductsButton}
-                                    onPress={() => setShowProductModal(true)}
-                                >
-                                    <MaterialIcon
-                                        name="edit"
-                                        size={16}
-                                        color={customColors.white}
-                                    />
-                                    <Text
-                                        style={styles.manageProductsButtonText}
-                                    >
-                                        Manage Quantities
+                                <View style={styles.productSectionHeader}>
+                                    <Text style={styles.sectionTitle}>
+                                        Products ({updatedProducts.length})
+                                        {hasProductChanges && <Text style={styles.changedIndicator}> (Edited)</Text>}
                                     </Text>
-                                </TouchableOpacity>
+                                    <View style={styles.productActionButtons}>
+                                        {hasProductChanges && (
+                                            <TouchableOpacity
+                                                style={styles.resetAllButton}
+                                                onPress={handleResetProducts}
+                                            >
+                                                <MaterialIcon
+                                                    name="refresh"
+                                                    size={16}
+                                                    color={customColors.white}
+                                                />
+                                                <Text style={styles.resetButtonText}>Reset</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        <TouchableOpacity
+                                            style={styles.manageProductsButton}
+                                            onPress={() => setShowProductModal(true)}
+                                        >
+                                            <MaterialIcon
+                                                name="edit"
+                                                size={16}
+                                                color={customColors.white}
+                                            />
+                                            <Text style={styles.manageProductsButtonText}>
+                                                Manage
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </View>
 
                             <View style={styles.paymentModeSection}>
@@ -1495,6 +1641,40 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
     },
+    resetButton: {
+        padding: spacing.xs,
+        marginLeft: spacing.md,
+        alignSelf: "flex-end"
+    },
+    productSectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        width: "100%",
+    },
+    changedIndicator: {
+        ...typography.caption(),
+        color: customColors.warning,
+        fontWeight: "600",
+    },
+    productActionButtons: {
+        flexDirection: "row",
+        gap: spacing.xs,
+    },
+    resetAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.warning,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: 6,
+        gap: spacing.xs,
+    },
+    resetButtonText: {
+        color: customColors.white,
+        ...typography.caption(),
+        fontWeight: "600",
+    },
     manageProductsButton: {
         flexDirection: "row",
         alignItems: "center",
@@ -1760,5 +1940,50 @@ const styles = StyleSheet.create({
         color: customColors.white,
         fontWeight: "600",
         ...typography.body1(),
+    },
+
+    reasonSectionTitle: {
+        ...typography.body1(),
+        fontWeight: "600",
+        color: customColors.primary,
+        marginBottom: spacing.sm,
+        marginTop: spacing.sm,
+    },
+    reasonButtonsContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.xs,
+        marginBottom: spacing.md,
+    },
+    reasonButton: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        backgroundColor: customColors.white,
+        marginBottom: spacing.xs,
+    },
+    selectedReasonButton: {
+        backgroundColor: customColors.primary,
+        borderColor: customColors.primary,
+    },
+    reasonButtonText: {
+        ...typography.body2(),
+        color: customColors.grey700,
+        textAlign: "center",
+    },
+    selectedReasonButtonText: {
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    customReasonLabel: {
+        ...typography.body2(),
+        fontWeight: "600",
+        color: customColors.grey700,
+        marginBottom: spacing.xs,
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
 });

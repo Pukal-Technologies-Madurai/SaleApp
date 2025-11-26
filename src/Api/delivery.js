@@ -12,7 +12,7 @@ export const fetchDeliveryTripSheet = async ({ from, to, uId }) => {
 
 export const fetchPendingDeliveryList = async (fromDate, toDate, branchId) => {
     try {
-        const url = `${API.pendingDeliveryList()}${fromDate}&Todate=${toDate}&Branch_Id=${branchId}`;
+        const url = `${API.todayDelivery()}Fromdate=${fromDate}&Todate=${toDate}&Branch_Id=${branchId}`;
         const response = await fetch(url);
 
         const data = await response.json();
@@ -26,7 +26,7 @@ export const fetchPendingDeliveryList = async (fromDate, toDate, branchId) => {
 
 export const fetchPendingSalesList = async (fromDate, toDate, branchId) => {
     try {
-        const url = `${API.pendingSalesOrder()}${fromDate}&Todate=${toDate}&Branch_Id=${branchId}`;
+        const url = `${API.saleOrder()}?Fromdate=${fromDate}&Todate=${toDate}&Branch_Id=${branchId}`;
         const response = await fetch(url);
 
         const data = await response.json();
