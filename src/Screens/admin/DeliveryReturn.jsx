@@ -36,9 +36,9 @@ const DeliveryReturn = ({ route }) => {
     };
 
     const { data: deliveryReturnData = [], refetch, isLoading } = useQuery({
-        queryKey: ["deliveryReturnData", currentDate, selectedBranch],
-        queryFn: () => fetchDeliveryReturnList(currentDate, currentDate, selectedBranch),
-        enabled: !!currentDate && !!selectedBranch,
+        queryKey: ["deliveryReturnData", currentDate, selectedBranch || ""],
+        queryFn: () => fetchDeliveryReturnList(currentDate, currentDate, selectedBranch || ""),
+        enabled: !!currentDate,
     });
 
     const retailerIds = useMemo(() => {

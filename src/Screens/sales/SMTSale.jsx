@@ -6,9 +6,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
+import RNHTMLtoPDF from "react-native-html-to-pdf";
+import Share from "react-native-share";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import ProductItem from "./ProductItem";
+import { API } from "../../Config/Endpoint";
 import { createSaleOrder } from "../../Api/sales";
 import { useOrderStore } from "../../stores/orderStore";
 import { customColors, spacing, typography } from "../../Config/helper";
@@ -312,6 +315,446 @@ const SMTSale = ({ route }) => {
         };
     }, [orderData, orderItems, selectedBrokerId, selectedTransportId, brokersData, transportData, productData]);
 
+    const downloadItemPDF = async item => {
+        try {
+            const pdfPath = await generateItemPDF(item);
+            if (pdfPath) {
+                try {
+                    await Share.open({
+                        url: `file://${pdfPath}`,
+                        title: "Sale Order",
+                        message: "Here is your order preview in PDF format",
+                        showAppsToView: true,
+                        subject: "Sale Order Receipt",
+                        // Optional: Add print-specific filename
+                        filename: `receipt-${item?.generalInfo?.So_Inv_No || item?.generalInfo?.So_Id || Date.now()}.pdf`,
+                    });
+                } catch (shareError) {
+                    // Silently handle user cancellation
+                    if (
+                        shareError.message &&
+                        shareError.message.includes("User did not share")
+                    ) {
+                        return; // User cancelled, do nothing
+                    }
+                    throw shareError; // Re-throw other errors
+                }
+            } else {
+                Alert.alert(
+                    "Error",
+                    "Failed to generate PDF. Please try again.",
+                );
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            Alert.alert("Error", "Something went wrong. Please try again.");
+        }
+    };
+
+    const generateItemPDF = async (orderDataFromResponse) => {
+        try {
+            const {
+                generalInfo,
+                productDetails,
+                staffInvolved,
+            } = orderDataFromResponse;
+
+            const response = await fetch(
+                `${API.retailerInfo()}${generalInfo.Retailer_Id}`,
+            );
+            const data = await response.json();
+
+            let currentRetailerInfo = null;
+            if (data.success && data.data && data.data.length > 0) {
+                currentRetailerInfo = data.data[0];
+            }
+
+            const safeNum = (v, d = 0) =>
+                Number.isFinite(Number(v)) ? Number(v) : d;
+            const rupee = n =>
+                safeNum(n).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+
+            const products = Array.isArray(productDetails)
+                ? productDetails
+                : [];
+            const brokerNames =
+                staffInvolved
+                    ?.filter(staff => staff.EmpType === "Broker")
+                    ?.map(broker => broker.EmpName)
+                    ?.join(", ") || "—";
+
+            const transportNames =
+                staffInvolved
+                    ?.filter(staff => staff.EmpType === "Transport")
+                    ?.map(transport => transport.EmpName)
+                    ?.join(", ") || "—";
+
+            const numberOfBags = products.reduce((sum, p) => {
+                const packWeight =
+                    parseFloat(
+                        p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1],
+                    ) || 0;
+                const totalKg = parseFloat(p.Bill_Qty) || 0;
+                const bags = packWeight > 0 ? totalKg / packWeight : 0;
+                return sum + bags; // Remove the conditional that was returning strings
+            }, 0);
+
+            const totalWeight = products.reduce((sum, p) => {
+                const packWeight =
+                    parseFloat(
+                        p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1],
+                    ) || 0;
+                const bags = parseFloat(p.Bill_Qty) || 0;
+                return sum + bags * packWeight;
+            }, 0);
+
+            const htmlContent = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8" />
+                        <meta
+                        name="viewport"
+                        content="width=80mm, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+                        />
+                        <title>Quotation</title>
+                        <style>
+                        @page {
+                            size: 80mm auto;
+                            margin: 0mm;
+                        }
+    
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+    
+                        body {
+                            width: 80mm;
+                            font-family: "Courier New", monospace;
+                            font-size: 11px;
+                            padding: 3mm;
+                            color: #000;
+                            line-height: 1.3;
+                        }
+    
+                        .header {
+                            text-align: center;
+                            font-size: 16px;
+                            font-weight: 700;
+                            border-bottom: 0.75px solid #000;
+                            padding-bottom: 2mm;
+                            margin-bottom: 3mm;
+                            letter-spacing: 1px;
+                        }
+    
+                        .top-row {
+                            display: flex;
+                            justify-content: space-between;
+                            margin-bottom: 2mm;
+                            font-size: 10px;
+                        }
+    
+                        .info-section {
+                            border-top: 0.75px solid #000;
+                            border-bottom: 0.75px solid #000;
+                            padding: 1mm 0;
+                        }
+    
+                        .info-row {
+                            display: flex;
+                            min-height: 4.5mm;
+                            align-items: center;
+                            padding: 1mm 0;
+                        }
+    
+                        .info-label {
+                            font-weight: 700;
+                            min-width: 26mm;
+                            font-size: 10px;
+                            flex-shrink: 0;
+                        }
+    
+                        .info-value {
+                            flex: 1;
+                            font-size: 14px;
+                            font-weight: 800;
+                            padding-left: 2mm;
+                        }
+    
+                        .table-container {
+                            margin-top: 3mm;
+                            border: 0.25px solid #000;
+                        }
+    
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                        }
+    
+                        thead th {
+                            border: 0.75px solid #000;
+                            padding: 2mm 1mm;
+                            text-align: center;
+                            font-size: 10px;
+                            font-weight: 700;
+                            background: #f5f5f5;
+                        }
+    
+                        tbody td {
+                            border: 0.75px solid #000;
+                            padding: 1mm;
+                            text-align: center;
+                            font-size: 9px;
+                            vertical-align: middle;
+                        }
+    
+                        .rate-cell {
+                            width: 18mm;
+                            padding: 2mm 1mm !important;
+                            line-height: 1.4;
+                        }
+    
+                        .rate-value {
+                            display: block;
+                            font-size: 14px;
+                            font-weight: 900;
+                        }
+    
+                        .rate-space {
+                            display: block;
+                            height: 3mm;
+                        }
+    
+                        .item-cell {
+                            width: 32mm;
+                            text-align: left;
+                            padding-left: 2mm !important;
+                            font-size: 14px;
+                            font-weight: 900;
+                        }
+    
+                        .bags-cell,
+                        .kgs-cell {
+                            width: 15mm;
+                            font-size: 14px;
+                            font-weight: 900;
+                        }
+    
+                        .data-row {
+                            min-height: 12mm;
+                        }
+    
+                        .total-row {
+                            background: #f8f8f8;
+                            border-top: 2px solid #000 !important;
+                        }
+    
+                        .total-row td {
+                            font-weight: 700;
+                            font-size: 11px;
+                            padding: 2mm 1mm !important;
+                        }
+    
+                        @media print {
+                            body {
+                            padding: 2mm;
+                            }
+                        }
+                        </style>
+                    </head>
+                    <body>
+                        <!-- Header -->
+                        <div class="header">QUOTATION</div>
+    
+                        <!-- Top Info Row -->
+                        <div class="top-row">
+                        <div class="bold" style="font-size: 12px; font-weight: 900">
+                            <strong>DATE:</strong> ${
+                                generalInfo?.Created_on &&
+                                `${new Date(
+                                    generalInfo.Created_on,
+                                ).toLocaleDateString("en-GB")}/${new Date(
+                                    generalInfo.Created_on,
+                                ).toLocaleTimeString("en-IN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                })}`
+                            }
+                        </div>
+                        <div style="margin-bottom: 3mm; font-size: 14px; font-weight: 900">
+                            <strong style="font-size: 14px; font-weight: 900">TAKEN:</strong>
+                            ${
+                                generalInfo?.Sales_Person_Name ||
+                                generalInfo?.Created_BY_Name ||
+                                "—"
+                            }
+                        </div>
+                        </div>
+    
+                        <!-- Info Section -->
+                        <div class="info-section">
+                        <div class="info-row">
+                            <div class="info-label">PARTY NAME:</div>
+                            <div class="info-value">
+                            ${
+                                currentRetailerInfo?.retailerTamilName ||
+                                currentRetailerInfo?.Retailer_Name ||
+                                generalInfo?.Retailer_Name ||
+                                "—"
+                            }
+                            </div>
+                        </div>
+    
+                        <div class="info-row">
+                            <div class="info-label">LOCATION:</div>
+                            <div class="info-value">
+                            ${
+                                [
+                                    currentRetailerInfo?.Party_Mailing_Address ||
+                                        currentRetailerInfo?.Reatailer_Address,
+                                ]
+                                    .filter(Boolean)
+                                    .join(", ") ||
+                                currentRetailerInfo?.StateGet ||
+                                generalInfo?.Retailer_Name ||
+                                "—"
+                            }
+                            </div>
+                        </div>
+    
+                        <div class="info-row">
+                            <div class="info-label">PH.NO:</div>
+                            <div class="info-value">
+                            ${
+                                currentRetailerInfo?.Mobile_No ||
+                                currentRetailerInfo?.Party_Mailing_Address?.match(
+                                    /(\d{3}[-\s]?\d{3}[-\s]?\d{4}|\d{10})/,
+                                )?.[0] ||
+                                "—"
+                            }
+                            </div>
+                        </div>
+    
+                        <div class="info-row">
+                            <div class="info-label">TRANSPORT:</div>
+                            <div class="info-value">${transportNames || "—"}</div>
+                        </div>
+    
+                        <div class="info-row">
+                            <div class="info-label">BROKER:</div>
+                            <div class="info-value">${brokerNames || "—"}</div>
+                        </div>
+                        </div>
+    
+                        <!-- Table -->
+                        <div class="table-container">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th style="width: 18mm">RATE</th>
+                                <th style="width: 32mm">ITEM NAME</th>
+                                <th style="width: 15mm">BAGS</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            ${
+                                products.length
+                                    ? products
+                                          .map(p => {
+                                              const packWeight =
+                                                  parseFloat(
+                                                      p?.Product_Name?.match(
+                                                          /(\d+(?:\.\d+)?)\s*KG/i,
+                                                      )?.[1],
+                                                  ) || 0;
+                                              const totalKg =
+                                                  parseFloat(p.Bill_Qty) || 0;
+                                              const bags =
+                                                  packWeight > 0
+                                                      ? totalKg / packWeight
+                                                      : 0;
+                                              return `
+                            <tr class="data-row">
+                                <td class="rate-cell">
+                                <span class="rate-value">₹${rupee(p?.Item_Rate ?? 0)}</span>
+                                <span class="rate-space"></span>
+                                </td>
+                                <td class="item-cell">
+                                ${p.Product_Short_Name || p?.Product_Name}
+                                </td>
+                                <td class="bags-cell">${bags > 0 ? bags.toFixed(1) : "0"}</td>
+                            </tr>
+                            `;
+                                          })
+                                          .join("")
+                                    : Array.from(
+                                          { length: 6 },
+                                          () => `
+                            <tr class="data-row">
+                                <td class="rate-cell">
+                                <span class="rate-space"></span>
+                                </td>
+                                <td class="item-cell"></td>
+                                <td class="bags-cell"></td>
+                            </tr>
+                            `,
+                                      ).join("")
+                            }
+    
+                            <!-- Total Row -->
+                            <tr class="total-row">
+                                <td style="font-weight: 900; font-size: 13px">
+                                ₹${rupee(
+                                    products.reduce(
+                                        (sum, p) =>
+                                            sum +
+                                            (parseFloat(p.Bill_Qty) || 0) *
+                                                (parseFloat(p.Item_Rate) || 0),
+                                        0,
+                                    ),
+                                )}
+                                </td>
+                                <td style="font-weight: 900; font-size: 13px">
+                                ${totalWeight.toFixed(2)} KG
+                                </td>
+                                <td style="font-weight: 900; font-size: 13px">
+                                ${numberOfBags.toFixed(1)}
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+            // Calculate approximate height based on content
+            const estimatedHeight = 400 + products.length * 30;
+
+            const options = {
+                html: htmlContent,
+                fileName: `sale-order-${generalInfo?.So_Inv_No?.replace(/[^\w-]+/g, "_") || Date.now()}`,
+                directory: "Documents",
+                width: 226,
+                height: estimatedHeight,
+                padding: 0,
+                base64: false,
+            };
+
+            const pdf = await RNHTMLtoPDF.convert(options);
+            return pdf.filePath;
+        } catch (err) {
+            console.error("Error generating PDF:", err);
+            return null;
+        }
+    };
+
     const mutation = useMutation({
         mutationFn: createSaleOrder,
         onSuccess: data => {
@@ -320,15 +763,27 @@ const SMTSale = ({ route }) => {
                     "Success",
                     data.message || "Order created successfully!",
                     [
-                        // {
-                        //     text: "View Orders",
-                        //     onPress: () => {
-                        //         resetAll(); // Clear the order store
-                        //         setShowOrderSummary(false);
-                        //         navigation.replace("HomeScreen");
-                        //     },
-                        //     style: "default",
-                        // },
+                        {
+                            text: "Print Receipt",
+                            onPress: async () => {
+                                try {
+                                    await downloadItemPDF(
+                                        data.others.createdSaleOrder,
+                                    );
+                                } catch (err) {
+                                    Alert.alert(
+                                        "Error",
+                                        "Failed to generate receipt",
+                                    );
+                                    console.error("PDF generation error:", err);
+                                } finally {
+                                    resetAll(); // Clear the order store
+                                    setShowOrderSummary(false);
+                                    navigation.replace("HomeScreen");
+                                }
+                            },
+                            style: "default",
+                        },
                         {
                             text: "Done",
                             onPress: () => {

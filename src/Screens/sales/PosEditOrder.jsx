@@ -1,4 +1,5 @@
 import {
+    ActivityIndicator,
     Alert,
     Modal,
     ScrollView,
@@ -57,6 +58,7 @@ const PosEditOrder = ({ route }) => {
     const [selectedBrand, setSelectedBrand] = useState(null);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [newProductQuantities, setNewProductQuantities] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const {
         data: productQueryData = {
@@ -78,6 +80,14 @@ const PosEditOrder = ({ route }) => {
         // Extract number before "KG" (case insensitive)
         const match = productName.match(/(\d+(?:\.\d+)?)\s*KG/i);
         return match ? parseFloat(match[1]) : 0;
+    }, []);
+
+    const normalizeSearchText = useCallback((str) => {
+        return String(str)
+            .toLowerCase()
+            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Keep Tamil characters, alphanumeric, and spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
     }, []);
 
     const calculateTotal = useCallback(products => {
@@ -216,6 +226,12 @@ const PosEditOrder = ({ route }) => {
         return { brokersData: broker, transportData: transport };
     }, [rawCostCenters]);
 
+    // Calculate active products count
+    const activeProductsCount = useMemo(() => {
+        if (!productQueryData?.productData) return 0;
+        return productQueryData.productData.filter(product => product.IsActive === 1).length;
+    }, [productQueryData?.productData]);
+
     // Update the handleProductUpdate function to include PackGet calculation
     const handleProductUpdate = (index, field, value) => {
         const updatedProducts = [...editableProducts];
@@ -323,36 +339,53 @@ const PosEditOrder = ({ route }) => {
     const handleBrandSelection = useCallback((selectedItem) => {
         setSelectedBrand(String(selectedItem.value));
         setNewProductQuantities([]);
+        setSearchQuery(""); // Clear search when brand changes
     }, []);
 
-    // Update the useEffect for filtering products - SM TRADERS specific
+    // Update the useEffect for filtering products - Search first, then filter by brand
     useEffect(() => {
         if (productQueryData?.productData && showAddProducts) {
             const existingProductIds = editableProducts.map(p => p.Item_Id);
 
-            if (selectedBrand) {
-                const filteredData = productQueryData.productData.filter(product => {
-                    const isActive = product.IsActive === 1;
-                    const notAlreadyAdded = !existingProductIds.includes(
-                        product.Product_Id.toString(),
-                    );
-                    const matchesBrand = product.Pos_Brand_Id === parseInt(selectedBrand);
+            let filteredData = productQueryData.productData.filter(product => {
+                const isActive = product.IsActive === 1;
+                const notAlreadyAdded = !existingProductIds.includes(
+                    product.Product_Id.toString(),
+                );
 
-                    return isActive && notAlreadyAdded && matchesBrand;
+                return isActive && notAlreadyAdded;
+            });
+
+            // Apply search filter if search query exists
+            if (searchQuery.trim()) {
+                const normalizedSearchTerm = normalizeSearchText(searchQuery);
+                filteredData = filteredData.filter(product => {
+                    const normalizedProductName = normalizeSearchText(product.Product_Name || "");
+                    const normalizedShortName = normalizeSearchText(product.Short_Name || "");
+                    
+                    return normalizedProductName.includes(normalizedSearchTerm) || 
+                           normalizedShortName.includes(normalizedSearchTerm);
                 });
-
-                setFilteredProducts(filteredData);
-            } else {
-                setFilteredProducts([]);
             }
+
+            // Apply brand filter if brand is selected (as additional filter)
+            if (selectedBrand) {
+                filteredData = filteredData.filter(product => {
+                    return product.Pos_Brand_Id === parseInt(selectedBrand);
+                });
+            }
+
+            setFilteredProducts(filteredData);
         } else {
             setFilteredProducts([]);
         }
     }, [
         selectedBrand,
+        searchQuery,
         productQueryData?.productData,
         showAddProducts,
         editableProducts,
+        normalizeSearchText,
     ]);
 
     // Reset states when closing add products section
@@ -361,6 +394,7 @@ const PosEditOrder = ({ route }) => {
         setSelectedBrand(null);
         setFilteredProducts([]);
         setNewProductQuantities([]);
+        setSearchQuery("");
     };
 
     const handleRetailerChange = item => {
@@ -482,6 +516,7 @@ const PosEditOrder = ({ route }) => {
         setNewProductQuantities([]);
         setShowAddProducts(false);
         setSelectedBrand(null);
+        setSearchQuery("");
     };
 
     const handleSubmit = async () => {
@@ -572,7 +607,7 @@ const PosEditOrder = ({ route }) => {
             <View key={index} style={styles.productRow}>
                 <View style={styles.productInfo}>
                     <Text style={styles.productName} numberOfLines={2}>
-                        {product.Product_Short_Name || product.Product_Name}
+                        {product.Short_Name || product.Product_Description ||product.Product_Name}
                     </Text>
 
                     <View style={styles.productMetaRow}>
@@ -654,7 +689,7 @@ const PosEditOrder = ({ route }) => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Edit Order"
+                title="Edit Order Details"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconName="update"
@@ -757,15 +792,53 @@ const PosEditOrder = ({ route }) => {
                                 </TouchableOpacity>
                             </View>
 
-                            {/* SM TRADERS: Single Brand Dropdown */}
+                            {/* SM TRADERS: Search first, then optional brand filter */}
                             <View style={styles.smTradersContainer}>
+                                
+                                {/* Product Search Input - Show first */}
+                                <View style={styles.searchContainer}>
+                                    <View style={styles.searchInputContainer}>
+                                        <Icon 
+                                            name="search" 
+                                            size={20} 
+                                            color={customColors.grey600}
+                                            style={styles.searchIcon}
+                                        />
+                                        <TextInput
+                                            style={styles.searchInput}
+                                            placeholder="Search products by name..."
+                                            value={searchQuery}
+                                            onChangeText={setSearchQuery}
+                                            placeholderTextColor={customColors.grey500}
+                                        />
+                                        {searchQuery.length > 0 && (
+                                            <TouchableOpacity
+                                                onPress={() => setSearchQuery("")}
+                                                style={styles.clearSearchButton}
+                                            >
+                                                <Icon 
+                                                    name="clear" 
+                                                    size={18} 
+                                                    color={customColors.grey600}
+                                                />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                    {searchQuery.trim() && (
+                                        <Text style={styles.searchResultText}>
+                                            {filteredProducts.length} product(s) found
+                                        </Text>
+                                    )}
+                                </View>
 
+                                {/* Optional Brand Filter */}
                                 <View style={styles.smTradersBrandContainer}>
+                                    <Text style={styles.filterLabel}>Filter by Brand (Optional)</Text>
                                     <EnhancedDropdown
                                         data={transformedBranchData}
                                         labelField="label"
                                         valueField="value"
-                                        placeholder="Select Brand"
+                                        placeholder="All Brands"
                                         value={selectedBrand}
                                         onChange={handleBrandSelection}
                                         containerStyle={styles.dropdown}
@@ -773,17 +846,19 @@ const PosEditOrder = ({ route }) => {
                                     />
                                 </View>
 
-                                {selectedBrand && (
+                                {(searchQuery.trim() || selectedBrand) && (
                                     <View style={styles.brandInfoContainer}>
                                         <Text style={styles.productCountText}>
-                                            ({filteredProducts.length} products available)
+                                            {filteredProducts.length} products available
+                                            {selectedBrand && ` in selected brand`}
+                                            {searchQuery.trim() && ` matching "${searchQuery}"`}
                                         </Text>
                                     </View>
                                 )}
                             </View>
 
-                            {/* Products List - Only show when brand is selected */}
-                            {selectedBrand && filteredProducts.length > 0 && (
+                            {/* Products List - Show when there's search query or brand selected */}
+                            {(searchQuery.trim() || selectedBrand) && filteredProducts.length > 0 && (
                                 <View style={styles.productsListContainer}>
                                     <View style={styles.addProductsActions}>
                                         <TouchableOpacity
@@ -902,19 +977,40 @@ const PosEditOrder = ({ route }) => {
                             )}
 
                             {/* No Products Messages */}
-                            {selectedBrand && filteredProducts.length === 0 && (
+                            {(searchQuery.trim() || selectedBrand) && filteredProducts.length === 0 && (
                                 <View style={styles.noProductsContainer}>
                                     <Text style={styles.noProductsText}>
-                                        No active products available for the selected brand.
+                                        No products found matching your criteria.
                                     </Text>
                                 </View>
                             )}
 
-                            {!selectedBrand && (
-                                <View style={styles.noProductsContainer}>
-                                    <Text style={styles.noProductsText}>
-                                        Please select a brand to view active products.
-                                    </Text>
+                            {!searchQuery.trim() && !selectedBrand && (
+                                <View style={styles.loadingContainer}>
+                                    {productQueryData?.productData && productQueryData.productData.length === 0 ? (
+                                        <>
+                                            <ActivityIndicator 
+                                                size="large" 
+                                                color={customColors.primary} 
+                                                style={styles.loadingIndicator}
+                                            />
+                                            <Text style={styles.loadingText}>
+                                                Loading products...
+                                            </Text>
+                                            <Text style={styles.loadingSubText}>
+                                                Please wait while we fetch the product data
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text style={styles.noProductsText}>
+                                                Start typing to search for products or select a brand to filter.
+                                            </Text>
+                                            <Text style={styles.productCountInfo}>
+                                                {activeProductsCount} active products available
+                                            </Text>
+                                        </>
+                                    )}
                                 </View>
                             )}
                         </View>
@@ -1439,6 +1535,76 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey600,
         marginTop: 4,
+        fontWeight: "500",
+    },
+    // Search functionality styles
+    searchContainer: {
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    searchInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        borderRadius: 8,
+        backgroundColor: customColors.white,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        ...typography.body2(),
+        paddingVertical: 8,
+        color: customColors.grey800,
+    },
+    clearSearchButton: {
+        padding: 4,
+        marginLeft: 4,
+    },
+    searchResultText: {
+        ...typography.caption(),
+        color: customColors.primary,
+        marginTop: 6,
+        fontWeight: "500",
+        textAlign: 'center',
+    },
+    filterLabel: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        marginBottom: 6,
+        fontWeight: "500",
+    },
+    // Loading states styles
+    loadingContainer: {
+        padding: 30,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    loadingIndicator: {
+        marginBottom: 16,
+    },
+    loadingText: {
+        ...typography.body2(),
+        color: customColors.primary,
+        textAlign: "center",
+        fontWeight: "600",
+        marginBottom: 4,
+    },
+    loadingSubText: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        textAlign: "center",
+        fontStyle: "italic",
+    },
+    productCountInfo: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        textAlign: "center",
+        marginTop: 8,
         fontWeight: "500",
     },
 })

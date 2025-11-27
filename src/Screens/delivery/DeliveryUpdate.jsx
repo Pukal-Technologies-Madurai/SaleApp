@@ -638,7 +638,7 @@ const DeliveryUpdate = () => {
                                     onChangeText={text =>
                                         handleProductQuantityChange(index, text)
                                     }
-                                    keyboardType="numeric"
+                                    keyboardType="decimal-pad"
                                     textAlign="center"
                                     selectTextOnFocus={true}
                                 />
