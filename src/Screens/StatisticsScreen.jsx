@@ -22,6 +22,7 @@ const StatisticsScreen = ({ route, navigation }) => {
         visitData,
         deliveryData,
         routeData,
+        passedDate,
     } = route.params;
     const [expandedUser, setExpandedUser] = React.useState(null);
 
@@ -61,11 +62,37 @@ const StatisticsScreen = ({ route, navigation }) => {
     };
 
     const renderVisitDetails = name => {
-        const userVisits = visitData
-            .filter(visit => visit.EntryByGet === name)
-            .sort((a, b) => new Date(a.EntryAt) - new Date(b.EntryAt));
+        const filteredVisits = visitData.filter(visit => visit.EntryByGet === name);
+        
+        // Sort all visits by EntryAt to ensure we process earliest entries first
+        const sortedVisits = filteredVisits.sort((a, b) => new Date(a.EntryAt) - new Date(b.EntryAt));
+        
+        // Deduplicate to show only the first visit for each retailer
+        const existingRetailersMap = {};
+        const newRetailersMap = {};
+        
+        for (const visit of sortedVisits) {
+            if (visit.IsExistingRetailer === 1 && visit.Retailer_Id !== null) {
+                // For existing retailers, only keep the first occurrence
+                if (!existingRetailersMap[visit.Retailer_Id]) {
+                    existingRetailersMap[visit.Retailer_Id] = visit;
+                }
+            } else {
+                // For new retailers, only keep the first occurrence
+                const name = (visit.Reatailer_Name || "").trim();
+                const mobile = (visit.Contact_Mobile || "").trim();
+                const key = `${name}_${mobile}`;
 
-        return userVisits.map((visit, index) => (
+                if (!newRetailersMap[key]) {
+                    newRetailersMap[key] = visit;
+                }
+            }
+        }
+        
+        const uniqueVisits = [...Object.values(existingRetailersMap), ...Object.values(newRetailersMap)]
+            .sort((a, b) => new Date(b.EntryAt) - new Date(a.EntryAt));
+
+        return uniqueVisits.map((visit, index) => (
             <View key={index} style={styles.visitDetailItem}>
                 <Icon
                     name={
@@ -219,7 +246,7 @@ const StatisticsScreen = ({ route, navigation }) => {
                                             ? { color: "#2ECC71" }
                                             : {},
                                     ]}>
-                                    isExisting:{" "}
+                                    Existing:{" "}
                                     {
                                         visitData.filter(
                                             visit =>
@@ -242,7 +269,7 @@ const StatisticsScreen = ({ route, navigation }) => {
                                             : {},
                                         { marginLeft: -18 },
                                     ]}>
-                                    isNew:{" "}
+                                    New:{" "}
                                     {
                                         visitData.filter(
                                             visit =>
@@ -273,7 +300,10 @@ const StatisticsScreen = ({ route, navigation }) => {
                 rightIconLibrary="FontAwesome"
                 rightIconName={title !== "Check-In's" ? "users" : "map-o"}
                 onRightPress={() => {
-                    navigation.navigate(title !== "Check-In's" ? "AdminAttendance" : "VisitLogSummary");
+                    // console.log("Navigating with passedDate:", passedDate);
+                    navigation.navigate(title !== "Check-In's" ? "AdminAttendance" : "VisitLogSummary", {
+                        passedDate: passedDate
+                    });
                 }}
             />
 

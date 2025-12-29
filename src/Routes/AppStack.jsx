@@ -47,13 +47,14 @@ import RoutePath from "../Screens/retailers/RoutePath";
 import CreateReceipts from "../Screens/bills/CreateReceipts";
 import ReceiptInfo from "../Screens/bills/ReceiptInfo";
 import ReceiptAdmin from "../Screens/admin/ReceiptAdmin";
-import PendingSales from "../Screens/pending/PendingSales";
+import PendingDeliveryAdmin from "../Screens/pending/PendingDeliveryAdmin";
 import VisitLogSummary from "../Screens/admin/VisitLogSummary";
-import PosOrder from "../Screens/sales/PosOrder";
 import PosEditOrder from "../Screens/sales/PosEditOrder";
 import SMTSale from "../Screens/sales/SMTSale";
 import DeliveryReturn from "../Screens/admin/DeliveryReturn";
 import PendingInvoice from "../Screens/pending/PendingInvoice";
+import PendingDeliveryIndividual from "../Screens/pending/PendingDeliveryIndividual";
+import PendingSaleAdmin from "../Screens/pending/PendingSaleAdmin";
 
 const Stack = createStackNavigator();
 
@@ -64,11 +65,14 @@ const AppStack = () => {
             screenOptions={{
                 header: () => null,
             }}>
-            <Stack.Screen name="Dashboard" component={Dashboard} />
-            <Stack.Screen name="HomeScreen" component={HomeScreen} />
-            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             <Stack.Screen name="StartScreen" component={StartScreen} />
+            <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="Dashboard" component={Dashboard} />
             <Stack.Screen name="Statistics" component={StatisticsScreen} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+
+            <Stack.Screen name="LoginPortal" component={LoginPortal} />
+            <Stack.Screen name="SwitchCompany" component={SwitchCompany} />
 
             <Stack.Screen name="Attendance" component={Attendance} />
             <Stack.Screen name="AttendanceInfo" component={AttendanceInfo} />
@@ -77,9 +81,6 @@ const AppStack = () => {
                 component={AttendanceReport}
             />
             <Stack.Screen name="EndDay" component={EndDay} />
-
-            <Stack.Screen name="LoginPortal" component={LoginPortal} />
-            <Stack.Screen name="SwitchCompany" component={SwitchCompany} />
 
             <Stack.Screen name="RoutePath" component={RoutePath} />
             <Stack.Screen name="AddCustomer" component={AddCustomer} />
@@ -93,15 +94,14 @@ const AppStack = () => {
             <Stack.Screen name="RetailerLog" component={RetailerVisitLog} />
             <Stack.Screen name="TodayLog" component={TodayLog} />
 
+            <Stack.Screen name="Sales" component={Sales} />
             <Stack.Screen name="EditOrder" component={EditSaleOrder} />
+            <Stack.Screen name="SMTSale" component={SMTSale} />
+            <Stack.Screen name="PosEditOrder" component={PosEditOrder} />
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
-            <Stack.Screen name="PendingSales" component={PendingSales} />
-            <Stack.Screen name="SMTSale" component={SMTSale} />
-            <Stack.Screen name="PosOrder" component={PosOrder} />
-            <Stack.Screen name="PosEditOrder" component={PosEditOrder} />
-            <Stack.Screen name="DeliveryReturn" component={DeliveryReturn} />
-            <Stack.Screen name="PendingInvoice" component={PendingInvoice} />
+
+            <Stack.Screen name="PendingDeliveryIndividual" component={PendingDeliveryIndividual} />
 
             <Stack.Screen name="ClosingStock" component={ClosingStock} />
             <Stack.Screen name="StockInfo" component={StockInfo} />
@@ -124,13 +124,17 @@ const AppStack = () => {
             <Stack.Screen name="TripReport" component={TripReport} />
             <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
 
+            <Stack.Screen name="PendingSaleAdmin" component={PendingSaleAdmin} />
+            <Stack.Screen name="PendingDeliveryAdmin" component={PendingDeliveryAdmin} />
+            <Stack.Screen name="PendingInvoice" component={PendingInvoice} />
+            <Stack.Screen name="DeliveryReturn" component={DeliveryReturn} />
+
             <Stack.Screen name="OpenCamera" component={OpenCamera} />
 
             {/* Not Used */}
             <Stack.Screen name="RetailerMapView" component={RetailerMapView} />
             <Stack.Screen name="BillPayment" component={BillPayment} />
             <Stack.Screen name="BillSummary" component={BillSummary} />
-            <Stack.Screen name="Sales" component={Sales} />
             <Stack.Screen name="StockClosing" component={StockClosing} />
             <Stack.Screen
                 name="SalesAdminDetail"

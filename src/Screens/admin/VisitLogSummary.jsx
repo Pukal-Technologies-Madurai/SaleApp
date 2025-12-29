@@ -12,12 +12,16 @@ import { formatTime } from "../../Config/functions";
 import { customColors, shadows, typography } from "../../Config/helper";
 import { fetchRetailers, visitEntryLog } from "../../Api/retailers";
 
-const VisitLogSummary = () => {
+const VisitLogSummary = ({ route }) => {
+    const { passedDate } = route.params || {};
+    // console.log("Passed Date in VisitLogSummary:", passedDate);`
     const navigation = useNavigation();
     const [companyId, setCompanyId] = React.useState(null);
     const [modalVisible, setModalVisible] = React.useState(false);
     const [activeSectionId, setActiveSectionId] = React.useState(null);
-    const [selectedFromDate, setSelectedFromDate] = React.useState(new Date());
+    const [selectedFromDate, setSelectedFromDate] = React.useState(
+        passedDate ? new Date(passedDate) : new Date()
+    );
 
     React.useEffect(() => {
         const loadUserData = async () => {
@@ -30,6 +34,13 @@ const VisitLogSummary = () => {
         };
         loadUserData();
     }, []);
+
+    // Update selectedFromDate when passedDate changes
+    React.useEffect(() => {
+        if (passedDate) {
+            setSelectedFromDate(new Date(passedDate));
+        }
+    }, [passedDate]);
 
     const { data: retailersMaster = [], isretailersLoading, isretailersError } = useQuery({
         queryKey: ["retailersMaster", companyId],
@@ -52,6 +63,28 @@ const VisitLogSummary = () => {
             uId: ""
         }),
         enabled: !!formattedDate,
+        select: data => {
+            const existingRetailersMap = {};
+            const newRetailersMap = {};
+            
+            for (const curr of data) {
+                if (curr.IsExistingRetailer === 1 && curr.Retailer_Id !== null) {
+                    // For existing retailers, deduplicate by Retailer_Id
+                    existingRetailersMap[curr.Retailer_Id] = curr;
+                } else {
+                    // For new retailers, deduplicate by name + mobile combination
+                    const key = `${curr.Reatailer_Name}_${curr.Contact_Mobile}`;
+                    
+                    // Keep the most recent entry (latest EntryAt)
+                    if (!newRetailersMap[key] || 
+                        new Date(curr.EntryAt) > new Date(newRetailersMap[key].EntryAt)) {
+                        newRetailersMap[key] = curr;
+                    }
+                }
+            }
+
+            return [...Object.values(existingRetailersMap), ...Object.values(newRetailersMap)]
+        }
     });
 
     const handleCloseModal = () => {

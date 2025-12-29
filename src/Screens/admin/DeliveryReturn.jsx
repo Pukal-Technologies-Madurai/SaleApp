@@ -12,11 +12,16 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
-import { customColors, shadows, spacing, typography } from "../../Config/helper";
+import {
+    customColors,
+    shadows,
+    spacing,
+    typography,
+} from "../../Config/helper";
 import { fetchDeliveryReturnList } from "../../Api/delivery";
-import { fetchRetailerInfo } from "../../Api/retailers";
 
 const DeliveryReturn = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
@@ -25,8 +30,10 @@ const DeliveryReturn = ({ route }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [filterDate, setFilterDate] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [showProductSummary, setShowProductSummary] = useState(false);
 
-    const currentDate = filterDate || passedDate || new Date().toISOString().split("T")[0];
+    const currentDate =
+        filterDate || passedDate || new Date().toISOString().split("T")[0];
 
     const handleDateChange = date => {
         if (date) {
@@ -35,47 +42,20 @@ const DeliveryReturn = ({ route }) => {
         }
     };
 
-    const { data: deliveryReturnData = [], refetch, isLoading } = useQuery({
+    const {
+        data: deliveryReturnData = [],
+        refetch,
+        isLoading,
+    } = useQuery({
         queryKey: ["deliveryReturnData", currentDate, selectedBranch || ""],
-        queryFn: () => fetchDeliveryReturnList(currentDate, currentDate, selectedBranch || ""),
+        queryFn: () =>
+            fetchDeliveryReturnList(
+                currentDate,
+                currentDate,
+                selectedBranch || "",
+            ),
         enabled: !!currentDate,
     });
-
-    const retailerIds = useMemo(() => {
-        const uniqueIds = [...new Set(deliveryReturnData.map(item => item.Retailer_Id))];
-        return uniqueIds.filter(id => id)
-    }, [deliveryReturnData])
-
-    const { data: retailersData = [], isLoading: isLoadingRetailers } = useQuery({
-        queryKey: ["retailersInfo", retailerIds],
-        queryFn: async () => {
-            if (retailerIds.length === 0) return [];
-
-            const promises = retailerIds.map(id => fetchRetailerInfo(id));
-            const results = await Promise.all(promises);
-
-            // Extract all retailer data from the API response structure
-            const extractedData = results.flatMap(result => {
-                if (result && result.data && Array.isArray(result.data)) {
-                    return result.data; // Return the entire data array
-                }
-                return [];
-            });
-
-            return extractedData;
-        },
-        enabled: retailerIds.length > 0,
-    });
-
-    const retailerNamesMap = useMemo(() => {
-        const map = {};
-        retailersData.forEach(retailer => {
-            if (retailer && retailer.Retailer_Id) {
-                map[String(retailer.Retailer_Id)] = retailer.Retailer_Name;
-            }
-        });
-        return map;
-    }, [retailersData]);
 
     const groupedData = useMemo(() => {
         const groups = {};
@@ -87,7 +67,7 @@ const DeliveryReturn = ({ route }) => {
                     returnDate: item.Ret_Date,
                     godownName: item.Godown_Name,
                     retailerId: item.Retailer_Id,
-                    retailerName: retailerNamesMap[String(item.Retailer_Id)] || `Retailer ${item.Retailer_Id}`,
+                    retailerName: item.Retailer_Name || "Unknown Retailer",
                     doInvNo: item.Do_Inv_No,
                     items: [],
                     totalAmount: 0,
@@ -99,15 +79,42 @@ const DeliveryReturn = ({ route }) => {
             groups[orderId].totalQuantity += parseInt(item.Total_Qty || 0);
         });
         return Object.values(groups);
-    }, [deliveryReturnData, retailerNamesMap]);
+    }, [deliveryReturnData]);
+
+    // Group products by Product_Name for product-wise summary
+    const productWiseSummary = useMemo(() => {
+        const productGroups = {};
+        deliveryReturnData.forEach(item => {
+            const productName = item.Product_Name;
+            if (!productGroups[productName]) {
+                productGroups[productName] = {
+                    productName,
+                    totalQuantity: 0,
+                    totalAmount: 0,
+                    unitName: item.Unit_Name,
+                    returnCount: 0, // Number of times this product was returned
+                };
+            }
+            productGroups[productName].totalQuantity += parseInt(item.Total_Qty || 0);
+            productGroups[productName].totalAmount += parseFloat(item.Final_Amo || 0);
+            productGroups[productName].returnCount += 1;
+        });
+        return Object.values(productGroups).sort((a, b) => b.totalAmount - a.totalAmount);
+    }, [deliveryReturnData]);
 
     // Calculate summary statistics
     const summaryStats = useMemo(() => {
         return {
             totalReturns: deliveryReturnData.length,
             totalOrders: groupedData.length,
-            totalAmount: deliveryReturnData.reduce((sum, item) => sum + parseFloat(item.Final_Amo || 0), 0),
-            totalQuantity: deliveryReturnData.reduce((sum, item) => sum + parseInt(item.Total_Qty || 0), 0),
+            totalAmount: deliveryReturnData.reduce(
+                (sum, item) => sum + parseFloat(item.Final_Amo || 0),
+                0,
+            ),
+            totalQuantity: deliveryReturnData.reduce(
+                (sum, item) => sum + parseInt(item.Total_Qty || 0),
+                0,
+            ),
         };
     }, [deliveryReturnData, groupedData]);
 
@@ -126,7 +133,7 @@ const DeliveryReturn = ({ route }) => {
         setModalVisible(false);
     };
 
-    const formatDate = (dateString) => {
+    const formatDate = dateString => {
         const date = new Date(dateString);
         return date.toLocaleDateString("en-US", {
             year: "numeric",
@@ -139,99 +146,171 @@ const DeliveryReturn = ({ route }) => {
 
     const renderSummaryCard = () => (
         <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Return Summary</Text>
+                <Text style={styles.summaryTitle}>Return Summary</Text>
             <View style={styles.summaryGrid}>
                 <View style={styles.summaryItem}>
-                    <Text style={styles.summaryValue}>{summaryStats.totalReturns}</Text>
+                    <Text style={styles.summaryValue}>
+                        {summaryStats.totalReturns}
+                    </Text>
                     <Text style={styles.summaryLabel}>Total Returns</Text>
                 </View>
-                <View style={styles.summaryItem}>
-                    <Text style={styles.summaryValue}>{summaryStats.totalOrders}</Text>
+                {/* <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>
+                        {summaryStats.totalOrders}
+                    </Text>
                     <Text style={styles.summaryLabel}>Return Orders</Text>
-                </View>
+                </View> */}
                 <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryValue, { color: customColors.error }]}>
+                    <Text
+                        style={[
+                            styles.summaryValue,
+                            { color: customColors.error },
+                        ]}
+                    >
                         ₹{summaryStats.totalAmount.toFixed(2)}
                     </Text>
                     <Text style={styles.summaryLabel}>Total Value</Text>
                 </View>
                 <View style={styles.summaryItem}>
-                    <Text style={styles.summaryValue}>{summaryStats.totalQuantity}</Text>
+                    <Text style={styles.summaryValue}>
+                        {summaryStats.totalQuantity}
+                    </Text>
                     <Text style={styles.summaryLabel}>Total Qty</Text>
                 </View>
             </View>
         </View>
     );
 
+    const renderProductWiseSummary = () => (
+        <View style={styles.productSummaryCard}>
+            <TouchableOpacity 
+                style={styles.productSummaryHeader} 
+                onPress={() => setShowProductSummary(!showProductSummary)}
+            >
+                <Text style={styles.productSummaryTitle}>Product-wise Summary ({productWiseSummary.length})</Text>
+                <Icon 
+                    name={showProductSummary ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
+                    size={20} 
+                    color={customColors.primary} 
+                />
+            </TouchableOpacity>
+            
+            {showProductSummary && (
+                <View style={styles.productSummaryList}>
+                    {productWiseSummary.slice(0, 10).map((product, index) => (
+                        <View key={index} style={styles.productSummaryItem}>
+                            <View style={styles.productSummaryLeft}>
+                                <Text style={styles.productSummaryName} numberOfLines={2}>
+                                    {product.productName}
+                                </Text>
+                                <Text style={styles.productSummaryDetails}>
+                                    {product.returnCount} returns • {product.totalQuantity} {product.unitName}
+                                </Text>
+                            </View>
+                            <Text style={styles.productSummaryAmount}>
+                                ₹{product.totalAmount.toFixed(2)}
+                            </Text>
+                        </View>
+                    ))}
+                    {productWiseSummary.length > 10 && (
+                        <Text style={styles.productSummaryMore}>
+                            +{productWiseSummary.length - 10} more products
+                        </Text>
+                    )}
+                </View>
+            )}
+        </View>
+    );
+
     const renderReturnOrderCard = ({ item: orderGroup }) => (
         <TouchableOpacity style={styles.orderCard} disabled>
-            <View style={styles.orderHeader}>
-                <View style={styles.orderInfo}>
-                    <Text style={styles.orderTitle}>Order #{orderGroup.orderId}</Text>
-                    <Text style={styles.orderDate}>
+            {/* Compact Header */}
+            <View style={styles.compactHeader}>
+                <View style={styles.headerLeft}>
+                    <Text style={styles.orderNumber}>
+                        #{orderGroup.orderId}
+                    </Text>
+                    <Text style={styles.compactDate}>
                         {formatDate(orderGroup.returnDate)}
                     </Text>
                 </View>
-                <View style={styles.orderStatus}>
-                    <Icon name="assignment-return" size={24} color={customColors.error} />
+                <View style={styles.headerRight}>
+                    <Icon
+                        name="assignment-return"
+                        size={20}
+                        color={customColors.error}
+                    />
+                    <Text style={styles.returnBadge}>RETURNED</Text>
                 </View>
             </View>
 
-            <View style={styles.retailerInfo}>
-                <Icon name="person" size={16} color={customColors.primary} />
-                <Text style={styles.retailerText}>{orderGroup.retailerName}</Text>
-            </View>
-
-            <View style={styles.godownInfo}>
-                <Icon name="store" size={16} color={customColors.primary} />
-                <Text style={styles.godownText}>{orderGroup.godownName}</Text>
-            </View>
-
-            <View style={styles.itemsSection}>
-                <Text style={styles.itemsTitle}>
-                    Returned Items ({orderGroup.items.length})
+            {/* Compact Info Row */}
+            <View style={styles.infoRow}>
+                <Text style={styles.infoText} numberOfLines={1}>
+                    <Icon
+                        name="person"
+                        size={14}
+                        color={customColors.primary}
+                    />{" "}
+                    {orderGroup.retailerName}
                 </Text>
+            </View>
+            <View style={styles.infoRow}>
+                <Text style={styles.infoText} numberOfLines={1}>
+                    <Icon name="store" size={14} color={customColors.primary} />{" "}
+                    {orderGroup.godownName}
+                </Text>
+            </View>
+
+            {/* Products Summary */}
+            <View style={styles.productsSummary}>
+                <Text style={styles.summaryText}>
+                    {orderGroup.items.length} Products •{" "}
+                    {orderGroup.totalQuantity} Items • ₹
+                    {orderGroup.totalAmount.toFixed(2)}
+                </Text>
+            </View>
+
+            {/* Compact Items List */}
+            <View style={styles.compactItemsList}>
                 {orderGroup.items.map((item, index) => (
-                    <View key={index} style={styles.productItem}>
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName}>{item.Product_Name}</Text>
-                            <Text style={styles.productDetails}>
-                                HSN: {item.HSN_Code} | Rate: ₹{item.Item_Rate}/{item.Unit_Name}
+                    <View key={index} style={styles.compactProductItem}>
+                        <View style={styles.productLeft}>
+                            <Text
+                                style={styles.compactProductName}
+                                numberOfLines={1}
+                            >
+                                {item.Product_Name}
+                            </Text>
+                            <Text style={styles.compactProductDetails}>
+                                {item.Total_Qty} {item.Unit_Name} × ₹
+                                {item.Item_Rate}
                             </Text>
                         </View>
-                        <View style={styles.quantityInfo}>
-                            <Text style={styles.quantityText}>
-                                Qty: {item.Total_Qty} {item.Unit_Name}
-                            </Text>
-                            <Text style={styles.amountText}>
-                                ₹{item.Final_Amo}
-                            </Text>
-                        </View>
+                        <Text style={styles.compactAmount}>
+                            ₹{item.Final_Amo}
+                        </Text>
                     </View>
                 ))}
-            </View>
-
-            <View style={styles.orderTotals}>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Total Quantity:</Text>
-                    <Text style={styles.totalValue}>{orderGroup.totalQuantity} items</Text>
-                </View>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Total Amount:</Text>
-                    <Text style={[styles.totalValue, { color: customColors.error }]}>
-                        ₹{orderGroup.totalAmount.toFixed(2)}
-                    </Text>
-                </View>
             </View>
         </TouchableOpacity>
     );
 
     const renderEmptyState = () => (
         <View style={styles.emptyContainer}>
-            <Icon name="assignment-return" size={80} color={customColors.grey400} />
+            <Icon
+                name="assignment-return"
+                size={80}
+                color={customColors.grey400}
+            />
             <Text style={styles.emptyTitle}>No Returns Found</Text>
             <Text style={styles.emptyMessage}>
-                No delivery returns were found for {filterDate ? new Date(filterDate).toLocaleDateString() : passedDate ? new Date(passedDate).toLocaleDateString() : new Date().toLocaleDateString()}
+                No delivery returns were found for{" "}
+                {filterDate
+                    ? new Date(filterDate).toLocaleDateString()
+                    : passedDate
+                      ? new Date(passedDate).toLocaleDateString()
+                      : new Date().toLocaleDateString()}
             </Text>
         </View>
     );
@@ -249,7 +328,13 @@ const DeliveryReturn = ({ route }) => {
 
             <FilterModal
                 visible={modalVisible}
-                fromDate={filterDate ? new Date(filterDate) : passedDate ? new Date(passedDate) : new Date()}
+                fromDate={
+                    filterDate
+                        ? new Date(filterDate)
+                        : passedDate
+                          ? new Date(passedDate)
+                          : new Date()
+                }
                 onFromDateChange={handleDateChange}
                 onApply={() => setModalVisible(false)}
                 onClose={handleCloseModal}
@@ -262,7 +347,7 @@ const DeliveryReturn = ({ route }) => {
                 <FlashList
                     data={groupedData}
                     renderItem={renderReturnOrderCard}
-                    keyExtractor={(item) => `return-order-${item.orderId}`}
+                    keyExtractor={item => `return-order-${item.orderId}`}
                     contentContainerStyle={styles.listContainer}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
@@ -272,16 +357,22 @@ const DeliveryReturn = ({ route }) => {
                             colors={[customColors.primary]}
                         />
                     }
-                    ListHeaderComponent={groupedData.length > 0 ? renderSummaryCard : null}
+                    ListHeaderComponent={
+                        groupedData.length > 0 ? (
+                            <>
+                                {renderSummaryCard()}
+                                {renderProductWiseSummary()}
+                            </>
+                        ) : null
+                    }
                     ListEmptyComponent={!isLoading ? renderEmptyState : null}
                 />
             </View>
-
         </SafeAreaView>
-    )
-}
+    );
+};
 
-export default DeliveryReturn
+export default DeliveryReturn;
 
 const styles = StyleSheet.create({
     container: {
@@ -304,8 +395,8 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         marginBottom: spacing.lg,
         ...shadows.medium,
-        borderLeftWidth: 4,
-        borderLeftColor: customColors.error,
+        // borderLeftWidth: 4,
+        // borderLeftColor: customColors.error,
     },
     summaryTitle: {
         ...typography.h6(),
@@ -337,137 +428,105 @@ const styles = StyleSheet.create({
     // Order Card Styles
     orderCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: spacing.lg,
-        marginBottom: spacing.md,
+        borderRadius: 8,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
         ...shadows.small,
-        borderLeftWidth: 4,
+        borderLeftWidth: 3,
         borderLeftColor: customColors.error,
     },
-    orderHeader: {
+    // Compact Header Styles
+    compactHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.md,
-        paddingBottom: spacing.md,
+        marginBottom: spacing.sm,
+        paddingBottom: spacing.xs,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
     },
-    orderInfo: {
+    headerLeft: {
         flex: 1,
     },
-    orderTitle: {
+    orderNumber: {
         ...typography.subtitle1(),
-        fontWeight: "600",
+        fontWeight: "700",
         color: customColors.primary,
-        marginBottom: spacing.xs,
+        marginBottom: 2,
     },
-    orderDate: {
-        ...typography.body2(),
-        color: customColors.grey600,
-    },
-    orderStatus: {
-        padding: spacing.sm,
-        backgroundColor: customColors.error + "20",
-        borderRadius: 8,
-    },
-
-    // Godown Info Styles
-    retailerInfo: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: spacing.sm,
-        paddingBottom: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    retailerText: {
-        ...typography.body2(),
-        color: customColors.primary,
-        marginLeft: spacing.sm,
-        fontWeight: "500",
-    },
-    godownInfo: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: spacing.md,
-        paddingBottom: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    godownText: {
-        ...typography.body2(),
-        color: customColors.primary,
-        marginLeft: spacing.sm,
-        fontWeight: "500",
-    },
-
-    // Items Section Styles
-    itemsSection: {
-        marginBottom: spacing.md,
-    },
-    itemsTitle: {
-        ...typography.subtitle2(),
-        fontWeight: "600",
-        color: customColors.primary,
-        marginBottom: spacing.sm,
-    },
-    productItem: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey100,
-    },
-    productInfo: {
-        flex: 1,
-        marginRight: spacing.sm,
-    },
-    productName: {
-        ...typography.body2(),
-        fontWeight: "600",
-        color: customColors.grey800,
-        marginBottom: spacing.xs,
-    },
-    productDetails: {
+    compactDate: {
         ...typography.caption(),
         color: customColors.grey600,
     },
-    quantityInfo: {
-        alignItems: "flex-end",
+    headerRight: {
+        flexDirection: "row",
+        alignItems: "center",
     },
-    quantityText: {
-        ...typography.body2(),
-        color: customColors.grey700,
-        marginBottom: spacing.xs,
-    },
-    amountText: {
-        ...typography.subtitle2(),
+    returnBadge: {
+        ...typography.caption(),
         fontWeight: "600",
         color: customColors.error,
+        marginLeft: spacing.xs,
     },
 
-    // Order Totals Styles
-    orderTotals: {
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
+    // Compact Info Styles
+    infoRow: {
+        marginBottom: spacing.xs,
     },
-    totalRow: {
+    infoText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontSize: 12,
+    },
+
+    // Products Summary
+    productsSummary: {
+        backgroundColor: customColors.error + "10",
+        padding: spacing.xs,
+        borderRadius: 4,
+        marginVertical: spacing.xs,
+    },
+    summaryText: {
+        ...typography.caption(),
+        color: customColors.error,
+        fontWeight: "600",
+        textAlign: "center",
+        fontSize: 11,
+    },
+
+    // Compact Items List Styles
+    compactItemsList: {
+        marginTop: spacing.xs,
+    },
+    compactProductItem: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.xs,
+        paddingVertical: spacing.xs,
+        borderBottomWidth: 0.5,
+        borderBottomColor: customColors.grey200,
     },
-    totalLabel: {
-        ...typography.body2(),
-        color: customColors.grey700,
-        fontWeight: "500",
+    productLeft: {
+        flex: 1,
+        marginRight: spacing.sm,
     },
-    totalValue: {
-        ...typography.body2(),
+    compactProductName: {
+        ...typography.caption(),
         fontWeight: "600",
-        color: customColors.primary,
+        color: customColors.grey800,
+        marginBottom: 2,
+        fontSize: 11,
+    },
+    compactProductDetails: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        fontSize: 10,
+    },
+    compactAmount: {
+        ...typography.caption(),
+        fontWeight: "600",
+        color: customColors.error,
+        fontSize: 11,
     },
 
     // Empty State Styles
@@ -491,4 +550,64 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.xl,
         lineHeight: 22,
     },
-})
+
+    // Product Summary Styles
+    productSummaryCard: {
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        marginBottom: spacing.lg,
+        ...shadows.medium,
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.primary,
+    },
+    productSummaryHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey200,
+    },
+    productSummaryTitle: {
+        ...typography.subtitle1(),
+        fontWeight: "600",
+        color: customColors.primary,
+    },
+    productSummaryList: {
+        padding: spacing.md,
+    },
+    productSummaryItem: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 0.5,
+        borderBottomColor: customColors.grey200,
+    },
+    productSummaryLeft: {
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    productSummaryName: {
+        ...typography.body2(),
+        fontWeight: "600",
+        color: customColors.grey800,
+        marginBottom: spacing.xs,
+    },
+    productSummaryDetails: {
+        ...typography.caption(),
+        color: customColors.grey600,
+    },
+    productSummaryAmount: {
+        ...typography.subtitle1(),
+        fontWeight: "600",
+        color: customColors.error,
+    },
+    productSummaryMore: {
+        ...typography.caption(),
+        color: customColors.primary,
+        textAlign: "center",
+        fontStyle: "italic",
+        marginTop: spacing.sm,
+    },
+});

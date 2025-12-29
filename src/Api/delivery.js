@@ -10,17 +10,18 @@ export const fetchDeliveryTripSheet = async ({ from, to, uId }) => {
     return data.data;
 };
 
-export const fetchPendingDeliveryList = async (fromDate, toDate, branchId) => {
+export const fetchPendingDeliveryList = async ( fromDate, toDate, branchId, salesPersonId ) => {
     try {
-        const url = `${API.todayDelivery()}Fromdate=${fromDate}&Todate=${toDate}&Branch_Id=${branchId}`;
+        const url = `${API.todayDelivery()}Fromdate=${fromDate}&Todate=${toDate}&Branch_Id=${branchId}&Sales_Person_Id=${salesPersonId}`;
+        // console.log("Fetching Pending Delivery List from URL:", url);
         const response = await fetch(url);
-
         const data = await response.json();
 
         if (!data.success) throw new Error(data.message);
         return data.data;
     } catch (err) {
         console.error(err);
+        // throw err;
     }
 };
 

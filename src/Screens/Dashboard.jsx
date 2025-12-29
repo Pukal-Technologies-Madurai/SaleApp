@@ -111,7 +111,34 @@ const Dashboard = () => {
             const url = `${API.visitedLog()}?reqDate=${fromDate}&UserId=${id}&Branch_Id=${branchId}`;
             const response = await fetch(url);
             const data = await response.json();
-            return data.success ? data.data : [];
+
+            const existingRetailersMap = {};
+            const newRetailersMap = {};
+            for (const curr of data.data) {
+                // Existing retailer → dedupe by Retailer_Id
+                if (curr.IsExistingRetailer === 1 && curr.Retailer_Id !== null) {
+                    existingRetailersMap[curr.Retailer_Id] = curr;
+                } else {
+                    // New retailer → dedupe by Name + Mobile, keep latest EntryAt
+                    const name = (curr.Reatailer_Name || "").trim();
+                    const mobile = (curr.Contact_Mobile || "").trim();
+                    const key = `${name}_${mobile}`;
+
+                    if (
+                        !newRetailersMap[key] ||
+                        new Date(curr.EntryAt) > new Date(newRetailersMap[key].EntryAt)
+                    ) {
+                        newRetailersMap[key] = curr;
+                    }
+                }
+            }
+
+            const uniqueEntries = [
+                ...Object.values(existingRetailersMap),
+                ...Object.values(newRetailersMap),
+            ];
+
+            return data.success ? uniqueEntries : [];
         },
 
         fetchSaleOrder: async (from, to, company, branchId, userId = "") => {
@@ -565,6 +592,7 @@ const Dashboard = () => {
                         title: "Check-In's",
                         userCount: allDashboardData.userCount,
                         visitData: allDashboardData.visitData,
+                        passedDate: selectedDate,
                     }),
             },
             {
@@ -640,7 +668,7 @@ const Dashboard = () => {
             {
                 icon: "keyboard-return",
                 iconLibrary: "MaterialIcons",
-                label: "Return Items",
+                label: "Delivery Return",
                 value: `${allDashboardData.deliveryReturnData?.length || 0}`,
                 color: "#ec7648ff",
                 backgroundColor: "#ffeedf",
@@ -650,13 +678,25 @@ const Dashboard = () => {
                 }),
             },
             {
-                icon: "receipt",
+                icon: "pending-actions",
                 iconLibrary: "MaterialIcons",
                 label: "Pending",
-                value: "Invoice",
+                value: "Delivery",
                 color: "#EC4899",
                 backgroundColor: "#FDF2F8",
-                onPress: () => navigation.navigate("PendingSales", {
+                onPress: () => navigation.navigate("PendingDeliveryAdmin", {
+                    selectedDate: selectedDate,
+                    selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                }),
+            },
+            {
+                icon: "pending-actions",
+                iconLibrary: "MaterialIcons",
+                label: "Pending",
+                value: "Sales",
+                color: "#6366F1",
+                backgroundColor: "#EEF2FF",
+                onPress: () => navigation.navigate("PendingSaleAdmin", {
                     selectedDate: selectedDate,
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                 }),

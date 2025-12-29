@@ -15,48 +15,47 @@ import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { customColors, typography } from "../../Config/helper";
-import { fetchPendingDeliveryList, fetchPendingSalesList } from "../../Api/delivery";
+import { fetchPendingDeliveryList } from "../../Api/delivery";
 
-const PendingSales = ({ route }) => {
+const PendingDeliveryAdmin = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
 
     const navigation = useNavigation();
     const [modalVisible, setModalVisible] = React.useState(false);
+    const toYMD = (d) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
     const [selectedFromDate, setSelectedFromDate] = React.useState(() => {
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return toYMD(firstOfMonth);
+    });
+
+    const [selectedToDate, setSelectedToDate] = React.useState(() => {
         if (passedDate) {
             return passedDate;
         }
-        const now = new Date();
-        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return firstOfMonth.toISOString().split("T")[0];
+        return new Date().toISOString().split("T")[0];
     });
-    const [selectedToDate, setSelectedToDate] = React.useState(new Date().toISOString().split("T")[0]);
     const [activeTab, setActiveTab] = React.useState("delivery");
 
     const { data: pendingDelivery = [], isLoading: isLoadingPendingDelivery } = useQuery({
         queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch || ""],
         queryFn: () =>
-            fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch || ""),
+            fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch || "", ""),
         enabled: !!selectedFromDate && !!selectedToDate,
     });
 
-    const { data: pendingSales = [], isLoading: isLoadingPendingSales } = useQuery({
-        queryKey: ["pendingSalesOrder", selectedFromDate, selectedToDate, selectedBranch || ""],
-        queryFn: () => fetchPendingSalesList(selectedFromDate, selectedToDate, selectedBranch || ""),
-        enabled: !!selectedFromDate && !!selectedToDate,
-    });
-
-    // Filter only pending deliveries (Delivery_Status !== 7)
     const pendingDeliveries = pendingDelivery.filter(
-        item => item.Delivery_Status === 1,
+        item => item.Delivery_Status === 1 || item.DeliveryStatusName === "New",
     );
 
     const returnedDeliveries = pendingDelivery.filter(
         item => item.Delivery_Status === 6,
-    );
-
-    const pendingSalesOrders = pendingSales.filter(
-        item => item.isConverted !== 2,
     );
 
     const handleFromDateChange = date => {
@@ -139,16 +138,16 @@ const PendingSales = ({ route }) => {
                 <View style={styles.summaryItem}>
                     <View style={styles.summaryIconBox}>
                         <Icon
-                            name="shopping-cart"
+                            name="assignment-return"
                             size={18}
-                            color={customColors.primary}
+                            color={customColors.error}
                         />
                     </View>
                     <View style={styles.summaryText}>
                         <Text style={styles.summaryValue}>
-                            {pendingSalesOrders.length}
+                            {returnedDeliveries.length}
                         </Text>
-                        <Text style={styles.summaryLabel}>Sales</Text>
+                        <Text style={styles.summaryLabel}>Return</Text>
                     </View>
                 </View>
 
@@ -156,16 +155,16 @@ const PendingSales = ({ route }) => {
 
                 <View style={styles.summaryItem}>
                     <View style={styles.summaryIconBox}>
-                        <Icon
-                            name="trending-down"
+                        <FontAwesomeIcon
+                            name="inr"
                             size={18}
-                            color={customColors.info}
+                            color={customColors.error}
                         />
                     </View>
                     <View style={styles.summaryText}>
                         <Text style={styles.summaryValue}>
                             {formatCurrency(
-                                pendingSalesOrders.reduce(
+                                returnedDeliveries.reduce(
                                     (sum, item) =>
                                         sum +
                                         parseFloat(
@@ -175,7 +174,7 @@ const PendingSales = ({ route }) => {
                                 ),
                             )}
                         </Text>
-                        <Text style={styles.summaryLabel}>S.Value</Text>
+                        <Text style={styles.summaryLabel}>R.Value</Text>
                     </View>
                 </View>
             </View>
@@ -184,27 +183,6 @@ const PendingSales = ({ route }) => {
 
     const TabView = () => (
         <View style={styles.tabContainer}>
-            <TouchableOpacity
-                style={[styles.tab, activeTab === "sales" && styles.activeTab]}
-                onPress={() => setActiveTab("sales")}>
-                <Icon
-                    name="shopping-cart"
-                    size={18}
-                    color={
-                        activeTab === "sales"
-                            ? customColors.white
-                            : customColors.grey900
-                    }
-                />
-                <Text
-                    style={[
-                        styles.tabText,
-                        activeTab === "sales" && styles.activeTabText,
-                    ]}>
-                    Sales ({pendingSalesOrders.length})
-                </Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
                 style={[
                     styles.tab,
@@ -324,73 +302,6 @@ const PendingSales = ({ route }) => {
         </View>
     );
 
-    const SalesItem = ({ item }) => (
-        <View style={styles.deliveryCard}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.invoiceNumber}>{item.So_Inv_No}</Text>
-                <Text style={styles.invoiceValue}>
-                    {formatCurrency(item.Total_Invoice_value)}
-                </Text>
-            </View>
-
-            <View style={styles.cardContent}>
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="date-range"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>{formatDate(item.So_Date)}</Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="store"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value} numberOfLines={2}>
-                        {item.Retailer_Name}
-                    </Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="person"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>{item.Sales_Person_Name}</Text>
-                </View>
-
-                {item.Narration && (
-                    <View style={styles.infoRow}>
-                        <Icon
-                            name="note"
-                            size={16}
-                            color={customColors.grey900}
-                            style={styles.icon}
-                        />
-                        <Text style={styles.value} numberOfLines={1}>
-                            {item.Narration}
-                        </Text>
-                    </View>
-                )}
-            </View>
-
-            <View
-                style={[
-                    styles.statusBadge,
-                    { backgroundColor: customColors.primary },
-                ]}>
-                <Text style={styles.statusText}>Pending</Text>
-            </View>
-        </View>
-    );
-
     const ReturnedItem = ({ item }) => (
         <View style={styles.deliveryCard}>
             <View style={styles.cardHeader}>
@@ -490,7 +401,7 @@ const PendingSales = ({ route }) => {
         </View>
     );
 
-    const isLoading = isLoadingPendingDelivery || isLoadingPendingSales;
+    const isLoading = isLoadingPendingDelivery;
 
     const renderContent = () => {
         let data, renderItem;
@@ -498,9 +409,6 @@ const PendingSales = ({ route }) => {
         if (activeTab === "delivery") {
             data = pendingDeliveries;
             renderItem = DeliveryItem;
-        } else if (activeTab === "sales") {
-            data = pendingSalesOrders;
-            renderItem = SalesItem;
         } else if (activeTab === "returned") {
             data = returnedDeliveries;
             renderItem = ReturnedItem;
@@ -545,7 +453,7 @@ const PendingSales = ({ route }) => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Pending Details"
+                title="Pending Delivery"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
@@ -576,7 +484,7 @@ const PendingSales = ({ route }) => {
     );
 };
 
-export default PendingSales;
+export default PendingDeliveryAdmin;
 
 const styles = StyleSheet.create({
     container: {

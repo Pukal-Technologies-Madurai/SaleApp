@@ -45,12 +45,14 @@ const DeliveryTable = ({ deliveryData }) => {
                     styles.filterButton,
                     selectedFilter === "all" && styles.filterButtonActive,
                 ]}
-                onPress={() => setSelectedFilter("all")}>
+                onPress={() => setSelectedFilter("all")}
+            >
                 <Text
                     style={[
                         styles.filterText,
                         selectedFilter === "all" && styles.filterTextActive,
-                    ]}>
+                    ]}
+                >
                     All
                 </Text>
             </TouchableOpacity>
@@ -59,13 +61,15 @@ const DeliveryTable = ({ deliveryData }) => {
                     styles.filterButton,
                     selectedFilter === "delivered" && styles.filterButtonActive,
                 ]}
-                onPress={() => setSelectedFilter("delivered")}>
+                onPress={() => setSelectedFilter("delivered")}
+            >
                 <Text
                     style={[
                         styles.filterText,
                         selectedFilter === "delivered" &&
-                        styles.filterTextActive,
-                    ]}>
+                            styles.filterTextActive,
+                    ]}
+                >
                     Delivered
                 </Text>
             </TouchableOpacity>
@@ -74,12 +78,14 @@ const DeliveryTable = ({ deliveryData }) => {
                     styles.filterButton,
                     selectedFilter === "pending" && styles.filterButtonActive,
                 ]}
-                onPress={() => setSelectedFilter("pending")}>
+                onPress={() => setSelectedFilter("pending")}
+            >
                 <Text
                     style={[
                         styles.filterText,
                         selectedFilter === "pending" && styles.filterTextActive,
-                    ]}>
+                    ]}
+                >
                     Pending
                 </Text>
             </TouchableOpacity>
@@ -88,12 +94,14 @@ const DeliveryTable = ({ deliveryData }) => {
                     styles.filterButton,
                     selectedFilter === "return" && styles.filterButtonActive,
                 ]}
-                onPress={() => setSelectedFilter("return")}>
+                onPress={() => setSelectedFilter("return")}
+            >
                 <Text
                     style={[
                         styles.filterText,
                         selectedFilter === "return" && styles.filterTextActive,
-                    ]}>
+                    ]}
+                >
                     Return
                 </Text>
             </TouchableOpacity>
@@ -112,13 +120,13 @@ const DeliveryTable = ({ deliveryData }) => {
         item => item.Delivery_Status === 6,
     ).length;
 
-    const getDeliveryBadgeStyle = (status) => {
+    const getDeliveryBadgeStyle = status => {
         if (status === 6) return styles.returnBadge;
         if (status === 7) return styles.deliveredBadge;
         return styles.pendingBadge;
     };
 
-    const getDeliveryStatus = (status) => {
+    const getDeliveryStatus = status => {
         if (status === 1) return "New";
         if (status === 6) return "Returned";
         if (status === 7) return "Delivered";
@@ -170,27 +178,50 @@ const DeliveryTable = ({ deliveryData }) => {
                         </Text>
                         <Text
                             style={[styles.cell, { flex: 3 }]}
-                            numberOfLines={4}>
+                            numberOfLines={4}
+                        >
                             {item.Retailer_Name}
                         </Text>
                         <Text
                             style={[
                                 styles.cell,
-                                { flex: 2, ...typography.caption(), textAlign: "center" },
-                            ]}>
-                            {item.Delivery_Person_Name === "not available" ? "N/A" : item.Delivery_Person_Name}
+                                {
+                                    flex: 2,
+                                    ...typography.caption(),
+                                    textAlign: "center",
+                                },
+                            ]}
+                        >
+                            {item.Delivery_Person_Name === "not available"
+                                ? "N/A"
+                                : item.Delivery_Person_Name}
                         </Text>
                         <View style={[styles.statusContainer, { flex: 2 }]}>
                             <View
                                 style={[
                                     styles.statusBadge,
                                     getDeliveryBadgeStyle(item.Delivery_Status),
-                                ]}>
+                                ]}
+                            >
                                 <Text style={styles.statusText}>
                                     {getDeliveryStatus(item.Delivery_Status)}
                                 </Text>
                             </View>
                         </View>
+                        {/* Return Reason */}
+                        {getDeliveryStatus(item.Delivery_Status) === "Returned" && (
+                            <View style={styles.returnReasonContainer}>
+                                <Text style={styles.returnReasonLabel}>
+                                    Return Reason:
+                                </Text>
+                                <Text
+                                    style={styles.returnReasonText}
+                                    numberOfLines={3}
+                                >
+                                    {item.Narration || item.Payment_Ref_No || "No reason provided"}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 ))}
             </ScrollView>
@@ -264,7 +295,7 @@ const DeliveryReport = ({ route }) => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Delivery Status"
+                title="Day-Wise Delivery"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
@@ -400,6 +431,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: "#f0f0f0",
         backgroundColor: customColors.white,
+        flexWrap: "wrap",
     },
     cell: {
         ...typography.tableCell(),
@@ -428,5 +460,27 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         fontWeight: "600",
         color: "#1b5e20",
+    },
+    returnReasonContainer: {
+        width: "100%",
+        marginTop: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: "#fff8f8",
+        borderLeftWidth: 3,
+        borderLeftColor: customColors.warning,
+        borderRadius: 4,
+    },
+    returnReasonLabel: {
+        ...typography.caption(),
+        fontWeight: "700",
+        color: customColors.warning,
+        marginBottom: 2,
+    },
+    returnReasonText: {
+        ...typography.caption(),
+        color: "#666",
+        fontStyle: "italic",
+        lineHeight: 16,
     },
 });

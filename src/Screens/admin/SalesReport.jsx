@@ -96,7 +96,33 @@ const SalesReport = ({ navigation, route }) => {
 
             const data = await response.json();
             if (data.success) {
-                setVisitLogLength(data.data?.length || 0);
+                const existingRetailersMap = {};
+                const newRetailersMap = {};
+                for (const curr of data.data) {
+                    // Existing retailer → dedupe by Retailer_Id
+                    if (curr.IsExistingRetailer === 1 && curr.Retailer_Id !== null) {
+                        existingRetailersMap[curr.Retailer_Id] = curr;
+                    } else {
+                        // New retailer → dedupe by Name + Mobile, keep latest EntryAt
+                        const name = (curr.Reatailer_Name || "").trim();
+                        const mobile = (curr.Contact_Mobile || "").trim();
+                        const key = `${name}_${mobile}`;
+
+                        if (
+                            !newRetailersMap[key] ||
+                            new Date(curr.EntryAt) > new Date(newRetailersMap[key].EntryAt)
+                        ) {
+                            newRetailersMap[key] = curr;
+                        }
+                    }
+                }
+
+                const uniqueEntries = [
+                    ...Object.values(existingRetailersMap),
+                    ...Object.values(newRetailersMap),
+                ];
+
+                setVisitLogLength(uniqueEntries.length || 0);
             } else {
                 console.log("Failed to fetch logs:", data.message);
                 setVisitLogLength(0);

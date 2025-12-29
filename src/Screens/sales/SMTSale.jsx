@@ -362,6 +362,7 @@ const SMTSale = ({ route }) => {
             const response = await fetch(
                 `${API.retailerInfo()}${generalInfo.Retailer_Id}`,
             );
+            // console.log("Fetching retailer info from:", `${API.retailerInfo()}${generalInfo.Retailer_Id}`);
             const data = await response.json();
 
             let currentRetailerInfo = null;

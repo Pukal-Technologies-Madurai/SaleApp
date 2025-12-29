@@ -8,6 +8,7 @@ import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { fetchSaleOrder } from "../../Api/sales";
 import { customColors, typography } from "../../Config/helper";
+import { toYMD } from "../../Config/functions";
 
 const PendingInvoice = () => {
     const navigation = useNavigation();
@@ -17,7 +18,7 @@ const PendingInvoice = () => {
     const [selectedFromDate, setSelectedFromDate] = React.useState(() => {
         const now = new Date();
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return firstOfMonth.toISOString().split("T")[0];
+        return toYMD(firstOfMonth);
     });
     const [selectedToDate, setSelectedToDate] = React.useState(new Date().toISOString().split("T")[0]);
     const [selectedBranch, setSelectedBranch] = React.useState(null);
@@ -249,7 +250,7 @@ const PendingInvoice = () => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Pending Details"
+                title="Pending Sales"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
