@@ -151,7 +151,7 @@ const ReceiptInfo = () => {
                             backgroundColor:
                                 receipt.status === 1
                                     ? customColors.success + "20"
-                                    : customColors.warning + "20",
+                                    : customColors.error + "20",
                         },
                     ]}>
                     <Text
@@ -161,10 +161,10 @@ const ReceiptInfo = () => {
                                 color:
                                     receipt.status === 1
                                         ? customColors.success
-                                        : customColors.warning,
+                                        : customColors.error,
                             },
                         ]}>
-                        {receipt.status === 1 ? "Completed" : "Pending"}
+                        {receipt.status === 1 ? "Completed" : "Cancelled"}
                     </Text>
                 </View>
             </View>
@@ -202,7 +202,7 @@ const ReceiptInfo = () => {
     );
 
     const renderSummaryStats = () => {
-        const totalAmount = receiptData.reduce(
+        const totalAmount = receiptData.filter(receipt => receipt.status !== 0).reduce(
             (sum, receipt) => sum + receipt.credit_amount,
             0,
         );

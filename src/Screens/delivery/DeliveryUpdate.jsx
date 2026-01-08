@@ -353,6 +353,7 @@ const DeliveryUpdate = () => {
                 Product_Array: transformedProducts,
                 Delivery_Status: 6, // Cancelled status
                 Payment_Status: 0, // Reset payment status
+                Cancel_status: 0,
                 Delivery_Time: new Date().toISOString(),
                 Delivery_Location: "CANCELLED",
                 Delivery_Latitude: location.latitude?.toString() || "0",
@@ -638,7 +639,7 @@ const DeliveryUpdate = () => {
                                     onChangeText={text =>
                                         handleProductQuantityChange(index, text)
                                     }
-                                    keyboardType="numeric"
+                                    keyboardType="decimal-pad"
                                     textAlign="center"
                                     selectTextOnFocus={true}
                                 />

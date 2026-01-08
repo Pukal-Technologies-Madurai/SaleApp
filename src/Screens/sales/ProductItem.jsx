@@ -111,8 +111,13 @@ const ProductItem = React.memo(({ product }) => {
                     <Text style={styles.price}>
                         ₹{product.Product_Rate.toFixed(2)}/{product.Units}
                     </Text>
-                    <Text style={styles.bagsPerTon}>
-                        {product.BagsPerTon} bags
+                    <Text style={[
+                        styles.bagsPerTon,
+                        (product.CL_Qty <= 0) && styles.noStockText
+                    ]}>
+                        {(product.CL_Qty <= 0)
+                            ? "No Stock" 
+                            : `${product.BagsPerTon.toFixed(2)} Bags`}
                     </Text>
                 </View>
             </View>
@@ -232,6 +237,10 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.primary,
         marginTop: spacing.xs / 2,
+    },
+    noStockText: {
+        color: customColors.error,
+        fontWeight: "600",
     },
     itemModifiers: {
         flexDirection: "row",

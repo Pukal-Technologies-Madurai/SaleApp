@@ -27,7 +27,6 @@ import {
 } from "../../Config/helper";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSaleOrder } from "../../Api/sales";
-import { fetchRetailerInfo } from "../../Api/retailers";
 
 const OrderPreview = () => {
     const navigation = useNavigation();
@@ -969,7 +968,6 @@ const OrderPreview = () => {
     //           ),
     // );
 
-    // Modified filtering to show only orders with selected brand products
     const getFilteredDataByBrand = () => {
         if (selectedBrand === "All") {
             return logData;

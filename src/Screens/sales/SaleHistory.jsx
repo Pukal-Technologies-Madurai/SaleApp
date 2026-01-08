@@ -13,15 +13,15 @@ import {
     typography,
     spacing,
 } from "../../Config/helper";
+import { toYMD } from "../../Config/functions";
 
 const SaleHistory = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
 
     const toDate = new Date();
-    const from = new Date(toDate.getFullYear(), toDate.getMonth(), 1)
-        .toISOString()
-        .split("T")[0];
+    const from = new Date(toDate.getFullYear(), toDate.getMonth(), 1);
+    toYMD(from)
     const to = toDate.toISOString().split("T")[0];
 
     const [selectedFromDate, setSelectedFromDate] = useState(from);

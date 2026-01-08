@@ -111,3 +111,15 @@ export const fetchUsers = async companyId => {
     }
     return data.data;
 };
+
+export const fetchSalespersonRoute = async (date, salespersonId) => {
+    const url = `${API.setRoutePath()}?date=${date}&User_Id=${salespersonId}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.message || "Failed to fetch salesperson route");
+    }
+    return data.data;
+}

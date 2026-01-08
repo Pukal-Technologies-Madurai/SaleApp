@@ -77,14 +77,14 @@ const DrawerScreen = ({ navigation }) => {
             bgColor: "#F3E5F5",
             iconColor: "#9C27B0",
         },
-        {
-            icon: "receipt-long",
-            iconLibrary: "MaterialIcons",
-            label: "Collection",
-            onPress: () => navigation.navigate("BillSummary"),
-            bgColor: "#FDF2F8",
-            iconColor: "#EC4899",
-        },
+        // {
+        //     icon: "receipt-long",
+        //     iconLibrary: "MaterialIcons",
+        //     label: "Collection",
+        //     onPress: () => navigation.navigate("BillSummary"),
+        //     bgColor: "#FDF2F8",
+        //     iconColor: "#EC4899",
+        // },
         {
             icon: "cellphone-cog",
             iconLibrary: "MaterialCommunityIcons",
