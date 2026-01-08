@@ -19,13 +19,14 @@ import {
     shadows,
 } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
-import DatePickerButton from "../../Components/DatePickerButton";
+import FilterModal from "../../Components/FilterModal";
 import { formatTime } from "../../Config/functions";
 import { visitEntryLog } from "../../Api/retailers";
 
 const RetailerVisitLog = () => {
     const navigation = useNavigation();
     const [userId, setUserId] = useState();
+    const [modalVisible, setModalVisible] = React.useState(false);
 
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [expandedId, setExpandedId] = useState(null);
@@ -88,6 +89,14 @@ const RetailerVisitLog = () => {
     const logData = getFilteredData().sort((a, b) => new Date(b.EntryAt) - new Date(a.EntryAt));
     const existingCount = allLogData.filter(item => item.IsExistingRetailer === 1).length;
     const newCount = allLogData.filter(item => item.IsExistingRetailer === 0).length;
+
+    // Check if selected date is today
+    const isToday = selectedDate.toDateString() === new Date().toDateString();
+    const summaryTitle = isToday ? "Today's Visits" : selectedDate.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        month: 'long', 
+        day: 'numeric' 
+    });
 
     const handleDateChange = selectedDate => {
         if (selectedDate) {
@@ -257,29 +266,58 @@ const RetailerVisitLog = () => {
         );
     };
 
+    const handleCloseModal = () => {
+        setModalVisible(false);
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <AppHeader
                 title="Daily Entries"
                 navigation={navigation}
                 showRightIcon={true}
+                // rightIconLibrary="MaterialIcon"
+                // rightIconName="add"
+                // onRightPress={() => navigation.navigate("RetailerVisit")}
+
                 rightIconLibrary="MaterialIcon"
-                rightIconName="add"
-                onRightPress={() => navigation.navigate("RetailerVisit")}
+                rightIconName="filter-list"
+                onRightPress={() => setModalVisible(true)}
             />
+
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedDate}
+                onFromDateChange={handleDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={handleCloseModal}
+                showToDate={false}
+                title="Filter options"
+                fromLabel="From Date"
+            />
+
+
             <View style={styles.contentContainer}>
-                <View style={styles.datePickerContainer}>
-                    <DatePickerButton
-                        title="Pick a Date"
-                        date={selectedDate}
-                        onDateChange={handleDateChange}
-                        containerStyle={styles.datePickerButton}
-                    />
-                    <View style={styles.countContainer}>
-                        <Text style={styles.countText}>
-                            Total: {allLogData.length}
-                        </Text>
+                {/* Enhanced Summary Container */}
+                <View style={styles.SummaryContainer}>
+                    <View style={styles.summaryLeft}>
+                        <View style={styles.summaryStats}>
+                            <Text style={styles.summaryTitle}>{summaryTitle}</Text>
+                            <View style={styles.statsRow}>
+                                <Text style={styles.statNumber}>
+                                    {allLogData.length}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
+                    <TouchableOpacity 
+                        style={styles.addButton}
+                        onPress={() => navigation.navigate("RetailerVisit")}
+                        activeOpacity={0.8}
+                    >
+                        <MaterialIcon name="add" size={20} color={customColors.white} />
+                        <Text style={styles.addButtonText}>Add Visit</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Tab Navigation */}
@@ -289,15 +327,39 @@ const RetailerVisitLog = () => {
                     {renderTabButton('new', 'New', newCount)}
                 </View>
 
-                <ScrollView
-                    style={styles.scrollContainer}
-                    showsVerticalScrollIndicator={false}>
-                    {logData?.map((item, index) => (
-                        <View key={index} style={styles.cardWrapper}>
-                            {renderRetailerCard(item, index)}
+                {logData && logData.length > 0 ? (
+                    <ScrollView
+                        style={styles.scrollContainer}
+                        showsVerticalScrollIndicator={false}>
+                        {logData.map((item, index) => (
+                            <View key={index} style={styles.cardWrapper}>
+                                {renderRetailerCard(item, index)}
+                            </View>
+                        ))}
+                    </ScrollView>
+                ) : (
+                    <View style={styles.noDataContainer}>
+                        <View style={styles.noDataContent}>
+                            <MaterialIcon 
+                                name="store" 
+                                size={64} 
+                                color={customColors.grey400} 
+                            />
+                            <Text style={styles.noDataTitle}>No Visits Today</Text>
+                            <Text style={styles.noDataMessage}>
+                                Start your day by visiting retailers and building relationships
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.noDataButton}
+                                onPress={() => navigation.navigate("RetailerVisit")}
+                                activeOpacity={0.8}
+                            >
+                                <MaterialIcon name="add" size={20} color={customColors.white} />
+                                <Text style={styles.noDataButtonText}>Start First Visit</Text>
+                            </TouchableOpacity>
                         </View>
-                    ))}
-                </ScrollView>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -313,31 +375,58 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         backgroundColor: customColors.white,
     },
-    datePickerContainer: {
+    SummaryContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.sm,
-        backgroundColor: customColors.primaryLight,
-        padding: spacing.md,
-        borderRadius: 12,
-        ...shadows.small,
+        marginBottom: spacing.md,
+        backgroundColor: customColors.white,
+        padding: spacing.lg,
+        borderRadius: 16,
+        ...shadows.medium,
+        elevation: 4,
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.primary,
     },
-    datePickerButton: {
+    summaryLeft: {
         flex: 1,
-        marginRight: spacing.md,
     },
-    countContainer: {
+    summaryStats: {
+        flex: 1,
+    },
+    summaryTitle: {
+        ...typography.h6(),
+        color: customColors.grey900,
+        fontWeight: "700",
+        marginBottom: spacing.sm,
+    },
+    statsRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-start",
+    },
+    statNumber: {
+        ...typography.h5(),
+        textAlign: "center",
+        color: customColors.primary,
+        fontWeight: "800",
+        lineHeight: 28,
+    },
+    addButton: {
+        flexDirection: "row",
+        alignItems: "center",
         backgroundColor: customColors.primary,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderRadius: 8,
+        borderRadius: 12,
         ...shadows.small,
+        elevation: 3,
     },
-    countText: {
-        ...typography.subtitle2(),
+    addButtonText: {
+        ...typography.button(),
         color: customColors.white,
         fontWeight: "600",
+        marginLeft: spacing.xs,
     },
     tabContainer: {
         flexDirection: "row",
@@ -546,6 +635,49 @@ const styles = StyleSheet.create({
         color: "#ffffff",
         fontWeight: "600",
         marginHorizontal: spacing.sm,
+    },
+    // No Data Container Styles
+    noDataContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.xxl,
+    },
+    noDataContent: {
+        alignItems: "center",
+        maxWidth: 280,
+    },
+    noDataTitle: {
+        ...typography.h5(),
+        color: customColors.grey700,
+        fontWeight: "700",
+        marginTop: spacing.lg,
+        marginBottom: spacing.sm,
+        textAlign: "center",
+    },
+    noDataMessage: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        textAlign: "center",
+        lineHeight: 22,
+        marginBottom: spacing.xl,
+    },
+    noDataButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.primary,
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+        borderRadius: 25,
+        ...shadows.medium,
+        elevation: 4,
+    },
+    noDataButtonText: {
+        ...typography.button(),
+        color: customColors.white,
+        fontWeight: "700",
+        marginLeft: spacing.sm,
     },
 });
 export default RetailerVisitLog;

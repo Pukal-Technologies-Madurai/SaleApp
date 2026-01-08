@@ -58,6 +58,8 @@ export const API = {
     uom: () => `${baseURL}api/masters/uom`,
     groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
     stockValueWithProduct: () => `${baseURL}api/masters/products/withStock`,
+    posProducts: () => `${baseURL}api/masters/products/allProducts`,
+    posProductsWithStockValue: () => `${baseURL}api/pos/productMaster`,
     productPacks: () => `${baseURL}api/masters/products/packs?Company_Id=`,
     closingStock: () => `${baseURL}api/masters/retailers/closingStock`,
     productClosingStock: () =>

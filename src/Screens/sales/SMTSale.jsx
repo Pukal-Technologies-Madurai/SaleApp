@@ -15,7 +15,7 @@ import { API } from "../../Config/Endpoint";
 import { createSaleOrder } from "../../Api/sales";
 import { useOrderStore } from "../../stores/orderStore";
 import { customColors, spacing, typography } from "../../Config/helper";
-import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
+import { fetchCostCenter, fetchPosAllProducts, fetchPosOrderBranch, fetchPosProductStockValue } from "../../Api/product";
 
 const SMTSale = ({ route }) => {
     const { item } = route.params;
@@ -138,7 +138,7 @@ const SMTSale = ({ route }) => {
 
     const { data: productData = [], isLoading: isProductLoading } = useQuery({
         queryKey: ["masterDataProducts"],
-        queryFn: () => fetchProductsWithStockValue(),
+        queryFn: () => fetchPosAllProducts(),
         staleTime: 5 * 60 * 1000, // 5 minutes
         refetchOnWindowFocus: false,
         select: (rows) => {
@@ -162,15 +162,42 @@ const SMTSale = ({ route }) => {
         }
     });
 
+    const { data: productBalanceQty = [], isLoading: isProductBalanceQtyLoading } = useQuery({
+        queryKey: ["testProducts"],
+        queryFn: () => fetchPosProductStockValue(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: false,
+        select: (rows) => {
+            return rows.filter((r) => r.Is_Active === 1)
+                .map((r) => ({
+                    Product_Id: r.Product_Id,
+                    Product_Name: r.Product_Name,
+                    CL_Qty: r.Bal_Qty,
+                }))
+        }
+    });
+
     const { data: productBranch = [] } = useQuery({
         queryKey: ["posOrderBranch"],
         queryFn: fetchPosOrderBranch,
     });
 
     const filteredProducts = useMemo(() => {
-        if (isProductLoading || !productData.length) return [];
+        if (isProductLoading || isProductBalanceQtyLoading || !productData.length) return [];
 
-        let filtered = productData;
+        // First, merge productData with productBalanceQty based on Product_Id
+        const mergedProducts = productData.map(product => {
+            const balanceData = productBalanceQty.find(
+                balance => String(balance.Product_Id) === String(product.Product_Id)
+            );
+            
+            return {
+                ...product,
+                CL_Qty: balanceData ? balanceData.CL_Qty : 0, // Add balance quantity or default to 0
+            };
+        });
+
+        let filtered = mergedProducts;
 
         if (selectedBrandId) {
             filtered = filtered.filter(
@@ -197,7 +224,8 @@ const SMTSale = ({ route }) => {
             const itemRate = parseFloat(product.Item_Rate || 0);
 
             const ratePerKg = packWeight ? (itemRate / packWeight).toFixed(2) : 0;
-            const bagsPerTon = packWeight ? (1000 / packWeight).toFixed(2) : 0;
+            // const bagsPerTon = packWeight ? (1000 / packWeight).toFixed(2) : 0;
+            const bagsPerTon = packWeight ? (product.CL_Qty / packWeight) : 0;
 
             return {
                 ...product,
@@ -205,7 +233,7 @@ const SMTSale = ({ route }) => {
                 BagsPerTon: Number(bagsPerTon),
             };
         });
-    }, [productData, selectedBrandId, debouncedSearch, isProductLoading, fuzzyMatch]);
+    }, [productData, productBalanceQty, selectedBrandId, debouncedSearch, isProductLoading, isProductBalanceQtyLoading, fuzzyMatch]);
 
     const { data: rawCostCenters = [], isLoading: isCostCenterLoading } = useQuery({
         queryKey: ["costCenters"],
@@ -1038,7 +1066,7 @@ const SMTSale = ({ route }) => {
                 </View>
 
                 <View style={styles.productsContainer}>
-                    {isProductLoading ? (
+                    {isProductLoading || isProductBalanceQtyLoading ? (
                         <View style={styles.loadingContainer}>
                             <ActivityIndicator size="large" color={customColors.primary} />
                             <Text style={styles.loadingText}>Loading products...</Text>

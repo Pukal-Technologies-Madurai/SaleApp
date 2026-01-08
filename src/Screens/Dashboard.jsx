@@ -155,7 +155,7 @@ const Dashboard = () => {
             const data = await response.json();
 
             if (data.success && data.data) {
-                return data.data.reduce(
+                return data.data.filter(receipt => receipt.status !== 0).reduce(
                     (sum, receipt) => sum + (receipt.credit_amount || 0),
                     0,
                 );
@@ -446,6 +446,17 @@ const Dashboard = () => {
         }
     });
 
+    // console.log("Dashboard data:", allDashboardData);
+
+    // Calculate total unique salespersons with safety checks
+    const allPersonIds = new Set([
+        ...(allDashboardData.attendanceData || []).map(person => person.UserId).filter(id => id != null),
+        ...(allDashboardData.visitData || []).map(visit => visit.EntryBy).filter(id => id != null),
+    ]);
+
+    const totalSalesPersons = allPersonIds.size;
+    const totalVisits = (allDashboardData.visitData || []).map(visit => visit.EntryBy).filter(id => id != null).length;
+
     // Fetch route names separately as it doesn't change often
     const { data: fetchUserIndividualRoute = [] } = useQuery({
         queryKey: ["fetchUserIndividualRoute"],
@@ -566,35 +577,43 @@ const Dashboard = () => {
                 icon: "human-greeting-variant",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Attendance",
-                value: Object.keys(allDashboardData.attendanceCount || {})
-                    .length,
+                value: `${totalSalesPersons} (${totalVisits})`,
                 color: "#10B981",
                 backgroundColor: "#ECFDF5",
                 onPress: () => {
-                    const routeNames = getUserRouteNames();
-                    navigation.navigate("Statistics", {
-                        title: "Attendance",
-                        userCount: allDashboardData.attendanceCount,
-                        kilometersCount: allDashboardData.kilometersCount,
-                        routeData: routeNames,
+                    // const routeNames = getUserRouteNames();
+                    // navigation.navigate("Statistics", {
+                    //     title: "Attendance",
+                    //     userCount: allDashboardData.attendanceCount,
+                    //     kilometersCount: allDashboardData.kilometersCount,
+                    //     routeData: routeNames,
+                    // });
+
+                    navigation.navigate("VisitLogHistory", {
+                        selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     });
                 },
             },
-            {
-                icon: "map-marker-account-outline",
-                iconLibrary: "MaterialCommunityIcons",
-                label: "Check-ins",
-                value: allDashboardData.visitData?.length || 0,
-                color: "#8B5CF6",
-                backgroundColor: "#F3E8FF",
-                onPress: () =>
-                    navigation.navigate("Statistics", {
-                        title: "Check-In's",
-                        userCount: allDashboardData.userCount,
-                        visitData: allDashboardData.visitData,
-                        passedDate: selectedDate,
-                    }),
-            },
+            // {
+            //     icon: "map-marker-account-outline",
+            //     iconLibrary: "MaterialCommunityIcons",
+            //     label: "Check-ins",
+            //     value: allDashboardData.visitData?.length || 0,
+            //     color: "#8B5CF6",
+            //     backgroundColor: "#F3E8FF",
+                // onPress: () =>
+                    // navigation.navigate("Statistics", {
+                    //     title: "Check-In's",
+                    //     userCount: allDashboardData.userCount,
+                    //     visitData: allDashboardData.visitData,
+                    //     passedDate: selectedDate,
+                    // }),
+                    // navigation.navigate("VisitLogHistory", {
+                    //     selectedDate: selectedDate,
+                    //     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                    // }),
+            // },
             {
                 icon: "chart-areaspline",
                 iconLibrary: "MaterialCommunityIcons",
@@ -655,7 +674,7 @@ const Dashboard = () => {
             {
                 icon: "truck-delivery",
                 iconLibrary: "MaterialCommunityIcons",
-                label: "Trip Count",
+                label: "Trips",
                 value: allDashboardData.tripSheetData?.length || 0,
                 color: "#F59E0B",
                 backgroundColor: "#FEF3C7",

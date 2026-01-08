@@ -296,15 +296,15 @@ const StatisticsScreen = ({ route, navigation }) => {
                 showDrawer={false}
                 title={`${title} Statistics`}
                 showBackButton={true}
-                showRightIcon={true}
-                rightIconLibrary="FontAwesome"
-                rightIconName={title !== "Check-In's" ? "users" : "map-o"}
-                onRightPress={() => {
-                    // console.log("Navigating with passedDate:", passedDate);
-                    navigation.navigate(title !== "Check-In's" ? "AdminAttendance" : "VisitLogSummary", {
-                        passedDate: passedDate
-                    });
-                }}
+                // showRightIcon={true}
+                // rightIconLibrary="FontAwesome"
+                // rightIconName={title !== "Check-In's" ? "users" : "map-o"}
+                // onRightPress={() => {
+                //     // console.log("Navigating with passedDate:", passedDate);
+                //     navigation.navigate(title !== "Check-In's" ? "AdminAttendance" : "VisitLogSummary", {
+                //         passedDate: passedDate,
+                //     });
+                // }}
             />
 
             <ScrollView

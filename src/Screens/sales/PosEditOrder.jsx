@@ -19,7 +19,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { fetchRetailersName } from "../../Api/retailers";
 import { customColors, typography } from "../../Config/helper";
-import { fetchCostCenter, fetchPosOrderBranch, fetchProductsWithStockValue } from "../../Api/product";
+import { fetchCostCenter, fetchPosAllProducts, fetchPosOrderBranch } from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
@@ -66,7 +66,7 @@ const PosEditOrder = ({ route }) => {
         },
     } = useQuery({
         queryKey: ["product", uID],
-        queryFn: () => fetchProductsWithStockValue(),
+        queryFn: () => fetchPosAllProducts(),
         select: data => {
             return {
                 productData: data || [],
@@ -268,7 +268,7 @@ const PosEditOrder = ({ route }) => {
             updatedProducts[index].Amount = totalWeight * rate;
             updatedProducts[index].Total_Weight = totalWeight;
 
-            console.log(`Updated: ${bags} bags × ${packWeight} kg × ₹${rate} = ₹${totalWeight * rate}`);
+            // console.log(`Updated: ${bags} bags × ${packWeight} kg × ₹${rate} = ₹${totalWeight * rate}`);
         }
 
         setEditableProducts(updatedProducts);

@@ -55,6 +55,8 @@ import DeliveryReturn from "../Screens/admin/DeliveryReturn";
 import PendingInvoice from "../Screens/pending/PendingInvoice";
 import PendingDeliveryIndividual from "../Screens/pending/PendingDeliveryIndividual";
 import PendingSaleAdmin from "../Screens/pending/PendingSaleAdmin";
+import VisitLogHistory from "../Screens/admin/VisitLogHistory";
+import VisitLogDetail from "../Screens/admin/VisitLogDetail";
 
 const Stack = createStackNavigator();
 
@@ -123,6 +125,8 @@ const AppStack = () => {
             <Stack.Screen name="SalesReport" component={SalesReport} />
             <Stack.Screen name="TripReport" component={TripReport} />
             <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
+            <Stack.Screen name="VisitLogHistory" component={VisitLogHistory} />
+            <Stack.Screen name="VisitLogDetail" component={VisitLogDetail} />
 
             <Stack.Screen name="PendingSaleAdmin" component={PendingSaleAdmin} />
             <Stack.Screen name="PendingDeliveryAdmin" component={PendingDeliveryAdmin} />

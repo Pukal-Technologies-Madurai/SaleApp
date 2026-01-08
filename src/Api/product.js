@@ -54,6 +54,44 @@ export const fetchProductsWithStockValue = async () => {
     }
 };
 
+export const fetchPosAllProducts = async () => {
+    try {
+        const url = API.posProducts();
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        // console.log("fetchProducts", `${API.products()}${userId}`);
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    } catch (err) {
+        console.error("Error fetching products with stock value:", err);
+    }
+};
+
+export const fetchPosProductStockValue = async () => {
+    try {
+        const url = API.posProductsWithStockValue();
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        // console.log("fetchProducts", `${API.products()}${userId}`);
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.message);
+        return data.data.Pos_Product[0].Product_Entry;
+    } catch (err) {
+        console.error("Error fetching pos products with stock:", err);
+    }
+}
+
 export const fetchUOM = async () => {
     const res = await fetch(API.uom());
     const data = await res.json();

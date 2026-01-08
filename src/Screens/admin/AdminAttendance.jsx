@@ -19,7 +19,9 @@ const SummaryCard = ({ icon, title, value, color }) => (
     </View>
 );
 
-const AdminAttendance = () => {
+const AdminAttendance = ({ route }) => {
+    const { person } = route.params || {};
+
     const navigation = useNavigation();
     const [selectedCollector, setSelectedCollector] = useState(null);
 
@@ -44,7 +46,7 @@ const AdminAttendance = () => {
                 const userTypeId = await AsyncStorage.getItem("userTypeId");
                 const userId = await AsyncStorage.getItem("UserId");
                 const compId = await AsyncStorage.getItem("Company_Id");
-                setUID(userId);
+                setUID(person.UserId || userId);
                 setUserType(userTypeId);
                 setCompanyId(compId);
             } catch (err) {
@@ -194,7 +196,7 @@ const AdminAttendance = () => {
                 </View>
 
                 <View style={styles.tableSection}>
-                    <Text style={styles.sectionTitle}>Attendance Details</Text>
+                    <Text style={styles.sectionTitle}>Attendance Details - {person.User_Name}</Text>
                     <View style={styles.tableContainer}>
                         <View style={styles.tableHeader}>
                             <Text style={styles.headerCell}>Date</Text>

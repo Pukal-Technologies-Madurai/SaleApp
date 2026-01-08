@@ -154,17 +154,17 @@ const ReceiptAdmin = ({ route }) => {
             receipt.debit_ledger_name.includes("Cash Note Off"),
     );
 
-    const bankAmount = bankReceipts.reduce(
+    const bankAmount = bankReceipts.filter(receipt => receipt.status !== 0).reduce(
         (sum, receipt) => sum + (receipt.credit_amount || 0),
         0,
     );
 
-    const cashAmount = cashReceipts.reduce(
+    const cashAmount = cashReceipts.filter(receipt => receipt.status !== 0).reduce(
         (sum, receipt) => sum + (receipt.credit_amount || 0),
         0,
     );
 
-    const totalAmount = receiptData.reduce(
+    const totalAmount = receiptData.filter(receipt => receipt.status !== 0).reduce(
         (sum, receipt) => sum + (receipt.credit_amount || 0),
         0,
     );
@@ -381,10 +381,10 @@ const ReceiptAdmin = ({ route }) => {
                                     color:
                                         receipt.status === 1
                                             ? customColors.success
-                                            : customColors.warning,
+                                            : customColors.error,
                                 },
                             ]}>
-                            {receipt.status === 1 ? "Completed" : "Pending"}
+                            {receipt.status === 1 ? "Completed" : "Cancelled"}
                         </Text>
                     </View>
                 </View>
