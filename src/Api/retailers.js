@@ -101,8 +101,20 @@ export const fetchProductsAvailableInRetailer = async (itemId, from, to) => {
     return json;
 };
 
+export const fetchItemSaleReturn = async ( fromDate, toDate, userId ) => {
+    const url = `${API.salesReturnItems()}?Fromdate=${fromDate}&Todate=${toDate}&createdBy=${userId}`;
+    console.log("Fetching Item Sale Return from URL:", url);
+    const res = await fetch(url);
+    const json = await res.json();
+    
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+}
+
 export const fetchRetailerClosingStock = async retailerId => {
-    const res = await fetch(`${API.retailerwiseClosingStock()}${retailerId}`);
+    const url = `${API.retailerwiseClosingStock()}${retailerId}`;
+    console.log("Fetching Retailer Closing Stock from URL:", url);
+    const res = await fetch(url);
     const json = await res.json();
 
     if (!json.success) throw new Error(json.message);
@@ -241,7 +253,7 @@ export const visitEntry = async ({
     });
 
     const data = await res.json();
-    console.log(data);
+    // console.log(data);
     if (!data.success) throw new Error(data.message);
 
     return data;

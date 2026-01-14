@@ -68,7 +68,7 @@ const SMTSale = ({ route }) => {
     const normalizeSearchText = useCallback((str) => {
         return String(str)
             .toLowerCase()
-            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Keep Tamil characters, alphanumeric, and spaces
+            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Remove all special characters except Tamil characters, alphanumeric, and spaces
             .replace(/\s+/g, ' ') // Replace multiple spaces with single space
             .trim();
     }, []);
@@ -77,9 +77,17 @@ const SMTSale = ({ route }) => {
         const normalizedText = normalizeSearchText(text);
         const normalizedSearch = normalizeSearchText(search);
 
+        // Direct substring match
         if (normalizedText.includes(normalizedSearch)) return true;
 
-        // Check if all characters of search exist in text (in order)
+        // Split search terms and check if all terms exist in text
+        const searchTerms = normalizedSearch.split(' ').filter(term => term.length > 0);
+        if (searchTerms.length > 1) {
+            // For multi-word searches, check if all terms are found in the text
+            return searchTerms.every(term => normalizedText.includes(term));
+        }
+
+        // Single word fuzzy matching - check if all characters of search exist in text (in order)
         let searchIndex = 0;
         for (let i = 0; i < normalizedText.length && searchIndex < normalizedSearch.length; i++) {
             if (normalizedText[i] === normalizedSearch[searchIndex]) {

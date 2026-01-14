@@ -57,6 +57,9 @@ import PendingDeliveryIndividual from "../Screens/pending/PendingDeliveryIndivid
 import PendingSaleAdmin from "../Screens/pending/PendingSaleAdmin";
 import VisitLogHistory from "../Screens/admin/VisitLogHistory";
 import VisitLogDetail from "../Screens/admin/VisitLogDetail";
+import SalesReturn from "../Screens/sales/SalesReturn";
+import SalesReturnList from "../Screens/sales/SalesReturnList";
+import AdminItemSaleReturn from "../Screens/admin/AdminItemSaleReturn";
 
 const Stack = createStackNavigator();
 
@@ -127,6 +130,9 @@ const AppStack = () => {
             <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
             <Stack.Screen name="VisitLogHistory" component={VisitLogHistory} />
             <Stack.Screen name="VisitLogDetail" component={VisitLogDetail} />
+            <Stack.Screen name="SalesReturn" component={SalesReturn} />
+            <Stack.Screen name="SalesReturnList" component={SalesReturnList} />
+            <Stack.Screen name="AdminItemSaleReturn" component={AdminItemSaleReturn} />
 
             <Stack.Screen name="PendingSaleAdmin" component={PendingSaleAdmin} />
             <Stack.Screen name="PendingDeliveryAdmin" component={PendingDeliveryAdmin} />

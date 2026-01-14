@@ -78,6 +78,8 @@ export const API = {
     soldItemsForRetailer: () =>
         `${baseURL}api/reports/customerClosingStock/soldItems`,
 
+    salesReturnItems: () => `${baseURL}api/sales/salesReturn`,
+
     itemAvailableInRetailer: () =>
         `${baseURL}api/reports/customerClosingStock/itemSearch?Item_Id=`,
 

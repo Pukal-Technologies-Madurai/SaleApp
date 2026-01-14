@@ -195,6 +195,16 @@ const CustomersDetails = ({ route }) => {
                     )}
 
                     <ActionButton
+                        label="Sale Return"
+                        icon={assetImages.edit}
+                        onPress={() => {
+                            navigation.navigate("SalesReturn", {
+                                item,
+                            })
+                        }}
+                    />
+
+                    <ActionButton
                         label="Edit"
                         icon={assetImages.edit}
                         onPress={() =>

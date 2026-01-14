@@ -353,7 +353,7 @@ const DeliveryUpdate = () => {
                 Product_Array: transformedProducts,
                 Delivery_Status: 6, // Cancelled status
                 Payment_Status: 0, // Reset payment status
-                Cancel_status: 0,
+                Cancel_status: 1,
                 Delivery_Time: new Date().toISOString(),
                 Delivery_Location: "CANCELLED",
                 Delivery_Latitude: location.latitude?.toString() || "0",

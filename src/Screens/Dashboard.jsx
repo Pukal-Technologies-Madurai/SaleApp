@@ -595,25 +595,6 @@ const Dashboard = () => {
                     });
                 },
             },
-            // {
-            //     icon: "map-marker-account-outline",
-            //     iconLibrary: "MaterialCommunityIcons",
-            //     label: "Check-ins",
-            //     value: allDashboardData.visitData?.length || 0,
-            //     color: "#8B5CF6",
-            //     backgroundColor: "#F3E8FF",
-                // onPress: () =>
-                    // navigation.navigate("Statistics", {
-                    //     title: "Check-In's",
-                    //     userCount: allDashboardData.userCount,
-                    //     visitData: allDashboardData.visitData,
-                    //     passedDate: selectedDate,
-                    // }),
-                    // navigation.navigate("VisitLogHistory", {
-                    //     selectedDate: selectedDate,
-                    //     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
-                    // }),
-            // },
             {
                 icon: "chart-areaspline",
                 iconLibrary: "MaterialCommunityIcons",
@@ -728,6 +709,22 @@ const Dashboard = () => {
                 color: "#7C3AED",
                 backgroundColor: "#EDE9FE",
                 onPress: () => navigation.navigate("RetailerStock"),
+            },
+            {
+                icon: "keyboard-return",
+                iconLibrary: "MaterialCommunityIcons",
+                label: "",
+                value: "Sale Return",
+                color: "#A855F7",
+                backgroundColor: "#F5F3FF",
+                onPress: () =>
+                    navigation.navigate("AdminItemSaleReturn"),
+                    // navigation.navigate("Statistics", {
+                    //     title: "Check-In's",
+                    //     userCount: allDashboardData.userCount,
+                    //     visitData: allDashboardData.visitData,
+                    //     passedDate: selectedDate,
+                    // }),
             },
         ],
         [allDashboardData, getUserRouteNames, navigation],

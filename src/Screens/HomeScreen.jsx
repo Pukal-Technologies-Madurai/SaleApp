@@ -147,6 +147,14 @@ const HomeScreen = () => {
             navigate: "PendingInvoice",
             color: "#EC4899",
             backgroundColor: "#FDF2F8",
+        },
+        {
+            title: "Sales Return",
+            iconLibrary: "MaterialCommunityIcons",
+            iconName: "arrow-u-left-top-bold",
+            navigate: "SalesReturnList",
+            color: "#F97316",
+            backgroundColor: "#FFFAF0",
         }
     ];
 
