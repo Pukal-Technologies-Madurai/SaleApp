@@ -117,20 +117,20 @@ const HomeScreen = () => {
             backgroundColor: "#FEF2F2",
         },
         {
-            title: "TripSheet",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "truck-delivery",
-            navigate: "TripSheet",
-            color: "#06B6D4",
-            backgroundColor: "#ECFEFF",
-        },
-        {
             title: "Receipts",
             iconLibrary: "Ionicons",
             iconName: "receipt-outline",
             navigate: "ReceiptInfo",
             color: "#84CC16",
             backgroundColor: "#F7FEE7",
+        },
+        {
+            title: "TripSheet",
+            iconLibrary: "MaterialCommunityIcons",
+            iconName: "truck-delivery",
+            navigate: "TripSheet",
+            color: "#06B6D4",
+            backgroundColor: "#ECFEFF",
         },
         {
             title: "Delivery Return",

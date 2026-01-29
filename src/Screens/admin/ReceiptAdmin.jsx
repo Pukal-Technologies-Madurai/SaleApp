@@ -6,22 +6,24 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
+    TextInput,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import AppHeader from "../../Components/AppHeader";
-import { useNavigation } from "@react-navigation/native";
-import FilterModal from "../../Components/FilterModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
+import { API } from "../../Config/Endpoint";
 import {
     customColors,
     typography,
     spacing,
     shadows,
 } from "../../Config/helper";
-import { API } from "../../Config/Endpoint";
-import { SafeAreaView } from "react-native-safe-area-context";
+
 
 const ReceiptAdmin = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
@@ -36,6 +38,8 @@ const ReceiptAdmin = ({ route }) => {
         value: "all",
     });
     const [selectedPaymentFilter, setSelectedPaymentFilter] = useState("all"); // New state for payment filter
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -119,24 +123,33 @@ const ReceiptAdmin = ({ route }) => {
         },
     });
 
-    // Filter receipts based on payment method
+    // Filter receipts based on payment method and search term
     const getFilteredReceiptsByPayment = () => {
-        if (selectedPaymentFilter === "all") {
-            return receiptData;
-        } else if (selectedPaymentFilter === "bank") {
-            return receiptData.filter(
+        let filteredReceipts = receiptData;
+
+        // Apply payment method filter
+        if (selectedPaymentFilter === "bank") {
+            filteredReceipts = receiptData.filter(
                 receipt =>
                     receipt.debit_ledger_name &&
                     receipt.debit_ledger_name.includes("Canara Bank"),
             );
         } else if (selectedPaymentFilter === "cash") {
-            return receiptData.filter(
+            filteredReceipts = receiptData.filter(
                 receipt =>
                     receipt.debit_ledger_name &&
                     receipt.debit_ledger_name.includes("Cash Note Off"),
             );
         }
-        return receiptData;
+
+        // Apply search filter if search term exists
+        if (searchTerm.trim()) {
+            filteredReceipts = filteredReceipts.filter(receipt =>
+                receipt.credit_ledger_name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        return filteredReceipts;
     };
 
     const filteredReceiptData = getFilteredReceiptsByPayment();
@@ -211,6 +224,41 @@ const ReceiptAdmin = ({ route }) => {
             minute: "2-digit",
             timeZone: "UTC",
         });
+    };
+
+    const renderSearchInput = () => {
+        if (!showSearch) return null;
+
+        return (
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                    <MaterialIcons
+                        name="search"
+                        size={20}
+                        color={customColors.grey500}
+                    />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search by retailer name..."
+                        placeholderTextColor={customColors.grey400}
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        autoFocus={true}
+                    />
+                    {searchTerm.length > 0 && (
+                        <TouchableOpacity
+                            onPress={() => setSearchTerm('')}
+                            style={styles.clearButton}>
+                            <MaterialIcons
+                                name="clear"
+                                size={18}
+                                color={customColors.grey500}
+                            />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+        );
     };
 
     // Payment filter buttons
@@ -300,49 +348,51 @@ const ReceiptAdmin = ({ route }) => {
     );
 
     // Enhanced summary stats with payment breakdown
-    const renderSummaryStats = () => (
-        <View style={styles.summaryContainer}>
-            <View style={styles.statCard}>
-                <MaterialIcons
-                    name="receipt-long"
-                    size={24}
-                    color={customColors.primary}
-                />
-                <View style={styles.statContent}>
-                    <Text style={styles.statValue}>
-                        {filteredReceiptData.length}
-                    </Text>
-                    <Text style={styles.statLabel}>
-                        {selectedPaymentFilter === "all"
-                            ? "Total Receipts"
-                            : selectedPaymentFilter === "bank"
-                                ? "Bank Receipts"
-                                : "Cash Receipts"}
-                    </Text>
-                </View>
-            </View>
+    const renderSummaryStats = () => {
+        // Calculate amount from filtered data (including search results)
+        const filteredAmount = filteredReceiptData
+            .filter(receipt => receipt.status !== 0)
+            .reduce((sum, receipt) => sum + (receipt.credit_amount || 0), 0);
 
-            <View style={styles.statCard}>
-                <MaterialIcons
-                    name="currency-rupee"
-                    size={24}
-                    color={customColors.success}
-                />
-                <View style={styles.statContent}>
-                    <Text style={styles.statValue}>
-                        ₹
-                        {(selectedPaymentFilter === "all"
-                            ? totalAmount
-                            : selectedPaymentFilter === "bank"
-                                ? bankAmount
-                                : cashAmount
-                        ).toLocaleString("en-IN")}
-                    </Text>
-                    <Text style={styles.statLabel}>Total Amount</Text>
+        return (
+            <View style={styles.summaryContainer}>
+                <View style={styles.statCard}>
+                    <MaterialIcons
+                        name="receipt-long"
+                        size={24}
+                        color={customColors.primary}
+                    />
+                    <View style={styles.statContent}>
+                        <Text style={styles.statValue}>
+                            {filteredReceiptData.length}
+                        </Text>
+                        <Text style={styles.statLabel}>
+                            {searchTerm.trim() ? "Search Results" :
+                                selectedPaymentFilter === "all"
+                                    ? "Total Receipts"
+                                    : selectedPaymentFilter === "bank"
+                                        ? "Bank Receipts"
+                                        : "Cash Receipts"}
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={styles.statCard}>
+                    <MaterialIcons
+                        name="currency-rupee"
+                        size={24}
+                        color={customColors.success}
+                    />
+                    <View style={styles.statContent}>
+                        <Text style={styles.statValue}>
+                            ₹{filteredAmount.toLocaleString("en-IN")}
+                        </Text>
+                        <Text style={styles.statLabel}>Total Amount</Text>
+                    </View>
                 </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     const renderReceiptCard = receipt => (
         <TouchableOpacity
@@ -554,15 +604,31 @@ const ReceiptAdmin = ({ route }) => {
                             renderEmptyState()
                         ) : (
                             <View style={styles.receiptsContainer}>
+                                {renderSearchInput()}
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionTitle}>
-                                        {selectedPaymentFilter === "all"
-                                            ? "All Receipts"
-                                            : selectedPaymentFilter === "bank"
-                                                ? "Bank Receipts"
-                                                : "Cash Receipts"}
+                                        {searchTerm.trim() ? 'Search Results' :
+                                            selectedPaymentFilter === "all"
+                                                ? "All Receipts"
+                                                : selectedPaymentFilter === "bank"
+                                                    ? "Bank Receipts"
+                                                    : "Cash Receipts"}{" "}
                                         ({filteredReceiptData.length})
                                     </Text>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            setShowSearch(!showSearch);
+                                            if (showSearch) {
+                                                setSearchTerm('');
+                                            }
+                                        }}
+                                        style={styles.searchButton}>
+                                        <MaterialIcons
+                                            name={showSearch ? "close" : "search"}
+                                            size={22}
+                                            color={customColors.primary}
+                                        />
+                                    </TouchableOpacity>
                                 </View>
                                 {filteredReceiptData.map(renderReceiptCard)}
                             </View>
@@ -747,12 +813,43 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: spacing.sm,
     },
     sectionTitle: {
         ...typography.h6(),
         color: customColors.grey900,
         fontWeight: "600",
+        flex: 1,
+    },
+    searchButton: {
+        padding: spacing.xs,
+    },
+    searchContainer: {
+        paddingBottom: spacing.sm,
+    },
+    searchInputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        gap: spacing.sm,
+        ...shadows.small,
+    },
+    searchInput: {
+        flex: 1,
+        ...typography.body1(),
+        color: customColors.grey900,
+        paddingVertical: spacing.xs,
+    },
+    clearButton: {
+        padding: spacing.xs,
     },
     receiptCard: {
         backgroundColor: customColors.white,

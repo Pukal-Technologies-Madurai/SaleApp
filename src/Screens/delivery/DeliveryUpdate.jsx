@@ -353,7 +353,7 @@ const DeliveryUpdate = () => {
                 Product_Array: transformedProducts,
                 Delivery_Status: 6, // Cancelled status
                 Payment_Status: 0, // Reset payment status
-                Cancel_status: 1,
+                Cancel_status: 0, // 0 - Cancelled  // 1 - Pending
                 Delivery_Time: new Date().toISOString(),
                 Delivery_Location: "CANCELLED",
                 Delivery_Latitude: location.latitude?.toString() || "0",
@@ -366,7 +366,6 @@ const DeliveryUpdate = () => {
                 // Collected_By: selectedDelivery.Collected_By,
                 // Collected_Status: selectedDelivery.Collected_Status,
             };
-
 
             const response = await fetch(API.deliveryPut(), {
                 method: "PUT",
@@ -967,6 +966,7 @@ const DeliveryUpdate = () => {
                 Delivery_Longitude: location.longitude.toString() || "0",
                 Delivery_Person_Id: callCenterId || userId,
                 Delivery_Status: finalDeliveryStatus,
+                Cancel_status: 1,
                 Payment_Status: finalPaymentStatus,
                 Payment_Mode: selectedPaymentMode,
                 Branch_Id: branchId,

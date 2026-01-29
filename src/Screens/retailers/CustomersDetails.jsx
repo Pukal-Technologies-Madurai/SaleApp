@@ -9,6 +9,7 @@ import {
     Image,
     Modal,
     Dimensions,
+    TextInput,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -40,6 +41,8 @@ const CustomersDetails = ({ route }) => {
 
     const [location, setLocation] = useState(null);
     const [showLocationModal, setShowLocationModal] = useState(false);
+    const [dailyLogModalVisible, setDailyLogModalVisible] = useState(false);
+    const [narration, setNarration] = useState("");
 
     useEffect(() => {
         AsyncStorage.getItem("UserId").then(id => {
@@ -66,6 +69,33 @@ const CustomersDetails = ({ route }) => {
 
     const handleRetailerUpdate = location => {
         mutation.mutate({ userId, location, item });
+    };
+
+    // Calculate distance between two coordinates in meters
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; // Distance in meters
+    };
+
+    const formatDistance = (distance) => {
+        if (!distance) return "N/A";
+        if (distance < 1000) {
+            return `${Math.round(distance)}m`;
+        } else {
+            return `${(distance / 1000).toFixed(2)}km`;
+        }
     };
 
     const InfoRow = ({ icon, value, isPhone }) => (
@@ -115,6 +145,51 @@ const CustomersDetails = ({ route }) => {
             <Text style={styles.actionLabel}>{label}</Text>
         </TouchableOpacity>
     );
+
+
+    const handleSubmitforVisitLog = async (visitNarration) => {
+        let finalLatitude = location?.latitude;
+        let finalLongitude = location?.longitude;
+
+        if (!location?.latitude || !location?.longitude) {
+            finalLatitude = 9.9475;
+            finalLongitude = 78.1454;
+            ToastAndroid.show("Using default location", ToastAndroid.SHORT);
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("Mode", 1);
+            formData.append("Retailer_Id", item.Retailer_Id);
+            formData.append("Latitude", finalLatitude.toString());
+            formData.append("Longitude", finalLongitude.toString());
+            formData.append("Narration", visitNarration || "Daily visit are recorded.");
+            formData.append("EntryBy", userId);
+
+            const response = await fetch(API.visitedLog(), {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                ToastAndroid.show(data.message, ToastAndroid.LONG);
+                return true;
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            ToastAndroid.show(
+                `Visit log error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+            return false;
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -248,6 +323,12 @@ const CustomersDetails = ({ route }) => {
                         )}
 
                     <ActionButton
+                        label="Daily Log"
+                        icon={assetImages.mapViewPin}
+                        onPress={() => setDailyLogModalVisible(true)}
+                    />
+
+                    <ActionButton
                         label="Update Location"
                         icon={assetImages.mapViewPin}
                         onPress={() => setShowLocationModal(true)}
@@ -285,31 +366,158 @@ const CustomersDetails = ({ route }) => {
                 onRequestClose={() => setShowLocationModal(false)}>
                 <View style={styles.modalContainer}>
                     <View style={styles.locationModalContent}>
-                        <Text style={styles.modalTitle}>Update Location</Text>
+                        <Text style={styles.modalTitle}>Location Information</Text>
+
                         <LocationIndicator onLocationUpdate={setLocation} />
+
+                        <ScrollView>
+                            {/* Original Retailer Location */}
+                            {(item.Latitude && item.Longitude) && (
+                                <View style={styles.locationSection}>
+                                    <View style={styles.locationHeader}>
+                                        <Icon name="home" size={16} color={customColors.primary} />
+                                        <Text style={styles.locationTitle}>Original Location</Text>
+                                        {location && (
+                                            <Text style={styles.distanceText}>
+                                                {formatDistance(calculateDistance(
+                                                    location.latitude,
+                                                    location.longitude,
+                                                    parseFloat(item.Latitude),
+                                                    parseFloat(item.Longitude)
+                                                ))}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <Text style={styles.coordinates}>
+                                        {parseFloat(item.Latitude).toFixed(6)}, {parseFloat(item.Longitude).toFixed(6)}
+                                    </Text>
+                                    <Text style={styles.locationStatus}>🏪 Initial Setup</Text>
+                                </View>
+                            )}
+
+                            {/* Last Updated Location */}
+                            {(item.AllLocations && item.AllLocations.length > 0) && (
+                                <View style={styles.locationSection}>
+                                    <View style={styles.locationHeader}>
+                                        <Icon name="clockcircleo" size={16} color={customColors.warning} />
+                                        <Text style={styles.locationTitle}>Last Updated</Text>
+                                        {location && (
+                                            <Text style={styles.distanceText}>
+                                                {formatDistance(calculateDistance(
+                                                    location.latitude,
+                                                    location.longitude,
+                                                    parseFloat(item.AllLocations[0].latitude),
+                                                    parseFloat(item.AllLocations[0].longitude)
+                                                ))}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <Text style={styles.coordinates}>
+                                        {parseFloat(item.AllLocations[0].latitude).toFixed(6)}, {parseFloat(item.AllLocations[0].longitude).toFixed(6)}
+                                    </Text>
+                                    <Text style={styles.locationStatus}>📱 {item.AllLocations[0].EntryByGet0}</Text>
+                                </View>
+                            )}
+
+                            {/* Admin Verified Location */}
+                            {(item.VERIFIED_LOCATION?.latitude && item.VERIFIED_LOCATION?.longitude) && (
+                                <View style={styles.locationSection}>
+                                    <View style={styles.locationHeader}>
+                                        <Icon name="checkcircleo" size={16} color={customColors.success} />
+                                        <Text style={styles.locationTitle}>Verified Location</Text>
+                                        {location && (
+                                            <Text style={styles.distanceText}>
+                                                {formatDistance(calculateDistance(
+                                                    location.latitude,
+                                                    location.longitude,
+                                                    parseFloat(item.VERIFIED_LOCATION.latitude),
+                                                    parseFloat(item.VERIFIED_LOCATION.longitude)
+                                                ))}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <Text style={styles.coordinates}>
+                                        {parseFloat(item.VERIFIED_LOCATION.latitude).toFixed(6)}, {parseFloat(item.VERIFIED_LOCATION.longitude).toFixed(6)}
+                                    </Text>
+                                    <Text style={styles.locationStatus}>✅ Admin Verified</Text>
+                                </View>
+                            )}
+                        </ScrollView>
+
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 onPress={() => setShowLocationModal(false)}
-                                style={[
-                                    styles.modalButton,
-                                    styles.cancelButton,
-                                ]}>
-                                <Text style={styles.cancelButtonText}>
-                                    Cancel
-                                </Text>
+                                style={[styles.modalButton, styles.cancelButton]}>
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                onPress={() => handleRetailerUpdate(location)}
-                                disabled={mutation.isPending}
+                                onPress={() => {
+                                    if (location) {
+                                        handleRetailerUpdate(location);
+                                        setShowLocationModal(false);
+                                    }
+                                }}
+                                disabled={!location || mutation.isPending}
                                 style={[
                                     styles.modalButton,
                                     styles.updateButton,
+                                    (!location || mutation.isPending) && styles.disabledButton
                                 ]}>
                                 <Text style={styles.updateButtonText}>
-                                    {mutation.isPending
-                                        ? "Updating..."
-                                        : "Update"}
+                                    {mutation.isPending ? "Updating..." : "Update Location"}
                                 </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={dailyLogModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setDailyLogModalVisible(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.locationModalContent}>
+                        <Text style={styles.modalTitle}>Daily Visit Log</Text>
+                        <LocationIndicator onLocationUpdate={setLocation} />
+
+                        <View style={styles.textAreaContainer}>
+                            <Text style={styles.inputLabel}>Narration</Text>
+                            <TextInput
+                                style={styles.textAreaInput}
+                                placeholder="Enter visit details..."
+                                value={narration}
+                                onChangeText={setNarration}
+                                multiline
+                                numberOfLines={4}
+                                textAlignVertical="top"
+                            />
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setDailyLogModalVisible(false);
+                                    setNarration("");
+                                }}
+                                style={[styles.modalButton, styles.cancelButton]}>
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={async () => {
+                                    if (narration.trim()) {
+                                        const success = await handleSubmitforVisitLog(narration);
+                                        if (success) {
+                                            setDailyLogModalVisible(false);
+                                            setNarration("");
+                                        }
+                                    } else {
+                                        ToastAndroid.show("Please enter narration", ToastAndroid.SHORT);
+                                    }
+                                }}
+                                style={[styles.modalButton, styles.updateButton]}>
+                                <Text style={styles.updateButtonText}>Submit</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -425,13 +633,80 @@ const styles = StyleSheet.create({
         width: width * 0.9,
         borderRadius: 16,
         padding: spacing.lg,
+        maxHeight: '80%',
         ...shadows.large,
     },
     modalTitle: {
         ...typography.h5(),
         color: customColors.grey900,
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
         textAlign: "center",
+    },
+    locationSection: {
+        backgroundColor: customColors.grey50,
+        borderRadius: 12,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.primary,
+    },
+    locationHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.sm,
+        justifyContent: 'space-between',
+    },
+    locationTitle: {
+        ...typography.body1(),
+        fontWeight: '600',
+        color: customColors.grey900,
+        flex: 1,
+        marginLeft: spacing.sm,
+    },
+    distanceText: {
+        ...typography.caption(),
+        color: customColors.success,
+        backgroundColor: customColors.successLight,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    coordinates: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        marginBottom: spacing.xs,
+        letterSpacing: 0.5,
+        fontFamily: 'monospace',
+    },
+    locationStatus: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        fontStyle: 'italic',
+    },
+    noLocationText: {
+        ...typography.body2(),
+        color: customColors.grey500,
+        fontStyle: 'italic',
+    },
+    textAreaContainer: {
+        marginBottom: spacing.lg,
+    },
+    inputLabel: {
+        ...typography.body1(),
+        fontWeight: "600",
+        color: customColors.grey900,
+        marginBottom: spacing.sm,
+    },
+    textAreaInput: {
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        borderRadius: 8,
+        padding: spacing.md,
+        minHeight: 100,
+        ...typography.body2(),
+        color: customColors.grey900,
+        backgroundColor: customColors.white,
     },
     modalButtons: {
         flexDirection: "row",
@@ -453,6 +728,9 @@ const styles = StyleSheet.create({
     },
     updateButton: {
         backgroundColor: customColors.primary,
+    },
+    disabledButton: {
+        backgroundColor: customColors.grey300,
     },
     buttonText: {
         ...typography.button(),

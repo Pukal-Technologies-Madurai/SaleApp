@@ -34,6 +34,7 @@ const EditSaleOrder = ({ route }) => {
         Retailer_Id: item.Retailer_Id,
         Retailer_Name: item.Retailer_Name,
         Narration: item.Narration,
+        Cancel_status: 1,
         Created_by: item.Created_by,
         VoucherType: item.VoucherType,
         Product_Array: item.Products_List,

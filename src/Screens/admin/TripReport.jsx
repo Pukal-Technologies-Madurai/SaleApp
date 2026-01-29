@@ -133,8 +133,8 @@ const TripReport = ({ route }) => {
             const deliveryPerson = useMemo(() => {
                 const firstDetail = trip.Trip_Details?.[0];
                 return {
-                    name: firstDetail?.Name || "N/A",
-                    id: firstDetail?.User_Id || "N/A",
+                    name: firstDetail?.Cost_Center_Name || "N/A",
+                    id: firstDetail?.Delivery_Person_Id || "N/A",
                 };
             }, [trip.Trip_Details]);
 

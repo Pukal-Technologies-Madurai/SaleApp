@@ -198,7 +198,7 @@ const SMTSale = ({ route }) => {
             const balanceData = productBalanceQty.find(
                 balance => String(balance.Product_Id) === String(product.Product_Id)
             );
-            
+
             return {
                 ...product,
                 CL_Qty: balanceData ? balanceData.CL_Qty : 0, // Add balance quantity or default to 0
@@ -449,327 +449,260 @@ const SMTSale = ({ route }) => {
             }, 0);
 
             const htmlContent = `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8" />
-                        <meta
-                        name="viewport"
-                        content="width=80mm, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-                        />
-                        <title>Quotation</title>
-                        <style>
-                        @page {
-                            size: 80mm auto;
-                            margin: 0mm;
-                        }
-    
-                        * {
-                            margin: 0;
-                            padding: 0;
-                            box-sizing: border-box;
-                        }
-    
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta
+                    name="viewport"
+                    content="width=80mm, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+                    />
+                    <title>Quotation</title>
+                    <style>
+                    @page {
+                        size: 80mm auto;
+                        margin: 0mm;
+                    }
+
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+
+                    body {
+                        width: 80mm;
+                        font-family: "Courier New", monospace;
+                        font-size: 12px;
+                        padding: 2mm;
+                        color: #000;
+                        line-height: 1.2;
+                    }
+
+                    .header {
+                        text-align: center;
+                        font-size: 18px;
+                        font-weight: 900;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 1.5mm;
+                        margin-bottom: 2mm;
+                        letter-spacing: 1px;
+                    }
+
+                    .date-taken-section {
+                        margin-bottom: 1.5mm;
+                        font-size: 12px;
+                        font-weight: 700;
+                    }
+
+                    .date-line, .taken-line {
+                        margin-bottom: 1mm;
+                    }
+
+                    .info-section {
+                        border-top: 1px solid #000;
+                        border-bottom: 1px solid #000;
+                        padding: 1mm 0;
+                        margin-bottom: 2mm;
+                    }
+
+                    .party-name {
+                        font-size: 14px;
+                        font-weight: 800;
+                        padding: 0.5mm 0;
+                        line-height: 1.1;
+                    }
+
+                    .info-double-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 0.5mm 0;
+                    }
+
+                    .info-item {
+                        flex: 1;
+                        font-size: 14px;
+                        font-weight: 700;
+                    }
+
+                    .info-item:first-child {
+                        margin-right: 2mm;
+                    }
+
+                    .total-summary {
+                        background: #f0f0f0;
+                        border: 1px solid #000;
+                        padding: 1mm;
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 15px;
+                        font-weight: bold;
+                    }
+
+                    .total-summary div {
+                        text-align: center;
+                        flex: 1;
+                    }
+
+                    .table-container {
+                        border: 0.5px solid #000;
+                    }
+
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+
+                    thead th {
+                        border: 0.5px solid #000;
+                        padding: 0.5mm;
+                        text-align: center;
+                        font-size: 10px;
+                        font-weight: 800;
+                        background: #f5f5f5;
+                    }
+
+                    tbody td {
+                        border: 0.5px solid #000;
+                        padding: 0.3mm;
+                        text-align: center;
+                        font-size: 15px;
+                        font-weight: 800;
+                        vertical-align: middle;
+                        word-wrap: break-word;
+                        word-break: break-all;
+                    }
+
+                    .rate-cell {
+                        width: 25mm;
+                        padding: 2mm 1mm !important;
+                    }
+
+                    .rate-value {
+                        display: block;
+                        font-size: 14px;
+                        font-weight: 700;
+                        margin-bottom: 1mm;
+                    }
+
+                    .item-cell {
+                        width: 60mm;
+                        text-align: left;
+                        padding-left: 1.5mm !important;
+                        font-size: 12px;
+                        font-weight: 700;
+                    }
+
+                    .bags-cell {
+                        width: 12mm;
+                        font-size: 14px;
+                        font-weight: 700;
+                    }
+
+                    .data-row {
+                        min-height: 8mm;
+                    }
+
+                    @media print {
                         body {
-                            width: 80mm;
-                            font-family: "Courier New", monospace;
-                            font-size: 11px;
-                            padding: 3mm;
-                            color: #000;
-                            line-height: 1.3;
+                        padding: 1.5mm;
                         }
-    
-                        .header {
-                            text-align: center;
-                            font-size: 16px;
-                            font-weight: 700;
-                            border-bottom: 0.75px solid #000;
-                            padding-bottom: 2mm;
-                            margin-bottom: 3mm;
-                            letter-spacing: 1px;
-                        }
-    
-                        .top-row {
-                            display: flex;
-                            justify-content: space-between;
-                            margin-bottom: 2mm;
-                            font-size: 10px;
-                        }
-    
-                        .info-section {
-                            border-top: 0.75px solid #000;
-                            border-bottom: 0.75px solid #000;
-                            padding: 1mm 0;
-                        }
-    
-                        .info-row {
-                            display: flex;
-                            min-height: 4.5mm;
-                            align-items: center;
-                            padding: 1mm 0;
-                        }
-    
-                        .info-label {
-                            font-weight: 700;
-                            min-width: 26mm;
-                            font-size: 10px;
-                            flex-shrink: 0;
-                        }
-    
-                        .info-value {
-                            flex: 1;
-                            font-size: 14px;
-                            font-weight: 800;
-                            padding-left: 2mm;
-                        }
-    
-                        .table-container {
-                            margin-top: 3mm;
-                            border: 0.25px solid #000;
-                        }
-    
-                        table {
-                            width: 100%;
-                            border-collapse: collapse;
-                        }
-    
-                        thead th {
-                            border: 0.75px solid #000;
-                            padding: 2mm 1mm;
-                            text-align: center;
-                            font-size: 10px;
-                            font-weight: 700;
-                            background: #f5f5f5;
-                        }
-    
-                        tbody td {
-                            border: 0.75px solid #000;
-                            padding: 1mm;
-                            text-align: center;
-                            font-size: 9px;
-                            vertical-align: middle;
-                        }
-    
-                        .rate-cell {
-                            width: 18mm;
-                            padding: 2mm 1mm !important;
-                            line-height: 1.4;
-                        }
-    
-                        .rate-value {
-                            display: block;
-                            font-size: 14px;
-                            font-weight: 900;
-                        }
-    
-                        .rate-space {
-                            display: block;
-                            height: 3mm;
-                        }
-    
-                        .item-cell {
-                            width: 32mm;
-                            text-align: left;
-                            padding-left: 2mm !important;
-                            font-size: 14px;
-                            font-weight: 900;
-                        }
-    
-                        .bags-cell,
-                        .kgs-cell {
-                            width: 15mm;
-                            font-size: 14px;
-                            font-weight: 900;
-                        }
-    
-                        .data-row {
-                            min-height: 12mm;
-                        }
-    
-                        .total-row {
-                            background: #f8f8f8;
-                            border-top: 2px solid #000 !important;
-                        }
-    
-                        .total-row td {
-                            font-weight: 700;
-                            font-size: 11px;
-                            padding: 2mm 1mm !important;
-                        }
-    
-                        @media print {
-                            body {
-                            padding: 2mm;
-                            }
-                        }
-                        </style>
-                    </head>
-                    <body>
-                        <!-- Header -->
-                        <div class="header">QUOTATION</div>
-    
-                        <!-- Top Info Row -->
-                        <div class="top-row">
-                        <div class="bold" style="font-size: 12px; font-weight: 900">
-                            <strong>DATE:</strong> ${
-                                generalInfo?.Created_on &&
-                                `${new Date(
-                                    generalInfo.Created_on,
-                                ).toLocaleDateString("en-GB")}/${new Date(
-                                    generalInfo.Created_on,
-                                ).toLocaleTimeString("en-IN", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                })}`
-                            }
+                    }
+                    </style>
+                </head>
+                <body>
+                    <!-- Header -->
+                    <div class="header">QUOTATION</div>
+
+                    <!-- Date and Taken on separate lines -->
+                    <div class="date-taken-section">
+                        <div class="date-line">
+                            <strong>DATE:</strong> ${generalInfo?.Created_on && `${new
+                    Date(generalInfo.Created_on).toLocaleDateString("en-GB")} / ${new
+                        Date(generalInfo.Created_on).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit", hour12: true
+                        })}`}
                         </div>
-                        <div style="margin-bottom: 3mm; font-size: 14px; font-weight: 900">
-                            <strong style="font-size: 14px; font-weight: 900">TAKEN:</strong>
-                            ${
-                                generalInfo?.Sales_Person_Name ||
-                                generalInfo?.Created_BY_Name ||
-                                "—"
-                            }
+                        <div class="taken-line">
+                            <strong>TAKEN:</strong> ${generalInfo?.Sales_Person_Name ||
+                generalInfo?.Created_BY_Name || "—"}
                         </div>
+                    </div>
+
+                    <!-- Info Section -->
+                    <div class="info-section">
+                        <div class="party-name">
+                            ${currentRetailerInfo?.retailerTamilName ||
+                currentRetailerInfo?.Retailer_Name || generalInfo?.Retailer_Name || "—"}
                         </div>
-    
-                        <!-- Info Section -->
-                        <div class="info-section">
-                        <div class="info-row">
-                            <div class="info-label">PARTY NAME:</div>
-                            <div class="info-value">
-                            ${
-                                currentRetailerInfo?.retailerTamilName ||
-                                currentRetailerInfo?.Retailer_Name ||
-                                generalInfo?.Retailer_Name ||
-                                "—"
-                            }
+
+                        <div class="info-double-row">
+                            <div class="info-item">
+                                ${[currentRetailerInfo?.Party_Mailing_Address ||
+                    currentRetailerInfo?.Reatailer_Address].filter(Boolean).join(', ') ||
+                currentRetailerInfo?.StateGet || "—"}
+                            </div>
+                            <div class="info-item">
+                                ${currentRetailerInfo?.Mobile_No || "—"}
                             </div>
                         </div>
-    
-                        <div class="info-row">
-                            <div class="info-label">LOCATION:</div>
-                            <div class="info-value">
-                            ${
-                                [
-                                    currentRetailerInfo?.Party_Mailing_Address ||
-                                        currentRetailerInfo?.Reatailer_Address,
-                                ]
-                                    .filter(Boolean)
-                                    .join(", ") ||
-                                currentRetailerInfo?.StateGet ||
-                                generalInfo?.Retailer_Name ||
-                                "—"
-                            }
+
+                        <div class="info-double-row">
+                            <div class="info-item">
+                                ${transportNames || "—"}
+                            </div>
+                            <div class="info-item">
+                                ${brokerNames || "—"}
                             </div>
                         </div>
-    
-                        <div class="info-row">
-                            <div class="info-label">PH.NO:</div>
-                            <div class="info-value">
-                            ${
-                                currentRetailerInfo?.Mobile_No ||
-                                currentRetailerInfo?.Party_Mailing_Address?.match(
-                                    /(\d{3}[-\s]?\d{3}[-\s]?\d{4}|\d{10})/,
-                                )?.[0] ||
-                                "—"
-                            }
-                            </div>
-                        </div>
-    
-                        <div class="info-row">
-                            <div class="info-label">TRANSPORT:</div>
-                            <div class="info-value">${transportNames || "—"}</div>
-                        </div>
-    
-                        <div class="info-row">
-                            <div class="info-label">BROKER:</div>
-                            <div class="info-value">${brokerNames || "—"}</div>
-                        </div>
-                        </div>
-    
-                        <!-- Table -->
-                        <div class="table-container">
-                        <table>
-                            <thead>
-                            <tr>
-                                <th style="width: 18mm">RATE</th>
-                                <th style="width: 32mm">ITEM NAME</th>
-                                <th style="width: 15mm">BAGS</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            ${
-                                products.length
-                                    ? products
-                                          .map(p => {
-                                              const packWeight =
-                                                  parseFloat(
-                                                      p?.Product_Name?.match(
-                                                          /(\d+(?:\.\d+)?)\s*KG/i,
-                                                      )?.[1],
-                                                  ) || 0;
-                                              const totalKg =
-                                                  parseFloat(p.Bill_Qty) || 0;
-                                              const bags =
-                                                  packWeight > 0
-                                                      ? totalKg / packWeight
-                                                      : 0;
-                                              return `
-                            <tr class="data-row">
-                                <td class="rate-cell">
-                                <span class="rate-value">₹${rupee(p?.Item_Rate ?? 0)}</span>
-                                <span class="rate-space"></span>
-                                </td>
-                                <td class="item-cell">
-                                ${p.Product_Short_Name || p?.Product_Name}
-                                </td>
-                                <td class="bags-cell">${bags > 0 ? bags.toFixed(1) : "0"}</td>
-                            </tr>
-                            `;
-                                          })
-                                          .join("")
-                                    : Array.from(
-                                          { length: 6 },
-                                          () => `
-                            <tr class="data-row">
-                                <td class="rate-cell">
-                                <span class="rate-space"></span>
-                                </td>
-                                <td class="item-cell"></td>
-                                <td class="bags-cell"></td>
-                            </tr>
-                            `,
-                                      ).join("")
-                            }
-    
-                            <!-- Total Row -->
-                            <tr class="total-row">
-                                <td style="font-weight: 900; font-size: 13px">
-                                ₹${rupee(
-                                    products.reduce(
-                                        (sum, p) =>
-                                            sum +
-                                            (parseFloat(p.Bill_Qty) || 0) *
-                                                (parseFloat(p.Item_Rate) || 0),
-                                        0,
-                                    ),
-                                )}
-                                </td>
-                                <td style="font-weight: 900; font-size: 13px">
-                                ${totalWeight.toFixed(2)} KG
-                                </td>
-                                <td style="font-weight: 900; font-size: 13px">
-                                ${numberOfBags.toFixed(1)}
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        </div>
-                    </body>
-                    </html>
-                `;
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-container">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>RATE</th>
+                            <th>ITEM NAME</th>
+                            <th>BAGS</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        ${products.length ? products.map((p) => {
+                    const packWeight =
+                        parseFloat(p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
+                    const totalKg = parseFloat(p.Bill_Qty) || 0; const bags = packWeight >
+                        0 ? (totalKg / packWeight) : 0; return `
+                        <tr class="data-row">
+                            <td class="rate-cell">
+                            <span class="rate-value">₹${rupee(p?.Item_Rate ?? 0)}</span>
+                            </td>
+                            <td class="item-cell">${p.Product_Short_Name || p.Product_Name}</td>
+                            <td class="bags-cell">${bags > 0 ? bags : "0"}</td>
+                        </tr>
+                        `;
+                }).join("") : ""}
+                        </tbody>
+                    </table>
+                    <!-- Total Summary -->
+                    <div class="total-summary">
+                        <div><strong>₹${rupee(
+                    products.reduce(
+                        (sum, p) =>
+                            sum +
+                            (parseFloat(p.Bill_Qty) || 0) *
+                            (parseFloat(p.Item_Rate) || 0),
+                        0,
+                    ),
+                )}</strong></div>
+                        <div><strong>${totalWeight.toFixed(2)} KGS</strong></div>
+                        <div><strong>${numberOfBags}</strong></div>
+                    </div>
+                    </div>
+                </body>
+                </html>
+            `;
 
             // Calculate approximate height based on content
             const estimatedHeight = 400 + products.length * 30;

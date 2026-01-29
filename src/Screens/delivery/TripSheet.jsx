@@ -210,7 +210,7 @@ const TripSheet = () => {
                     <View style={styles.tripHeaderContent}>
                         <View style={styles.tripBasicInfo}>
                             <Text style={styles.tripId}>
-                                Trip #{item.Trip_No}
+                                Trip #{item.Trip_No} - <Text style={styles.costCenterNames}>({[...new Set(item.Trip_Details?.map(detail => detail.Cost_Center_Name))].join(", ")})</Text>
                             </Text>
                             <View style={styles.timeContainer}>
                                 <MaterialCommunityIcons
@@ -639,6 +639,10 @@ const styles = StyleSheet.create({
     tripId: {
         ...typography.h6(),
         color: customColors.grey900,
+    },
+    costCenterNames: {
+        ...typography.caption(),
+        color: customColors.primaryDark + "90",
     },
     timeContainer: {
         flexDirection: "row",

@@ -32,6 +32,7 @@ const PosEditOrder = ({ route }) => {
         Company_Id: item.Company_Id,
         ST_Date: new Date().toISOString().split("T")[0],
         Branch_Id: item.Branch_Id,
+        Cancel_status: 1,
         Retailer_Id: item.Retailer_Id,
         Retailer_Name: item.Retailer_Name,
         Narration: item.Narration,
@@ -362,9 +363,9 @@ const PosEditOrder = ({ route }) => {
                 filteredData = filteredData.filter(product => {
                     const normalizedProductName = normalizeSearchText(product.Product_Name || "");
                     const normalizedShortName = normalizeSearchText(product.Short_Name || "");
-                    
-                    return normalizedProductName.includes(normalizedSearchTerm) || 
-                           normalizedShortName.includes(normalizedSearchTerm);
+
+                    return normalizedProductName.includes(normalizedSearchTerm) ||
+                        normalizedShortName.includes(normalizedSearchTerm);
                 });
             }
 
@@ -607,7 +608,7 @@ const PosEditOrder = ({ route }) => {
             <View key={index} style={styles.productRow}>
                 <View style={styles.productInfo}>
                     <Text style={styles.productName} numberOfLines={2}>
-                        {product.Short_Name || product.Product_Description ||product.Product_Name}
+                        {product.Short_Name || product.Product_Description || product.Product_Name}
                     </Text>
 
                     <View style={styles.productMetaRow}>
@@ -794,13 +795,13 @@ const PosEditOrder = ({ route }) => {
 
                             {/* SM TRADERS: Search first, then optional brand filter */}
                             <View style={styles.smTradersContainer}>
-                                
+
                                 {/* Product Search Input - Show first */}
                                 <View style={styles.searchContainer}>
                                     <View style={styles.searchInputContainer}>
-                                        <Icon 
-                                            name="search" 
-                                            size={20} 
+                                        <Icon
+                                            name="search"
+                                            size={20}
                                             color={customColors.grey600}
                                             style={styles.searchIcon}
                                         />
@@ -816,9 +817,9 @@ const PosEditOrder = ({ route }) => {
                                                 onPress={() => setSearchQuery("")}
                                                 style={styles.clearSearchButton}
                                             >
-                                                <Icon 
-                                                    name="clear" 
-                                                    size={18} 
+                                                <Icon
+                                                    name="clear"
+                                                    size={18}
                                                     color={customColors.grey600}
                                                 />
                                             </TouchableOpacity>
@@ -989,9 +990,9 @@ const PosEditOrder = ({ route }) => {
                                 <View style={styles.loadingContainer}>
                                     {productQueryData?.productData && productQueryData.productData.length === 0 ? (
                                         <>
-                                            <ActivityIndicator 
-                                                size="large" 
-                                                color={customColors.primary} 
+                                            <ActivityIndicator
+                                                size="large"
+                                                color={customColors.primary}
                                                 style={styles.loadingIndicator}
                                             />
                                             <Text style={styles.loadingText}>

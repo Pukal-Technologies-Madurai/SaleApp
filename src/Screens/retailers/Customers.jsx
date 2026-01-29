@@ -15,7 +15,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
-import { fetchRetailers, fetchRoutePathData } from "../../Api/retailers";
+import { fetchRetailers, fetchRoutePathData, visitEntryLog } from "../../Api/retailers";
 import {
     customColors,
     typography,
@@ -24,57 +24,66 @@ import {
 } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const RetailerItem = memo(({ item, onPress }) => (
-    <TouchableOpacity
-        onPress={onPress}
-        style={styles.retailerCard}
-        activeOpacity={0.7}>
-        <View style={styles.cardContent}>
-            <View style={styles.retailerHeader}>
-                <View style={styles.retailerInfo}>
-                    <Text style={styles.retailerName} numberOfLines={1}>
-                        {item.Retailer_Name || "No Name"}
-                    </Text>
-                    <Text style={styles.contactInfo}>
-                        {item.Mobile_No || "No Contact"}
-                    </Text>
-                </View>
-                <View style={styles.chevronContainer}>
-                    <Ionicons
-                        name="chevron-forward"
-                        size={18}
-                        color={customColors.grey500}
-                    />
-                </View>
-            </View>
+const RetailerItem = ({ item, onPress, userVisitLog }) => {
+    const isVisited = userVisitLog.some(log =>
+        log.VisitedShopId.toString() === item.Retailer_Id.toString()
+    );
 
-            <View style={styles.detailsContainer}>
-                <View style={styles.detailRow}>
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Route:</Text>
-                        <Text style={styles.detailValue} numberOfLines={1}>
-                            {item.RouteGet || "No Route"}
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            style={isVisited
+                ? [styles.retailerCard, { borderLeftColor: customColors.success }]
+                : styles.retailerCard
+            }
+            activeOpacity={0.7}>
+            <View style={styles.cardContent}>
+                <View style={styles.retailerHeader}>
+                    <View style={styles.retailerInfo}>
+                        <Text style={styles.retailerName} numberOfLines={1}>
+                            {item.Retailer_Name || "No Name"}
+                        </Text>
+                        <Text style={styles.contactInfo}>
+                            {item.Mobile_No || "No Contact"}
                         </Text>
                     </View>
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Area:</Text>
-                        <Text style={styles.detailValue} numberOfLines={1}>
-                            {item.AreaGet || "No Area"}
-                        </Text>
+                    <View style={styles.chevronContainer}>
+                        <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={customColors.grey500}
+                        />
                     </View>
                 </View>
 
-                <View style={styles.addressContainer}>
-                    <Text style={styles.addressText} numberOfLines={2}>
-                        {item.Reatailer_Address || "No Address"},{" "}
-                        {item.Reatailer_City || ""}
-                        {item.PinCode ? ` - ${item.PinCode}` : ""}
-                    </Text>
+                <View style={styles.detailsContainer}>
+                    <View style={styles.detailRow}>
+                        <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>Route:</Text>
+                            <Text style={styles.detailValue} numberOfLines={1}>
+                                {item.RouteGet || "No Route"}
+                            </Text>
+                        </View>
+                        <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>Area:</Text>
+                            <Text style={styles.detailValue} numberOfLines={1}>
+                                {item.AreaGet || "No Area"}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.addressContainer}>
+                        <Text style={styles.addressText} numberOfLines={2}>
+                            {item.Reatailer_Address || "No Address"},{" "}
+                            {item.Reatailer_City || ""}
+                            {item.PinCode ? ` - ${item.PinCode}` : ""}
+                        </Text>
+                    </View>
                 </View>
             </View>
-        </View>
-    </TouchableOpacity>
-));
+        </TouchableOpacity>
+    );
+};
 
 const Customers = () => {
     const navigation = useNavigation();
@@ -97,12 +106,18 @@ const Customers = () => {
             <RetailerItem
                 item={item}
                 onPress={() => navigation.push("CustomersDetails", { item })}
+                userVisitLog={userVisitLog}
             />
         ),
-        [navigation],
+        [navigation, userVisitLog],
     );
 
-    const keyExtractor = useCallback(item => item.Retailer_Id.toString(), []);
+    const keyExtractor = useCallback(item => {
+        const isVisited = userVisitLog.some(log =>
+            log.VisitedShopId.toString() === item.Retailer_Id.toString()
+        );
+        return `${item.Retailer_Id}-${isVisited ? 'visited' : 'unvisited'}`;
+    }, [userVisitLog]);
 
     useEffect(() => {
         AsyncStorage.getItem("Company_Id").then(id => {
@@ -122,6 +137,26 @@ const Customers = () => {
     });
 
     const currentDate = new Date().toISOString().split("T")[0];
+
+    const { data: userVisitLog = [], isLoading: isLoadingUserVisitLog } = useQuery({
+        queryKey: ["userVisitLog", currentDate, userId],
+        queryFn: () => visitEntryLog({ toDate: currentDate, uId: userId }),
+        enabled: !!userId,
+        select: (rows) => {
+            return rows.filter((r) => r.IsExistingRetailer === 1)
+                .map((r) => ({
+                    VisitedShopId: r.Retailer_Id
+                }));
+        }
+    });
+
+    React.useEffect(() => {
+        // Force re-filter when visit log data becomes available
+        // This ensures border colors are applied correctly on initial render
+        if (userVisitLog.length > 0 && retailers.length > 0) {
+            filterRetailers(selectedRoute, selectedArea, searchQuery);
+        }
+    }, [userVisitLog]);
 
     const { data: existingRouteData = [] } = useQuery({
         queryKey: ["routePath", currentDate, userId],
@@ -353,7 +388,7 @@ const Customers = () => {
         [],
     );
 
-    if (isLoadingRetailers) {
+    if (isLoadingRetailers || isLoadingUserVisitLog) {
         return (
             <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
                 <AppHeader
@@ -366,7 +401,13 @@ const Customers = () => {
                 />
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={customColors.primary} />
-                    <Text style={styles.loadingText}>Loading retailers...</Text>
+                    <Text style={styles.loadingText}>
+                        {isLoadingRetailers && isLoadingUserVisitLog
+                            ? "Loading retailers and visit data..."
+                            : isLoadingRetailers
+                                ? "Loading retailers..."
+                                : "Loading visit data..."}
+                    </Text>
                 </View>
             </SafeAreaView>
         );
@@ -497,6 +538,7 @@ const Customers = () => {
                 </View>
 
                 <FlashList
+                    key={`retailers-${userVisitLog.length}`} // Force re-render when visit log changes
                     data={filteredRetailers}
                     renderItem={renderItem}
                     keyExtractor={keyExtractor}
@@ -629,13 +671,18 @@ const styles = StyleSheet.create({
     listContent: {
         padding: spacing.md,
     },
-    retailerCard: {
-        backgroundColor: customColors.white,
+    blurContainer: {
         borderRadius: 12,
         marginBottom: spacing.md,
+        overflow: 'hidden',
+    },
+    retailerCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        borderRadius: 12,
         ...shadows.small,
-        borderLeftWidth: 4,
-        borderLeftColor: customColors.primary,
+        marginVertical: spacing.xs,
+        borderLeftWidth: 5,
+        borderLeftColor: customColors.info,
     },
     cardContent: {
         padding: spacing.md,
