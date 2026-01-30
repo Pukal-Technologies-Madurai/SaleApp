@@ -60,6 +60,8 @@ import VisitLogDetail from "../Screens/admin/VisitLogDetail";
 import SalesReturn from "../Screens/sales/SalesReturn";
 import SalesReturnList from "../Screens/sales/SalesReturnList";
 import AdminItemSaleReturn from "../Screens/admin/AdminItemSaleReturn";
+import Settings from "../Screens/Settings";
+import MasterGodown from "../Screens/admin/MasterGodown";
 
 const Stack = createStackNavigator();
 
@@ -75,6 +77,7 @@ const AppStack = () => {
             <Stack.Screen name="Dashboard" component={Dashboard} />
             <Stack.Screen name="Statistics" component={StatisticsScreen} />
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+            <Stack.Screen name="Settings" component={Settings} />
 
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
             <Stack.Screen name="SwitchCompany" component={SwitchCompany} />
@@ -123,6 +126,7 @@ const AppStack = () => {
             <Stack.Screen name="BillAdminView" component={BillAdminView} />
             <Stack.Screen name="DeliveryReport" component={DeliveryReport} />
             <Stack.Screen name="MasterData" component={MasterData} />
+            <Stack.Screen name="MasterGodown" component={MasterGodown} />
             <Stack.Screen name="RetailerStock" component={RetailerStock} />
             <Stack.Screen name="SalesAdmin" component={SalesAdmin} />
             <Stack.Screen name="SalesReport" component={SalesReport} />

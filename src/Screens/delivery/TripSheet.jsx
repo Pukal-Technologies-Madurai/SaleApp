@@ -341,7 +341,7 @@ const TripSheet = () => {
                                                         Number(
                                                             tripDetail.Delivery_Status,
                                                         ) === 7
-                                                        ? customColors.success50
+                                                        ? customColors.success + "20"
                                                         : tripDetail &&
                                                             (Number(
                                                                 tripDetail.Payment_Status,
@@ -349,7 +349,7 @@ const TripSheet = () => {
                                                                 Number(
                                                                     tripDetail.Delivery_Status,
                                                                 ) === 7)
-                                                            ? customColors.warning50
+                                                            ? customColors.warning + "20"
                                                             : customColors.white,
                                             },
                                         ]}
@@ -361,7 +361,7 @@ const TripSheet = () => {
                                             <View style={styles.productInfo}>
                                                 <Text
                                                     style={styles.retailerName}>
-                                                    {product.Retailer_Name}
+                                                    {product.Products_List[0]?.Retailer_Name}
                                                 </Text>
                                                 <Text style={styles.orderId}>
                                                     Order #{product.Do_Id}

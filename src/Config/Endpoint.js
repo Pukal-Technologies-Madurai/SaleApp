@@ -42,6 +42,7 @@ export const API = {
     areas: () => `${baseURL}api/masters/areas`,
     state: () => `${baseURL}api/masters/state`,
     district: () => `${baseURL}api/masters/district`,
+    getGoDown: () => `${baseURL}api/masters/godown`,
 
     users: () => `${baseURL}api/masters/users?Company_id=`,
     costCenterData: () => `${baseURL}api/dataEntry/costCenter/`,

@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripDetails = ({ route, navigation }) => {
     const { tripNo, tripDate, retailers, deliveryPerson } = route.params;
-    // console.log(retailers);
+    console.log(deliveryPerson);
 
     // Add state for filtering
     const [filterType, setFilterType] = useState(null); // null means show all
@@ -87,7 +87,7 @@ const TripDetails = ({ route, navigation }) => {
     const renderRetailerItem = ({ item }) => (
         <View style={styles.retailerCard}>
             <View style={styles.retailerHeader}>
-                <Text style={styles.retailerName}>{item.name}</Text>
+                <Text style={styles.retailerName}>{item.products[0].Retailer_Name}</Text>
                 <Text style={styles.retailerId}>ID: {item.id}</Text>
             </View>
 

@@ -32,6 +32,14 @@ export const fetchDistrict = async () => {
     return json.data;
 };
 
+export const fetchGodown = async () => {
+    const res = await fetch(API.getGoDown());
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
 export const fetchdistributors = async () => {
     const res = await fetch(API.distributors());
     const json = await res.json();
