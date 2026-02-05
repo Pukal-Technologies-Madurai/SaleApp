@@ -573,6 +573,18 @@ const TripSheet = () => {
             />
 
             <View style={styles.contentContainer}>
+                <View style={{
+                    flexDirection: "row",
+                    justifyContent: "flex-end",
+                    alignItems: "flex-end",
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.xs,
+                }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate("RetailerMapView")}>
+                            <Text style={{}}>MapView</Text>
+                        </TouchableOpacity>
+                </View>
                 <View style={styles.tripContent}>
                     {logData.length > 0 ? (
                         <FlatList
@@ -608,9 +620,6 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        ...shadows.small,
     },
     tripContent: {
         flex: 1,
