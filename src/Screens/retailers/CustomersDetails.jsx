@@ -17,6 +17,9 @@ import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/AntDesign";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import assetImages from "../../Config/Image";
 import LocationIndicator from "../../Components/LocationIndicator";
@@ -139,12 +142,30 @@ const CustomersDetails = ({ route }) => {
         }
     };
 
-    const ActionButton = ({ icon, label, onPress }) => (
-        <TouchableOpacity style={styles.actionButton} onPress={onPress}>
-            <Image source={icon} style={styles.actionIcon} />
-            <Text style={styles.actionLabel}>{label}</Text>
-        </TouchableOpacity>
-    );
+    const ActionButton = ({ icon, iconLibrary = "material", label, onPress, color = customColors.primary }) => {
+        const renderIcon = () => {
+            const iconProps = { name: icon, size: 28, color: color };
+            switch (iconLibrary) {
+                case "feather":
+                    return <FeatherIcon {...iconProps} />;
+                case "antdesign":
+                    return <Icon {...iconProps} />;
+                case "fontawesome":
+                    return <FontAwesome {...iconProps} />;
+                default:
+                    return <MaterialIcon {...iconProps} />;
+            }
+        };
+
+        return (
+            <TouchableOpacity style={styles.actionButton} onPress={onPress} activeOpacity={0.7}>
+                <View style={[styles.actionIconContainer, { backgroundColor: color + "15" }]}>
+                    {renderIcon()}
+                </View>
+                <Text style={styles.actionLabel} numberOfLines={1}>{label}</Text>
+            </TouchableOpacity>
+        );
+    };
 
 
     const handleSubmitforVisitLog = async (visitNarration) => {
@@ -239,7 +260,9 @@ const CustomersDetails = ({ route }) => {
                 <View style={styles.actionGrid}>
                     <ActionButton
                         label="Stock"
-                        icon={assetImages.closingStock}
+                        icon="inventory"
+                        iconLibrary="material"
+                        color="#2196F3"
                         onPress={() =>
                             navigation.navigate("ClosingStock", {
                                 item,
@@ -250,7 +273,9 @@ const CustomersDetails = ({ route }) => {
                     {companyName === "SM TRADERS" ? (
                         <ActionButton
                             label="PoS Order"
-                            icon={assetImages.salesOrder}
+                            icon="point-of-sale"
+                            iconLibrary="material"
+                            color="#4CAF50"
                             onPress={() =>
                                 navigation.navigate("SMTSale", {
                                     item,
@@ -260,7 +285,9 @@ const CustomersDetails = ({ route }) => {
                     ) : (
                         <ActionButton
                             label="Order"
-                            icon={assetImages.salesOrder}
+                            icon="shopping-cart"
+                            iconLibrary="feather"
+                            color="#4CAF50"
                             onPress={() =>
                                 navigation.navigate("Sales", {
                                     item,
@@ -271,7 +298,9 @@ const CustomersDetails = ({ route }) => {
 
                     <ActionButton
                         label="Sale Return"
-                        icon={assetImages.edit}
+                        icon="assignment-return"
+                        iconLibrary="material"
+                        color="#FF9800"
                         onPress={() => {
                             navigation.navigate("SalesReturn", {
                                 item,
@@ -281,7 +310,9 @@ const CustomersDetails = ({ route }) => {
 
                     <ActionButton
                         label="Edit"
-                        icon={assetImages.edit}
+                        icon="edit"
+                        iconLibrary="feather"
+                        color="#9C27B0"
                         onPress={() =>
                             navigation.navigate("EditCustomer", {
                                 item,
@@ -290,8 +321,22 @@ const CustomersDetails = ({ route }) => {
                     />
 
                     <ActionButton
+                        label="Invoice"
+                        icon="receipt"
+                        iconLibrary="material"
+                        color="#E91E63"
+                        onPress={() =>
+                            navigation.navigate("SalesInvoice", {
+                                item,
+                            })
+                        }
+                    />
+
+                    <ActionButton
                         label="History"
-                        icon={assetImages.retailerIcon}
+                        icon="history"
+                        iconLibrary="material"
+                        color="#607D8B"
                         onPress={() =>
                             navigation.navigate("SaleHistory", {
                                 item,
@@ -301,7 +346,9 @@ const CustomersDetails = ({ route }) => {
 
                     <ActionButton
                         label="WhatsApp"
-                        icon={assetImages.whatsapp}
+                        icon="whatsapp"
+                        iconLibrary="fontawesome"
+                        color="#25D366"
                         onPress={() =>
                             Linking.openURL(
                                 `${API.whatsApp}${item.Mobile_No}/?text=Hi`,
@@ -317,20 +364,26 @@ const CustomersDetails = ({ route }) => {
                             item.AllLocations[0].longitude)) && (
                             <ActionButton
                                 label="Maps"
-                                icon={assetImages.locationStatus}
+                                icon="map-pin"
+                                iconLibrary="feather"
+                                color="#F44336"
                                 onPress={openMap}
                             />
                         )}
 
                     <ActionButton
                         label="Daily Log"
-                        icon={assetImages.mapViewPin}
+                        icon="clipboard"
+                        iconLibrary="feather"
+                        color="#00BCD4"
                         onPress={() => setDailyLogModalVisible(true)}
                     />
 
                     <ActionButton
-                        label="Update Location"
-                        icon={assetImages.mapViewPin}
+                        label="Location"
+                        icon="my-location"
+                        iconLibrary="material"
+                        color="#795548"
                         onPress={() => setShowLocationModal(true)}
                     />
                 </View>
@@ -581,26 +634,34 @@ const styles = StyleSheet.create({
     actionGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.xs,
+        justifyContent: "flex-start",
+        paddingHorizontal: spacing.sm,
         gap: spacing.sm,
+        marginBottom: spacing.xl,
     },
     actionButton: {
-        width: (width - spacing.md * 4) / 3,
+        width: (width - spacing.md * 2 - spacing.md * 2) / 3,
         alignItems: "center",
         backgroundColor: customColors.white,
-        padding: spacing.md,
-        borderRadius: 12,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: customColors.grey100,
         ...shadows.small,
     },
-    actionIcon: {
-        width: 35,
-        height: 35,
-        marginBottom: spacing.xs,
+    actionIconContainer: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.sm,
     },
     actionLabel: {
-        ...typography.subtitle2(),
-        color: customColors.grey700,
+        ...typography.caption(),
+        fontWeight: "600",
+        color: customColors.grey800,
         textAlign: "center",
     },
     modalContainer: {

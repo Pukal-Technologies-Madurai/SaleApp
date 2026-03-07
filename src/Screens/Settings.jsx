@@ -33,6 +33,14 @@ const Settings = () => {
             icon: "warehouse",
             iconColor: customColors.accent2,
             onPress: () => navigation.navigate("MasterGodown")
+        },
+        {
+            id: 4,
+            title: "Set Stock Transfer",
+            subtitle: "Manage stock transfers",
+            icon: "swap-horiz",
+            iconColor: customColors.warning,
+            onPress: () => navigation.navigate("GodownTransfer")
         }
     ];
 

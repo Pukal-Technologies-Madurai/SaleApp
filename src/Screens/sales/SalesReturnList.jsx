@@ -493,7 +493,6 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.white,
         fontWeight: "600",
-        fontSize: 10,
     },
     editButton: {
         backgroundColor: customColors.primary,

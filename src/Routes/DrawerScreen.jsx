@@ -69,6 +69,14 @@ const DrawerScreen = ({ navigation }) => {
             bgColor: "#F3E5F5",
             iconColor: "#9C27B0",
         },
+        {
+            icon: "warehouse",
+            iconLibrary: "MaterialIcons",
+            label: "Godown Activities",
+            onPress: () => navigation.navigate("GodownActivities"),
+            bgColor: "#FDF2F8",
+            iconColor: "#EC4899",
+        },
         // {
         //     icon: "map-marker-path",
         //     iconLibrary: "MaterialCommunityIcons",
@@ -253,7 +261,6 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.white,
         fontWeight: "600",
-        fontSize: 11,
         letterSpacing: 0.5,
     },
     scrollContainer: {

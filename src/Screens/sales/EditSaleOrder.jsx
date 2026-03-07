@@ -43,7 +43,6 @@ const EditSaleOrder = ({ route }) => {
     };
 
     const [uID, setUID] = useState();
-    const [companyName, setCompanyName] = useState("");
     const [stockInputValue, setStockInputValue] = useState(initialStockValue);
     const [showFilter, setShowFilter] = useState(false);
     const [selectedBrokerId, setSelectedBrokerId] = useState(null);
@@ -58,12 +57,16 @@ const EditSaleOrder = ({ route }) => {
     const [selectedProductGroup, setSelectedProductGroup] = useState(null);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [newProductQuantities, setNewProductQuantities] = useState([]);
+    const [goDownId, setIGoDownID] = useState(0);
 
     useEffect(() => {
         const initialize = async () => {
             try {
                 const userId = await AsyncStorage.getItem("Company_Id");
+                const activeGodown = await AsyncStorage.getItem("activeGodown");
                 setUID(userId);
+                const parsedGodown = parseInt(activeGodown, 10);
+                setIGoDownID(isNaN(parsedGodown) ? 0 : parsedGodown);
 
                 if (item.Products_List && item.Products_List.length > 0) {
                     const initialEditableProducts = item.Products_List.map(
@@ -456,6 +459,7 @@ const EditSaleOrder = ({ route }) => {
                 Item_Id: p.Item_Id,
                 Bill_Qty: p.Bill_Qty,
                 Item_Rate: p.Item_Rate,
+                GoDown_Id: goDownId || item.Products_List[0].GoDown_Id,
             }));
 
         if (orderProducts.length <= 0) {
@@ -467,6 +471,9 @@ const EditSaleOrder = ({ route }) => {
             ...stockInputValue,
             Product_Array: orderProducts,
         };
+
+
+        // console.log("Submitting order details:", orderDetails);
 
         try {
             const response = await fetch(`${API.saleOrder()}`, {

@@ -147,6 +147,14 @@ const Dashboard = () => {
             return data.success ? data.data : [];
         },
 
+        fetchInvoiceData: async (from, to, branchId) => {
+            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}`;
+            // console.log("Fetching invoice data with URL:", url);
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
+        },
+
         fetchReceiptData: async (from, to, branchId) => {
             const url = `${API.getReceipt()}${from}&Todate=${to}&Branch_Id=${branchId}`;
             const response = await fetch(url);
@@ -219,6 +227,7 @@ const Dashboard = () => {
                 const [
                     visitData,
                     saleData,
+                    invoiceData,
                     attendanceData,
                     deliveryData,
                     tripSheetData,
@@ -232,6 +241,11 @@ const Dashboard = () => {
                         userDetails.companyId,
                         branchIdParam,
                         "",
+                    ),
+                    apiService.fetchInvoiceData(
+                        selectedDate,
+                        selectedDate,
+                        branchIdParam,
                     ),
                     apiService.fetchAttendanceInfo(
                         selectedDate,
@@ -253,6 +267,7 @@ const Dashboard = () => {
 
                 const finalVisitData = extractData(visitData);
                 const finalSaleData = extractData(saleData);
+                const finalInvoiceData = extractData(invoiceData);
                 const finalAttendanceData = extractData(attendanceData);
                 const finalDeliveryData = extractData(deliveryData);
                 const finalTripSheetData = extractData(tripSheetData);
@@ -284,6 +299,15 @@ const Dashboard = () => {
                     0,
                 );
 
+                // console.log("Total Order Amount:", totalOrderAmount);
+
+                const totalInvoiceAmount = finalInvoiceData.reduce(
+                    (sum, invoice) => sum + invoice.Total_Invoice_value,
+                    0,
+                );
+
+                // console.log("Total Invoice Amount:", totalInvoiceAmount);
+
                 const totalProductsSold = finalSaleData.reduce(
                     (count, order) => {
                         return (
@@ -305,10 +329,12 @@ const Dashboard = () => {
                     attendanceData: finalAttendanceData,
                     deliveryData: finalDeliveryData,
                     tripSheetData: finalTripSheetData,
+                    invoiceData: finalInvoiceData,
                     newReceiptData: finalReceiptData,
                     deliveryReturnData: finalDeliveryReturnData,
                     saleCount,
                     totalOrderAmount,
+                    totalInvoiceAmount,
                     totalProductsSold,
                 };
             } catch (error) {
@@ -459,6 +485,20 @@ const Dashboard = () => {
                     navigation.navigate("SalesAdmin", {
                         selectedDate: selectedDate,
                         selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                    }),
+            },
+            {
+                icon: "receipt-long",
+                iconLibrary: "MaterialIcons",
+                label: "Invoice Summary",
+                value: `₹${(allDashboardData.totalInvoiceAmount || 0).toLocaleString("en-IN")}`,
+                color: "#DC2626",
+                backgroundColor: "#FEE2E2",
+                onPress: () =>
+                    navigation.navigate("SaleInvoiceList", {
+                        selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                        isAdmin: true,
                     }),
             },
             {

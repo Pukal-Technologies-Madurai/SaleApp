@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert, ToastAndroid } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -7,10 +7,26 @@ import { useNavigation } from "@react-navigation/native";
 import { customColors, typography, spacing, shadows } from "../../Config/helper";
 import { useQuery } from "@tanstack/react-query";
 import { fetchGodown } from "../../Api/retailers";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MasterGodown = () => {
     const navigation = useNavigation();
     const [selectedGodown, setSelectedGodown] = React.useState(null);
+    const [storedGodownId, setStoredGodownId] = React.useState(null);
+
+    // Load stored godown ID on component mount
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const storedGodownId = await AsyncStorage.getItem("activeGodown");
+                if (storedGodownId) {
+                    setStoredGodownId(storedGodownId);
+                }
+            } catch (error) {
+                console.error("Error loading stored godown:", error);
+            }
+        })();
+    }, []);
 
     const { data: goDownData = [], isLoading, isError } = useQuery({
         queryKey: ["goDownData"],
@@ -25,6 +41,16 @@ const MasterGodown = () => {
             }))
         }
     });
+
+    // Set selected godown when data loads and we have a stored ID
+    React.useEffect(() => {
+        if (goDownData.length > 0 && storedGodownId && !selectedGodown) {
+            const foundGodown = goDownData.find(godown => godown.id === storedGodownId);
+            if (foundGodown) {
+                setSelectedGodown(foundGodown);
+            }
+        }
+    }, [goDownData, storedGodownId, selectedGodown]);
 
     return (
         <SafeAreaView style={styles.container} edges={["top"]}>
@@ -112,7 +138,17 @@ const MasterGodown = () => {
                                         { text: "Cancel", style: "cancel" },
                                         {
                                             text: "Update",
-                                            onPress: () => Alert.alert("Success", "Godown updated successfully!")
+                                            onPress: async () => {
+                                                try {
+                                                    await AsyncStorage.setItem("activeGodown", selectedGodown.id.toString());
+                                                    setStoredGodownId(selectedGodown.id.toString());
+                                                    ToastAndroid.show(selectedGodown.name + " set as active godown", ToastAndroid.LONG);
+                                                    navigation.navigate("HomeScreen");
+                                                } catch (error) {
+                                                    console.error("Error saving godown:", error);
+                                                    Alert.alert("Error", "Failed to save godown selection.");
+                                                }
+                                            }
                                         }
                                     ]
                                 );

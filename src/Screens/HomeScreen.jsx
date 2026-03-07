@@ -125,6 +125,14 @@ const HomeScreen = () => {
             backgroundColor: "#F7FEE7",
         },
         {
+            title: "Invoices List",
+            iconLibrary: "MaterialCommunityIcons",
+            iconName: "file-document-outline",
+            navigate: "SaleInvoiceList",
+            color: "#3B82F6",
+            backgroundColor: "#EFF6FF",
+        },
+        {
             title: "TripSheet",
             iconLibrary: "MaterialCommunityIcons",
             iconName: "truck-delivery",

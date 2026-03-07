@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-let baseURL = "http://pukalfoods.erpsmt.in/"; // Live api
+let baseURL = "https://pukalfoods.erpsmt.in/"; // Live api
 // let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
 // let baseURL = "http://test.erpsmt.in/";
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
@@ -59,6 +59,9 @@ export const API = {
     uom: () => `${baseURL}api/masters/uom`,
     groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
     stockValueWithProduct: () => `${baseURL}api/masters/products/withStock`,
+    goDownwiseStockValue: () => `${baseURL}api/reports/storageStock/godownWiseForMobile?Godown_Id=`,
+    createGodownTransfer: () => `${baseURL}api/inventory/tripSheet/arrivalEntry/bulk`,
+
     posProducts: () => `${baseURL}api/masters/products/allProducts`,
     posProductsWithStockValue: () => `${baseURL}api/pos/productMaster`,
     productPacks: () => `${baseURL}api/masters/products/packs?Company_Id=`,
@@ -98,6 +101,9 @@ export const API = {
 
     visitedLog: () => `${baseURL}api/empAttendance/visitLogs`,
     saleOrder: () => `${baseURL}api/sales/saleOrder`,
+    getSaleInvoice: () => `${baseURL}api/sales/salesInvoice?Fromdate=`,
+    saleInvoice: () => `${baseURL}api/sales/salesInvoice`,
+
     salesPerson: () =>
         `${baseURL}api/masters/users/salesPerson/dropDown?Company_id=`,
     closingStockAreaBased: () =>

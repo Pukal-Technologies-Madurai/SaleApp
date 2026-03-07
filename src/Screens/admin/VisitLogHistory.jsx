@@ -68,14 +68,18 @@ const VisitLogHistory = ({ route }) => {
             for (const curr of data) {
                 if (curr.IsExistingRetailer === 1 && curr.Retailer_Id !== null) {
                     // For existing retailers, deduplicate by Retailer_Id
-                    existingRetailersMap[curr.Retailer_Id] = curr;
+                    // Keep the FIRST entry (earliest EntryAt)
+                    if (!existingRetailersMap[curr.Retailer_Id] ||
+                        new Date(curr.EntryAt) < new Date(existingRetailersMap[curr.Retailer_Id].EntryAt)) {
+                        existingRetailersMap[curr.Retailer_Id] = curr;
+                    }
                 } else {
                     // For new retailers, deduplicate by name + mobile combination
                     const key = `${curr.Reatailer_Name}_${curr.Contact_Mobile}`;
 
-                    // Keep the most recent entry (latest EntryAt)
+                    // Keep the FIRST entry (earliest EntryAt)
                     if (!newRetailersMap[key] ||
-                        new Date(curr.EntryAt) > new Date(newRetailersMap[key].EntryAt)) {
+                        new Date(curr.EntryAt) < new Date(newRetailersMap[key].EntryAt)) {
                         newRetailersMap[key] = curr;
                     }
                 }
@@ -467,7 +471,6 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         ...typography.h5(),
-        fontSize: 18,
         fontWeight: "bold",
         color: customColors.grey900,
         marginHorizontal: 10,
@@ -630,7 +633,7 @@ const styles = StyleSheet.create({
     },
     statusText: {
         color: '#2196F3',
-        fontSize: 12,
+        ...typography.body2(),
         fontWeight: '600',
         marginHorizontal: 6,
     },

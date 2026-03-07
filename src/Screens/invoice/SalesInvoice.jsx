@@ -11,11 +11,17 @@ import {
     ToastAndroid,
     Animated,
 } from "react-native";
+import React, {
+    useState,
+    useEffect,
+    useMemo,
+    useCallback,
+    useRef,
+} from "react";
 import { useNavigation } from "@react-navigation/native";
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
@@ -23,13 +29,13 @@ import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import LocationIndicator from "../../Components/LocationIndicator";
 import { API } from "../../Config/Endpoint";
-import { createSaleOrder } from "../../Api/sales";
-import { fetchUOM, fetchProductsWithStockValue, fetchGoDownwiseStockValue } from "../../Api/product";
+import { createSaleInvoice } from "../../Api/sales";
+
 import {
-    createLiveSales,
-    fetchCreditLiveSale,
-    fetchDebitLiveSale,
-} from "../../Api/receipt";
+    fetchGoDownwiseStockValue,
+    fetchProductsWithStockValue,
+    fetchUOM,
+} from "../../Api/product";
 import {
     customColors,
     typography,
@@ -37,7 +43,7 @@ import {
     spacing,
 } from "../../Config/helper";
 
-const Sales = ({ route }) => {
+const SalesInvoice = ({ route }) => {
     const navigation = useNavigation();
     const { item } = route.params;
 
@@ -51,10 +57,11 @@ const Sales = ({ route }) => {
         Sales_Person_Name: "",
         Branch_Id: "",
         Narration: "",
+        Stock_Item_Ledger_Name: "GST TAXABLE SALES",
         Created_by: "",
         So_Id: "",
         TaxType: 0,
-        VoucherType: 0,
+        VoucherType: 13,
         Product_Array: [],
     });
 
@@ -72,8 +79,13 @@ const Sales = ({ route }) => {
 
     const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLiveSale, setIsLiveSale] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState("cash");
+    // Payment_Mode: 1=Cash, 2=G-Pay, 3=Credit
+    const [paymentMode, setPaymentMode] = useState(3);
+    // Payment_Status: 0=Pending, 3=Completed
+    const [paymentStatus, setPaymentStatus] = useState(1);
+    // Delivery_Status: 5=Pending, 0=Cancelled, 7=Delivered
+    const [deliveryStatus, setDeliveryStatus] = useState(7);
+    const [paymentDueDays, setPaymentDueDays] = useState(0);
     const [location, setLocation] = useState({
         latitude: null,
         longitude: null,
@@ -84,9 +96,6 @@ const Sales = ({ route }) => {
     // Add animation for refresh button
     const rotateAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
-
-    // Add new state for partial amount
-    const [partialAmount, setPartialAmount] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -103,7 +112,9 @@ const Sales = ({ route }) => {
                     // Handle different formats: "[2]", "2", 2
                     if (typeof branchId === "string") {
                         // Remove brackets if present and parse to integer
-                        parsedBranchId = parseInt(branchId.replace(/[\[\]]/g, ''));
+                        parsedBranchId = parseInt(
+                            branchId.replace(/[\[\]]/g, ""),
+                        );
                     } else {
                         parsedBranchId = parseInt(branchId) || 1; // Default to 1 if invalid
                     }
@@ -127,7 +138,12 @@ const Sales = ({ route }) => {
     }, []);
 
     // IMPORTANT: Godown stock query MUST come first since product query depends on it
-    const { data: goDownStockValueData = {}, isFetched: isGodownStockFetched, refetch: refetchGodownStock, isRefetching: isGodownRefetching } = useQuery({
+    const {
+        data: goDownStockValueData = {},
+        isFetched: isGodownStockFetched,
+        refetch: refetchGodownStock,
+        isRefetching: isGodownRefetching,
+    } = useQuery({
         queryKey: ["goDownStockValue", isActiveGoDown],
         queryFn: () => fetchGoDownwiseStockValue(isActiveGoDown),
         enabled: !!isActiveGoDown,
@@ -138,7 +154,7 @@ const Sales = ({ route }) => {
                 productStockMap[item.Product_Id] = item.Bal_Qty;
             });
             return productStockMap;
-        }
+        },
     });
 
     const { data: productQueryData = { productData: [], brandData: [] } } =
@@ -161,7 +177,7 @@ const Sales = ({ route }) => {
                 // Update product data with godown-specific stock quantities
                 const updatedProductData = data.map(product => ({
                     ...product,
-                    CL_Qty: goDownStockValueData[product.Product_Id] || 0
+                    CL_Qty: goDownStockValueData[product.Product_Id] || 0,
                 }));
 
                 return {
@@ -225,7 +241,7 @@ const Sales = ({ route }) => {
     // Handle out of stock toggle
     const handleOutOfStockToggle = () => {
         setShowOutOfStock(!showOutOfStock);
-        
+
         // Re-apply filtering if brand and group are selected
         if (selectedBrand && selectedGroup) {
             let filtered = productData.filter(
@@ -235,7 +251,8 @@ const Sales = ({ route }) => {
             );
 
             // Filter out out-of-stock products unless showOutOfStock will be true
-            if (showOutOfStock) { // This will be the opposite after toggle
+            if (showOutOfStock) {
+                // This will be the opposite after toggle
                 filtered = filtered.filter(product => product.CL_Qty > 0);
             }
 
@@ -260,11 +277,19 @@ const Sales = ({ route }) => {
                 }),
             ]).start();
 
-            refetchGodownStock().then(() => {
-                ToastAndroid.show("Stock updated successfully! 📦", ToastAndroid.SHORT);
-            }).catch(() => {
-                ToastAndroid.show("Failed to update stock. Please try again.", ToastAndroid.SHORT);
-            });
+            refetchGodownStock()
+                .then(() => {
+                    ToastAndroid.show(
+                        "Stock updated successfully! 📦",
+                        ToastAndroid.SHORT,
+                    );
+                })
+                .catch(() => {
+                    ToastAndroid.show(
+                        "Failed to update stock. Please try again.",
+                        ToastAndroid.SHORT,
+                    );
+                });
         }
     };
 
@@ -276,10 +301,10 @@ const Sales = ({ route }) => {
                     toValue: 1,
                     duration: 1000,
                     useNativeDriver: true,
-                })
+                }),
             );
             rotation.start();
-            
+
             // Add subtle pulse effect during refresh
             const pulse = Animated.loop(
                 Animated.sequence([
@@ -293,10 +318,10 @@ const Sales = ({ route }) => {
                         duration: 500,
                         useNativeDriver: true,
                     }),
-                ])
+                ]),
             );
             pulse.start();
-            
+
             return () => {
                 rotation.stop();
                 pulse.stop();
@@ -314,23 +339,23 @@ const Sales = ({ route }) => {
             // Check if product has stock before allowing quantity change
             if (product.CL_Qty <= 0) {
                 Alert.alert(
-                    "Out of Stock", 
-                    `${product.Product_Name} is currently out of stock. Available quantity: ${product.CL_Qty}`
+                    "Out of Stock",
+                    `${product.Product_Name} is currently out of stock. Available quantity: ${product.CL_Qty}`,
                 );
                 return;
             }
-            
+
             const newQuantity = Math.max(0, parseFloat(quantity) || 0);
-            
+
             // Validate that ordered quantity doesn't exceed available stock
             if (newQuantity > product.CL_Qty) {
                 Alert.alert(
-                    "Insufficient Stock", 
-                    `Only ${product.CL_Qty} units available for ${product.Product_Name}`
+                    "Insufficient Stock",
+                    `Only ${product.CL_Qty} units available for ${product.Product_Name}`,
                 );
                 return;
             }
-            
+
             const selectedUOM = selectedUOMs[productId] || product.UOM_Id;
 
             setInitialValue(prev => {
@@ -372,29 +397,40 @@ const Sales = ({ route }) => {
         [selectedUOMs, isActiveGoDown],
     );
 
-    const handleQuantityInputChange = useCallback((productId, value, rate, product) => {
-        // Check if product has stock before allowing input
-        if (product.CL_Qty <= 0 && value !== "") {
-            return; // Prevent any input for out of stock items
-        }
-        
-        // Allow empty value or valid decimal numbers
-        if (value === "" || /^\d*\.?\d*$/.test(value)) {
-            // Update display value immediately
-            setOrderQuantities(prev => ({
-                ...prev,
-                [productId]: value,
-            }));
-
-            // Only update the product array if it's a valid number
-            if (value !== "" && !value.endsWith('.') && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-                handleQuantityChange(productId, value, rate, product);
-            } else if (value === "" || (parseFloat(value) === 0 && !value.endsWith('.'))) {
-                // Remove from product array if empty or zero
-                handleQuantityChange(productId, "0", rate, product);
+    const handleQuantityInputChange = useCallback(
+        (productId, value, rate, product) => {
+            // Check if product has stock before allowing input
+            if (product.CL_Qty <= 0 && value !== "") {
+                return; // Prevent any input for out of stock items
             }
-        }
-    }, [handleQuantityChange]);
+
+            // Allow empty value or valid decimal numbers
+            if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                // Update display value immediately
+                setOrderQuantities(prev => ({
+                    ...prev,
+                    [productId]: value,
+                }));
+
+                // Only update the product array if it's a valid number
+                if (
+                    value !== "" &&
+                    !value.endsWith(".") &&
+                    !isNaN(parseFloat(value)) &&
+                    parseFloat(value) > 0
+                ) {
+                    handleQuantityChange(productId, value, rate, product);
+                } else if (
+                    value === "" ||
+                    (parseFloat(value) === 0 && !value.endsWith("."))
+                ) {
+                    // Remove from product array if empty or zero
+                    handleQuantityChange(productId, "0", rate, product);
+                }
+            }
+        },
+        [handleQuantityChange],
+    );
 
     const handleUOMChange = useCallback(
         (productId, uomId) => {
@@ -426,7 +462,9 @@ const Sales = ({ route }) => {
                         updatedProductArray.push({
                             Item_Id: productId,
                             Product_Id: productId,
-                            Bill_Qty: parseFloat(orderQuantities[productId] || 0),
+                            Bill_Qty: parseFloat(
+                                orderQuantities[productId] || 0,
+                            ),
                             Item_Rate:
                                 editedPrices[productId] || product.Item_Rate,
                             UOM: uomId,
@@ -456,7 +494,11 @@ const Sales = ({ route }) => {
             }
 
             // Only update the actual price if it's a valid complete number
-            if (price !== "" && !price.endsWith('.') && !isNaN(parseFloat(price))) {
+            if (
+                price !== "" &&
+                !price.endsWith(".") &&
+                !isNaN(parseFloat(price))
+            ) {
                 const numericPrice = parseFloat(price);
                 if (numericPrice >= 0) {
                     setEditedPrices(prev => ({
@@ -476,14 +518,19 @@ const Sales = ({ route }) => {
                                 ...updatedProductArray[existingIndex],
                                 Item_Rate: numericPrice,
                             };
-                        } else if (orderQuantities[productId] && parseFloat(orderQuantities[productId]) > 0) {
+                        } else if (
+                            orderQuantities[productId] &&
+                            parseFloat(orderQuantities[productId]) > 0
+                        ) {
                             const product = filteredProducts.find(
                                 p => p.Product_Id === productId,
                             );
                             updatedProductArray.push({
                                 Item_Id: productId,
                                 Product_Id: productId,
-                                Bill_Qty: parseFloat(orderQuantities[productId]),
+                                Bill_Qty: parseFloat(
+                                    orderQuantities[productId],
+                                ),
                                 Item_Rate: numericPrice,
                                 UOM: selectedUOMs[productId] || product.UOM_Id,
                                 GoDown_Id: Number(isActiveGoDown),
@@ -581,82 +628,22 @@ const Sales = ({ route }) => {
         [calculateOrderTotal],
     );
 
-    // Optimized queries for live sale ledger data
-    const { data: debitLedgerData = [], isLoading: isDebitLoading } = useQuery({
-        queryKey: ["debitLedgerData"],
-        queryFn: fetchDebitLiveSale,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
-        retry: 2,
-    });
-
-    const { data: creditLedgerData = [], isLoading: isCreditLoading } =
-        useQuery({
-            queryKey: ["creditLedgerData"],
-            queryFn: fetchCreditLiveSale,
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            cacheTime: 10 * 60 * 1000, // 10 minutes
-            retry: 2,
-        });
-
-    // Memoized credit ledger information with validation
-    const creditLedgerInfo = useMemo(() => {
-        if (!creditLedgerData.length) {
-            return { id: 0, name: "", isValid: false };
-        }
-
-        const matchedLedger = creditLedgerData.find(
-            ledger => ledger.Account_name === item.Retailer_Name,
-        );
-
-        if (matchedLedger) {
-            return {
-                id: matchedLedger.Acc_Id,
-                name: matchedLedger.Account_name,
-                isValid: true,
-            };
-        }
-
-        return { id: 0, name: "", isValid: false };
-    }, [creditLedgerData, item.Retailer_Name]);
-
+    // Create sale invoice POST -> API.saleInvoice()
     const mutation = useMutation({
-        mutationFn: createSaleOrder,
+        mutationFn: createSaleInvoice,
         onSuccess: data => {
-            Alert.alert("Success", data.message, [
+            Alert.alert("Success", data.message || "Invoice created!", [
                 {
                     text: "Okay",
-                    onPress: () => navigation.goBack(),
+                    onPress: () => {
+                        setIsSummaryModalVisible(false);
+                        navigation.goBack();
+                    },
                 },
             ]);
         },
         onError: error => {
-            Alert.alert("Error", error.message || "Failed to submit order");
-        },
-    });
-
-    const liveSaleMutation = useMutation({
-        mutationFn: createLiveSales,
-        onSuccess: data => {
-            Alert.alert(
-                "Live Sale Success",
-                data.message || "Live sale completed successfully!",
-                [
-                    {
-                        text: "OK",
-                        onPress: () => {
-                            setIsSummaryModalVisible(false);
-                            navigation.goBack();
-                        },
-                    },
-                ],
-            );
-        },
-        onError: error => {
-            Alert.alert(
-                "Live Sale Error",
-                error.message || "Failed to complete live sale",
-            );
+            Alert.alert("Error", error.message || "Failed to create invoice");
         },
     });
 
@@ -721,142 +708,51 @@ const Sales = ({ route }) => {
             return;
         }
 
-        // Validate partial amount for cash/bank payments
-        if (
-            isLiveSale &&
-            (paymentMethod === "cash" || paymentMethod === "bank")
-        ) {
-            if (!validatePartialAmount()) {
-                return;
-            }
-        }
-
         setIsSubmitting(true);
 
-        let createPaymentReceipt = false;
-        if (paymentMethod === "cash" || paymentMethod === "bank") {
-            createPaymentReceipt = true;
-        }
-
-        if (isLiveSale) {
-            // Validate credit ledger information before proceeding
-            if (!creditLedgerInfo.isValid) {
-                setIsSubmitting(false);
-                Alert.alert(
-                    "Account Information Required",
-                    "Credit ledger information is not available for this retailer. Please contact your account manager to set up the account information before proceeding with live sales.",
-                    [{ text: "OK" }],
-                );
-                return;
-            }
-
-            // Validate debit ledger information
-            if (!debitLedgerData.length) {
-                setIsSubmitting(false);
-                Alert.alert(
-                    "Account Configuration Error",
-                    "Debit ledger information is not available. Please contact your account manager.",
-                    [{ text: "OK" }],
-                );
-                return;
-            }
-
-            // Use partial amount if provided for cash/bank, otherwise use full amount
-            const paymentAmount =
-                paymentMethod === "cash" || paymentMethod === "bank"
-                    ? parseFloat(partialAmount)
-                    : orderTotal;
-
-            // Construct the proper request body for live sales
-            const resBody = {
-                Branch_Id: initialValue.Branch_Id,
-                Narration: `Live sale order created with ${paymentMethod.toUpperCase()} payment of ₹${paymentAmount} (Total: ₹${orderTotal})`,
-                Created_by: initialValue.Created_by,
-                GST_Inclusive: 1,
-                IS_IGST: 0,
-                credit_ledger: Number(creditLedgerInfo.id),
-                credit_ledger_name: creditLedgerInfo.name,
-                debit_ledger: debitLedgerData[0]?.Acc_Id,
-                debit_ledger_name: debitLedgerData[0]?.AC_Reason,
-                credit_amount: paymentAmount,
-                Staff_Involved_List: [],
-                Product_Array: initialValue.Product_Array.map(product => ({
-                    Item_Id: product.Item_Id,
-                    Bill_Qty: product.Bill_Qty,
-                    GoDown_Id: Number(isActiveGoDown),
-                    Item_Rate:
-                        editedPrices[product.Item_Id] || product.Item_Rate,
-                    UOM: product.UOM,
-                    Units: product.Units,
-                })),
-                createReceipt: createPaymentReceipt,
-            };
-
-            // Call live sales API
-            liveSaleMutation.mutate(resBody, {
-                onSettled: () => setIsSubmitting(false),
-            });
+        const visitEntrySuccess = await handleSubmitforVisitLog();
+        if (!visitEntrySuccess) {
+            setIsSubmitting(false);
             return;
         }
 
-        const visitEntrySuccess = await handleSubmitforVisitLog();
-        if (!visitEntrySuccess) return;
+        let cancelStatus = 3;
 
-        // console.log("Submitting order with data:", initialValue);
+        deliveryStatus === 0 && (cancelStatus = 0);
+        deliveryStatus === 5 && (cancelStatus = 1);
+        paymentStatus === 1 && (cancelStatus = 2);
 
-        mutation.mutate(
-            { orderData: initialValue },
-            {
-                onSettled: () => setIsSubmitting(false),
-            },
-        );
-    };
+        const invoiceBody = {
+            Retailer_Id: initialValue.Retailer_Id,
+            Branch_Id: initialValue.Branch_Id,
+            Narration: initialValue.Narration || null,
+            Created_by: initialValue.Created_by,
+            GST_Inclusive: initialValue.TaxType === 0 ? 1 : initialValue.TaxType,
+            IS_IGST: 0,
+            Round_off: 0,
+            Cancel_status: cancelStatus,
+            Voucher_Type: initialValue.VoucherType || 0,
+            Product_Array: initialValue.Product_Array.map(product => ({
+                Item_Id: product.Item_Id,
+                Bill_Qty: product.Bill_Qty,
+                Item_Rate: editedPrices[product.Item_Id] ?? product.Item_Rate,
+                GoDown_Id: Number(isActiveGoDown),
+                Unit_Id: selectedUOMs[product.Item_Id] || product.UOM,
+            })),
+            Stock_Item_Ledger_Name: initialValue.Stock_Item_Ledger_Name,
+            Expence_Array: [],
+            Staffs_Array: [],
+            Delivery_Status: deliveryStatus,
+            Payment_Mode: paymentMode,
+            Payment_Status: paymentStatus,
+            paymentDueDays: paymentDueDays,
+        };
 
-    // Add validation for partial amount
-    const validatePartialAmount = () => {
-        const amount = parseFloat(partialAmount);
-        if (isNaN(amount) || amount <= 0) {
-            Alert.alert("Error", "Please enter a valid amount");
-            return false;
-        }
-        if (amount > orderTotal) {
-            Alert.alert("Error", "Partial amount cannot exceed total amount");
-            return false;
-        }
-        return true;
-    };
+        // console.log("Submitting invoice with body:", invoiceBody);
 
-    const handlePaymentMethodChange = method => {
-        setPaymentMethod(method);
-        if (method === "cash" || method === "bank") {
-            // Set the full amount as default
-            setPartialAmount(orderTotal.toString());
-        } else {
-            setPartialAmount("");
-        }
-    };
-
-    // Add useEffect to update partial amount when orderTotal changes
-    useEffect(() => {
-        if (
-            isLiveSale &&
-            (paymentMethod === "cash" || paymentMethod === "bank")
-        ) {
-            setPartialAmount(orderTotal.toString());
-        }
-    }, [isLiveSale, paymentMethod, orderTotal]);
-
-    // Update the TextInput handling
-    const handleAmountFocus = () => {
-        // When user focuses, select all text so they can easily replace it
-        // This is handled by selectTextOnFocus prop
-    };
-
-    const handleAmountChange = value => {
-        // Allow empty value or valid numbers
-        if (value === "" || /^\d*\.?\d*$/.test(value)) {
-            setPartialAmount(value);
-        }
+        mutation.mutate(invoiceBody, {
+            onSettled: () => setIsSubmitting(false),
+        });
     };
 
     return (
@@ -909,42 +805,50 @@ const Sales = ({ route }) => {
                                     containerStyle={styles.compactDropdown}
                                 />
                             </View>
-                            
+
                             {/* Stock Refresh Button */}
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.refreshButton}
                                 onPress={handleStockRefresh}
                                 disabled={!isActiveGoDown || isGodownRefetching}
-                                activeOpacity={0.8}>
+                                activeOpacity={0.8}
+                            >
                                 <Animated.View
                                     style={{
                                         transform: [
                                             {
                                                 rotate: rotateAnim.interpolate({
                                                     inputRange: [0, 1],
-                                                    outputRange: ['0deg', '360deg'],
-                                                })
+                                                    outputRange: [
+                                                        "0deg",
+                                                        "360deg",
+                                                    ],
+                                                }),
                                             },
                                             {
-                                                scale: scaleAnim
-                                            }
-                                        ]
-                                    }}>
-                                    <MaterialIcons 
-                                        name="refresh" 
-                                        size={20} 
+                                                scale: scaleAnim,
+                                            },
+                                        ],
+                                    }}
+                                >
+                                    <MaterialIcons
+                                        name="refresh"
+                                        size={20}
                                         color={
-                                            !isActiveGoDown || isGodownRefetching 
-                                                ? customColors.grey400 
+                                            !isActiveGoDown ||
+                                                isGodownRefetching
+                                                ? customColors.grey400
                                                 : customColors.primary
-                                        } 
+                                        }
                                     />
                                 </Animated.View>
-                                
+
                                 {/* Loading indicator overlay */}
                                 {isGodownRefetching && (
                                     <View style={styles.refreshLoadingOverlay}>
-                                        <View style={styles.refreshLoadingDot} />
+                                        <View
+                                            style={styles.refreshLoadingDot}
+                                        />
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -965,21 +869,36 @@ const Sales = ({ route }) => {
                                         {filteredProducts.length})
                                     </Text>
                                 </View>
-                                
+
                                 {/* Out of stock toggle */}
-                                <TouchableOpacity 
-                                    style={styles.outOfStockToggle} 
+                                <TouchableOpacity
+                                    style={styles.outOfStockToggle}
                                     onPress={handleOutOfStockToggle}
-                                    activeOpacity={0.7}>
+                                    activeOpacity={0.7}
+                                >
                                     <MaterialIcons
-                                        name={showOutOfStock ? "visibility" : "visibility-off"}  
+                                        name={
+                                            showOutOfStock
+                                                ? "visibility"
+                                                : "visibility-off"
+                                        }
                                         size={16}
-                                        color={showOutOfStock ? customColors.primary : customColors.grey500}
+                                        color={
+                                            showOutOfStock
+                                                ? customColors.primary
+                                                : customColors.grey500
+                                        }
                                     />
-                                    <Text style={[
-                                        styles.outOfStockToggleText,
-                                        { color: showOutOfStock ? customColors.primary : customColors.grey500 }
-                                    ]}>
+                                    <Text
+                                        style={[
+                                            styles.outOfStockToggleText,
+                                            {
+                                                color: showOutOfStock
+                                                    ? customColors.primary
+                                                    : customColors.grey500,
+                                            },
+                                        ]}
+                                    >
                                         Out of Stock
                                     </Text>
                                 </TouchableOpacity>
@@ -988,185 +907,215 @@ const Sales = ({ route }) => {
                             {filteredProducts.map(product => {
                                 const isOutOfStock = product.CL_Qty <= 0;
                                 return (
-                                <View
-                                    key={product.Product_Id}
-                                    style={[styles.productCard, isOutOfStock && styles.outOfStockCard]}>
-                                    <View style={styles.productHeader}>
-                                        <View style={styles.productInfo}>
-                                            <Text style={styles.productName}>
-                                                {product.Product_Name}
-                                            </Text>
-                                            <View
-                                                style={
-                                                    styles.availabilityContainer
-                                                }>
-                                                <MaterialIcons
-                                                    name="inventory-2"
-                                                    size={14}
-                                                    color={
-                                                        product.CL_Qty > 0
-                                                            ? customColors.success
-                                                            : customColors.error
-                                                    }
-                                                />
+                                    <View
+                                        key={product.Product_Id}
+                                        style={[
+                                            styles.productCard,
+                                            isOutOfStock &&
+                                            styles.outOfStockCard,
+                                        ]}
+                                    >
+                                        <View style={styles.productHeader}>
+                                            <View style={styles.productInfo}>
                                                 <Text
-                                                    style={[
-                                                        styles.availabilityText,
-                                                        {
-                                                            color:
-                                                                product.CL_Qty >
-                                                                    0
-                                                                    ? customColors.success
-                                                                    : customColors.error,
-                                                        },
-                                                    ]}>
-                                                    Stock: {product.CL_Qty}
+                                                    style={styles.productName}
+                                                >
+                                                    {product.Product_Name}
                                                 </Text>
-                                            </View>
-                                        </View>
-                                        <Text style={styles.basePrice}>
-                                            ₹{product.Item_Rate}
-                                        </Text>
-                                    </View>
-
-                                    <View style={styles.orderControls}>
-                                        <View style={styles.inputGroup}>
-                                            <Text style={styles.inputLabel}>
-                                                Qty
-                                            </Text>
-                                            <TextInput
-                                                style={[
-                                                    styles.quantityInput,
-                                                    isOutOfStock && styles.disabledInput
-                                                ]}
-                                                keyboardType="decimal-pad"
-                                                value={
-                                                    orderQuantities[
-                                                    product.Product_Id
-                                                    ] || ""
-                                                }
-                                                onChangeText={quantity =>
-                                                    handleQuantityInputChange(
-                                                        product.Product_Id,
-                                                        quantity,
-                                                        product.Item_Rate,
-                                                        product,
-                                                    )
-                                                }
-                                                placeholder={isOutOfStock ? "N/A" : "0.0"}
-                                                placeholderTextColor={
-                                                    isOutOfStock ? customColors.error : customColors.grey
-                                                }
-                                                selectTextOnFocus={true}
-                                                editable={!isOutOfStock}
-                                                pointerEvents={isOutOfStock ? "none" : "auto"}
-                                            />
-                                        </View>
-
-                                        <View style={styles.inputGroup}>
-                                            <Text style={styles.inputLabel}>
-                                                Unit
-                                            </Text>
-                                            <EnhancedDropdown
-                                                data={uomData.map(uom => ({
-                                                    label: uom.Units,
-                                                    value: uom.Unit_Id,
-                                                }))}
-                                                labelField="label"
-                                                valueField="value"
-                                                placeholder="UOM"
-                                                value={
-                                                    selectedUOMs[
-                                                    product.Product_Id
-                                                    ] || product.UOM_Id
-                                                }
-                                                onChange={item =>
-                                                    handleUOMChange(
-                                                        product.Product_Id,
-                                                        item.value,
-                                                    )
-                                                }
-                                                containerStyle={[
-                                                    styles.uomDropdownContainer
-                                                ]}
-                                                placeholderStyle={
-                                                    styles.uomPlaceholderStyle
-                                                }
-                                                selectedTextStyle={
-                                                    styles.uomSelectedTextStyle
-                                                }
-                                                itemTextStyle={
-                                                    styles.uomItemTextStyle
-                                                }
-                                                disable={isOutOfStock}
-                                            />
-                                        </View>
-
-                                        <View style={styles.inputGroup}>
-                                            <Text style={styles.inputLabel}>
-                                                Price
-                                            </Text>
-                                            <View style={[
-                                                styles.priceContainer,
-                                                isOutOfStock && styles.disabledInput
-                                            ]}>
-                                                <Text
+                                                <View
                                                     style={
-                                                        styles.currencySymbol
-                                                    }>
-                                                    ₹
+                                                        styles.availabilityContainer
+                                                    }
+                                                >
+                                                    <MaterialIcons
+                                                        name="inventory-2"
+                                                        size={14}
+                                                        color={
+                                                            product.CL_Qty > 0
+                                                                ? customColors.success
+                                                                : customColors.error
+                                                        }
+                                                    />
+                                                    <Text
+                                                        style={[
+                                                            styles.availabilityText,
+                                                            {
+                                                                color:
+                                                                    product.CL_Qty >
+                                                                        0
+                                                                        ? customColors.success
+                                                                        : customColors.error,
+                                                            },
+                                                        ]}
+                                                    >
+                                                        Stock: {product.CL_Qty}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.basePrice}>
+                                                ₹{product.Item_Rate}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.orderControls}>
+                                            <View style={styles.inputGroup}>
+                                                <Text style={styles.inputLabel}>
+                                                    Qty
                                                 </Text>
                                                 <TextInput
-                                                    style={styles.priceInput}
-                                                    keyboardType="numeric"
+                                                    style={[
+                                                        styles.quantityInput,
+                                                        isOutOfStock &&
+                                                        styles.disabledInput,
+                                                    ]}
+                                                    keyboardType="decimal-pad"
                                                     value={
-                                                        priceInputValues[
-                                                            product.Product_Id
-                                                        ] !== undefined
-                                                            ? priceInputValues[
-                                                            product
-                                                                .Product_Id
-                                                            ]
-                                                            : String(
+                                                        orderQuantities[
+                                                        product.Product_Id
+                                                        ] || ""
+                                                    }
+                                                    onChangeText={quantity =>
+                                                        handleQuantityInputChange(
+                                                            product.Product_Id,
+                                                            quantity,
+                                                            product.Item_Rate,
+                                                            product,
+                                                        )
+                                                    }
+                                                    placeholder={
+                                                        isOutOfStock
+                                                            ? "N/A"
+                                                            : "0.0"
+                                                    }
+                                                    placeholderTextColor={
+                                                        isOutOfStock
+                                                            ? customColors.error
+                                                            : customColors.grey
+                                                    }
+                                                    selectTextOnFocus={true}
+                                                    editable={!isOutOfStock}
+                                                    pointerEvents={
+                                                        isOutOfStock
+                                                            ? "none"
+                                                            : "auto"
+                                                    }
+                                                />
+                                            </View>
+
+                                            <View style={styles.inputGroup}>
+                                                <Text style={styles.inputLabel}>
+                                                    Unit
+                                                </Text>
+                                                <EnhancedDropdown
+                                                    data={uomData.map(uom => ({
+                                                        label: uom.Units,
+                                                        value: uom.Unit_Id,
+                                                    }))}
+                                                    labelField="label"
+                                                    valueField="value"
+                                                    placeholder="UOM"
+                                                    value={
+                                                        selectedUOMs[
+                                                        product.Product_Id
+                                                        ] || product.UOM_Id
+                                                    }
+                                                    onChange={item =>
+                                                        handleUOMChange(
+                                                            product.Product_Id,
+                                                            item.value,
+                                                        )
+                                                    }
+                                                    containerStyle={[
+                                                        styles.uomDropdownContainer,
+                                                    ]}
+                                                    placeholderStyle={
+                                                        styles.uomPlaceholderStyle
+                                                    }
+                                                    selectedTextStyle={
+                                                        styles.uomSelectedTextStyle
+                                                    }
+                                                    itemTextStyle={
+                                                        styles.uomItemTextStyle
+                                                    }
+                                                    disable={isOutOfStock}
+                                                />
+                                            </View>
+
+                                            <View style={styles.inputGroup}>
+                                                <Text style={styles.inputLabel}>
+                                                    Price
+                                                </Text>
+                                                <View
+                                                    style={[
+                                                        styles.priceContainer,
+                                                        isOutOfStock &&
+                                                        styles.disabledInput,
+                                                    ]}
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.currencySymbol
+                                                        }
+                                                    >
+                                                        ₹
+                                                    </Text>
+                                                    <TextInput
+                                                        style={
+                                                            styles.priceInput
+                                                        }
+                                                        keyboardType="numeric"
+                                                        value={
+                                                            priceInputValues[
+                                                                product
+                                                                    .Product_Id
+                                                            ] !== undefined
+                                                                ? priceInputValues[
+                                                                product
+                                                                    .Product_Id
+                                                                ]
+                                                                : String(
+                                                                    editedPrices[
+                                                                    product
+                                                                        .Product_Id
+                                                                    ] ||
+                                                                    product.Item_Rate,
+                                                                )
+                                                        }
+                                                        onChangeText={price =>
+                                                            handlePriceChange(
+                                                                product.Product_Id,
+                                                                price,
+                                                            )
+                                                        }
+                                                        onFocus={() =>
+                                                            handlePriceFocus(
+                                                                product.Product_Id,
                                                                 editedPrices[
                                                                 product
                                                                     .Product_Id
                                                                 ] ||
                                                                 product.Item_Rate,
                                                             )
-                                                    }
-                                                    onChangeText={price =>
-                                                        handlePriceChange(
-                                                            product.Product_Id,
-                                                            price,
-                                                        )
-                                                    }
-                                                    onFocus={() =>
-                                                        handlePriceFocus(
-                                                            product.Product_Id,
-                                                            editedPrices[
-                                                            product
-                                                                .Product_Id
-                                                            ] ||
-                                                            product.Item_Rate,
-                                                        )
-                                                    }
-                                                    onBlur={() =>
-                                                        handlePriceBlur(
-                                                            product.Product_Id,
-                                                        )
-                                                    }
-                                                    placeholder="0.00"
-                                                    selectTextOnFocus={true}
-                                                    editable={!isOutOfStock}
-                                                    pointerEvents={isOutOfStock ? "none" : "auto"}
-                                                />
+                                                        }
+                                                        onBlur={() =>
+                                                            handlePriceBlur(
+                                                                product.Product_Id,
+                                                            )
+                                                        }
+                                                        placeholder="0.00"
+                                                        selectTextOnFocus={true}
+                                                        editable={!isOutOfStock}
+                                                        pointerEvents={
+                                                            isOutOfStock
+                                                                ? "none"
+                                                                : "auto"
+                                                        }
+                                                    />
+                                                </View>
                                             </View>
                                         </View>
                                     </View>
- 
-                                </View>
-                            );
+                                );
                             })}
                         </View>
                     )}
@@ -1177,7 +1126,8 @@ const Sales = ({ route }) => {
                 visible={isSummaryModalVisible}
                 transparent
                 animationType="slide"
-                onRequestClose={() => setIsSummaryModalVisible(false)}>
+                onRequestClose={() => setIsSummaryModalVisible(false)}
+            >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
@@ -1193,7 +1143,8 @@ const Sales = ({ route }) => {
                             </View>
                             <TouchableOpacity
                                 onPress={() => setIsSummaryModalVisible(false)}
-                                style={styles.closeButton}>
+                                style={styles.closeButton}
+                            >
                                 <MaterialIcons
                                     name="close"
                                     color={customColors.grey600}
@@ -1204,7 +1155,8 @@ const Sales = ({ route }) => {
 
                         <ScrollView
                             style={styles.summaryList}
-                            showsVerticalScrollIndicator={false}>
+                            showsVerticalScrollIndicator={false}
+                        >
                             {initialValue.Product_Array.map(item => {
                                 const product = productData.find(
                                     p => p.Product_Id === item.Item_Id,
@@ -1216,23 +1168,27 @@ const Sales = ({ route }) => {
                                 return (
                                     <View
                                         key={item.Item_Id}
-                                        style={styles.summaryItem}>
+                                        style={styles.summaryItem}
+                                    >
                                         <View style={styles.summaryItemDetails}>
                                             <Text
-                                                style={styles.summaryItemName}>
+                                                style={styles.summaryItemName}
+                                            >
                                                 {product?.Product_Name}
                                             </Text>
                                             <Text style={styles.summaryItemQty}>
                                                 {item.Bill_Qty} {uom?.Units}
                                             </Text>
                                             <Text
-                                                style={styles.summaryItemRate}>
+                                                style={styles.summaryItemRate}
+                                            >
                                                 ₹{item.Item_Rate} per unit
                                             </Text>
                                         </View>
                                         <View style={styles.summaryItemRight}>
                                             <Text
-                                                style={styles.summaryItemPrice}>
+                                                style={styles.summaryItemPrice}
+                                            >
                                                 ₹
                                                 {(
                                                     item.Bill_Qty *
@@ -1245,7 +1201,8 @@ const Sales = ({ route }) => {
                                                     handleDeleteItem(
                                                         item.Item_Id,
                                                     )
-                                                }>
+                                                }
+                                            >
                                                 <MaterialIcons
                                                     name="delete-outline"
                                                     size={20}
@@ -1268,163 +1225,85 @@ const Sales = ({ route }) => {
                                 </Text>
                             </View>
 
-                            {/* Live Sale Toggle */}
-                            <View style={styles.liveSaleContainer}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.liveSaleToggle,
-                                        (isCreditLoading ||
-                                            isDebitLoading ||
-                                            !creditLedgerInfo.isValid) &&
-                                        styles.liveSaleToggleDisabled,
-                                    ]}
-                                    onPress={() => {
-                                        if (isCreditLoading || isDebitLoading)
-                                            return;
-
-                                        if (!creditLedgerInfo.isValid) {
-                                            Alert.alert(
-                                                "Account Setup Required",
-                                                "Live sale is not available for this retailer. Please contact your account manager to set up the account information.",
-                                                [{ text: "OK" }],
-                                            );
-                                            return;
-                                        }
-
-                                        setIsLiveSale(!isLiveSale);
-                                    }}
-                                    disabled={
-                                        isCreditLoading ||
-                                        isDebitLoading ||
-                                        !creditLedgerInfo.isValid
-                                    }
-                                    activeOpacity={0.7}>
-                                    <View style={styles.liveSaleContent}>
-                                        {isCreditLoading || isDebitLoading ? (
-                                            <ActivityIndicator
-                                                size="small"
-                                                color={customColors.grey500}
-                                            />
-                                        ) : (
-                                            <MaterialIcons
-                                                name={
-                                                    creditLedgerInfo.isValid
-                                                        ? "flash-on"
-                                                        : "warning"
-                                                }
-                                                size={20}
-                                                color={
-                                                    !creditLedgerInfo.isValid
-                                                        ? customColors.warning
-                                                        : isLiveSale
-                                                            ? customColors.success
-                                                            : customColors.grey500
-                                                }
-                                            />
-                                        )}
-                                        <Text
+                            {/* Payment Mode */}
+                            <View style={styles.paymentMethodContainer}>
+                                <Text style={styles.paymentMethodLabel}>
+                                    Payment Mode:
+                                </Text>
+                                <View style={styles.paymentMethodOptions}>
+                                    {[
+                                        { label: "Cash", value: 1, icon: "money", lib: "fa" },
+                                        { label: "G-Pay", value: 2, icon: "payment", lib: "material" },
+                                        { label: "Credit", value: 3, icon: "credit-card", lib: "material" },
+                                    ].map(opt => (
+                                        <TouchableOpacity
+                                            key={opt.value}
                                             style={[
-                                                styles.liveSaleText,
-                                                {
-                                                    color: !creditLedgerInfo.isValid
-                                                        ? customColors.warning
-                                                        : isLiveSale
-                                                            ? customColors.success
-                                                            : customColors.grey700,
-                                                },
-                                            ]}>
-                                            Live Sale
-                                        </Text>
-                                        <Text
-                                            style={styles.liveSaleDescription}>
-                                            {isCreditLoading || isDebitLoading
-                                                ? "Loading account info..."
-                                                : !creditLedgerInfo.isValid
-                                                    ? "Account setup required"
-                                                    : "Complete sale instantly"}
-                                        </Text>
-                                    </View>
-                                    <View
-                                        style={[
-                                            styles.toggle,
-                                            {
-                                                backgroundColor:
-                                                    !creditLedgerInfo.isValid
-                                                        ? customColors.grey300
-                                                        : isLiveSale
-                                                            ? customColors.success
-                                                            : customColors.grey300,
-                                            },
-                                        ]}>
-                                        <View
-                                            style={[
-                                                styles.toggleCircle,
-                                                {
-                                                    marginLeft:
-                                                        isLiveSale &&
-                                                            creditLedgerInfo.isValid
-                                                            ? 21
-                                                            : 2,
-                                                },
+                                                styles.paymentOption,
+                                                paymentMode === opt.value &&
+                                                styles.paymentOptionSelected,
                                             ]}
-                                        />
-                                    </View>
-                                </TouchableOpacity>
+                                            onPress={() => setPaymentMode(opt.value)}
+                                        >
+                                            {opt.lib === "fa" ? (
+                                                <Icon
+                                                    name={opt.icon}
+                                                    size={18}
+                                                    color={
+                                                        paymentMode === opt.value
+                                                            ? customColors.white
+                                                            : customColors.grey600
+                                                    }
+                                                />
+                                            ) : (
+                                                <MaterialIcons
+                                                    name={opt.icon}
+                                                    size={18}
+                                                    color={
+                                                        paymentMode === opt.value
+                                                            ? customColors.white
+                                                            : customColors.grey600
+                                                    }
+                                                />
+                                            )}
+                                            <Text
+                                                style={[
+                                                    styles.paymentOptionText,
+                                                    paymentMode === opt.value &&
+                                                    styles.paymentOptionTextSelected,
+                                                ]}
+                                            >
+                                                {opt.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             </View>
 
-                            {/* Payment Method Selection (only show when Live Sale is enabled) */}
-                            {isLiveSale && (
-                                <View style={styles.paymentMethodContainer}>
-                                    <Text style={styles.paymentMethodLabel}>
-                                        Payment Method:
-                                    </Text>
-                                    <View style={styles.paymentMethodOptions}>
+                            {/* Payment Status */}
+                            <View style={styles.paymentMethodContainer}>
+                                <Text style={styles.paymentMethodLabel}>
+                                    Payment Status:
+                                </Text>
+                                <View style={styles.paymentMethodOptions}>
+                                    {[
+                                        { label: "Pending", value: 1, icon: "hourglass-empty" },
+                                        { label: "Completed", value: 3, icon: "check-circle" },
+                                    ].map(opt => (
                                         <TouchableOpacity
+                                            key={opt.value}
                                             style={[
                                                 styles.paymentOption,
-                                                paymentMethod === "cash" &&
+                                                paymentStatus === opt.value &&
                                                 styles.paymentOptionSelected,
                                             ]}
-                                            onPress={() =>
-                                                handlePaymentMethodChange(
-                                                    "cash",
-                                                )
-                                            }>
-                                            <Icon
-                                                name="money"
-                                                size={18}
-                                                color={
-                                                    paymentMethod === "cash"
-                                                        ? customColors.white
-                                                        : customColors.grey600
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    paymentMethod === "cash" &&
-                                                    styles.paymentOptionTextSelected,
-                                                ]}>
-                                                Cash
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                paymentMethod === "bank" &&
-                                                styles.paymentOptionSelected,
-                                            ]}
-                                            onPress={() =>
-                                                handlePaymentMethodChange(
-                                                    "bank",
-                                                )
-                                            }>
+                                            onPress={() => setPaymentStatus(opt.value)}
+                                        >
                                             <MaterialIcons
-                                                name="account-balance"
+                                                name={opt.icon}
                                                 size={18}
                                                 color={
-                                                    paymentMethod === "bank"
+                                                    paymentStatus === opt.value
                                                         ? customColors.white
                                                         : customColors.grey600
                                                 }
@@ -1432,153 +1311,80 @@ const Sales = ({ route }) => {
                                             <Text
                                                 style={[
                                                     styles.paymentOptionText,
-                                                    paymentMethod === "bank" &&
+                                                    paymentStatus === opt.value &&
                                                     styles.paymentOptionTextSelected,
-                                                ]}>
-                                                Bank
+                                                ]}
+                                            >
+                                                {opt.label}
                                             </Text>
                                         </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                paymentMethod === "credit" &&
-                                                styles.paymentOptionSelected,
-                                            ]}
-                                            onPress={() =>
-                                                handlePaymentMethodChange(
-                                                    "credit",
-                                                )
-                                            }>
-                                            <MaterialIcons
-                                                name="credit-card"
-                                                size={18}
-                                                color={
-                                                    paymentMethod === "credit"
-                                                        ? customColors.white
-                                                        : customColors.grey600
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    paymentMethod ===
-                                                    "credit" &&
-                                                    styles.paymentOptionTextSelected,
-                                                ]}>
-                                                Credit
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    {/* Payment Amount Input (only for cash/bank) */}
-                                    {(paymentMethod === "cash" ||
-                                        paymentMethod === "bank") && (
-                                            <View
-                                                style={
-                                                    styles.partialAmountContainer
-                                                }>
-                                                <Text
-                                                    style={
-                                                        styles.partialAmountLabel
-                                                    }>
-                                                    Payment Amount:
-                                                </Text>
-                                                <View
-                                                    style={
-                                                        styles.amountInputContainer
-                                                    }>
-                                                    <Text
-                                                        style={
-                                                            styles.currencySymbol
-                                                        }>
-                                                        ₹
-                                                    </Text>
-                                                    <TextInput
-                                                        style={styles.amountInput}
-                                                        value={partialAmount}
-                                                        onChangeText={
-                                                            handleAmountChange
-                                                        }
-                                                        onFocus={handleAmountFocus}
-                                                        keyboardType="numeric"
-                                                        placeholder={orderTotal.toString()}
-                                                        placeholderTextColor={
-                                                            customColors.grey400
-                                                        }
-                                                        selectTextOnFocus={true}
-                                                        returnKeyType="done"
-                                                    />
-                                                    <Text
-                                                        style={
-                                                            styles.totalAmountText
-                                                        }>
-                                                        Total: ₹
-                                                        {orderTotal.toFixed(2)}
-                                                    </Text>
-                                                </View>
-                                                <Text
-                                                    style={
-                                                        styles.partialAmountHint
-                                                    }>
-                                                    {partialAmount &&
-                                                        parseFloat(partialAmount) <
-                                                        orderTotal
-                                                        ? `Remaining: ₹${(orderTotal - parseFloat(partialAmount || 0)).toFixed(2)} (Credit)`
-                                                        : "Amount auto-filled. Tap to modify for partial payment"}
-                                                </Text>
-                                            </View>
-                                        )}
+                                    ))}
                                 </View>
-                            )}
+                            </View>
+
+                            {/* Delivery Status */}
+                            <View style={styles.paymentMethodContainer}>
+                                <Text style={styles.paymentMethodLabel}>
+                                    Delivery Status:
+                                </Text>
+                                <View style={styles.paymentMethodOptions}>
+                                    {[
+                                        { label: "Pending", value: 5, icon: "schedule" },
+                                        { label: "Cancelled", value: 0, icon: "cancel" },
+                                        { label: "Delivered", value: 7, icon: "local-shipping" },
+                                    ].map(opt => (
+                                        <TouchableOpacity
+                                            key={opt.value}
+                                            style={[
+                                                styles.paymentOption,
+                                                deliveryStatus === opt.value &&
+                                                styles.paymentOptionSelected,
+                                            ]}
+                                            onPress={() => setDeliveryStatus(opt.value)}
+                                        >
+                                            <MaterialIcons
+                                                name={opt.icon}
+                                                size={18}
+                                                color={
+                                                    deliveryStatus === opt.value
+                                                        ? customColors.white
+                                                        : customColors.grey600
+                                                }
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.paymentOptionText,
+                                                    deliveryStatus === opt.value &&
+                                                    styles.paymentOptionTextSelected,
+                                                ]}
+                                            >
+                                                {opt.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
 
                             <TouchableOpacity
                                 style={[
                                     styles.submitButton,
                                     isSubmitting && styles.submitButtonDisabled,
-                                    isLiveSale && styles.liveSaleButton,
                                 ]}
                                 onPress={handleSubmitOrder}
-                                disabled={isSubmitting}>
+                                disabled={isSubmitting}
+                            >
                                 {isSubmitting ? (
                                     <ActivityIndicator color="white" />
                                 ) : (
                                     <View style={styles.submitButtonContent}>
                                         <MaterialIcons
-                                            name={
-                                                isLiveSale
-                                                    ? "flash-on"
-                                                    : "shopping-bag"
-                                            }
+                                            name="receipt"
                                             size={20}
                                             color={customColors.white}
                                         />
                                         <Text style={styles.submitButtonText}>
-                                            {isLiveSale
-                                                ? `Complete Live Sale`
-                                                : "Submit Order"}
+                                            Create Invoice
                                         </Text>
-                                        {isLiveSale &&
-                                            (paymentMethod === "cash" ||
-                                                paymentMethod === "bank") && (
-                                                <Text
-                                                    style={
-                                                        styles.submitButtonSubtext
-                                                    }>
-                                                    ₹{partialAmount || "0"} (
-                                                    {paymentMethod.toUpperCase()}
-                                                    )
-                                                </Text>
-                                            )}
-                                        {isLiveSale &&
-                                            paymentMethod === "credit" && (
-                                                <Text
-                                                    style={
-                                                        styles.submitButtonSubtext
-                                                    }>
-                                                    (CREDIT)
-                                                </Text>
-                                            )}
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -1590,7 +1396,7 @@ const Sales = ({ route }) => {
     );
 };
 
-export default Sales;
+export default SalesInvoice;
 
 const styles = StyleSheet.create({
     container: {
@@ -1635,18 +1441,18 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: customColors.grey300,
         ...shadows.small,
-        position: 'relative',
+        position: "relative",
     },
     refreshLoadingOverlay: {
-        position: 'absolute',
+        position: "absolute",
         bottom: -2,
         right: -2,
         width: 12,
         height: 12,
         borderRadius: 6,
         backgroundColor: customColors.success,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
     },
     refreshLoadingDot: {
         width: 6,
@@ -2138,9 +1944,4 @@ const styles = StyleSheet.create({
         fontStyle: "italic",
         lineHeight: 16,
     },
-
-    // Remove delivery styles (commented out or deleted)
-    // deliveryContainer: { ... },
-    // deliveryCheckbox: { ... },
-    // deliveryLabel: { ... },
 });
