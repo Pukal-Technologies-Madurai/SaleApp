@@ -57,6 +57,17 @@ import PendingDeliveryIndividual from "../Screens/pending/PendingDeliveryIndivid
 import PendingSaleAdmin from "../Screens/pending/PendingSaleAdmin";
 import VisitLogHistory from "../Screens/admin/VisitLogHistory";
 import VisitLogDetail from "../Screens/admin/VisitLogDetail";
+import SalesReturn from "../Screens/sales/SalesReturn";
+import SalesReturnList from "../Screens/sales/SalesReturnList";
+import AdminItemSaleReturn from "../Screens/admin/AdminItemSaleReturn";
+import Settings from "../Screens/Settings";
+import MasterGodown from "../Screens/admin/MasterGodown";
+import LiveStock from "../Screens/closing/LiveStock";
+import GodownTransfer from "../Screens/stock/GodownTransfer";
+import SalesInvoice from "../Screens/invoice/SalesInvoice";
+import SaleInvoiceList from "../Screens/invoice/SaleInvoiceList";
+import InvoiceDetail from "../Screens/invoice/InvoiceDetail";
+import GodownActivities from "../Screens/stock/GodownActivities";
 
 const Stack = createStackNavigator();
 
@@ -72,6 +83,7 @@ const AppStack = () => {
             <Stack.Screen name="Dashboard" component={Dashboard} />
             <Stack.Screen name="Statistics" component={StatisticsScreen} />
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+            <Stack.Screen name="Settings" component={Settings} />
 
             <Stack.Screen name="LoginPortal" component={LoginPortal} />
             <Stack.Screen name="SwitchCompany" component={SwitchCompany} />
@@ -103,6 +115,10 @@ const AppStack = () => {
             <Stack.Screen name="OrderPreview" component={OrderPreview} />
             <Stack.Screen name="SaleHistory" component={SaleHistory} />
 
+            <Stack.Screen name="SalesInvoice" component={SalesInvoice} />
+            <Stack.Screen name="SaleInvoiceList" component={SaleInvoiceList} />
+            <Stack.Screen name="InvoiceDetail" component={InvoiceDetail} />
+
             <Stack.Screen name="PendingDeliveryIndividual" component={PendingDeliveryIndividual} />
 
             <Stack.Screen name="ClosingStock" component={ClosingStock} />
@@ -111,6 +127,9 @@ const AppStack = () => {
             <Stack.Screen name="DeliveryUpdate" component={DeliveryUpdate} />
             <Stack.Screen name="TripDetails" component={TripDetails} />
             <Stack.Screen name="TripSheet" component={TripSheet} />
+            <Stack.Screen name="GodownActivities" component={GodownActivities} />
+            <Stack.Screen name="LiveStock" component={LiveStock} />
+            <Stack.Screen name="GodownTransfer" component={GodownTransfer} />
 
             <Stack.Screen name="CreateReceipts" component={CreateReceipts} />
             <Stack.Screen name="ReceiptInfo" component={ReceiptInfo} />
@@ -120,6 +139,7 @@ const AppStack = () => {
             <Stack.Screen name="BillAdminView" component={BillAdminView} />
             <Stack.Screen name="DeliveryReport" component={DeliveryReport} />
             <Stack.Screen name="MasterData" component={MasterData} />
+            <Stack.Screen name="MasterGodown" component={MasterGodown} />
             <Stack.Screen name="RetailerStock" component={RetailerStock} />
             <Stack.Screen name="SalesAdmin" component={SalesAdmin} />
             <Stack.Screen name="SalesReport" component={SalesReport} />
@@ -127,6 +147,9 @@ const AppStack = () => {
             <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
             <Stack.Screen name="VisitLogHistory" component={VisitLogHistory} />
             <Stack.Screen name="VisitLogDetail" component={VisitLogDetail} />
+            <Stack.Screen name="SalesReturn" component={SalesReturn} />
+            <Stack.Screen name="SalesReturnList" component={SalesReturnList} />
+            <Stack.Screen name="AdminItemSaleReturn" component={AdminItemSaleReturn} />
 
             <Stack.Screen name="PendingSaleAdmin" component={PendingSaleAdmin} />
             <Stack.Screen name="PendingDeliveryAdmin" component={PendingDeliveryAdmin} />

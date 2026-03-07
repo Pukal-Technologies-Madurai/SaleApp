@@ -459,7 +459,6 @@ const styles = StyleSheet.create({
     mapButtonText: {
         ...typography.button(),
         color: customColors.white,
-        fontSize: 12,
     },
     retailerName: {
         flex: 1,

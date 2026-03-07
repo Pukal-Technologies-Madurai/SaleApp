@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     currentBadgeText: {
-        fontSize: 10,
+        ...typography.caption(),
         color: customColors.white,
         fontWeight: '600',
     },

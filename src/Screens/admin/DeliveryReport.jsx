@@ -171,59 +171,77 @@ const DeliveryTable = ({ deliveryData }) => {
 
             {/* Table Body */}
             <ScrollView style={styles.tableBody}>
-                {filteredData.map((item, index) => (
-                    <View key={item.Do_Id} style={styles.row}>
-                        <Text style={[styles.cell, { flex: 1 }]}>
-                            {formatDate(item.SalesDate)}
-                        </Text>
-                        <Text
-                            style={[styles.cell, { flex: 3 }]}
-                            numberOfLines={4}
-                        >
-                            {item.Retailer_Name}
-                        </Text>
-                        <Text
-                            style={[
-                                styles.cell,
-                                {
-                                    flex: 2,
-                                    ...typography.caption(),
-                                    textAlign: "center",
-                                },
-                            ]}
-                        >
-                            {item.Delivery_Person_Name === "not available"
-                                ? "N/A"
-                                : item.Delivery_Person_Name}
-                        </Text>
-                        <View style={[styles.statusContainer, { flex: 2 }]}>
-                            <View
+                {filteredData.map((item, index) => {
+                    let displayName = "N/A";
+                    if (item.Delivery_Person_Name === "not available" && item.Delivery_Status === 7) {
+                        displayName = item.Created_BY_Name;
+                    } else if (item.Delivery_Person_Name !== "not available") {
+                        displayName = item.Delivery_Person_Name;
+                    }
+
+                    return (
+                        <View key={item.Do_Id} style={styles.row}>
+                            <Text style={[styles.cell, { flex: 1 }]}>
+                                {formatDate(
+                                    item.SalesDate === null
+                                        ? item.Do_Date
+                                        : item.SalesDate,
+                                )}
+                            </Text>
+                            <Text
+                                style={[styles.cell, { flex: 3 }]}
+                                numberOfLines={4}
+                            >
+                                {item.Retailer_Name}
+                            </Text>
+                            <Text
                                 style={[
-                                    styles.statusBadge,
-                                    getDeliveryBadgeStyle(item.Delivery_Status),
+                                    styles.cell,
+                                    {
+                                        flex: 2,
+                                        ...typography.caption(),
+                                        textAlign: "center",
+                                    },
                                 ]}
                             >
-                                <Text style={styles.statusText}>
-                                    {getDeliveryStatus(item.Delivery_Status)}
-                                </Text>
-                            </View>
-                        </View>
-                        {/* Return Reason */}
-                        {getDeliveryStatus(item.Delivery_Status) === "Returned" && (
-                            <View style={styles.returnReasonContainer}>
-                                <Text style={styles.returnReasonLabel}>
-                                    Return Reason:
-                                </Text>
-                                <Text
-                                    style={styles.returnReasonText}
-                                    numberOfLines={3}
+                                {displayName}
+                            </Text>
+                            <View style={[styles.statusContainer, { flex: 2 }]}>
+                                <View
+                                    style={[
+                                        styles.statusBadge,
+                                        getDeliveryBadgeStyle(
+                                            item.Delivery_Status,
+                                        ),
+                                    ]}
                                 >
-                                    {item.Narration || item.Payment_Ref_No || "No reason provided"}
-                                </Text>
+                                    <Text style={styles.statusText}>
+                                        {getDeliveryStatus(
+                                            item.Delivery_Status,
+                                        )}
+                                    </Text>
+                                </View>
                             </View>
-                        )}
-                    </View>
-                ))}
+                            {/* Return Reason */}
+                            {getDeliveryStatus(item.Delivery_Status) ===
+                                "Returned" && (
+                                <View style={styles.returnReasonContainer}>
+                                    <Text style={styles.returnReasonLabel}>
+                                        Return Reason:
+                                    </Text>
+                                    <Text
+                                        style={styles.returnReasonText}
+                                        numberOfLines={3}
+                                    >
+                                        {item.Narration ||
+                                            item.Payment_Ref_No ||
+                                            "No reason provided"}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    );
+                })}
             </ScrollView>
         </View>
     );

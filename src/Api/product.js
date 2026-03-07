@@ -100,6 +100,15 @@ export const fetchUOM = async () => {
     return data.data;
 };
 
+export const fetchGoDownwiseStockValue = async (goDownId) => {
+    const url = `${API.goDownwiseStockValue()}${goDownId}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
 export const fetchGroupedProducts = async company => {
     // console.log("fetchGroupedProducts", `${API.groupedProducts()}${company}`);
     const res = await fetch(`${API.groupedProducts()}${company}`);

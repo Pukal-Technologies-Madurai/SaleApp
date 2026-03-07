@@ -6,23 +6,23 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
-    Alert,
+    TextInput,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
+import FilterModal from "../../Components/FilterModal";
+import { fetchUserInvolvedReceipts } from "../../Api/receipt";
 import {
     customColors,
     typography,
     spacing,
     shadows,
 } from "../../Config/helper";
-import { useQuery } from "@tanstack/react-query";
-import { fetchUserInvolvedReceipts } from "../../Api/receipt";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import FilterModal from "../../Components/FilterModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const ReceiptInfo = () => {
     const navigation = useNavigation();
@@ -30,6 +30,9 @@ const ReceiptInfo = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
+    const [activeFilter, setActiveFilter] = useState("all"); // 'all', 'cash', 'bank'
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -201,11 +204,47 @@ const ReceiptInfo = () => {
         </View>
     );
 
+    const getFilteredReceipts = () => {
+        const activeReceipts = receiptData.filter(receipt => receipt.status !== 0);
+
+        // Apply payment method filter first
+        let filteredReceipts;
+        switch (activeFilter) {
+            case "cash":
+                filteredReceipts = activeReceipts.filter(receipt => receipt.debit_ledger_name === "Cash Note Off");
+                break;
+            case "bank":
+                filteredReceipts = activeReceipts.filter(receipt => receipt.debit_ledger_name === "Canara Bank (795956)");
+                break;
+            case "all":
+            default:
+                filteredReceipts = activeReceipts;
+                break;
+        }
+
+        // Apply search filter if search term exists
+        if (searchTerm.trim()) {
+            filteredReceipts = filteredReceipts.filter(receipt =>
+                receipt.credit_ledger_name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        return filteredReceipts;
+    };
+
     const renderSummaryStats = () => {
         const totalAmount = receiptData.filter(receipt => receipt.status !== 0).reduce(
             (sum, receipt) => sum + receipt.credit_amount,
             0,
         );
+        const cashTotal = receiptData.filter(receipt => receipt.status !== 0).reduce(
+            (sum, receipt) => sum + (receipt.debit_ledger_name === "Cash Note Off" ? receipt.credit_amount : 0),
+            0,
+        )
+        const bankTotal = receiptData.filter(receipt => receipt.status !== 0).reduce(
+            (sum, receipt) => sum + (receipt.debit_ledger_name === "Canara Bank (795956)" ? receipt.credit_amount : 0),
+            0,
+        )
         const liveReceiptsCount = receiptData.filter(
             receipt => receipt.Voucher_Type === "LIVE_RECEIPT",
         ).length;
@@ -213,36 +252,109 @@ const ReceiptInfo = () => {
 
         return (
             <View style={styles.summaryContainer}>
-                <View style={styles.summaryCard}>
-                    <MaterialIcons
-                        name="receipt"
-                        size={24}
-                        color={customColors.primary}
-                    />
-                    <Text style={styles.summaryNumber}>{totalReceipts}</Text>
-                    <Text style={styles.summaryLabel}>Total Receipts</Text>
-                </View>
-                <View style={styles.summaryCard}>
-                    <MaterialIcons
-                        name="flash-on"
-                        size={24}
-                        color={customColors.success}
-                    />
-                    <Text style={styles.summaryNumber}>
-                        {liveReceiptsCount}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Live Sales</Text>
-                </View>
-                <View style={styles.summaryCard}>
+                <TouchableOpacity
+                    style={[
+                        styles.summaryCard,
+                        activeFilter === "all" && styles.activeSummaryCard
+                    ]}
+                    onPress={() => setActiveFilter("all")}
+                    activeOpacity={0.7}>
                     <MaterialIcons
                         name="currency-rupee"
                         size={24}
-                        color={customColors.accent2}
+                        color={activeFilter === "all" ? customColors.white : customColors.accent2}
                     />
-                    <Text style={styles.summaryNumber}>
+                    <Text style={[
+                        styles.summaryNumber,
+                        activeFilter === "all" && styles.activeSummaryText
+                    ]}>
                         ₹{totalAmount.toLocaleString("en-IN")}
                     </Text>
-                    <Text style={styles.summaryLabel}>Total Amount</Text>
+                    <Text style={[
+                        styles.summaryLabel,
+                        activeFilter === "all" && styles.activeSummaryText
+                    ]}>Total Amount</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.summaryCard,
+                        activeFilter === "cash" && styles.activeSummaryCard
+                    ]}
+                    onPress={() => setActiveFilter(activeFilter === "cash" ? "all" : "cash")}
+                    activeOpacity={0.7}>
+                    <MaterialIcons
+                        name="currency-rupee"
+                        size={24}
+                        color={activeFilter === "cash" ? customColors.white : customColors.primary}
+                    />
+                    <Text style={[
+                        styles.summaryNumber,
+                        activeFilter === "cash" && styles.activeSummaryText
+                    ]}>
+                        ₹{cashTotal.toLocaleString("en-IN")}
+                    </Text>
+                    <Text style={[
+                        styles.summaryLabel,
+                        activeFilter === "cash" && styles.activeSummaryText
+                    ]}>Cash</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.summaryCard,
+                        activeFilter === "bank" && styles.activeSummaryCard
+                    ]}
+                    onPress={() => setActiveFilter(activeFilter === "bank" ? "all" : "bank")}
+                    activeOpacity={0.7}>
+                    <MaterialIcons
+                        name="account-balance"
+                        size={24}
+                        color={activeFilter === "bank" ? customColors.white : customColors.success}
+                    />
+                    <Text style={[
+                        styles.summaryNumber,
+                        activeFilter === "bank" && styles.activeSummaryText
+                    ]}>
+                        ₹{bankTotal.toLocaleString("en-IN")}
+                    </Text>
+                    <Text style={[
+                        styles.summaryLabel,
+                        activeFilter === "bank" && styles.activeSummaryText
+                    ]}>Bank</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const renderSearchInput = () => {
+        if (!showSearch) return null;
+
+        return (
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                    <MaterialIcons
+                        name="search"
+                        size={20}
+                        color={customColors.grey500}
+                    />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search by retailer name..."
+                        placeholderTextColor={customColors.grey400}
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        autoFocus={true}
+                    />
+                    {searchTerm.length > 0 && (
+                        <TouchableOpacity
+                            onPress={() => setSearchTerm("")}
+                            style={styles.clearButton}>
+                            <MaterialIcons
+                                name="clear"
+                                size={18}
+                                color={customColors.grey500}
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         );
@@ -269,7 +381,7 @@ const ReceiptInfo = () => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="My Receipts"
+                title="Receipts Summary"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
@@ -323,7 +435,7 @@ const ReceiptInfo = () => {
                         </TouchableOpacity>
                     </View>
                 ) : (
-                    <ScrollView
+                    <View
                         style={styles.scrollView}
                         contentContainerStyle={styles.scrollContent}
                         refreshControl={
@@ -339,28 +451,48 @@ const ReceiptInfo = () => {
                         {receiptData.length === 0 ? (
                             renderEmptyState()
                         ) : (
-                            <View style={styles.receiptsContainer}>
+                            <ScrollView style={styles.receiptsContainer}>
+                                {renderSearchInput()}
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionTitle}>
-                                        Recent Receipts ({receiptData.length})
+                                        {searchTerm.trim() ? "Search Results" :
+                                            activeFilter === "all" ? "All" :
+                                                activeFilter === "cash" ? "Cash" : "Bank"} Receipts ({getFilteredReceipts().length})
                                     </Text>
-                                    <TouchableOpacity
-                                        onPress={() =>
-                                            navigation.navigate(
-                                                "CreateReceipts",
-                                            )
-                                        }>
-                                        <MaterialIcons
-                                            name="add"
-                                            size={24}
-                                            color={customColors.primary}
-                                        />
-                                    </TouchableOpacity>
+                                    <View style={styles.headerActions}>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setShowSearch(!showSearch);
+                                                if (showSearch) {
+                                                    setSearchTerm("");
+                                                }
+                                            }}
+                                            style={styles.actionButton}>
+                                            <MaterialIcons
+                                                name={showSearch ? "close" : "search"}
+                                                size={22}
+                                                color={customColors.primary}
+                                            />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() =>
+                                                navigation.navigate(
+                                                    "CreateReceipts",
+                                                )
+                                            }
+                                            style={styles.actionButton}>
+                                            <MaterialIcons
+                                                name="add"
+                                                size={24}
+                                                color={customColors.primary}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-                                {receiptData.map(renderReceiptCard)}
-                            </View>
+                                {getFilteredReceipts().map(renderReceiptCard)}
+                            </ScrollView>
                         )}
-                    </ScrollView>
+                    </View>
                 )}
             </View>
         </SafeAreaView>
@@ -438,6 +570,13 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
         ...shadows.small,
     },
+    activeSummaryCard: {
+        backgroundColor: customColors.primary,
+        ...shadows.medium,
+    },
+    activeSummaryText: {
+        color: customColors.white,
+    },
     summaryNumber: {
         ...typography.h5(),
         color: customColors.grey900,
@@ -459,6 +598,40 @@ const styles = StyleSheet.create({
         ...typography.h6(),
         color: customColors.grey900,
         fontWeight: "600",
+        flex: 1,
+    },
+    headerActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    actionButton: {
+        padding: spacing.xs,
+    },
+    searchContainer: {
+        paddingHorizontal: spacing.md,
+        paddingBottom: spacing.sm,
+    },
+    searchInputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        gap: spacing.sm,
+        ...shadows.small,
+    },
+    searchInput: {
+        flex: 1,
+        ...typography.body1(),
+        color: customColors.grey900,
+        paddingVertical: spacing.xs,
+    },
+    clearButton: {
+        padding: spacing.xs,
     },
     receiptsContainer: {
         paddingHorizontal: spacing.md,

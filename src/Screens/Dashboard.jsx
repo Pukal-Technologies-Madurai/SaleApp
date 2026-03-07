@@ -17,7 +17,6 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { API } from "../Config/Endpoint";
 import { fetchBranches } from "../Api/employee";
-import { fetchRoutes } from "../Api/retailers";
 import { customColors, typography, spacing, shadows } from "../Config/helper";
 import BranchFilterModal from "../Components/BranchFilterModal";
 import DatePickerButton from "../Components/DatePickerButton";
@@ -67,7 +66,7 @@ const Dashboard = () => {
                                 .filter(id => !isNaN(id));
                             setSelectedBranches(validBranchIds);
                             // console.log("Loaded branches from JSON array:", validBranchIds);
-                        } else if (typeof parsedBranchIds === 'number') {
+                        } else if (typeof parsedBranchIds === "number") {
                             setSelectedBranches([parsedBranchIds]);
                             // console.log("Loaded single branch from JSON:", [parsedBranchIds]);
                             // Update storage to array format for consistency
@@ -143,7 +142,14 @@ const Dashboard = () => {
 
         fetchSaleOrder: async (from, to, company, branchId, userId = "") => {
             const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Branch_Id=${branchId}&Created_by=${userId}&Sales_Person_Id=${userId}`;
-            // console.log("Fetching sale order from URL:", url);
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
+        },
+
+        fetchInvoiceData: async (from, to, branchId) => {
+            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}`;
+            // console.log("Fetching invoice data with URL:", url);
             const response = await fetch(url);
             const data = await response.json();
             return data.success ? data.data : [];
@@ -179,20 +185,6 @@ const Dashboard = () => {
 
         fetchDeliveryReturn: async (today, branchId) => {
             const url = `${API.deliveryReturn()}${today}&Todate=${today}&Branch_Id=${branchId}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.success ? data.data : [];
-        },
-
-        fetchCollectionReceipts: async (from, to) => {
-            const url = `${API.paymentCollection()}?Fromdate=${from}&Todate=${to}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.success ? data.data : [];
-        },
-
-        fetchUserRoutes: async (today, userId) => {
-            const url = `${API.setRoutePath()}?date=${today}&User_Id=${userId}`;
             const response = await fetch(url);
             const data = await response.json();
             return data.success ? data.data : [];
@@ -235,11 +227,11 @@ const Dashboard = () => {
                 const [
                     visitData,
                     saleData,
+                    invoiceData,
                     attendanceData,
                     deliveryData,
                     tripSheetData,
                     receiptData,
-                    collectionReceiptData,
                     deliveryReturnData,
                 ] = await Promise.allSettled([
                     apiService.fetchVisitersLog(selectedDate, "", branchIdParam),
@@ -250,6 +242,11 @@ const Dashboard = () => {
                         branchIdParam,
                         "",
                     ),
+                    apiService.fetchInvoiceData(
+                        selectedDate,
+                        selectedDate,
+                        branchIdParam,
+                    ),
                     apiService.fetchAttendanceInfo(
                         selectedDate,
                         selectedDate,
@@ -259,10 +256,6 @@ const Dashboard = () => {
                     apiService.fetchDeliveryData(selectedDate, branchIdParam),
                     apiService.fetchTripSheet(selectedDate, selectedDate, branchIdParam),
                     apiService.fetchReceiptData(selectedDate, selectedDate, branchIdParam),
-                    apiService.fetchCollectionReceipts(
-                        selectedDate,
-                        selectedDate,
-                    ),
                     apiService.fetchDeliveryReturn(selectedDate, branchIdParam),
                 ]);
 
@@ -274,99 +267,19 @@ const Dashboard = () => {
 
                 const finalVisitData = extractData(visitData);
                 const finalSaleData = extractData(saleData);
+                const finalInvoiceData = extractData(invoiceData);
                 const finalAttendanceData = extractData(attendanceData);
                 const finalDeliveryData = extractData(deliveryData);
                 const finalTripSheetData = extractData(tripSheetData);
                 const finalReceiptData = extractValue(receiptData);
                 const finalDeliveryReturnData = extractData(deliveryReturnData); // Fixed
 
-                // Process attendance data and fetch routes
-                let routeData = [];
-                let attendanceCount = {};
-                let kilometersCount = {};
-
-                if (finalAttendanceData.length > 0) {
-                    const uniqueAttendance = finalAttendanceData.filter(
-                        (item, index, self) =>
-                            index ===
-                            self.findIndex(t => t.User_Name === item.User_Name),
-                    );
-
-                    // Process attendance count
-                    attendanceCount = uniqueAttendance.reduce((entry, item) => {
-                        const userName = item.User_Name || "Unknown";
-                        const userId = item.UserId || "Unknown";
-                        entry[userName] = { count: 1, userId };
-                        return entry;
-                    }, {});
-
-                    // Fetch routes for all users in parallel
-                    const routePromises = uniqueAttendance.map(async item => {
-                        try {
-                            const routes = await apiService.fetchUserRoutes(
-                                selectedDate,
-                                item.UserId,
-                            );
-                            return {
-                                userId: item.UserId,
-                                userName: item.User_Name,
-                                routes: routes,
-                            };
-                        } catch (error) {
-                            return {
-                                userId: item.UserId,
-                                userName: item.User_Name,
-                                routes: [],
-                            };
-                        }
-                    });
-
-                    routeData = await Promise.all(routePromises);
-
-                    // Calculate kilometers
-                    kilometersCount = finalAttendanceData.reduce(
-                        (entry, item) => {
-                            const userName = item.User_Name || "Unknown";
-                            const kmTraveled =
-                                item.End_KM && item.Start_KM
-                                    ? Math.max(0, item.End_KM - item.Start_KM)
-                                    : 0;
-
-                            if (!entry[userName]) {
-                                entry[userName] = {
-                                    totalKm: kmTraveled,
-                                    details: [
-                                        {
-                                            startKm: item.Start_KM,
-                                            endKm: item.End_KM,
-                                            date: item.Start_Date,
-                                        },
-                                    ],
-                                };
-                            } else {
-                                entry[userName].totalKm += kmTraveled;
-                                entry[userName].details.push({
-                                    startKm: item.Start_KM,
-                                    endKm: item.End_KM,
-                                    date: item.Start_Date,
-                                });
-                            }
-                            return entry;
-                        },
-                        {},
-                    );
-                }
-
-                // Process visit data
-                const userCount = finalVisitData.reduce((entry, item) => {
-                    const userName = item.EntryByGet;
-                    entry[userName] = (entry[userName] || 0) + 1;
-                    return entry;
-                }, {});
-
                 // Process sale data
                 const saleCount = finalSaleData.reduce((entry, item) => {
-                    const salesPerson = item.Sales_Person_Name;
+                    // const salesPerson = item.Sales_Person_Name === ""
+                    //     ? `${item.Created_BY_Name} (PoS)`
+                    //     : item.Sales_Person_Name;
+                    const salesPerson = item.Created_BY_Name;
                     if (entry[salesPerson]) {
                         entry[salesPerson].count++;
                         entry[salesPerson].totalValue +=
@@ -386,6 +299,15 @@ const Dashboard = () => {
                     0,
                 );
 
+                // console.log("Total Order Amount:", totalOrderAmount);
+
+                const totalInvoiceAmount = finalInvoiceData.reduce(
+                    (sum, invoice) => sum + invoice.Total_Invoice_value,
+                    0,
+                );
+
+                // console.log("Total Invoice Amount:", totalInvoiceAmount);
+
                 const totalProductsSold = finalSaleData.reduce(
                     (count, order) => {
                         return (
@@ -401,34 +323,19 @@ const Dashboard = () => {
                     0,
                 );
 
-                // Extract the collection data
-                const finalCollectionReceiptData = extractData(
-                    collectionReceiptData,
-                );
-
-                const totalCollectionAmount = finalCollectionReceiptData.reduce(
-                    (sum, receipt) =>
-                        sum + (receipt.total_amount || receipt.amount || 0),
-                    0,
-                );
-
                 return {
                     visitData: finalVisitData,
                     saleData: finalSaleData,
                     attendanceData: finalAttendanceData,
                     deliveryData: finalDeliveryData,
                     tripSheetData: finalTripSheetData,
+                    invoiceData: finalInvoiceData,
                     newReceiptData: finalReceiptData,
-                    collectionReceiptData: extractData(collectionReceiptData),
                     deliveryReturnData: finalDeliveryReturnData,
-                    routeData,
-                    attendanceCount,
-                    kilometersCount,
-                    userCount,
                     saleCount,
                     totalOrderAmount,
+                    totalInvoiceAmount,
                     totalProductsSold,
-                    totalCollectionAmount,
                 };
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -442,11 +349,9 @@ const Dashboard = () => {
         retry: 2, // Add retry option
         retryDelay: 1000, // Add retry delay
         onError: (error) => {
-            console.error('Dashboard data fetch error:', error);
+            console.error("Dashboard data fetch error: ", error);
         }
     });
-
-    // console.log("Dashboard data:", allDashboardData);
 
     // Calculate total unique salespersons with safety checks
     const allPersonIds = new Set([
@@ -456,14 +361,6 @@ const Dashboard = () => {
 
     const totalSalesPersons = allPersonIds.size;
     const totalVisits = (allDashboardData.visitData || []).map(visit => visit.EntryBy).filter(id => id != null).length;
-
-    // Fetch route names separately as it doesn't change often
-    const { data: fetchUserIndividualRoute = [] } = useQuery({
-        queryKey: ["fetchUserIndividualRoute"],
-        queryFn: fetchRoutes,
-        staleTime: 600000, // 10 minutes
-        cacheTime: 1800000, // 30 minutes
-    });
 
     const { data: branchData = [] } = useQuery({
         queryKey: ["branchData"],
@@ -489,36 +386,11 @@ const Dashboard = () => {
         } catch (error) {
             console.error("Error saving selected branches:", error);
         }
-        // console.log("Selected branches:", branches);
     }, []);
 
     const showBranchFilterModal = useCallback(() => {
         setBranchModalVisible(true);
     }, []);
-
-    // Optimized route names function
-    const getUserRouteNames = useCallback(() => {
-        if (!allDashboardData.routeData || !fetchUserIndividualRoute.length)
-            return {};
-
-        const userRouteMapping = {};
-        allDashboardData.routeData.forEach(user => {
-            const routeNames = user.routes.map(route => {
-                const routeInfo = fetchUserIndividualRoute.find(
-                    r => r.Route_Id === route.Route_Id,
-                );
-                return routeInfo ? routeInfo.Route_Name : "Unknown Route";
-            });
-
-            userRouteMapping[user.userName] = {
-                userId: user.userId,
-                routeNames,
-                routeIds: user.routes.map(r => r.Route_Id),
-            };
-        });
-
-        return userRouteMapping;
-    }, [allDashboardData.routeData, fetchUserIndividualRoute]);
 
     // Handle date change
     const handleDateChange = useCallback(async date => {
@@ -543,12 +415,11 @@ const Dashboard = () => {
         try {
             // Invalidate and refetch all queries
             await Promise.all([
-                queryClient.invalidateQueries('dashboardData'),
-                queryClient.invalidateQueries('fetchUserIndividualRoute')
+                queryClient.invalidateQueries("dashboardData"),
             ]);
             await refetch();
         } catch (error) {
-            console.error('Refresh failed:', error);
+            console.error("Refresh failed:", error);
         } finally {
             setRefreshing(false);
         }
@@ -581,43 +452,19 @@ const Dashboard = () => {
                 color: "#10B981",
                 backgroundColor: "#ECFDF5",
                 onPress: () => {
-                    // const routeNames = getUserRouteNames();
-                    // navigation.navigate("Statistics", {
-                    //     title: "Attendance",
-                    //     userCount: allDashboardData.attendanceCount,
-                    //     kilometersCount: allDashboardData.kilometersCount,
-                    //     routeData: routeNames,
-                    // });
-
                     navigation.navigate("VisitLogHistory", {
                         selectedDate: selectedDate,
                         selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     });
                 },
             },
-            // {
-            //     icon: "map-marker-account-outline",
-            //     iconLibrary: "MaterialCommunityIcons",
-            //     label: "Check-ins",
-            //     value: allDashboardData.visitData?.length || 0,
-            //     color: "#8B5CF6",
-            //     backgroundColor: "#F3E8FF",
-                // onPress: () =>
-                    // navigation.navigate("Statistics", {
-                    //     title: "Check-In's",
-                    //     userCount: allDashboardData.userCount,
-                    //     visitData: allDashboardData.visitData,
-                    //     passedDate: selectedDate,
-                    // }),
-                    // navigation.navigate("VisitLogHistory", {
-                    //     selectedDate: selectedDate,
-                    //     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
-                    // }),
-            // },
             {
                 icon: "chart-areaspline",
                 iconLibrary: "MaterialCommunityIcons",
-                label: "Total Sales",
+                label: `${selectedDate === new Date().toISOString().split("T")[0] ? "Today's Orders" : `${new Date(selectedDate).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                })} Sales`}`,
                 value: allDashboardData.saleData?.length || 0,
                 color: "#3B82F6",
                 backgroundColor: "#DBEAFE",
@@ -630,7 +477,7 @@ const Dashboard = () => {
             {
                 icon: "currency-rupee",
                 iconLibrary: "MaterialIcons",
-                label: "Sales Amount",
+                label: "Order Summary",
                 value: `₹${(allDashboardData.totalOrderAmount || 0).toLocaleString("en-IN")}`,
                 color: "#EF4444",
                 backgroundColor: "#FEF2F2",
@@ -641,10 +488,24 @@ const Dashboard = () => {
                     }),
             },
             {
+                icon: "receipt-long",
+                iconLibrary: "MaterialIcons",
+                label: "Invoice Summary",
+                value: `₹${(allDashboardData.totalInvoiceAmount || 0).toLocaleString("en-IN")}`,
+                color: "#DC2626",
+                backgroundColor: "#FEE2E2",
+                onPress: () =>
+                    navigation.navigate("SaleInvoiceList", {
+                        selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                        isAdmin: true,
+                    }),
+            },
+            {
                 icon: "receipt",
                 iconLibrary: "MaterialIcons",
                 label: "Receipts",
-                value: `₹${(allDashboardData.newReceiptData || 0).toLocaleString("en-IN")}`,
+                value: `₹${(allDashboardData.newReceiptData || 0).toLocaleString("en-IN")} `,
                 color: "#059669",
                 backgroundColor: "#D1FAE5",
                 onPress: () =>
@@ -656,7 +517,11 @@ const Dashboard = () => {
             {
                 icon: "local-shipping",
                 iconLibrary: "MaterialIcons",
-                label: "Delivery",
+                label: `${selectedDate === new Date().toISOString().split("T")[0] ? "Ongoing Delivery" : `${new Date(selectedDate).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                })} Delivery`
+                    } `,
                 value: `${allDashboardData.deliveryData?.filter(
                     item =>
                         item.DeliveryStatusName === "Delivered" ||
@@ -699,8 +564,8 @@ const Dashboard = () => {
             {
                 icon: "pending-actions",
                 iconLibrary: "MaterialIcons",
-                label: "Pending",
-                value: "Delivery",
+                label: "Delivery Pending",
+                value: "Total",
                 color: "#EC4899",
                 backgroundColor: "#FDF2F8",
                 onPress: () => navigation.navigate("PendingDeliveryAdmin", {
@@ -711,8 +576,8 @@ const Dashboard = () => {
             {
                 icon: "pending-actions",
                 iconLibrary: "MaterialIcons",
-                label: "Pending",
-                value: "Sales",
+                label: "Sales Pending",
+                value: "Total",
                 color: "#6366F1",
                 backgroundColor: "#EEF2FF",
                 onPress: () => navigation.navigate("PendingSaleAdmin", {
@@ -724,13 +589,22 @@ const Dashboard = () => {
                 icon: "warehouse",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Stock",
-                value: "Retailer's",
+                value: "Retailer's ",
                 color: "#7C3AED",
                 backgroundColor: "#EDE9FE",
                 onPress: () => navigation.navigate("RetailerStock"),
             },
+            {
+                icon: "keyboard-return",
+                iconLibrary: "MaterialCommunityIcons",
+                label: "Sale Return",
+                value: "",
+                color: "#A855F7",
+                backgroundColor: "#F5F3FF",
+                onPress: () => navigation.navigate("AdminItemSaleReturn"),
+            },
         ],
-        [allDashboardData, getUserRouteNames, navigation],
+        [allDashboardData, navigation],
     );
 
     // Memoized icon renderer
@@ -810,10 +684,10 @@ const Dashboard = () => {
                             <Text style={styles.sectionSubtitle}>
                                 {selectedDate === new Date().toISOString().split("T")[0]
                                     ? "Today's Overview"
-                                    : `Overview for ${new Date(selectedDate).toLocaleDateString('en-IN', {
-                                        day: '2-digit',
-                                        month: 'short',
-                                        year: 'numeric'
+                                    : `Overview for ${new Date(selectedDate).toLocaleDateString("en-IN", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric"
                                     })}`
                                 }
                             </Text>
@@ -1010,13 +884,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
         borderWidth: 1,
         borderColor: customColors.grey200,
-    },
-    sectionTitle: {
-        ...typography.h5(),
-        color: customColors.grey900,
-        fontWeight: "700",
-        marginBottom: spacing.sm,
-        letterSpacing: 0.3,
     },
     gridContainer: {
         flexDirection: "row",

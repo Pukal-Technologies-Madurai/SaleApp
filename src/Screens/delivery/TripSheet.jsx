@@ -210,7 +210,7 @@ const TripSheet = () => {
                     <View style={styles.tripHeaderContent}>
                         <View style={styles.tripBasicInfo}>
                             <Text style={styles.tripId}>
-                                Trip #{item.Trip_No}
+                                Trip #{item.Trip_No} - <Text style={styles.costCenterNames}>({[...new Set(item.Trip_Details?.map(detail => detail.Cost_Center_Name))].join(", ")})</Text>
                             </Text>
                             <View style={styles.timeContainer}>
                                 <MaterialCommunityIcons
@@ -341,7 +341,7 @@ const TripSheet = () => {
                                                         Number(
                                                             tripDetail.Delivery_Status,
                                                         ) === 7
-                                                        ? customColors.success50
+                                                        ? customColors.success + "20"
                                                         : tripDetail &&
                                                             (Number(
                                                                 tripDetail.Payment_Status,
@@ -349,7 +349,7 @@ const TripSheet = () => {
                                                                 Number(
                                                                     tripDetail.Delivery_Status,
                                                                 ) === 7)
-                                                            ? customColors.warning50
+                                                            ? customColors.warning + "20"
                                                             : customColors.white,
                                             },
                                         ]}
@@ -361,7 +361,7 @@ const TripSheet = () => {
                                             <View style={styles.productInfo}>
                                                 <Text
                                                     style={styles.retailerName}>
-                                                    {product.Retailer_Name}
+                                                    {product.Products_List[0]?.Retailer_Name}
                                                 </Text>
                                                 <Text style={styles.orderId}>
                                                     Order #{product.Do_Id}
@@ -573,6 +573,18 @@ const TripSheet = () => {
             />
 
             <View style={styles.contentContainer}>
+                <View style={{
+                    flexDirection: "row",
+                    justifyContent: "flex-end",
+                    alignItems: "flex-end",
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.xs,
+                }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate("RetailerMapView")}>
+                            <Text style={{}}>MapView</Text>
+                        </TouchableOpacity>
+                </View>
                 <View style={styles.tripContent}>
                     {logData.length > 0 ? (
                         <FlatList
@@ -608,9 +620,6 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        ...shadows.small,
     },
     tripContent: {
         flex: 1,
@@ -639,6 +648,10 @@ const styles = StyleSheet.create({
     tripId: {
         ...typography.h6(),
         color: customColors.grey900,
+    },
+    costCenterNames: {
+        ...typography.caption(),
+        color: customColors.primaryDark + "90",
     },
     timeContainer: {
         flexDirection: "row",

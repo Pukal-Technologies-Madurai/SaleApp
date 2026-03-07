@@ -61,6 +61,7 @@ const DeliveryUpdate = () => {
     const [cancelReason, setCancelReason] = useState("");
     const [hasProductChanges, setHasProductChanges] = useState(false);
     const [selectedCancelReason, setSelectedCancelReason] = useState("");
+    const [goDownId, setGoDownId] = useState(0);
 
     const deliveryStatus = { 5: "Pending", 6: "Cancelled", 7: "Delivered" };
     const paymentStatus = { 0: "Pending", 3: "Completed" };
@@ -87,6 +88,12 @@ const DeliveryUpdate = () => {
             const toDate = selectedToDate.toISOString().split("T")[0];
             const companyId = await AsyncStorage.getItem("Company_Id");
             const branchId = await AsyncStorage.getItem("branchId");
+            const activeGodown = await AsyncStorage.getItem("activeGodown");
+
+            // Parse activeGodown as integer, default to 0 if invalid
+            const parsedGodown = parseInt(activeGodown, 10);
+            setGoDownId(isNaN(parsedGodown) ? 0 : parsedGodown);
+
             let parsedBranchId = branchId;
 
             if (typeof branchId === "string") {
@@ -312,7 +319,7 @@ const DeliveryUpdate = () => {
                     DO_St_Id: product.DO_St_Id,
                     Do_Date: product.Do_Date,
                     Delivery_Order_Id: product.Delivery_Order_Id,
-                    GoDown_Id: product.GoDown_Id,
+                    GoDown_Id: goDownId || product.GoDown_Id,
                     S_No: product.S_No,
                     Item_Id: product.Item_Id,
                     Bill_Qty: product.Bill_Qty, // This will now use the updated quantity
@@ -353,7 +360,7 @@ const DeliveryUpdate = () => {
                 Product_Array: transformedProducts,
                 Delivery_Status: 6, // Cancelled status
                 Payment_Status: 0, // Reset payment status
-                Cancel_status: 0,
+                Cancel_status: 0, // 0 - Cancelled  // 1 - Pending
                 Delivery_Time: new Date().toISOString(),
                 Delivery_Location: "CANCELLED",
                 Delivery_Latitude: location.latitude?.toString() || "0",
@@ -366,7 +373,6 @@ const DeliveryUpdate = () => {
                 // Collected_By: selectedDelivery.Collected_By,
                 // Collected_Status: selectedDelivery.Collected_Status,
             };
-
 
             const response = await fetch(API.deliveryPut(), {
                 method: "PUT",
@@ -922,7 +928,7 @@ const DeliveryUpdate = () => {
                     DO_St_Id: product.DO_St_Id,
                     Do_Date: product.Do_Date,
                     Delivery_Order_Id: product.Delivery_Order_Id,
-                    GoDown_Id: product.GoDown_Id,
+                    GoDown_Id: goDownId || product.GoDown_Id,
                     S_No: product.S_No,
                     Item_Id: product.Item_Id,
                     Bill_Qty: product.Bill_Qty, // This will now use the updated quantity
@@ -967,6 +973,7 @@ const DeliveryUpdate = () => {
                 Delivery_Longitude: location.longitude.toString() || "0",
                 Delivery_Person_Id: callCenterId || userId,
                 Delivery_Status: finalDeliveryStatus,
+                Cancel_status: 1,
                 Payment_Status: finalPaymentStatus,
                 Payment_Mode: selectedPaymentMode,
                 Branch_Id: branchId,

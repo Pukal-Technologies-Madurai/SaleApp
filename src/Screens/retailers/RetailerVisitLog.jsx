@@ -475,7 +475,6 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey700,
         fontWeight: "600",
-        fontSize: 10,
     },
     activeTabCountText: {
         color: customColors.primary,

@@ -668,9 +668,9 @@ const OrderPreview = () => {
                         width: 80mm;
                         font-family: "Courier New", monospace;
                         font-size: 12px;
-                        padding: 3mm;
+                        padding: 2mm;
                         color: #000;
-                        line-height: 1.4;
+                        line-height: 1.2;
                     }
 
                     .header {
@@ -678,49 +678,68 @@ const OrderPreview = () => {
                         font-size: 18px;
                         font-weight: 900;
                         border-bottom: 1px solid #000;
-                        padding-bottom: 2mm;
-                        margin-bottom: 3mm;
+                        padding-bottom: 1.5mm;
+                        margin-bottom: 2mm;
                         letter-spacing: 1px;
                     }
 
-                    .top-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-bottom: 2mm;
+                    .date-taken-section {
+                        margin-bottom: 1.5mm;
                         font-size: 12px;
                         font-weight: 700;
+                    }
+
+                    .date-line, .taken-line {
+                        margin-bottom: 1mm;
                     }
 
                     .info-section {
                         border-top: 1px solid #000;
                         border-bottom: 1px solid #000;
-                        padding: 1.5mm 0;
-                        margin-bottom: 3mm;
-                    }
-
-                    .info-row {
-                        display: flex;
-                        align-items: center;
                         padding: 1mm 0;
+                        margin-bottom: 2mm;
                     }
 
-                    .info-label {
-                        font-weight: 900;
-                        min-width: 25mm;
-                        font-size: 12px;
-                        flex-shrink: 0;
-                    }
-
-                    .info-value {
-                        flex: 1;
+                    .party-name {
+                        // text-align: center;
                         font-size: 14px;
                         font-weight: 800;
-                        padding-left: 2mm;
+                        padding: 0.5mm 0;
                         line-height: 1.1;
                     }
 
+                    .info-double-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 0.5mm 0;
+                    }
+
+                    .info-item {
+                        flex: 1;
+                        font-size: 14px;
+                        font-weight: 700;
+                    }
+
+                    .info-item:first-child {
+                        margin-right: 2mm;
+                    }
+
+                    .total-summary {
+                        background: #f0f0f0;
+                        border: 1px solid #000;
+                        padding: 1mm;
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 15px;
+                        font-weight: bold;
+                    }
+
+                    .total-summary div {
+                        text-align: center;
+                        flex: 1;
+                    }
+
                     .table-container {
-                        margin-top: 2mm;
                         border: 0.5px solid #000;
                     }
 
@@ -731,7 +750,7 @@ const OrderPreview = () => {
 
                     thead th {
                         border: 0.5px solid #000;
-                        padding: 0.75mm;
+                        padding: 0.5mm;
                         text-align: center;
                         font-size: 10px;
                         font-weight: 800;
@@ -740,7 +759,7 @@ const OrderPreview = () => {
 
                     tbody td {
                         border: 0.5px solid #000;
-                        padding: 0.75mm;
+                        padding: 0.3mm;
                         text-align: center;
                         font-size: 15px;
                         font-weight: 800;
@@ -751,47 +770,37 @@ const OrderPreview = () => {
 
                     .rate-cell {
                         width: 25mm;
-                        padding: 5mm 1.5mm !important;
+                        padding: 2mm 1mm !important;
                     }
 
                     .rate-value {
                         display: block;
-                        font-size: 15px;
-                        font-weight: 900;
-                        margin-bottom: 4mm;
+                        font-size: 14px;
+                        font-weight: 700;
+                        margin-bottom: 1mm;
                     }
 
                     .item-cell {
                         width: 60mm;
                         text-align: left;
-                        padding-left: 2mm !important;
-                        font-size: 14px;
-                        font-weight: 800;
+                        padding-left: 1.5mm !important;
+                        font-size: 12px;
+                        font-weight: 700;
                     }
 
                     .bags-cell {
-                        width: 15mm;
-                        font-size: 15px;
-                        font-weight: 900;
+                        width: 12mm;
+                        font-size: 14px;
+                        font-weight: 700;
                     }
 
                     .data-row {
-                        min-height: 13mm;
+                        min-height: 8mm;
                     }
 
-                    .total-row {
-                        background: #f0f0f0;
-                        border-top: 2px solid #000 !important;
-                    }
-
-                    .total-row td {
-                        font-size: 14px;
-                        font-weight: 900;
-                        padding: 2mm 0.25mm !important;
-                    }
                     @media print {
                         body {
-                        padding: 2mm;
+                        padding: 1.5mm;
                         }
                     }
                     </style>
@@ -800,55 +809,48 @@ const OrderPreview = () => {
                     <!-- Header -->
                     <div class="header">QUOTATION</div>
 
-                    <!-- Top Info Row -->
-                    <div class="top-row">
-                    <div>
-                        <strong>DATE:</strong> ${item?.Created_on && `${new
+                    <!-- Date and Taken on separate lines -->
+                    <div class="date-taken-section">
+                        <div class="date-line">
+                            <strong>DATE:</strong> ${item?.Created_on && `${new
                     Date(item.Created_on).toLocaleDateString("en-GB")} / ${new
                         Date(item.Created_on).toLocaleTimeString("en-IN", {
                             hour: "2-digit",
                             minute: "2-digit", hour12: true
                         })}`}
-                    </div>
-                    <div>
-                        <strong>TAKEN:</strong> ${item?.Sales_Person_Name ||
+                        </div>
+                        <div class="taken-line">
+                            <strong>TAKEN:</strong> ${item?.Sales_Person_Name ||
                 item?.Created_BY_Name || "—"}
-                    </div>
+                        </div>
                     </div>
 
                     <!-- Info Section -->
                     <div class="info-section">
-                    <div class="info-row">
-                        <div class="info-label">PARTY NAME:</div>
-                        <div class="info-value">
-                        ${currentRetailerInfo?.retailerTamilName ||
+                        <div class="party-name">
+                            ${currentRetailerInfo?.retailerTamilName ||
                 currentRetailerInfo?.Retailer_Name || item.Retailer_Name || "—"}
                         </div>
-                    </div>
 
-                    <div class="info-row">
-                        <div class="info-label">LOCATION:</div>
-                        <div class="info-value">
-                        ${[currentRetailerInfo?.Party_Mailing_Address ||
+                        <div class="info-double-row">
+                            <div class="info-item">
+                                ${[currentRetailerInfo?.Party_Mailing_Address ||
                     currentRetailerInfo?.Reatailer_Address].filter(Boolean).join(', ') ||
                 currentRetailerInfo?.StateGet || "—"}
+                            </div>
+                            <div class="info-item">
+                                ${currentRetailerInfo?.Mobile_No || "—"}
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="info-row">
-                        <div class="info-label">PH.NO:</div>
-                        <div class="info-value">${currentRetailerInfo?.Mobile_No || "—"}</div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">TRANSPORT:</div>
-                        <div class="info-value">${transportNames || "—"}</div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">BROKER:</div>
-                        <div class="info-value">${brokerNames || "—"}</div>
-                    </div>
+                        <div class="info-double-row">
+                            <div class="info-item">
+                                ${transportNames || "—"}
+                            </div>
+                            <div class="info-item">
+                                ${brokerNames || "—"}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Table -->
@@ -865,28 +867,25 @@ const OrderPreview = () => {
                         ${products.length ? products.map((p) => {
                     const packWeight =
                         parseFloat(p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
-                    const totalKg = parseFloat(p.Bill_Qty) || 0;
-                    const bags = packWeight >
+                    const totalKg = parseFloat(p.Bill_Qty) || 0; const bags = packWeight >
                         0 ? (totalKg / packWeight) : 0; return `
-                    <tr class="data-row">
-                        <td class="rate-cell">
+                        <tr class="data-row">
+                            <td class="rate-cell">
                             <span class="rate-value">₹${rupee(p?.Item_Rate ?? 0)}</span>
-                        </td>
-                        <td class="item-cell">${p.Product_Short_Name || p.Product_Name}</td>
-                        <td class="bags-cell">
-                            ${bags > 0 ? bags.toFixed(1) : "0"}
-                        </td>
-                    </tr>`;
-                }).join("") : ""}
-
-                        <!-- Total Row -->
-                        <tr class="total-row">
-                            <td style="font-size: 12px; font-weight: 800">₹${rupee(net)}</td>
-                            <td>${totalWeight.toFixed(2)} KGS</td>
-                            <td>${numberOfBags.toFixed(1)}</td>
+                            </td>
+                            <td class="item-cell">${p.Product_Short_Name || p.Product_Name}</td>
+                            <td class="bags-cell">${bags > 0 ? bags : "0"}</td>
                         </tr>
+                        `;
+                }).join("") : ""}
                         </tbody>
                     </table>
+                    <!-- Total Summary -->
+                    <div class="total-summary">
+                        <div><strong>₹${rupee(net)}</strong></div>
+                        <div style="margin-left: 10px;"><strong>${totalWeight}KGS</strong></div>
+                        <div><strong>${numberOfBags}</strong></div>
+                    </div>
                     </div>
                 </body>
                 </html>

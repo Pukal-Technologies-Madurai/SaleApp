@@ -117,20 +117,28 @@ const HomeScreen = () => {
             backgroundColor: "#FEF2F2",
         },
         {
-            title: "TripSheet",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "truck-delivery",
-            navigate: "TripSheet",
-            color: "#06B6D4",
-            backgroundColor: "#ECFEFF",
-        },
-        {
             title: "Receipts",
             iconLibrary: "Ionicons",
             iconName: "receipt-outline",
             navigate: "ReceiptInfo",
             color: "#84CC16",
             backgroundColor: "#F7FEE7",
+        },
+        {
+            title: "Invoices List",
+            iconLibrary: "MaterialCommunityIcons",
+            iconName: "file-document-outline",
+            navigate: "SaleInvoiceList",
+            color: "#3B82F6",
+            backgroundColor: "#EFF6FF",
+        },
+        {
+            title: "TripSheet",
+            iconLibrary: "MaterialCommunityIcons",
+            iconName: "truck-delivery",
+            navigate: "TripSheet",
+            color: "#06B6D4",
+            backgroundColor: "#ECFEFF",
         },
         {
             title: "Delivery Return",
@@ -147,6 +155,14 @@ const HomeScreen = () => {
             navigate: "PendingInvoice",
             color: "#EC4899",
             backgroundColor: "#FDF2F8",
+        },
+        {
+            title: "Sales Return",
+            iconLibrary: "MaterialCommunityIcons",
+            iconName: "arrow-u-left-top-bold",
+            navigate: "SalesReturnList",
+            color: "#F97316",
+            backgroundColor: "#FFFAF0",
         }
     ];
 
