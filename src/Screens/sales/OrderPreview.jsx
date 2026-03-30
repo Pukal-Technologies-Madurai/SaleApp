@@ -77,6 +77,7 @@ const OrderPreview = () => {
             company: companyId,
             userId: uID,
         }),
+        select: data => data.filter(item => item.Cancel_status !== "0" && item.Cancel_status !== 0),
         enabled: !!selectedFromDate && !!selectedToDate && !!companyId && !!uID,
     });
 

@@ -15,6 +15,8 @@ const StatisticsScreen = ({ route, navigation }) => {
         userCount,
     } = route.params;
 
+    // console.log("Received userCount data:", userCount);
+
     const renderSalesDetails = () => {
         if (!userCount || Object.keys(userCount).length === 0) {
             return (
@@ -22,23 +24,27 @@ const StatisticsScreen = ({ route, navigation }) => {
             );
         }
 
-        return Object.entries(userCount).map(([salesPerson, details]) => (
-            <View key={salesPerson} style={styles.salesPersonContainer}>
-                <Text style={styles.salesPersonName}>{salesPerson}</Text>
-                <View style={styles.salesDetailsRow}>
-                    <Text style={styles.detailLabel}>Number of Sales: </Text>
-                    <Text style={[styles.detailValue, { color: customColors.info }]}>
-                        {details.count}
-                    </Text>
+        return Object.entries(userCount).map(([salesPerson, details]) => {
+            // console.log(`Rendering details for ${salesPerson}:`, details);
+
+            return (
+                <View key={salesPerson} style={styles.salesPersonContainer}>
+                    <Text style={[styles.salesPersonName, {color: details.cancelledCount > 0 ? customColors.error : customColors.primary}]}>{salesPerson}</Text>
+                    <View style={styles.salesDetailsRow}>
+                        <Text style={styles.detailLabel}>Number of Sales: </Text>
+                        <Text style={[styles.detailValue, { color: customColors.info }]}>
+                            {details.count} {details.cancelledCount > 0 && `(${details.cancelledCount} cancelled)`}
+                        </Text>
+                    </View>
+                    <View style={styles.salesDetailsRow}>
+                        <Text style={styles.detailLabel}>Total Sales Value: </Text>
+                        <Text style={[styles.detailValue, { color: customColors.success }]}>
+                            ₹ {details.totalValue.toFixed(2)}
+                        </Text>
+                    </View>
                 </View>
-                <View style={styles.salesDetailsRow}>
-                    <Text style={styles.detailLabel}>Total Sales Value: </Text>
-                    <Text style={[styles.detailValue, { color: customColors.success }]}>
-                        ₹ {details.totalValue.toFixed(2)}
-                    </Text>
-                </View>
-            </View>
-        ));
+            )
+        });
     };
 
     const renderContent = () => {

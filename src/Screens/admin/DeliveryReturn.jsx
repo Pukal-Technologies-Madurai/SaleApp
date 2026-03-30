@@ -1,324 +1,324 @@
 import {
     Alert,
-    RefreshControl,
+    ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
-import React, { useMemo, useState } from "react";
-import { FlashList } from "@shopify/flash-list";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
+import Accordion from "../../Components/Accordion";
 import FilterModal from "../../Components/FilterModal";
+import { fetchCreditNoteList } from "../../Api/delivery";
+import { API } from "../../Config/Endpoint";
 import {
     customColors,
     shadows,
     spacing,
     typography,
 } from "../../Config/helper";
-import { fetchDeliveryReturnList } from "../../Api/delivery";
 
 const DeliveryReturn = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
 
     const navigation = useNavigation();
+
+    // ── Initialize dates directly from passedDate so the first render is correct ──
+    const resolvedInitialDate = passedDate ? new Date(passedDate) : new Date();
+
+    const [creditNoteData, setCreditNoteData] = useState([]);
+    const [selectedFromDate, setSelectedFromDate] = useState(resolvedInitialDate);
+    const [selectedToDate, setSelectedToDate] = useState(resolvedInitialDate);
     const [modalVisible, setModalVisible] = useState(false);
-    const [filterDate, setFilterDate] = useState(null);
-    const [refreshing, setRefreshing] = useState(false);
-    const [showProductSummary, setShowProductSummary] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedBrand, setSelectedBrand] = useState("All");
+    const [brandList, setBrandList] = useState([]);
+    const [productSummary, setProductSummary] = useState([]);
+    const [selectedSalesPerson, setSelectedSalesPerson] = useState("");
+    const [salesPersonList, setSalesPersonList] = useState([]);
 
-    const currentDate =
-        filterDate || passedDate || new Date().toISOString().split("T")[0];
+    // ── Single effect: fires on mount (with the correct initial date)
+    //    and again whenever the user changes dates via the filter modal ────────
+    useEffect(() => {
+        const from = selectedFromDate.toISOString().split("T")[0];
+        const to = selectedToDate.toISOString().split("T")[0];
+        loadCreditNotes(from, to);
+    }, [selectedFromDate, selectedToDate]);
 
-    const handleDateChange = date => {
-        if (date) {
-            const formattedDate = date.toISOString().split("T")[0];
-            setFilterDate(formattedDate);
-        }
-    };
-
-    const {
-        data: deliveryReturnData = [],
-        refetch,
-        isLoading,
-    } = useQuery({
-        queryKey: ["deliveryReturnData", currentDate, selectedBranch || ""],
-        queryFn: () =>
-            fetchDeliveryReturnList(
-                currentDate,
-                currentDate,
-                selectedBranch || "",
-            ),
-        enabled: !!currentDate,
-    });
-
-    const groupedData = useMemo(() => {
-        const groups = {};
-        deliveryReturnData.forEach(item => {
-            const orderId = item.Delivery_Order_Id;
-            if (!groups[orderId]) {
-                groups[orderId] = {
-                    orderId,
-                    returnDate: item.Ret_Date,
-                    godownName: item.Godown_Name,
-                    retailerId: item.Retailer_Id,
-                    retailerName: item.Retailer_Name || "Unknown Retailer",
-                    doInvNo: item.Do_Inv_No,
-                    items: [],
-                    totalAmount: 0,
-                    totalQuantity: 0,
-                };
-            }
-            groups[orderId].items.push(item);
-            groups[orderId].totalAmount += parseFloat(item.Final_Amo || 0);
-            groups[orderId].totalQuantity += parseInt(item.Total_Qty || 0);
-        });
-        return Object.values(groups);
-    }, [deliveryReturnData]);
-
-    // Group products by Product_Name for product-wise summary
-    const productWiseSummary = useMemo(() => {
-        const productGroups = {};
-        deliveryReturnData.forEach(item => {
-            const productName = item.Product_Name;
-            if (!productGroups[productName]) {
-                productGroups[productName] = {
-                    productName,
-                    totalQuantity: 0,
-                    totalAmount: 0,
-                    unitName: item.Unit_Name,
-                    returnCount: 0, // Number of times this product was returned
-                };
-            }
-            productGroups[productName].totalQuantity += parseInt(item.Total_Qty || 0);
-            productGroups[productName].totalAmount += parseFloat(item.Final_Amo || 0);
-            productGroups[productName].returnCount += 1;
-        });
-        return Object.values(productGroups).sort((a, b) => b.totalAmount - a.totalAmount);
-    }, [deliveryReturnData]);
-
-    // Calculate summary statistics
-    const summaryStats = useMemo(() => {
-        return {
-            totalReturns: deliveryReturnData.length,
-            totalOrders: groupedData.length,
-            totalAmount: deliveryReturnData.reduce(
-                (sum, item) => sum + parseFloat(item.Final_Amo || 0),
-                0,
-            ),
-            totalQuantity: deliveryReturnData.reduce(
-                (sum, item) => sum + parseInt(item.Total_Qty || 0),
-                0,
-            ),
-        };
-    }, [deliveryReturnData, groupedData]);
-
-    const handleRefresh = async () => {
-        setRefreshing(true);
+    const loadCreditNotes = async (from, to) => {
         try {
-            await refetch();
-        } catch (error) {
-            Alert.alert("Error", "Failed to refresh data");
-        } finally {
-            setRefreshing(false);
+            const data = await fetchCreditNoteList(from, to);
+            setCreditNoteData(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("loadCreditNotes error:", err);
+            setCreditNoteData([]);
         }
     };
 
-    const handleCloseModal = () => {
-        setModalVisible(false);
+    // ── Build brand list + sales person list + product summary whenever data changes ──────────
+    useEffect(() => {
+        if (creditNoteData.length === 0) {
+            setBrandList([]);
+            setSalesPersonList([]);
+            setProductSummary([]);
+            return;
+        }
+
+        // Sales person list — derived from Created_by and Created_BY_Name
+        const salesPersonMap = new Map();
+        creditNoteData.forEach(note => {
+            if (note.Created_by && note.Created_BY_Name) {
+                salesPersonMap.set(note.Created_by, {
+                    label: note.Created_BY_Name,
+                    value: note.Created_by,
+                });
+            }
+        });
+        setSalesPersonList([
+            { label: "All", value: "" },
+            ...Array.from(salesPersonMap.values()),
+        ]);
+
+        // Brand list — derived from BrandGet field
+        const brands = new Set();
+        creditNoteData.forEach(note => {
+            (note.Products_List || []).forEach(p => {
+                if (p.BrandGet) brands.add(p.BrandGet);
+            });
+        });
+        setBrandList(["All", ...Array.from(brands)]);
+
+        // Product summary (mirrors SalesAdmin's calculateProductSummaryAndTotals)
+        const summary = {};
+        creditNoteData.forEach(note => {
+            (note.Products_List || []).forEach(p => {
+                const key = p.Item_Name || p.Product_Name;
+                if (!summary[key]) {
+                    summary[key] = {
+                        productName: key,
+                        totalQty: 0,
+                        totalAmount: 0,
+                        timesSold: 0,
+                    };
+                }
+                summary[key].totalQty += parseFloat(p.Bill_Qty || p.Total_Qty || 0);
+                summary[key].totalAmount += parseFloat(p.Final_Amo || p.Amount || 0);
+                summary[key].timesSold += 1;
+            });
+        });
+        setProductSummary(Object.values(summary));
+    }, [creditNoteData]);
+
+    const handleFromDateChange = date => {
+        if (date) {
+            const d = date > selectedToDate ? selectedToDate : date;
+            setSelectedFromDate(d);
+        }
     };
 
-    const formatDate = dateString => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+    const handleToDateChange = date => {
+        if (date) {
+            const d = date < selectedFromDate ? selectedFromDate : date;
+            setSelectedToDate(d);
+        }
+    };
+
+    // ── Stats ──────────────────────────────────────────────────────────────
+    const totalNotes = creditNoteData.length;
+    const totalAmount = useMemo(
+        () => creditNoteData.reduce((s, n) => s + parseFloat(n.Total_Invoice_value || 0), 0),
+        [creditNoteData],
+    );
+
+    // ── Sales person filter ───────────────────────────────────────────────
+    const salesPersonFilteredData = useMemo(() => {
+        if (!selectedSalesPerson) return creditNoteData;
+        return creditNoteData.filter(note => note.Created_by === selectedSalesPerson);
+    }, [creditNoteData, selectedSalesPerson]);
+
+    // ── Brand filter + search filter ───────────────────────────────────────
+    const brandFilteredData = useMemo(() => {
+        if (selectedBrand === "All") return salesPersonFilteredData;
+        return salesPersonFilteredData
+            .map(note => {
+                const filtered = (note.Products_List || []).filter(p => {
+                    return p.BrandGet === selectedBrand;
+                });
+                if (filtered.length === 0) return null;
+                const brandTotal = filtered.reduce(
+                    (s, p) => s + parseFloat(p.Final_Amo || p.Amount || 0),
+                    0,
+                );
+                return { ...note, Products_List: filtered, Total_Invoice_value: brandTotal };
+            })
+            .filter(Boolean);
+    }, [salesPersonFilteredData, selectedBrand]);
+
+    const filteredData = useMemo(() => {
+        const q = searchQuery.toLowerCase();
+        if (!q) return brandFilteredData;
+        return brandFilteredData.filter(
+            n =>
+                n.Retailer_Name?.toLowerCase().includes(q) ||
+                n.CR_Inv_No?.toLowerCase().includes(q) ||
+                n.Ref_Inv_Number?.toLowerCase().includes(q),
+        );
+    }, [brandFilteredData, searchQuery]);
+
+    const filteredTotalNotes = filteredData.length;
+    const filteredTotalAmount = useMemo(
+        () => filteredData.reduce((s, n) => s + parseFloat(n.Total_Invoice_value || 0), 0),
+        [filteredData],
+    );
+
+    // ── Navigate to product summary report ────────────────────────────────
+    const handleProductSummaryPress = () => {
+        navigation.navigate("SalesReport", {
+            logData: creditNoteData,
+            productSummary,
+            selectedDate: selectedFromDate,
+            isNotAdmin: false,
         });
     };
 
-    const renderSummaryCard = () => (
-        <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Return Summary</Text>
-            <View style={styles.summaryGrid}>
-                <View style={styles.summaryItem}>
-                    <Text style={styles.summaryValue}>
-                        {summaryStats.totalReturns}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Total Returns</Text>
-                </View>
-                {/* <View style={styles.summaryItem}>
-                    <Text style={styles.summaryValue}>
-                        {summaryStats.totalOrders}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Return Orders</Text>
-                </View> */}
-                <View style={styles.summaryItem}>
-                    <Text
-                        style={[
-                            styles.summaryValue,
-                            { color: customColors.error },
-                        ]}
-                    >
-                        ₹{summaryStats.totalAmount.toFixed(2)}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Total Value</Text>
-                </View>
-                <View style={styles.summaryItem}>
-                    <Text style={styles.summaryValue}>
-                        {summaryStats.totalQuantity}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Total Qty</Text>
-                </View>
+    // ── Delete credit note ────────────────────────────────────────────────
+    const handleDeleteCreditNote = (creditNote) => {
+        Alert.alert(
+            "Delete Credit Note",
+            `Are you sure you want to delete ${creditNote.CR_Inv_No}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const response = await fetch(API.creditNote(), {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ CR_Id: creditNote.CR_Id }),
+                            });
+
+                            const result = await response.json();
+
+                            if (response.ok && result.success) {
+                                Alert.alert("Success", "Credit note deleted successfully!");
+                                // Refresh the list
+                                const from = selectedFromDate.toISOString().split("T")[0];
+                                const to = selectedToDate.toISOString().split("T")[0];
+                                loadCreditNotes(from, to);
+                            } else {
+                                Alert.alert("Error", result.message || "Failed to delete credit note");
+                            }
+                        } catch (error) {
+                            console.error("Delete Credit Note Error:", error);
+                            Alert.alert("Error", "Failed to delete. Please try again.");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    // ── Accordion header ───────────────────────────────────────────────────
+    const renderHeader = item => (
+        <View style={styles.accordionHeader}>
+            <View style={styles.headerLeft}>
+                <Text style={styles.retailerName} numberOfLines={1}>
+                    {item.Retailer_Name}
+                </Text>
+                <Text style={styles.orderDate}>
+                    {item.CR_Date
+                        ? new Date(item.CR_Date).toLocaleDateString("en-GB")
+                        : "N/A"}{" "}
+                    • {item.CR_Inv_No}
+                </Text>
+            </View>
+            <View style={styles.headerRight}>
+                <Text style={styles.orderAmount}>
+                    ₹{parseFloat(item.Total_Invoice_value || 0).toFixed(2)}
+                </Text>
+                <Text style={styles.orderCount}>
+                    {(item.Products_List || []).length} items
+                </Text>
             </View>
         </View>
     );
 
-    const renderProductWiseSummary = () => (
-        <View style={styles.productSummaryCard}>
-            <TouchableOpacity 
-                style={styles.productSummaryHeader} 
-                onPress={() => setShowProductSummary(!showProductSummary)}
-            >
-                <Text style={styles.productSummaryTitle}>Product-wise Summary ({productWiseSummary.length})</Text>
-                <Icon 
-                    name={showProductSummary ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
-                    size={20} 
-                    color={customColors.primary} 
-                />
-            </TouchableOpacity>
-            
-            {showProductSummary && (
-                <View style={styles.productSummaryList}>
-                    {productWiseSummary.slice(0, 10).map((product, index) => (
-                        <View key={index} style={styles.productSummaryItem}>
-                            <View style={styles.productSummaryLeft}>
-                                <Text style={styles.productSummaryName} numberOfLines={2}>
-                                    {product.productName}
-                                </Text>
-                                <Text style={styles.productSummaryDetails}>
-                                    {product.returnCount} returns • {product.totalQuantity} {product.unitName}
-                                </Text>
-                            </View>
-                            <Text style={styles.productSummaryAmount}>
-                                ₹{product.totalAmount.toFixed(2)}
+    // ── Accordion content ──────────────────────────────────────────────────
+    const renderContent = item => (
+        <View style={styles.content}>
+            {/* Meta row */}
+            <View style={styles.orderInfo}>
+                <Text style={styles.orderNumber}>CR #{item.CR_Id}</Text>
+                {item.Created_BY_Name ? (
+                    <Text style={styles.createdBy}>
+                        by {item.Created_BY_Name}
+                    </Text>
+                ) : null}
+            </View>
+
+            {/* Products */}
+            <View style={styles.productsContainer}>
+                {(item.Products_List || []).map((p, idx) => (
+                    <View key={idx} style={styles.productItem}>
+                        <View style={styles.productInfo}>
+                            <Text style={styles.productName} numberOfLines={3}>
+                                {p.Item_Name || p.Product_Name}
+                            </Text>
+                            <Text style={styles.productDetails}>
+                                Qty: {p.Bill_Qty} {p.UOM || p.Unit_Name} • ₹{parseFloat(p.Item_Rate).toFixed(2)} each
                             </Text>
                         </View>
-                    ))}
-                    {productWiseSummary.length > 10 && (
-                        <Text style={styles.productSummaryMore}>
-                            +{productWiseSummary.length - 10} more products
-                        </Text>
-                    )}
-                </View>
-            )}
-        </View>
-    );
-
-    const renderReturnOrderCard = ({ item: orderGroup }) => (
-        <TouchableOpacity style={styles.orderCard} disabled>
-            {/* Compact Header */}
-            <View style={styles.compactHeader}>
-                <View style={styles.headerLeft}>
-                    <Text style={styles.orderNumber}>
-                        #{orderGroup.orderId}
-                    </Text>
-                    <Text style={styles.compactDate}>
-                        {formatDate(orderGroup.returnDate)}
-                    </Text>
-                </View>
-                <View style={styles.headerRight}>
-                    <Icon
-                        name="assignment-return"
-                        size={20}
-                        color={customColors.error}
-                    />
-                    <Text style={styles.returnBadge}>RETURNED</Text>
-                </View>
-            </View>
-
-            {/* Compact Info Row */}
-            <View style={styles.infoRow}>
-                <Text style={styles.infoText} numberOfLines={1}>
-                    <Icon
-                        name="person"
-                        size={14}
-                        color={customColors.primary}
-                    />{" "}
-                    {orderGroup.retailerName}
-                </Text>
-            </View>
-            <View style={styles.infoRow}>
-                <Text style={styles.infoText} numberOfLines={1}>
-                    <Icon name="store" size={14} color={customColors.primary} />{" "}
-                    {orderGroup.godownName}
-                </Text>
-            </View>
-
-            {/* Products Summary */}
-            <View style={styles.productsSummary}>
-                <Text style={styles.summaryText}>
-                    {orderGroup.items.length} Products •{" "}
-                    {orderGroup.totalQuantity} Items • ₹
-                    {orderGroup.totalAmount.toFixed(2)}
-                </Text>
-            </View>
-
-            {/* Compact Items List */}
-            <View style={styles.compactItemsList}>
-                {orderGroup.items.map((item, index) => (
-                    <View key={index} style={styles.compactProductItem}>
-                        <View style={styles.productLeft}>
-                            <Text
-                                style={styles.compactProductName}
-                                numberOfLines={1}
-                            >
-                                {item.Product_Name}
-                            </Text>
-                            <Text style={styles.compactProductDetails}>
-                                {item.Total_Qty} {item.Unit_Name} × ₹
-                                {item.Item_Rate}
-                            </Text>
-                        </View>
-                        <Text style={styles.compactAmount}>
-                            ₹{item.Final_Amo}
+                        <Text style={styles.productAmount}>
+                            ₹{parseFloat(p.Final_Amo || 0).toFixed(2)}
                         </Text>
                     </View>
                 ))}
             </View>
-        </TouchableOpacity>
-    );
 
-    const renderEmptyState = () => (
-        <View style={styles.emptyContainer}>
-            <Icon
-                name="assignment-return"
-                size={80}
-                color={customColors.grey400}
-            />
-            <Text style={styles.emptyTitle}>No Returns Found</Text>
-            <Text style={styles.emptyMessage}>
-                No delivery returns were found for{" "}
-                {filterDate
-                    ? new Date(filterDate).toLocaleDateString()
-                    : passedDate
-                      ? new Date(passedDate).toLocaleDateString()
-                      : new Date().toLocaleDateString()}
-            </Text>
+            {/* Footer total */}
+            <View style={styles.footer}>
+                <View style={styles.totalSection}>
+                    <Text style={styles.totalLabel}>Total Amount</Text>
+                    <Text style={styles.totalValue}>
+                        ₹{parseFloat(item.Total_Invoice_value || 0).toFixed(2)}
+                    </Text>
+                </View>
+                <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => navigation.navigate("SalesReturn", {
+                            item: item,
+                            isEditMode: true,
+                        })}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcon name="edit" size={20} color={customColors.white} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteCreditNote(item)}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcon name="delete" size={20} color={customColors.white} />
+                    </TouchableOpacity>
+                </View>
+            </View>
         </View>
     );
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Delivery Return"
+                title="Credit Notes"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
@@ -328,45 +328,123 @@ const DeliveryReturn = ({ route }) => {
 
             <FilterModal
                 visible={modalVisible}
-                fromDate={
-                    filterDate
-                        ? new Date(filterDate)
-                        : passedDate
-                          ? new Date(passedDate)
-                          : new Date()
-                }
-                onFromDateChange={handleDateChange}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
                 onApply={() => setModalVisible(false)}
-                onClose={handleCloseModal}
-                showToDate={false}
+                onClose={() => setModalVisible(false)}
+                showToDate={true}
                 title="Filter options"
                 fromLabel="From Date"
+                toLabel="To Date"
+                // Sales Person dropdown
+                showSalesPerson={true}
+                salesPersonData={salesPersonList}
+                selectedSalesPerson={selectedSalesPerson}
+                onSalesPersonChange={(item) => setSelectedSalesPerson(item.value)}
+                salesPersonLabel="Created By"
             />
 
             <View style={styles.contentContainer}>
-                <FlashList
-                    data={groupedData}
-                    renderItem={renderReturnOrderCard}
-                    keyExtractor={item => `return-order-${item.orderId}`}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={handleRefresh}
-                            colors={[customColors.primary]}
-                        />
-                    }
-                    ListHeaderComponent={
-                        groupedData.length > 0 ? (
-                            <>
-                                {renderSummaryCard()}
-                                {renderProductWiseSummary()}
-                            </>
-                        ) : null
-                    }
-                    ListEmptyComponent={!isLoading ? renderEmptyState : null}
-                />
+                {/* ── Stats + Brand filter + Search (mirrors SalesAdmin) ── */}
+                <View style={styles.countContainer}>
+                    {/* Brand pills + search icon row */}
+                    <View style={styles.searchHeader}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.brandScroll}>
+                            {brandList.map((brand, idx) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={[
+                                        styles.brandPill,
+                                        selectedBrand === brand && styles.brandPillActive,
+                                    ]}
+                                    onPress={() => setSelectedBrand(brand)}>
+                                    <Text
+                                        style={[
+                                            styles.brandPillText,
+                                            selectedBrand === brand && styles.brandPillTextActive,
+                                        ]}>
+                                        {brand}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity
+                            style={styles.searchIcon}
+                            onPress={() => {
+                                setSearchQuery("");
+                                setShowSearch(!showSearch);
+                            }}>
+                            <MaterialIcon
+                                name={showSearch ? "close" : "search"}
+                                size={24}
+                                color={customColors.grey900}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Stats card */}
+                    <View style={styles.statsContainer}>
+                        {/* Report navigate button */}
+                        <TouchableOpacity
+                            style={styles.reportButton}
+                            onPress={handleProductSummaryPress}
+                            activeOpacity={0.7}>
+                            <FeatherIcon
+                                name="arrow-up-right"
+                                size={14}
+                                color={customColors.grey600}
+                            />
+                        </TouchableOpacity>
+
+                        <View style={styles.statsRow}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>
+                                    {selectedBrand === "All" ? "Total Notes" : `${selectedBrand} Notes`}
+                                </Text>
+                                <Text style={styles.statValue}>{filteredTotalNotes}</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>
+                                    {selectedBrand === "All" ? "Total Amount" : `${selectedBrand} Amount`}
+                                </Text>
+                                <Text style={styles.statValue}>
+                                    {filteredTotalAmount ? `₹${filteredTotalAmount.toFixed(2)}` : "₹0.00"}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Search input */}
+                    {showSearch && (
+                        <View style={styles.searchContainer}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search retailer / invoice..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                        </View>
+                    )}
+                </View>
+
+                {/* ── Accordion list ── */}
+                <ScrollView
+                    style={styles.retailersScrollContainer}
+                    contentContainerStyle={styles.retailersScrollContent}
+                    showsVerticalScrollIndicator={false}>
+                    <Accordion
+                        data={filteredData}
+                        renderHeader={renderHeader}
+                        renderContent={renderContent}
+                    />
+                    <View style={styles.bottomSpacer} />
+                </ScrollView>
             </View>
         </SafeAreaView>
     );
@@ -381,233 +459,257 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
+        width: "100%",
         backgroundColor: customColors.white,
     },
-    listContainer: {
-        padding: spacing.md,
-        paddingBottom: spacing.xl,
-    },
 
-    // Summary Card Styles
-    summaryCard: {
+    // ── Stats area ─────────────────────────────────────────────────────────
+    countContainer: {
+        marginHorizontal: spacing.md,
+        marginVertical: spacing.xxs,
+    },
+    searchHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+    brandScroll: {
+        flex: 1,
+        marginVertical: spacing.sm,
+    },
+    brandPill: {
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.md,
+        marginRight: spacing.sm,
+        borderRadius: 20,
+        backgroundColor: customColors.grey200,
+    },
+    brandPillActive: {
+        backgroundColor: customColors.primary,
+    },
+    brandPillText: {
+        ...typography.caption(),
+        color: customColors.grey900,
+    },
+    brandPillTextActive: {
+        color: customColors.white,
+    },
+    searchIcon: {
+        padding: spacing.xs,
+        borderRadius: 50,
+        backgroundColor: customColors.grey100,
+        marginLeft: spacing.sm,
+        ...shadows.small,
+    },
+    statsContainer: {
         backgroundColor: customColors.white,
         borderRadius: 12,
         padding: spacing.lg,
-        marginBottom: spacing.lg,
-        ...shadows.medium,
-        // borderLeftWidth: 4,
-        // borderLeftColor: customColors.error,
+        marginHorizontal: spacing.xs,
+        position: "relative",
+        ...shadows.small,
     },
-    summaryTitle: {
-        ...typography.h6(),
-        fontWeight: "600",
-        color: customColors.primary,
-        marginBottom: spacing.md,
-        textAlign: "center",
+    reportButton: {
+        position: "absolute",
+        top: spacing.sm,
+        right: spacing.sm,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
     },
-    summaryGrid: {
+    statsRow: {
         flexDirection: "row",
-        justifyContent: "space-between",
+        justifyContent: "space-around",
     },
-    summaryItem: {
+    statItem: {
         alignItems: "center",
         flex: 1,
     },
-    summaryValue: {
-        ...typography.h6(),
-        fontWeight: "700",
-        color: customColors.primary,
-        marginBottom: spacing.xs,
-    },
-    summaryLabel: {
+    statLabel: {
         ...typography.caption(),
         color: customColors.grey600,
+        marginBottom: spacing.xs,
         textAlign: "center",
     },
-
-    // Order Card Styles
-    orderCard: {
-        backgroundColor: customColors.white,
-        borderRadius: 8,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        ...shadows.small,
-        borderLeftWidth: 3,
-        borderLeftColor: customColors.error,
+    statValue: {
+        ...typography.h3(),
+        color: customColors.grey900,
+        fontWeight: "600",
+        textAlign: "center",
     },
-    // Compact Header Styles
-    compactHeader: {
+    searchContainer: {
+        marginTop: spacing.sm,
+        marginBottom: spacing.sm,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: customColors.white,
+        ...shadows.medium,
+    },
+    searchInput: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        color: customColors.grey900,
+    },
+
+    // ── Accordion header ───────────────────────────────────────────────────
+    accordionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: spacing.sm,
-        paddingBottom: spacing.xs,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+        backgroundColor: customColors.primary,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: 8,
+        marginBottom: 2,
     },
     headerLeft: {
         flex: 1,
+        marginRight: spacing.sm,
     },
-    orderNumber: {
-        ...typography.subtitle1(),
-        fontWeight: "700",
-        color: customColors.primary,
+    retailerName: {
+        ...typography.subtitle2(),
+        color: customColors.white,
+        fontWeight: "600",
         marginBottom: 2,
     },
-    compactDate: {
+    orderDate: {
         ...typography.caption(),
-        color: customColors.grey600,
+        color: customColors.white,
+        opacity: 0.9,
     },
     headerRight: {
-        flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-end",
     },
-    returnBadge: {
+    orderAmount: {
+        ...typography.subtitle1(),
+        color: customColors.white,
+        fontWeight: "700",
+    },
+    orderCount: {
         ...typography.caption(),
-        fontWeight: "600",
-        color: customColors.error,
-        marginLeft: spacing.xs,
+        color: customColors.white,
+        opacity: 0.8,
+        marginTop: 1,
     },
 
-    // Compact Info Styles
-    infoRow: {
-        marginBottom: spacing.xs,
+    // ── Accordion content ──────────────────────────────────────────────────
+    content: {
+        margin: spacing.xs,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        borderRadius: 8,
+        backgroundColor: customColors.white,
     },
-    infoText: {
-        ...typography.caption(),
-        color: customColors.grey700,
-        fontSize: 12,
-    },
-
-    // Products Summary
-    productsSummary: {
-        backgroundColor: customColors.error + "10",
-        padding: spacing.xs,
-        borderRadius: 4,
-        marginVertical: spacing.xs,
-    },
-    summaryText: {
-        ...typography.caption(),
-        color: customColors.error,
-        fontWeight: "600",
-        textAlign: "center",
-        fontSize: 11,
-    },
-
-    // Compact Items List Styles
-    compactItemsList: {
-        marginTop: spacing.xs,
-    },
-    compactProductItem: {
+    orderInfo: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        backgroundColor: customColors.grey50,
         paddingVertical: spacing.xs,
-        borderBottomWidth: 0.5,
-        borderBottomColor: customColors.grey200,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey100,
+        flexWrap: "wrap",
+        gap: 4,
     },
-    productLeft: {
+    orderNumber: {
+        ...typography.body2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    createdBy: {
+        ...typography.caption(),
+        color: customColors.grey700,
+    },
+    productsContainer: {
+        paddingVertical: spacing.xs,
+    },
+    productItem: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 6,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey50,
+    },
+    productInfo: {
         flex: 1,
         marginRight: spacing.sm,
     },
-    compactProductName: {
-        ...typography.caption(),
-        fontWeight: "600",
-        color: customColors.grey800,
+    productName: {
+        width: "88%",
+        ...typography.body2(),
+        color: customColors.grey900,
+        fontWeight: "500",
         marginBottom: 2,
-        fontSize: 11,
     },
-    compactProductDetails: {
+    productDetails: {
         ...typography.caption(),
         color: customColors.grey600,
-        fontSize: 10,
     },
-    compactAmount: {
-        ...typography.caption(),
-        fontWeight: "600",
+    productAmount: {
+        ...typography.body2(),
         color: customColors.error,
-        fontSize: 11,
+        fontWeight: "600",
     },
-
-    // Empty State Styles
-    emptyContainer: {
+    footer: {
+        backgroundColor: customColors.grey25,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    totalSection: {
         flex: 1,
+    },
+    totalLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    totalValue: {
+        ...typography.subtitle1(),
+        color: customColors.error,
+        fontWeight: "700",
+    },
+    actionButtons: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    editButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: customColors.primary,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: spacing.xl * 2,
+        ...shadows.small,
     },
-    emptyTitle: {
-        ...typography.h6(),
-        fontWeight: "600",
-        color: customColors.grey700,
-        marginTop: spacing.lg,
-        marginBottom: spacing.sm,
-    },
-    emptyMessage: {
-        ...typography.body2(),
-        color: customColors.grey600,
-        textAlign: "center",
-        paddingHorizontal: spacing.xl,
-        lineHeight: 22,
+    deleteButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: customColors.error,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.small,
     },
 
-    // Product Summary Styles
-    productSummaryCard: {
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        marginBottom: spacing.lg,
-        ...shadows.medium,
-        borderLeftWidth: 4,
-        borderLeftColor: customColors.primary,
+    // ── Scroll ─────────────────────────────────────────────────────────────
+    retailersScrollContainer: {
+        flex: 1,
     },
-    productSummaryHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: spacing.lg,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    productSummaryTitle: {
-        ...typography.subtitle1(),
-        fontWeight: "600",
-        color: customColors.primary,
-    },
-    productSummaryList: {
+    retailersScrollContent: {
         padding: spacing.md,
     },
-    productSummaryItem: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 0.5,
-        borderBottomColor: customColors.grey200,
-    },
-    productSummaryLeft: {
-        flex: 1,
-        marginRight: spacing.sm,
-    },
-    productSummaryName: {
-        ...typography.body2(),
-        fontWeight: "600",
-        color: customColors.grey800,
-        marginBottom: spacing.xs,
-    },
-    productSummaryDetails: {
-        ...typography.caption(),
-        color: customColors.grey600,
-    },
-    productSummaryAmount: {
-        ...typography.subtitle1(),
-        fontWeight: "600",
-        color: customColors.error,
-    },
-    productSummaryMore: {
-        ...typography.caption(),
-        color: customColors.primary,
-        textAlign: "center",
-        fontStyle: "italic",
-        marginTop: spacing.sm,
+    bottomSpacer: {
+        height: spacing.xxl * 2,
     },
 });

@@ -53,3 +53,19 @@ export const fetchDeliveryReturnList = async (fromDate, toDate, branchId) => {
         console.error(err);
     }
 };
+
+export const fetchCreditNoteList = async (fromDate, toDate) => {
+    try {
+        const url = `${API.getCreditNoteList()}${fromDate}&Todate=${toDate}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data.success && data.message !== "Record not found") {
+            throw new Error(data.message);
+        }
+        return data.data || [];
+    } catch (err) {
+        console.error("fetchCreditNoteList error:", err);
+        return [];
+    }
+};

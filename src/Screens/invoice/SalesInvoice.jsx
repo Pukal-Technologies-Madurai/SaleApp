@@ -1,27 +1,27 @@
 import {
+    ActivityIndicator,
+    Alert,
+    Animated,
+    ScrollView,
     StyleSheet,
+    Modal,
     Text,
+    TextInput,
+    ToastAndroid,
     TouchableOpacity,
     View,
-    ScrollView,
-    TextInput,
-    Modal,
-    Alert,
-    ActivityIndicator,
-    ToastAndroid,
-    Animated,
 } from "react-native";
 import React, {
-    useState,
+    useCallback,
     useEffect,
     useMemo,
-    useCallback,
     useRef,
+    useState,
 } from "react";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
@@ -30,7 +30,11 @@ import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import LocationIndicator from "../../Components/LocationIndicator";
 import { API } from "../../Config/Endpoint";
 import { createSaleInvoice } from "../../Api/sales";
-
+import {
+    fetchCreditLiveSale,
+    fetchDefaultAccountMaster,
+    createReceipt,
+} from "../../Api/receipt";
 import {
     fetchGoDownwiseStockValue,
     fetchProductsWithStockValue,
@@ -61,7 +65,7 @@ const SalesInvoice = ({ route }) => {
         Created_by: "",
         So_Id: "",
         TaxType: 0,
-        VoucherType: 13,
+        VoucherType: 0, // 13,
         Product_Array: [],
     });
 
@@ -86,6 +90,8 @@ const SalesInvoice = ({ route }) => {
     // Delivery_Status: 5=Pending, 0=Cancelled, 7=Delivered
     const [deliveryStatus, setDeliveryStatus] = useState(7);
     const [paymentDueDays, setPaymentDueDays] = useState(0);
+    // Partial amount received (Cash / G-Pay only) — editable by salesperson
+    const [partialAmount, setPartialAmount] = useState("");
     const [location, setLocation] = useState({
         latitude: null,
         longitude: null,
@@ -193,6 +199,47 @@ const SalesInvoice = ({ route }) => {
     const { data: uomData = [] } = useQuery({
         queryKey: ["uomData"],
         queryFn: () => fetchUOM(),
+    });
+
+    // ── Credit ledger: match retailer Ac_Id or fallback to name lookup ─────────────────────────
+    const { data: creditLedgerData = [] } = useQuery({
+        queryKey: ["creditLedgerData"],
+        queryFn: fetchCreditLiveSale,
+        staleTime: 5 * 60 * 1000,
+        cacheTime: 10 * 60 * 1000,
+        retry: 2,
+        // Only fetch if item.Ac_Id is not valid (0 or "0")
+        enabled: !item.Ac_Id || item.Ac_Id === "0" || item.Ac_Id === 0,
+    });
+
+    const creditLedgerInfo = useMemo(() => {
+        // First priority: Use item.Ac_Id if it's a valid non-zero value
+        const acId = Number(item.Ac_Id);
+        if (acId && acId > 0) {
+            return { id: acId, name: item.Retailer_Name, isValid: true };
+        }
+
+        // Fallback: Check creditLedgerData by retailer name
+        if (!creditLedgerData.length) return { id: 0, name: "", isValid: false };
+        
+        const matched = creditLedgerData.find(
+            ledger => ledger.Account_name === item.Retailer_Name,
+        );
+        if (matched) {
+            const matchedAccId = Number(matched.Acc_Id);
+            // Only valid if Acc_Id is non-zero
+            if (matchedAccId && matchedAccId > 0) {
+                return { id: matchedAccId, name: matched.Account_name, isValid: true };
+            }
+        }
+        return { id: 0, name: "", isValid: false };
+    }, [creditLedgerData, item.Retailer_Name, item.Ac_Id]);
+
+    // ── Debit ledger options (payment accounts) ───────────────────────────────
+    const { data: paymentOption = [] } = useQuery({
+        queryKey: ["paymentOption"],
+        queryFn: fetchDefaultAccountMaster,
+        staleTime: 5 * 60 * 1000,
     });
 
     const handleBrandChange = item => {
@@ -628,24 +675,61 @@ const SalesInvoice = ({ route }) => {
         [calculateOrderTotal],
     );
 
-    // Create sale invoice POST -> API.saleInvoice()
-    const mutation = useMutation({
-        mutationFn: createSaleInvoice,
-        onSuccess: data => {
-            Alert.alert("Success", data.message || "Invoice created!", [
-                {
-                    text: "Okay",
-                    onPress: () => {
-                        setIsSummaryModalVisible(false);
-                        navigation.goBack();
-                    },
-                },
-            ]);
-        },
-        onError: error => {
-            Alert.alert("Error", error.message || "Failed to create invoice");
-        },
-    });
+    // Calculate round off and final rounded total
+    const { roundOff, roundedTotal } = useMemo(() => {
+        const rawTotal = orderTotal;
+        const rounded = Math.round(rawTotal);
+        const diff = parseFloat((rounded - rawTotal).toFixed(2));
+        return { roundOff: diff, roundedTotal: rounded };
+    }, [orderTotal]);
+
+    // ── Debit account auto-selection ─────────────────────────────────────────
+    // Matches exact names used in CreateReceipts.jsx:
+    //   Cash  → "Cash Note Off"
+    //   G-Pay → "Canara Bank (795956)"
+    const autoSelectDebitAccount = () => {
+        if (paymentMode === 1) {
+            return (
+                paymentOption.find(a => a.Account_Name === "Cash Note Off") ||
+                paymentOption.find(a =>
+                    a.Account_Name?.toLowerCase().includes("cash"),
+                )
+            );
+        } else if (paymentMode === 2) {
+            return (
+                paymentOption.find(
+                    a => a.Account_Name === "Canara Bank (795956)",
+                ) ||
+                paymentOption.find(a => {
+                    const n = a.Account_Name?.toLowerCase() || "";
+                    return (
+                        n.includes("canara") ||
+                        n.includes("bank") ||
+                        n.includes("upi") ||
+                        n.includes("gpay")
+                    );
+                })
+            );
+        }
+        return null;
+    };
+
+    // Mirrors exact logic from CreateReceipts.jsx
+    const getTransactionType = debitAcc => {
+        if (debitAcc?.Account_Name === "Cash Note Off") return "Cash";
+        if (debitAcc?.Account_Name === "Canara Bank (795956)") return "UPI";
+        const n = debitAcc?.Account_Name?.toLowerCase() || "";
+        if (n.includes("cash")) return "Cash";
+        if (n.includes("bank") || n.includes("upi") || n.includes("gpay") || n.includes("canara"))
+            return "UPI";
+        return "";
+    };
+
+    // ── Handle order submission ───────────────────────────────────────────────
+    // Auto-creates a receipt SILENTLY after the invoice when:
+    //   • paymentStatus === 3  (Completed)
+    //   • paymentMode  === 1 (Cash) OR 2 (G-Pay)
+    //   • retailer has a matching Acc_Id in the credit ledger
 
     const handleSubmitforVisitLog = async () => {
         let finalLatitude = location.latitude;
@@ -691,7 +775,6 @@ const SalesInvoice = ({ route }) => {
         }
     };
 
-    // Handle order submission
     const handleSubmitOrder = async () => {
         if (initialValue.Product_Array.length === 0) {
             Alert.alert(
@@ -729,7 +812,7 @@ const SalesInvoice = ({ route }) => {
             Created_by: initialValue.Created_by,
             GST_Inclusive: initialValue.TaxType === 0 ? 1 : initialValue.TaxType,
             IS_IGST: 0,
-            Round_off: 0,
+            Round_off: roundOff,
             Cancel_status: cancelStatus,
             Voucher_Type: initialValue.VoucherType || 0,
             Product_Array: initialValue.Product_Array.map(product => ({
@@ -748,11 +831,87 @@ const SalesInvoice = ({ route }) => {
             paymentDueDays: paymentDueDays,
         };
 
-        // console.log("Submitting invoice with body:", invoiceBody);
+        // console.log("Submitting Invoice", { invoiceBody });
 
-        mutation.mutate(invoiceBody, {
-            onSettled: () => setIsSubmitting(false),
-        });
+        try {
+            const result = await createSaleInvoice(invoiceBody);
+
+            // ── Auto-create receipt when payment is Cash/G-Pay + Completed ───
+            const isInstantPayment =
+                paymentStatus === 3 && (paymentMode === 1 || paymentMode === 2);
+
+            if (isInstantPayment && creditLedgerInfo.isValid) {
+                const debitAcc = autoSelectDebitAccount();
+                if (debitAcc) {
+                    try {
+                        const userId = await AsyncStorage.getItem("UserId");
+                        // Use partial amount if entered, fallback to full order total
+                        const receiptAmount =
+                            partialAmount !== "" && !isNaN(parseFloat(partialAmount))
+                                ? parseFloat(partialAmount)
+                                : roundedTotal;
+
+                        // console.log("Creating Receipt", {
+                        //     receipt_voucher_type_id: 10,
+                        //     receipt_bill_type: 1,
+                        //     remarks: `Payment received for ${item.Retailer_Name} | Invoice total: ₹${roundedTotal.toFixed(2)} | Received: ₹${receiptAmount.toFixed(2)}`,
+                        //     status: 1,
+                        //     credit_ledger: Number(creditLedgerInfo.id),
+                        //     credit_ledger_name: creditLedgerInfo.name,
+                        //     debit_ledger: Number(debitAcc.Acc_Id),
+                        //     debit_ledger_name: debitAcc.Account_Name,
+                        //     credit_amount: receiptAmount,
+                        //     created_by: Number(userId),
+                        //     transaction_type: getTransactionType(debitAcc),
+                        //     receipt_date: new Date().toISOString(),
+                        //     is_new_ref: 0,
+                        //     is_journal_type: 0,
+                        //     BillsDetails: [],
+                        // })
+                        
+                        await createReceipt({
+                            receipt_voucher_type_id: 10,
+                            receipt_bill_type: 1,
+                            remarks: `Payment received for ${item.Retailer_Name} | Invoice total: ₹${roundedTotal.toFixed(2)} | Received: ₹${receiptAmount.toFixed(2)}`,
+                            status: 1,
+                            credit_ledger: Number(creditLedgerInfo.id),
+                            credit_ledger_name: creditLedgerInfo.name,
+                            debit_ledger: Number(debitAcc.Acc_Id),
+                            debit_ledger_name: debitAcc.Account_Name,
+                            credit_amount: receiptAmount,
+                            created_by: Number(userId),
+                            transaction_type: getTransactionType(debitAcc),
+                            receipt_date: new Date().toISOString(),
+                            is_new_ref: 0,
+                            is_journal_type: 0,
+                            BillsDetails: [],
+                        });
+                        ToastAndroid.show("Receipt created ✓", ToastAndroid.SHORT);
+                    } catch (receiptErr) {
+                        // Invoice already saved — receipt failure is non-blocking
+                        console.warn("Auto-receipt failed:", receiptErr.message);
+                        ToastAndroid.show(
+                            "Invoice saved. Receipt creation failed.",
+                            ToastAndroid.LONG,
+                        );
+                    }
+                }
+            }
+
+            Alert.alert("Success", result?.message || "Invoice created!", [
+                {
+                    text: "Okay",
+                    onPress: () => {
+                        setIsSummaryModalVisible(false);
+                        navigation.goBack();
+                    },
+                },
+            ]);
+        } catch (err) {
+            Alert.alert("Error", err.message || "Failed to create invoice");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -1218,12 +1377,30 @@ const SalesInvoice = ({ route }) => {
                         <View style={styles.summaryFooter}>
                             <View style={styles.totalRow}>
                                 <Text style={styles.totalLabel}>
-                                    Total Amount:
+                                    Total:
                                 </Text>
                                 <Text style={styles.totalAmount}>
-                                    ₹{orderTotal.toFixed(2)}
+                                    ₹{roundedTotal.toFixed(2)}
                                 </Text>
                             </View>
+                            {/* {roundOff !== 0 && (
+                                <View style={styles.totalRow}>
+                                    <Text style={styles.totalLabel}>
+                                        Round Off:
+                                    </Text>
+                                    <Text style={[styles.totalAmount, { color: roundOff > 0 ? customColors.success : customColors.error }]}>
+                                        {roundOff > 0 ? '+' : ''}₹{roundOff.toFixed(2)}
+                                    </Text>
+                                </View>
+                            )}
+                            <View style={[styles.totalRow, { borderTopWidth: 1, borderTopColor: customColors.grey200, paddingTop: 8, marginTop: 4 }]}>
+                                <Text style={[styles.totalLabel, { fontWeight: '700' }]}>
+                                    Total Amount:
+                                </Text>
+                                <Text style={[styles.totalAmount, { fontWeight: '700' }]}>
+                                    ₹{roundedTotal.toFixed(2)}
+                                </Text>
+                            </View> */}
 
                             {/* Payment Mode */}
                             <View style={styles.paymentMethodContainer}>
@@ -1364,6 +1541,48 @@ const SalesInvoice = ({ route }) => {
                                     ))}
                                 </View>
                             </View>
+
+                            {/* Amount Received — only visible for Cash / G-Pay */}
+                            {(paymentMode === 1 || paymentMode === 2) && (
+                                <View style={styles.partialAmtContainer}>
+                                    <Text style={styles.partialAmtLabel}>
+                                        Amount Received (₹)
+                                    </Text>
+                                    <View style={styles.partialAmtInputRow}>
+                                        <Text style={styles.partialAmtSymbol}>₹</Text>
+                                        <TextInput
+                                            style={styles.partialAmtInput}
+                                            value={partialAmount}
+                                            onChangeText={val => {
+                                                if (/^\d*\.?\d{0,2}$/.test(val) || val === "") {
+                                                    setPartialAmount(val);
+                                                }
+                                            }}
+                                            onFocus={() => {
+                                                if (!partialAmount) {
+                                                    setPartialAmount(roundedTotal.toFixed(2));
+                                                }
+                                            }}
+                                            keyboardType="decimal-pad"
+                                            placeholder={roundedTotal.toFixed(2)}
+                                            placeholderTextColor={customColors.grey400}
+                                            selectTextOnFocus
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => setPartialAmount(roundedTotal.toFixed(2))}
+                                            style={styles.partialAmtFullBtn}
+                                        >
+                                            <Text style={styles.partialAmtFullBtnText}>Full</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    {partialAmount !== "" &&
+                                        parseFloat(partialAmount) < roundedTotal && (
+                                            <Text style={styles.partialAmtHint}>
+                                                Partial: ₹{parseFloat(partialAmount).toFixed(2)} of ₹{roundedTotal.toFixed(2)}
+                                            </Text>
+                                        )}
+                                </View>
+                            )}
 
                             <TouchableOpacity
                                 style={[
@@ -1669,7 +1888,7 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     modalContent: {
-        maxHeight: "90%",
+        maxHeight: "95%",
         backgroundColor: customColors.white,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
@@ -1842,6 +2061,62 @@ const styles = StyleSheet.create({
         height: 16,
         borderRadius: 8,
         backgroundColor: customColors.white,
+    },
+    // Partial amount input (Cash / G-Pay)
+    partialAmtContainer: {
+        marginBottom: spacing.md,
+        backgroundColor: customColors.primary + "08",
+        borderRadius: 12,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: customColors.primary + "30",
+    },
+    partialAmtLabel: {
+        ...typography.caption(),
+        color: customColors.primary,
+        fontWeight: "700",
+        marginBottom: spacing.sm,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
+    partialAmtInputRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        paddingHorizontal: spacing.sm,
+        gap: spacing.xs,
+    },
+    partialAmtSymbol: {
+        ...typography.h6(),
+        color: customColors.grey600,
+        fontWeight: "700",
+    },
+    partialAmtInput: {
+        flex: 1,
+        ...typography.h6(),
+        color: customColors.grey900,
+        fontWeight: "700",
+        paddingVertical: spacing.sm,
+    },
+    partialAmtFullBtn: {
+        backgroundColor: customColors.primary,
+        borderRadius: 8,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+    },
+    partialAmtFullBtnText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "700",
+    },
+    partialAmtHint: {
+        ...typography.caption(),
+        color: customColors.warning || "#f59e0b",
+        fontWeight: "600",
+        marginTop: spacing.xs,
     },
     // Updated payment method styles
     paymentMethodContainer: {

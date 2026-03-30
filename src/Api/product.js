@@ -38,6 +38,7 @@ export const fetchCostCenter = async () => {
 export const fetchProductsWithStockValue = async () => {
     try {
         const url = API.stockValueWithProduct();
+        // console.log("fetchProductsWithStockValue", url);
         const response = await fetch(url, {
             method: "GET",
             headers: {

@@ -24,6 +24,8 @@ const DrawerScreen = ({ navigation }) => {
             await AsyncStorage.multiRemove([
                 "Autheticate_Id",
                 "userToken",
+                "Company_Id",
+                "companyName",
                 "UserId",
                 "userName",
                 "Name",
@@ -31,6 +33,7 @@ const DrawerScreen = ({ navigation }) => {
                 "branchId",
                 "branchName",
                 "userTypeId",
+                "activeGodown",
             ]);
             ToastAndroid.show("Log out Successfully", ToastAndroid.LONG);
 

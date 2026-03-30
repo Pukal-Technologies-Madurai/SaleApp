@@ -33,6 +33,7 @@ const ReceiptInfo = () => {
     const [activeFilter, setActiveFilter] = useState("all"); // 'all', 'cash', 'bank'
     const [searchTerm, setSearchTerm] = useState("");
     const [showSearch, setShowSearch] = useState(false);
+    const [showUnreferenced, setShowUnreferenced] = useState(false); // Filter for TotalReferencedAmount = 0
 
     useEffect(() => {
         (async () => {
@@ -205,9 +206,16 @@ const ReceiptInfo = () => {
     );
 
     const getFilteredReceipts = () => {
-        const activeReceipts = receiptData.filter(receipt => receipt.status !== 0);
+        let activeReceipts = receiptData.filter(receipt => receipt.status !== 0);
 
-        // Apply payment method filter first
+        // Apply referenced filter if enabled (show receipts with TotalReferencedAmount > 0)
+        if (showUnreferenced) {
+            activeReceipts = activeReceipts.filter(
+                receipt => Number(receipt.TotalReferencedAmount) > 0
+            );
+        }
+
+        // Apply payment method filter
         let filteredReceipts;
         switch (activeFilter) {
             case "cash":
@@ -233,22 +241,30 @@ const ReceiptInfo = () => {
     };
 
     const renderSummaryStats = () => {
-        const totalAmount = receiptData.filter(receipt => receipt.status !== 0).reduce(
+        // Base receipts filtered by status and optionally by referenced
+        let baseReceipts = receiptData.filter(receipt => receipt.status !== 0);
+        if (showUnreferenced) {
+            baseReceipts = baseReceipts.filter(
+                receipt => Number(receipt.TotalReferencedAmount) > 0
+            );
+        }
+
+        const totalAmount = baseReceipts.reduce(
             (sum, receipt) => sum + receipt.credit_amount,
             0,
         );
-        const cashTotal = receiptData.filter(receipt => receipt.status !== 0).reduce(
+        const cashTotal = baseReceipts.reduce(
             (sum, receipt) => sum + (receipt.debit_ledger_name === "Cash Note Off" ? receipt.credit_amount : 0),
             0,
-        )
-        const bankTotal = receiptData.filter(receipt => receipt.status !== 0).reduce(
+        );
+        const bankTotal = baseReceipts.reduce(
             (sum, receipt) => sum + (receipt.debit_ledger_name === "Canara Bank (795956)" ? receipt.credit_amount : 0),
             0,
-        )
-        const liveReceiptsCount = receiptData.filter(
+        );
+        const liveReceiptsCount = baseReceipts.filter(
             receipt => receipt.Voucher_Type === "LIVE_RECEIPT",
         ).length;
-        const totalReceipts = receiptData.length;
+        const totalReceipts = baseReceipts.length;
 
         return (
             <View style={styles.summaryContainer}>
@@ -455,11 +471,24 @@ const ReceiptInfo = () => {
                                 {renderSearchInput()}
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionTitle}>
+                                        {/* {showUnreferenced ? "Referenced " : ""} */}
                                         {searchTerm.trim() ? "Search Results" :
                                             activeFilter === "all" ? "All" :
                                                 activeFilter === "cash" ? "Cash" : "Bank"} Receipts ({getFilteredReceipts().length})
                                     </Text>
                                     <View style={styles.headerActions}>
+                                        <TouchableOpacity
+                                            onPress={() => setShowUnreferenced(!showUnreferenced)}
+                                            style={[
+                                                styles.actionButton,
+                                                showUnreferenced && styles.activeActionButton
+                                            ]}>
+                                            <MaterialIcons
+                                                name="pending-actions"
+                                                size={22}
+                                                color={showUnreferenced ? customColors.white : customColors.primary}
+                                            />
+                                        </TouchableOpacity>
                                         <TouchableOpacity
                                             onPress={() => {
                                                 setShowSearch(!showSearch);
@@ -606,6 +635,11 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     actionButton: {
+        padding: spacing.xs,
+    },
+    activeActionButton: {
+        backgroundColor: customColors.primary,
+        borderRadius: 6,
         padding: spacing.xs,
     },
     searchContainer: {

@@ -151,6 +151,10 @@ export const API = {
     retailerwiseClosingStock: () =>
         `${baseURL}api/masters/retailers/soldProducts?Retailer_Id=`,
 
+    creditNote: () => `${baseURL}api/creditNote/`,
+    updateCreditNote: () => `${baseURL}api/creditNote/`,
+    getCreditNoteList: () => `${baseURL}api/creditNote?Fromdate=`,
+
     // Not Used API
     company: () => `${baseURL}api/masters/company?Company_id=`,
     distributors: () => `${baseURL}api/masters/distributors`,

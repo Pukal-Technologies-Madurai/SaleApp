@@ -63,18 +63,21 @@ const LiveStock = () => {
     });
 
     const groupedData = useMemo(() => {
-        if (!products.length) return [];
+        if (!products.length || !goDownStockValueData.length) return [];
 
+        // Create a Set of Product_Ids that exist in goDownStockValueData
+        const stockProductIds = new Set(goDownStockValueData.map(stock => stock.Product_Id));
+        
         const stockMap = goDownStockValueData.reduce((acc, stock) => {
             acc[stock.Product_Id] = stock.Bal_Qty;
             return acc;
         }, {});
 
         const groups = products.reduce((acc, item) => {
-            const actualQty = stockMap[item.Product_Id] !== undefined ? stockMap[item.Product_Id] : 0;
+            // Only include products that exist in goDownStockValueData
+            if (!stockProductIds.has(item.Product_Id)) return acc;
             
-            // Only include products with stock > 0
-            if (actualQty <= 0) return acc;
+            const actualQty = stockMap[item.Product_Id] !== undefined ? stockMap[item.Product_Id] : 0;
 
             const brandName = item.Brand_Name || "Others";
             if (!acc[brandName]) {
@@ -161,6 +164,12 @@ const LiveStock = () => {
                         <Text style={styles.loaderText}>Loading Stock Data...</Text>
                     </View>
                 ) : groupedData.length > 0 ? (
+                    <>
+                    <View style={styles.totalCountContainer}>
+                        <Text style={styles.totalCountText}>
+                            Total Products: {goDownStockValueData.length}
+                        </Text>
+                    </View>
                     <FlatList
                         data={[1]}
                         keyExtractor={item => item.toString()}
@@ -177,6 +186,7 @@ const LiveStock = () => {
                         )}
                         contentContainerStyle={{ paddingBottom: spacing.lg }}
                     />
+                    </>
                 ) : (
                     <View style={styles.emptyContainer}>
                         <MaterialIcons name="inventory-2" size={64} color={customColors.grey300} />
@@ -208,6 +218,20 @@ const styles = StyleSheet.create({
         marginTop: spacing.sm,
         ...typography.body2(),
         color: customColors.grey600,
+    },
+    totalCountContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.sm,
+        borderRadius: 8,
+    },
+    totalCountText: {
+        ...typography.body1(),
+        textAlign: "center",
+        fontFamily: customFonts.poppinsMedium,
+        color: customColors.grey800,
+        marginLeft: spacing.sm,
     },
     accordionContainer: {
         margin: spacing.sm,
