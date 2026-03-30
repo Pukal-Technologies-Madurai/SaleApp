@@ -106,8 +106,9 @@ const SalesAdmin = ({ route }) => {
 
             if (data.success === true && Array.isArray(data.data)) {
                 // console.log("Data received:", data.data.length, "items");
-                setLogData(data.data);
-                calculateProductSummaryAndTotals(data.data);
+                const filteredData = data.data.filter(item => item.Cancel_status !== "0" && item.Cancel_status !== 0);
+                setLogData(filteredData);
+                calculateProductSummaryAndTotals(filteredData);
             } else {
                 // console.log("No data received or invalid response format");
                 setLogData([]);

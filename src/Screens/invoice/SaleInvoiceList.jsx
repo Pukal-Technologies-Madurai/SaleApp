@@ -1,4 +1,5 @@
 import {
+    ActivityIndicator,
     StyleSheet,
     Text,
     View,
@@ -10,24 +11,24 @@ import {
 } from "react-native";
 import React, { useEffect, useState, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AppHeader from "../../Components/AppHeader";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import RNHTMLtoPDF from "react-native-html-to-pdf";
+import Share from "react-native-share";
+import Accordion from "../../Components/Accordion";
+import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
+import { API } from "../../Config/Endpoint";
+import { fetchSaleInvoices } from "../../Api/sales";
 import {
     customColors,
     shadows,
     spacing,
     typography,
 } from "../../Config/helper";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQuery } from "@tanstack/react-query";
-import { fetchSaleInvoices } from "../../Api/sales";
-import Accordion from "../../Components/Accordion";
-import FeatherIcon from "react-native-vector-icons/Feather";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import RNHTMLtoPDF from "react-native-html-to-pdf";
-import Share from "react-native-share";
-import { API } from "../../Config/Endpoint";
 
 const SaleInvoiceList = () => {
     const navigation = useNavigation();
@@ -36,8 +37,12 @@ const SaleInvoiceList = () => {
 
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
+    // Modal dates - only applied when user taps Apply
+    const [modalFromDate, setModalFromDate] = useState(new Date());
+    const [modalToDate, setModalToDate] = useState(new Date());
     const [uID, setUID] = useState(null);
     const [branchId, setBranchId] = useState(null);
+    const [companyId, setCompanyId] = useState(null);
 
     const [modalVisible, setModalVisible] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
@@ -53,11 +58,15 @@ const SaleInvoiceList = () => {
         value: "all",
     });
 
+    // Payment filter state: 'all' | 'paid' | 'unpaid'
+    const [paymentFilter, setPaymentFilter] = useState('all');
+
     useEffect(() => {
         (async () => {
             try {
                 const userId = await AsyncStorage.getItem("UserId");
                 const branchId = await AsyncStorage.getItem("branchId");
+                const companyId = await AsyncStorage.getItem("Company_Id");
 
                 let parsedBranchId = branchId;
 
@@ -70,12 +79,15 @@ const SaleInvoiceList = () => {
                 // If admin user, set uID to empty string to fetch all invoices
                 setUID(isAdmin ? "" : userId);
                 setBranchId(parsedBranchId);
+                setCompanyId(companyId);
 
                 // Set initial dates
                 if (passedDate) {
                     const initialDate = new Date(passedDate);
                     setSelectedFromDate(initialDate);
                     setSelectedToDate(initialDate);
+                    setModalFromDate(initialDate);
+                    setModalToDate(initialDate);
                 }
             } catch (err) {
                 console.log(err);
@@ -89,6 +101,8 @@ const SaleInvoiceList = () => {
 
     const {
         data: saleInvoiceData = [],
+        isLoading,
+        isFetching,
         isRefetching,
         refetch,
     } = useQuery({
@@ -105,15 +119,35 @@ const SaleInvoiceList = () => {
     });
 
     // Extract sales person dropdown data from invoice data (for admin users)
+    // Use Sales_Person_Name when Created_BY_Name is "admin"
+    // If Sales_Person_Name and Delivery_Person_Name are "unknown", use Created_BY_Name with "- Live" suffix
     useEffect(() => {
         if (isAdmin && saleInvoiceData.length > 0) {
             const salesPersonMap = new Map();
             saleInvoiceData.forEach(invoice => {
-                if (invoice.Created_by && invoice.Created_BY_Name) {
-                    salesPersonMap.set(
-                        invoice.Created_by,
-                        invoice.Created_BY_Name,
-                    );
+                const isCreatedByAdmin = invoice.Created_BY_Name?.toLowerCase() === "admin";
+                const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
+                const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
+                
+                let displayName;
+                let key;
+                
+                // If both Sales_Person_Name and Delivery_Person_Name are "unknown", use Created_BY_Name
+                if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
+                    displayName = `${invoice.Created_BY_Name} - Live`;
+                    key = invoice.Created_by;
+                } else if (isCreatedByAdmin) {
+                    // Use Sales_Person_Name if Created_BY_Name is "admin"
+                    displayName = invoice.Sales_Person_Name || invoice.Created_BY_Name;
+                    key = invoice.Sales_Person_Name;
+                } else {
+                    // Otherwise use Created_BY_Name with (Live) suffix
+                    displayName = `${invoice.Created_BY_Name} - Live`;
+                    key = invoice.Created_by;
+                }
+                    
+                if (key && displayName) {
+                    salesPersonMap.set(key, displayName);
                 }
             });
 
@@ -126,39 +160,73 @@ const SaleInvoiceList = () => {
                     }),
                 ),
             ];
-            setSalesPersonData(dropdownData);
+            // Only update if data actually changed
+            setSalesPersonData(prev => {
+                const prevStr = JSON.stringify(prev);
+                const newStr = JSON.stringify(dropdownData);
+                return prevStr !== newStr ? dropdownData : prev;
+            });
         }
-    }, [isAdmin, saleInvoiceData]);
+    }, [isAdmin, saleInvoiceData.length]);
 
     // Get data filtered by sales person (for brand list and report)
+    // Filter by Sales_Person_Name when Created_BY_Name is "admin"
+    // If Sales_Person_Name and Delivery_Person_Name are "unknown", match against Created_by
+    // Also exclude admin credit bill invoices (Created_BY_Name === "admin" AND VoucherTypeGet === "ONLINE_Credit Bill")
     const salesPersonFilteredData = useMemo(() => {
+        // First, filter out admin credit bill invoices
+        const filteredData = saleInvoiceData.filter(invoice => {
+            const isAdminCreditBill = 
+                invoice.Created_BY_Name?.toLowerCase() === "admin" && 
+                invoice.VoucherTypeGet === "ONLINE_Credit Bill";
+            return !isAdminCreditBill;
+        });
+
         if (!isAdmin || selectedSalesPerson?.value === "all") {
-            return saleInvoiceData;
+            return filteredData;
         }
-        return saleInvoiceData.filter(
-            invoice => invoice.Created_by === selectedSalesPerson.value
-        );
-    }, [saleInvoiceData, isAdmin, selectedSalesPerson]);
+        return filteredData.filter(invoice => {
+            const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
+            const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
+            
+            // If both are "unknown", match against Created_by
+            if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
+                return invoice.Created_by === selectedSalesPerson?.value;
+            }
+            // If Created_BY_Name is "admin", match against Sales_Person_Name
+            if (invoice.Created_BY_Name?.toLowerCase() === "admin") {
+                return invoice.Sales_Person_Name === selectedSalesPerson?.value;
+            }
+            // Otherwise match against Created_by
+            return invoice.Created_by === selectedSalesPerson?.value;
+        });
+    }, [saleInvoiceData, isAdmin, selectedSalesPerson?.value]);
 
     // Extract brand list from sales person filtered data
+    // Use stable dependencies to prevent infinite loop
     useEffect(() => {
-        if (salesPersonFilteredData.length > 0) {
+        const currentData = salesPersonFilteredData;
+        if (currentData.length > 0) {
             const brands = new Set();
-            salesPersonFilteredData.forEach(invoice => {
+            currentData.forEach(invoice => {
                 invoice.Products_List?.forEach(p => {
                     if (p.BrandGet) {
                         brands.add(p.BrandGet.trim());
                     }
                 });
             });
-            setBrandList(["All", ...Array.from(brands)]);
-            // Reset brand selection when sales person changes
-            setSelectedBrand("All");
+            const newBrandList = ["All", ...Array.from(brands)];
+            setBrandList(prev => {
+                const prevStr = JSON.stringify(prev);
+                const newStr = JSON.stringify(newBrandList);
+                return prevStr !== newStr ? newBrandList : prev;
+            });
         } else {
-            setBrandList(["All"]);
-            setSelectedBrand("All");
+            setBrandList(prev => prev.length === 1 && prev[0] === "All" ? prev : ["All"]);
         }
-    }, [salesPersonFilteredData]);
+        // Reset brand selection when data changes
+        setSelectedBrand("All");
+    }, [saleInvoiceData, isAdmin, selectedSalesPerson?.value]);
 
     // Filter data by brand
     const getFilteredDataByBrand = () => {
@@ -196,15 +264,29 @@ const SaleInvoiceList = () => {
 
     const filteredByBrand = getFilteredDataByBrand();
 
-    const filteredInvoiceData = useMemo(() => {
-        if (!searchQuery.trim()) return filteredByBrand;
-        const query = searchQuery.toLowerCase();
+    // Filter by payment status
+    const filteredByPayment = useMemo(() => {
+        if (paymentFilter === 'all') return filteredByBrand;
+        if (paymentFilter === 'paid') {
+            return filteredByBrand.filter(
+                item => item.Payment_Status === 2 || item.Payment_Status === 3
+            );
+        }
+        // unpaid
         return filteredByBrand.filter(
+            item => item.Payment_Status !== 2 && item.Payment_Status !== 3
+        );
+    }, [filteredByBrand, paymentFilter]);
+
+    const filteredInvoiceData = useMemo(() => {
+        if (!searchQuery.trim()) return filteredByPayment;
+        const query = searchQuery.toLowerCase();
+        return filteredByPayment.filter(
             item =>
                 item.Retailer_Name?.toLowerCase().includes(query) ||
                 item.Do_Inv_No?.toLowerCase().includes(query),
         );
-    }, [filteredByBrand, searchQuery]);
+    }, [filteredByPayment, searchQuery]);
 
     const totalInvoices = filteredInvoiceData.length;
     const totalAmount = useMemo(() => {
@@ -222,12 +304,17 @@ const SaleInvoiceList = () => {
         const paymentCompleted = filteredInvoiceData.filter(
             item => item.Payment_Status === 2 || item.Payment_Status === 3,
         ).length;
+        const cancelReturn = filteredInvoiceData.filter(
+            item => item.Cancel_status === 0 || item.Cancel_status === "0"
+        ).length;
 
         return {
             deliveryCompleted,
             deliveryPending: filteredInvoiceData.length - deliveryCompleted,
             paymentCompleted,
             paymentPending: filteredInvoiceData.length - paymentCompleted,
+            cancelReturn,
+            cancelReturnPending: filteredInvoiceData.length - cancelReturn,
         };
     }, [filteredInvoiceData]);
 
@@ -429,7 +516,7 @@ const SaleInvoiceList = () => {
                             </div>
                             <div style="text-align: center">
                                 <div style="color: #666">Created By</div>
-                                <div class="bold">${(item?.Created_BY_Name || "—").substring(0, 10)}</div>
+                                <div class="bold">${((item?.Created_BY_Name?.toLowerCase() === "admin" ? item?.Sales_Person_Name : item?.Created_BY_Name) || "—").substring(0, 10)}</div>
                             </div>
                         </div>
                     </div>
@@ -573,7 +660,7 @@ const SaleInvoiceList = () => {
         };
         return (
             statusMap[status] || {
-                label: "Unknown",
+                label: "Admin User",
                 color: customColors.grey500,
             }
         );
@@ -586,7 +673,7 @@ const SaleInvoiceList = () => {
         };
         return (
             statusMap[status] || {
-                label: "Unknown",
+                label: "Admin User",
                 color: customColors.grey500,
             }
         );
@@ -603,16 +690,30 @@ const SaleInvoiceList = () => {
 
     const handleFromDateChange = date => {
         if (date) {
-            const newFromDate = date > selectedToDate ? selectedToDate : date;
-            setSelectedFromDate(newFromDate);
+            const newFromDate = date > modalToDate ? modalToDate : date;
+            setModalFromDate(newFromDate);
         }
     };
 
     const handleToDateChange = date => {
         if (date) {
-            const newToDate = date < selectedFromDate ? selectedFromDate : date;
-            setSelectedToDate(newToDate);
+            const newToDate = date < modalFromDate ? modalFromDate : date;
+            setModalToDate(newToDate);
         }
+    };
+
+    const handleOpenModal = () => {
+        // Initialize modal dates from current selected dates
+        setModalFromDate(selectedFromDate);
+        setModalToDate(selectedToDate);
+        setModalVisible(true);
+    };
+
+    const handleApplyFilter = () => {
+        // Apply modal dates to selected dates (triggers API fetch)
+        setSelectedFromDate(modalFromDate);
+        setSelectedToDate(modalToDate);
+        setModalVisible(false);
     };
 
     const handleCloseModal = () => {
@@ -830,16 +931,16 @@ const SaleInvoiceList = () => {
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
                 rightIconName="filter-list"
-                onRightPress={() => setModalVisible(true)}
+                onRightPress={handleOpenModal}
             />
 
             <FilterModal
                 visible={modalVisible}
-                fromDate={selectedFromDate}
-                toDate={selectedToDate}
+                fromDate={modalFromDate}
+                toDate={modalToDate}
                 onFromDateChange={handleFromDateChange}
                 onToDateChange={handleToDateChange}
-                onApply={() => setModalVisible(false)}
+                onApply={handleApplyFilter}
                 onClose={handleCloseModal}
                 showToDate={true}
                 title={isAdmin ? "Filter Options" : "Select Date Range"}
@@ -976,22 +1077,59 @@ const SaleInvoiceList = () => {
                                     </Text>
                                 </View>
 
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statLabel}>Paid</Text>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.statItem,
+                                        styles.tappableStat,
+                                        paymentFilter !== 'all' && styles.activeFilter,
+                                    ]}
+                                    onPress={() => {
+                                        if (paymentFilter === 'all') {
+                                            setPaymentFilter('paid');
+                                        } else if (paymentFilter === 'paid') {
+                                            setPaymentFilter('unpaid');
+                                        } else {
+                                            setPaymentFilter('all');
+                                        }
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[
+                                        styles.statLabel,
+                                        paymentFilter !== 'all' && styles.activeFilterLabel,
+                                    ]}>
+                                        {paymentFilter === 'all' ? 'Paid' : paymentFilter === 'paid' ? 'Paid Only' : 'Unpaid Only'}
+                                    </Text>
                                     <Text
                                         style={[
                                             styles.statValue,
-                                            { color: customColors.success },
+                                            { color: paymentFilter === 'unpaid' ? customColors.warning : customColors.success },
                                         ]}
                                     >
-                                        {statusCounts.paymentCompleted}
+                                        {paymentFilter === 'all' 
+                                            ? statusCounts.paymentCompleted 
+                                            : paymentFilter === 'paid' 
+                                                ? statusCounts.paymentCompleted 
+                                                : statusCounts.paymentPending}
                                         <Text style={styles.statSubValue}>
                                             /{totalInvoices}
                                         </Text>
                                     </Text>
-                                </View>
+                                </TouchableOpacity>
                             </View>
                         </View>
+
+                        <Text style={{
+                            position: "absolute",
+                            bottom: spacing.sm,
+                            right: spacing.sm,
+                            fontWeight: "400",
+                            ...typography.caption(),
+                            color: customColors.warning,
+                            textAlign: "right",
+                        }}>
+                            Cancelled/Returned: {statusCounts.cancelReturn} / {totalInvoices}
+                        </Text>
                     </View>
                 </View>
 
@@ -1005,7 +1143,12 @@ const SaleInvoiceList = () => {
                         />
                     }
                 >
-                    {filteredInvoiceData.length > 0 ? (
+                    {(isLoading || isFetching) ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color={customColors.primary} />
+                            <Text style={styles.loadingText}>Loading invoices...</Text>
+                        </View>
+                    ) : filteredInvoiceData.length > 0 ? (
                         <Accordion
                             data={filteredInvoiceData}
                             renderHeader={renderHeader}
@@ -1102,6 +1245,20 @@ const styles = StyleSheet.create({
     statItem: {
         alignItems: "center",
         flex: 1,
+    },
+    tappableStat: {
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 8,
+    },
+    activeFilter: {
+        backgroundColor: customColors.primary + '15',
+        borderWidth: 1,
+        borderColor: customColors.primary + '30',
+    },
+    activeFilterLabel: {
+        color: customColors.primary,
+        fontWeight: '600',
     },
     statLabel: {
         ...typography.body2(),
@@ -1308,5 +1465,16 @@ const styles = StyleSheet.create({
         color: customColors.grey400,
         marginTop: spacing.xs,
         textAlign: "center",
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: spacing.xxl * 2,
+    },
+    loadingText: {
+        ...typography.subtitle2(),
+        color: customColors.grey600,
+        marginTop: spacing.md,
     },
 });

@@ -16,12 +16,14 @@ import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { customColors, typography } from "../../Config/helper";
 import { fetchPendingDeliveryList } from "../../Api/delivery";
+import { fetchSaleInvoices } from "../../Api/sales";
 
 const PendingDeliveryAdmin = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
 
     const navigation = useNavigation();
     const [modalVisible, setModalVisible] = React.useState(false);
+
     const toYMD = (d) => {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -41,22 +43,32 @@ const PendingDeliveryAdmin = ({ route }) => {
         }
         return new Date().toISOString().split("T")[0];
     });
+
     const [activeTab, setActiveTab] = React.useState("delivery");
 
     const { data: pendingDelivery = [], isLoading: isLoadingPendingDelivery } = useQuery({
         queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch || ""],
-        queryFn: () =>
-            fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch || "", ""),
+        queryFn: async () => 
+            fetchSaleInvoices({
+                from: selectedFromDate,
+                to: selectedToDate,
+                branchId: selectedBranch,
+                userId: "",
+                retailerId: "",
+            }),
+            // fetchPendingDeliveryList(selectedFromDate, selectedToDate, selectedBranch || "", ""),
         enabled: !!selectedFromDate && !!selectedToDate,
     });
 
-    const pendingDeliveries = pendingDelivery.filter(
-        item => item.Delivery_Status === 1 || item.DeliveryStatusName === "New",
-    );
+    // Delivery_Status: 1 = New/Pending (sorted by Do_Date ascending: 01 to 31)
+    const pendingDeliveries = pendingDelivery
+        .filter(item => item.Delivery_Status === 1)
+        .sort((a, b) => new Date(a.Do_Date) - new Date(b.Do_Date));
 
-    const returnedDeliveries = pendingDelivery.filter(
-        item => item.Delivery_Status === 6,
-    );
+    // Delivery_Status: 6 = Returned (sorted by Do_Date ascending: 01 to 31)
+    const returnedDeliveries = pendingDelivery
+        .filter(item => item.Delivery_Status === 6)
+        .sort((a, b) => new Date(a.Do_Date) - new Date(b.Do_Date));
 
     const handleFromDateChange = date => {
         if (date) {
@@ -295,9 +307,9 @@ const PendingDeliveryAdmin = ({ route }) => {
             <View
                 style={[
                     styles.statusBadge,
-                    { backgroundColor: `${item.DeliveryStatusName === "Return" ? customColors.error : customColors.warning}` },
+                    { backgroundColor: `${item.Delivery_Status === 6 ? customColors.error : customColors.warning}` },
                 ]}>
-                <Text style={styles.statusText}>{`${item.DeliveryStatusName === "Return" ? "Return" : "Pending"}`}</Text>
+                <Text style={styles.statusText}>{`${item.Delivery_Status === 6 ? "Return" : "Pending"}`}</Text>
             </View>
         </View>
     );
@@ -346,17 +358,19 @@ const PendingDeliveryAdmin = ({ route }) => {
                     </Text>
                 </View>
 
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="schedule"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>
-                        Returned: {formatDate(item.Delivery_Time)}
-                    </Text>
-                </View>
+                {item.Delivery_Time && (
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="schedule"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value}>
+                            Returned: {formatDate(item.Delivery_Time)}
+                        </Text>
+                    </View>
+                )}
 
                 {item.Narration && (
                     <View style={styles.infoRow}>
@@ -379,7 +393,7 @@ const PendingDeliveryAdmin = ({ route }) => {
                         </Text>
                         {item.Products_List.slice(0, 2).map((product, index) => (
                             <Text key={index} style={styles.productItem}>
-                                • {product.Product_Name} (Qty: {product.Total_Qty})
+                                • {product.Product_Name} (Qty: {product.Total_Qty || product.Bill_Qty})
                             </Text>
                         ))}
                         {item.Products_List.length > 2 && (
@@ -427,14 +441,9 @@ const PendingDeliveryAdmin = ({ route }) => {
             return (
                 <FlashList
                     data={data}
-                    keyExtractor={item => {
-                        if (activeTab === "delivery" || activeTab === "returned") {
-                            return item.Delivery_Order_id.toString();
-                        } else if (activeTab === "sales") {
-                            return item.S_Id.toString();
-                        }
-                    }}
+                    keyExtractor={item => item.Do_Id?.toString() || item.Delivery_Order_id?.toString()}
                     renderItem={renderItem}
+                    estimatedItemSize={150}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.listContainer}
                 />

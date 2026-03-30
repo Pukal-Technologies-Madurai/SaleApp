@@ -149,21 +149,21 @@ const HomeScreen = () => {
             backgroundColor: "#EFF6FF",
         },
         {
-            title: "Pending Sales",
-            iconLibrary: "FontAwesome5",
-            iconName: "receipt",
-            navigate: "PendingInvoice",
+            title: "Credit Note",
+            iconLibrary: "MaterialIcons",
+            iconName: "credit-card",
+            navigate: "DeliveryReturn",
             color: "#EC4899",
             backgroundColor: "#FDF2F8",
         },
-        {
-            title: "Sales Return",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "arrow-u-left-top-bold",
-            navigate: "SalesReturnList",
-            color: "#F97316",
-            backgroundColor: "#FFFAF0",
-        }
+        // {
+        //     title: "Sales Return",
+        //     iconLibrary: "MaterialCommunityIcons",
+        //     iconName: "arrow-u-left-top-bold",
+        //     navigate: "SalesReturnList",
+        //     color: "#F97316",
+        //     backgroundColor: "#FFFAF0",
+        // }
     ];
 
     const renderIcon = (iconLibrary, iconName, color) => {

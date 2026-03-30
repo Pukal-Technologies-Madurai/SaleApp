@@ -36,7 +36,8 @@ const LoginPortal = () => {
 
     const handleContinue = async () => {
         try {
-            const response = await fetch(`${API.userPortal()}${userName}`);
+            const url = `${API.userPortal()}${userName}`;
+            const response = await fetch(url);
             const jsonData = await response.json();
 
             if (jsonData.success && jsonData.data) {
@@ -84,7 +85,9 @@ const LoginPortal = () => {
             await AsyncStorage.setItem("baseURL", selectedCompany.Web_Api);
             setBaseUrl(selectedCompany.Web_Api);
 
-            const response = await fetch(API.userPortalLogin(), {
+            const url = API.userPortalLogin();
+
+            const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

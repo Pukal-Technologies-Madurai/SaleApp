@@ -30,26 +30,33 @@ const SalesReport = ({ navigation, route }) => {
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandOptions, setBrandOptions] = useState([]);
 
-    // console.log(
-    //     "Product Summary:",
-    //     logData.map(item => item.Products_List),
-    // );
+    // ── Brand helper: use BrandGet if present, else first word of Item_Name / Product_Name
+    const getBrand = p =>
+        p.BrandGet?.trim() ||
+        (p.Item_Name || p.Product_Name || "").trim().split(" ")[0] ||
+        "Other";
+
+    console.log(
+        "Product Summary:",
+        logData.map(item => item.Products_List),
+    );
 
     const calculateProductSummary = () => {
         const productMap = {};
 
         logData.forEach(order => {
             order.Products_List.forEach(product => {
-                const productName = product.Product_Name.trim();
+                // Credit notes use Item_Name; sale orders use Product_Name
+                const productName = (product.Item_Name || product.Product_Name || "").trim();
 
                 if (productMap[productName]) {
                     productMap[productName].totalQty += product.Total_Qty || product.Bill_Qty;
                     productMap[productName].totalAmount += parseFloat(product.Final_Amo || product.Amount);
                 } else {
                     productMap[productName] = {
-                        productName: productName,
+                        productName,
                         totalQty: product.Total_Qty || product.Bill_Qty,
-                        totalAmount: parseFloat(product.Final_Amo || product.Amount)
+                        totalAmount: parseFloat(product.Final_Amo || product.Amount),
                     };
                 }
             });
@@ -69,9 +76,8 @@ const SalesReport = ({ navigation, route }) => {
     useEffect(() => {
         if (logData && logData.length > 0) {
             const allBrands = logData.flatMap(order =>
-                order.Products_List.map(p => p.BrandGet?.trim()),
+                order.Products_List.map(p => getBrand(p)),
             );
-
             const uniqueBrands = ["All", ...new Set(allBrands.filter(Boolean))];
             setBrandOptions(uniqueBrands);
         }
@@ -154,8 +160,8 @@ const SalesReport = ({ navigation, route }) => {
             : logData.some(order =>
                 order.Products_List.some(
                     p =>
-                        p.Product_Name.trim() === item.productName.trim() &&
-                        p.BrandGet?.trim() === selectedBrand,
+                        p.Product_Name?.trim() === item.productName.trim() &&
+                        getBrand(p) === selectedBrand,
                 ),
             ),
     );
@@ -172,7 +178,7 @@ const SalesReport = ({ navigation, route }) => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Sales Report"
+                title="Product Summary"
                 navigation={navigation}
                 showBackButton={true}
             />
@@ -309,7 +315,7 @@ const SalesReport = ({ navigation, route }) => {
                                         p =>
                                             p.Product_Name.trim() ===
                                             item.productName.trim() &&
-                                            p.BrandGet?.trim() ===
+                                            getBrand(p) ===
                                             selectedBrand,
                                     ),
                                 ),

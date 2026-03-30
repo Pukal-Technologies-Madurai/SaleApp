@@ -183,8 +183,8 @@ const Dashboard = () => {
             return data.success ? data.data : [];
         },
 
-        fetchDeliveryReturn: async (today, branchId) => {
-            const url = `${API.deliveryReturn()}${today}&Todate=${today}&Branch_Id=${branchId}`;
+        fetchCreditNoteList: async (today) => {
+            const url = `${API.getCreditNoteList()}${today}&Todate=${today}`;
             const response = await fetch(url);
             const data = await response.json();
             return data.success ? data.data : [];
@@ -256,7 +256,7 @@ const Dashboard = () => {
                     apiService.fetchDeliveryData(selectedDate, branchIdParam),
                     apiService.fetchTripSheet(selectedDate, selectedDate, branchIdParam),
                     apiService.fetchReceiptData(selectedDate, selectedDate, branchIdParam),
-                    apiService.fetchDeliveryReturn(selectedDate, branchIdParam),
+                    apiService.fetchCreditNoteList(selectedDate),
                 ]);
 
                 // Extract data from settled promises
@@ -272,7 +272,11 @@ const Dashboard = () => {
                 const finalDeliveryData = extractData(deliveryData);
                 const finalTripSheetData = extractData(tripSheetData);
                 const finalReceiptData = extractValue(receiptData);
-                const finalDeliveryReturnData = extractData(deliveryReturnData); // Fixed
+                const finalCreditNoteData = extractData(deliveryReturnData);
+                const totalCreditNoteAmount = finalCreditNoteData.reduce(
+                    (sum, cn) => sum + parseFloat(cn.Total_Invoice_value || 0),
+                    0,
+                );
 
                 // Process sale data
                 const saleCount = finalSaleData.reduce((entry, item) => {
@@ -280,18 +284,28 @@ const Dashboard = () => {
                     //     ? `${item.Created_BY_Name} (PoS)`
                     //     : item.Sales_Person_Name;
                     const salesPerson = item.Created_BY_Name;
+                    const isCancelled = item.Cancel_status === "0";
+                    
                     if (entry[salesPerson]) {
                         entry[salesPerson].count++;
-                        entry[salesPerson].totalValue +=
-                            item.Total_Invoice_value;
+                        entry[salesPerson].totalValue += item.Total_Invoice_value;
+                        if (isCancelled) {
+                            entry[salesPerson].cancelledCount++;
+                        } else {
+                            entry[salesPerson].activeCount++;
+                        }
                     } else {
                         entry[salesPerson] = {
                             count: 1,
                             totalValue: item.Total_Invoice_value,
+                            cancelledCount: isCancelled ? 1 : 0,
+                            activeCount: isCancelled ? 0 : 1,
                         };
                     }
                     return entry;
                 }, {});
+
+                // console.log("Processed sale count by salesperson:", saleCount);
 
                 // Calculate totals
                 const totalOrderAmount = finalSaleData.reduce(
@@ -331,7 +345,8 @@ const Dashboard = () => {
                     tripSheetData: finalTripSheetData,
                     invoiceData: finalInvoiceData,
                     newReceiptData: finalReceiptData,
-                    deliveryReturnData: finalDeliveryReturnData,
+                    creditNoteData: finalCreditNoteData,
+                    totalCreditNoteAmount,
                     saleCount,
                     totalOrderAmount,
                     totalInvoiceAmount,
@@ -343,11 +358,12 @@ const Dashboard = () => {
             }
         },
         enabled: !!(userDetails.companyId && userDetails.uIdT),
-        staleTime: 30000, // 30 seconds
-        cacheTime: 60000, // Changed from 200000 to 60000 (1 minute)
+        staleTime: 0,             // Always refetch — no stale window so date changes are instant
+        cacheTime: 10000,         // 10 s — discard old date entries quickly
+        refetchOnWindowFocus: true, // Refetch when user navigates back to dashboard
         refetchInterval: isPollingActive ? POLLING_INTERVAL : false,
-        retry: 2, // Add retry option
-        retryDelay: 1000, // Add retry delay
+        retry: 2,
+        retryDelay: 1000,
         onError: (error) => {
             console.error("Dashboard data fetch error: ", error);
         }
@@ -552,8 +568,8 @@ const Dashboard = () => {
             {
                 icon: "keyboard-return",
                 iconLibrary: "MaterialIcons",
-                label: "Delivery Return",
-                value: `${allDashboardData.deliveryReturnData?.length || 0}`,
+                label: "Credit Notes",
+                value: `₹${(allDashboardData.totalCreditNoteAmount || 0).toLocaleString("en-IN")}`,
                 color: "#ec7648ff",
                 backgroundColor: "#ffeedf",
                 onPress: () => navigation.navigate("DeliveryReturn", {
@@ -585,24 +601,24 @@ const Dashboard = () => {
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                 }),
             },
-            {
-                icon: "warehouse",
-                iconLibrary: "MaterialCommunityIcons",
-                label: "Stock",
-                value: "Retailer's ",
-                color: "#7C3AED",
-                backgroundColor: "#EDE9FE",
-                onPress: () => navigation.navigate("RetailerStock"),
-            },
-            {
-                icon: "keyboard-return",
-                iconLibrary: "MaterialCommunityIcons",
-                label: "Sale Return",
-                value: "",
-                color: "#A855F7",
-                backgroundColor: "#F5F3FF",
-                onPress: () => navigation.navigate("AdminItemSaleReturn"),
-            },
+            // {
+            //     icon: "warehouse",
+            //     iconLibrary: "MaterialCommunityIcons",
+            //     label: "Stock",
+            //     value: "Retailer's ",
+            //     color: "#7C3AED",
+            //     backgroundColor: "#EDE9FE",
+            //     onPress: () => navigation.navigate("RetailerStock"),
+            // },
+            // {
+            //     icon: "keyboard-return",
+            //     iconLibrary: "MaterialCommunityIcons",
+            //     label: "Sale Return",
+            //     value: "",
+            //     color: "#A855F7",
+            //     backgroundColor: "#F5F3FF",
+            //     onPress: () => navigation.navigate("AdminItemSaleReturn"),
+            // },
         ],
         [allDashboardData, navigation],
     );

@@ -15,8 +15,6 @@ import AppHeader from "../../Components/AppHeader";
 import { customColors, typography, spacing } from "../../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window");
-const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
 
 const GodownActivities = () => {
     const navigation = useNavigation();
@@ -64,7 +62,7 @@ const GodownActivities = () => {
         {
             id: 3,
             title: "Live Stock",
-            subtitle: "Current stock levels",
+            subtitle: "Current sales stock",
             icon: "inventory",
             iconColor: customColors.primary,
             bgColor: customColors.primary + "15",
@@ -72,13 +70,12 @@ const GodownActivities = () => {
         },
         {
             id: 4,
-            title: "Invoice List",
-            subtitle: "View all invoices",
-            icon: "receipt-long",
-            iconColor: customColors.success,
-            bgColor: customColors.success + "15",
-            onPress: () => navigation.navigate("SaleInvoiceList" , {
-                isAdmin: true,
+            title: "Delivery Return Items",
+            subtitle: "View all delivery return items",
+            icon: "assignment-return",
+            iconColor: customColors.secondary,
+            bgColor: customColors.secondary + "20",
+            onPress: () => navigation.navigate("DeliveryReturn", {
                 selectedBranch: branchId,
             }),
         },
@@ -93,12 +90,13 @@ const GodownActivities = () => {
         },
         {
             id: 6,
-            title: "Delivery Return Items",
-            subtitle: "View all delivery return items",
-            icon: "assignment-return",
-            iconColor: customColors.secondary,
-            bgColor: customColors.secondary + "20",
-            onPress: () => navigation.navigate("DeliveryReturn", {
+            title: "Invoice List",
+            subtitle: "View all invoices",
+            icon: "receipt-long",
+            iconColor: customColors.success,
+            bgColor: customColors.success + "15",
+            onPress: () => navigation.navigate("SaleInvoiceList" , {
+                isAdmin: true,
                 selectedBranch: branchId,
             }),
         },
@@ -107,29 +105,24 @@ const GodownActivities = () => {
     const renderNavCard = item => (
         <TouchableOpacity
             key={item.id}
-            style={[styles.navCard, { backgroundColor: item.bgColor }]}
+            style={styles.navCard}
             onPress={item.onPress}
-            activeOpacity={0.7}>
-            <View
-                style={[
-                    styles.iconContainer,
-                    { backgroundColor: item.iconColor + "20" },
-                ]}>
-                <MaterialIcons
-                    name={item.icon}
-                    size={28}
-                    color={item.iconColor}
-                />
+            activeOpacity={0.75}>
+            {/* Left icon pill */}
+            <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
+                <MaterialIcons name={item.icon} size={24} color={item.iconColor} />
             </View>
-            <Text style={styles.navTitle}>{item.title}</Text>
-            <Text style={styles.navSubtitle}>{item.subtitle}</Text>
-            <View style={styles.arrowContainer}>
-                <FeatherIcon
-                    name="arrow-right"
-                    size={16}
-                    color={item.iconColor}
-                />
+
+            {/* Label block */}
+            <View style={styles.labelBlock}>
+                <Text style={styles.navTitle}>{item.title}</Text>
+                <Text style={styles.navSubtitle} numberOfLines={1}>
+                    {item.subtitle}
+                </Text>
             </View>
+
+            {/* Right arrow */}
+            <FeatherIcon name="chevron-right" size={20} color={customColors.grey400} />
         </TouchableOpacity>
     );
 
@@ -204,24 +197,32 @@ const styles = StyleSheet.create({
         color: customColors.grey600,
     },
     navGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "space-between",
-        gap: spacing.md,
+        gap: spacing.sm,
     },
     navCard: {
-        width: CARD_WIDTH,
-        padding: spacing.md,
-        borderRadius: 16,
-        marginBottom: spacing.xs,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderRadius: 14,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        gap: spacing.md,
+        // subtle shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        elevation: 2,
     },
     iconContainer: {
-        width: 50,
-        height: 50,
+        width: 46,
+        height: 46,
         borderRadius: 12,
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: spacing.sm,
+    },
+    labelBlock: {
+        flex: 1,
     },
     navTitle: {
         ...typography.subtitle1(),
@@ -231,11 +232,6 @@ const styles = StyleSheet.create({
     },
     navSubtitle: {
         ...typography.caption(),
-        color: customColors.grey600,
-    },
-    arrowContainer: {
-        position: "absolute",
-        top: spacing.md,
-        right: spacing.md,
+        color: customColors.grey500,
     },
 });

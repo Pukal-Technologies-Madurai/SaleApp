@@ -30,8 +30,9 @@ export const updateSaleInvoice = async (invoiceData) => {
     return data;
 };
 
-export const fetchSaleInvoices = async ({ from, to, userId, branchId }) => {
-    const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Created_by=${userId}&Branch_Id=${branchId}`;
+export const fetchSaleInvoices = async ({ from, to, userId, branchId, retailerId }) => {
+    const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Created_by=${userId}&Branch_Id=${branchId}&Retailer_Id=${retailerId}`;
+    // console.log("fetchSaleInvoices url:", url);
     const res = await fetch(url);
 
     const data = await res.json();

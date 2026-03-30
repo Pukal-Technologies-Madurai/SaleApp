@@ -314,6 +314,13 @@ const DeliveryUpdate = () => {
             const visitEntrySuccess = await handleSubmitforVisitLog();
             if (!visitEntrySuccess) return;
 
+            // ── Credit Note: post ALL items on full cancellation ──────────────
+            const allOriginalProducts = selectedDelivery.Products_List || [];
+            if (allOriginalProducts.length > 0) {
+                await postCreditNote(allOriginalProducts);
+            }
+            // ─────────────────────────────────────────────────────────────────
+
             const transformedProducts =
                 selectedDelivery.Products_List?.map(product => ({
                     DO_St_Id: product.DO_St_Id,
@@ -869,6 +876,97 @@ const DeliveryUpdate = () => {
         }
     };
 
+    /**
+     * Builds and posts a Credit Note for items that were removed from the
+     * delivery before it was confirmed.
+     * @param {Array} removedProducts  - original product objects that no longer exist in updatedProducts
+     */
+    
+    const postCreditNote = async (removedProducts) => {
+        if (!removedProducts || removedProducts.length === 0) return;
+
+        try {
+            // Map removed products into the Product_Array shape the backend expects
+            const creditProductArray = removedProducts.map((p, idx) => ({
+                S_No: idx + 1,
+                Item_Id: p.Item_Id,
+                Bill_Qty: p.Bill_Qty,
+                Alt_Bill_Qty: p.Alt_Bill_Qty || 0,
+                Act_Qty: p.Act_Qty || p.Bill_Qty,
+                Alt_Act_Qty: p.Alt_Act_Qty || 0,
+                Item_Rate: p.Item_Rate,
+                GoDown_Id: goDownId || p.GoDown_Id || 0,
+                Amount: p.Amount,
+                Free_Qty: p.Free_Qty || 0,
+                Total_Qty: p.Total_Qty || p.Bill_Qty,
+                Taxble: p.Taxble ?? 1,
+                Taxable_Rate: p.Taxable_Rate,
+                HSN_Code: p.HSN_Code || "",
+                Unit_Id: p.Unit_Id,
+                Unit_Name: p.Unit_Name || "",
+                Act_unit_Id: p.Act_unit_Id || p.Unit_Id,
+                Alt_Act_Unit_Id: p.Alt_Act_Unit_Id || p.Unit_Id,
+                Taxable_Amount: p.Taxable_Amount,
+                Tax_Rate: p.Tax_Rate,
+                Cgst: p.Cgst,
+                Cgst_Amo: p.Cgst_Amo,
+                Sgst: p.Sgst,
+                Sgst_Amo: p.Sgst_Amo,
+                Igst: p.Igst || 0,
+                Igst_Amo: p.Igst_Amo || 0,
+                Final_Amo: p.Final_Amo,
+                Batch_Name: p.Batch_Name || "",
+            }));
+
+            const creditNotePayload = {
+                Retailer_Id: parseInt(selectedDelivery.Retailer_Id),
+                Branch_Id: parseInt(selectedDelivery.Branch_Id || branchId),
+                Voucher_Type: parseInt(45 || selectedDelivery.Voucher_Type), // 13 = LIVE_SALES_INVOICE
+                Ref_Inv_Number: selectedDelivery.Do_Inv_No || "",
+                Ref_Inv_Date: selectedDelivery.Do_Date || new Date().toISOString(),
+                Narration: `Credit note for removed items from ${selectedDelivery.Do_Inv_No}`,
+                Created_by: parseInt(userId),
+                GST_Inclusive: selectedDelivery.GST_Inclusive ?? 1,
+                IS_IGST: selectedDelivery.IS_IGST ?? 0,
+                Round_off: 0,
+                Stock_Item_Ledger_Name: selectedDelivery.Stock_Item_Ledger_Name || "",
+                Product_Array: creditProductArray,
+                Expence_Array: [],
+                Staffs_Array: [],
+            };
+
+            // console.log("Credit Note Payload:", JSON.stringify(creditNotePayload, null, 2));
+
+            const response = await fetch(API.creditNote(), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(creditNotePayload),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                ToastAndroid.show(
+                    `Credit note created for ${removedProducts.length} removed item(s)`,
+                    ToastAndroid.LONG,
+                );
+            } else {
+                // Non-blocking — warn but don't stop delivery update
+                ToastAndroid.show(
+                    `Credit note warning: ${result.message || "Failed to create credit note"}`,
+                    ToastAndroid.LONG,
+                );
+            }
+        } catch (err) {
+            console.error("Credit Note error:", err);
+            // Non-blocking warning
+            ToastAndroid.show(
+                `Credit note error: ${err.message}`,
+                ToastAndroid.LONG,
+            );
+        }
+    };
+
     const handleUpdateDelivery = async (isDelivered, isPaid) => {
         if (!selectedDelivery) return;
         setLoading(true);
@@ -876,6 +974,17 @@ const DeliveryUpdate = () => {
         try {
             const visitEntrySuccess = await handleSubmitforVisitLog();
             if (!visitEntrySuccess) return;
+
+            // ── Credit Note: post removed items ──────────────────────────────
+            if (hasProductChanges && selectedDelivery.Products_List?.length > 0) {
+                const removedProducts = selectedDelivery.Products_List.filter(
+                    original => !updatedProducts.some(u => u.Item_Id === original.Item_Id)
+                );
+                if (removedProducts.length > 0) {
+                    await postCreditNote(removedProducts);
+                }
+            }
+            // ─────────────────────────────────────────────────────────────────
 
             const currentTotal =
                 updatedProducts.length > 0
@@ -912,16 +1021,9 @@ const DeliveryUpdate = () => {
                 ? 3
                 : selectedDelivery.Payment_Status;
 
-            // Use updatedProducts instead of selectedDelivery.Products_List
-            const productsToUse =
-                updatedProducts.length > 0
-                    ? updatedProducts
-                    : selectedDelivery.Products_List;
-
-            // console.log(
-            //     "Using updated products for API:",
-            //     JSON.stringify(productsToUse, null, 2),
-            // );
+            // Always send the original products to the delivery endpoint.
+            // Removed items are handled separately via the credit note.
+            const productsToUse = selectedDelivery.Products_List;
 
             const transformedProducts =
                 productsToUse?.map(product => ({

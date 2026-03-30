@@ -111,7 +111,7 @@ export const fetchProductsAvailableInRetailer = async (itemId, from, to) => {
 
 export const fetchItemSaleReturn = async (fromDate, toDate, userId) => {
     const url = `${API.salesReturnItems()}?Fromdate=${fromDate}&Todate=${toDate}&createdBy=${userId}`;
-    console.log("Fetching Item Sale Return from URL:", url);
+    // console.log("Fetching Item Sale Return from URL:", url);
     const res = await fetch(url);
     const json = await res.json();
 

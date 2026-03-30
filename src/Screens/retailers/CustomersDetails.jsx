@@ -46,6 +46,7 @@ const CustomersDetails = ({ route }) => {
     const [showLocationModal, setShowLocationModal] = useState(false);
     const [dailyLogModalVisible, setDailyLogModalVisible] = useState(false);
     const [narration, setNarration] = useState("");
+    const [showOrderModal, setShowOrderModal] = useState(false);
 
     useEffect(() => {
         AsyncStorage.getItem("UserId").then(id => {
@@ -288,25 +289,9 @@ const CustomersDetails = ({ route }) => {
                             icon="shopping-cart"
                             iconLibrary="feather"
                             color="#4CAF50"
-                            onPress={() =>
-                                navigation.navigate("Sales", {
-                                    item,
-                                })
-                            }
+                            onPress={() => setShowOrderModal(true)}
                         />
                     )}
-
-                    <ActionButton
-                        label="Sale Return"
-                        icon="assignment-return"
-                        iconLibrary="material"
-                        color="#FF9800"
-                        onPress={() => {
-                            navigation.navigate("SalesReturn", {
-                                item,
-                            })
-                        }}
-                    />
 
                     <ActionButton
                         label="Edit"
@@ -315,18 +300,6 @@ const CustomersDetails = ({ route }) => {
                         color="#9C27B0"
                         onPress={() =>
                             navigation.navigate("EditCustomer", {
-                                item,
-                            })
-                        }
-                    />
-
-                    <ActionButton
-                        label="Invoice"
-                        icon="receipt"
-                        iconLibrary="material"
-                        color="#E91E63"
-                        onPress={() =>
-                            navigation.navigate("SalesInvoice", {
                                 item,
                             })
                         }
@@ -377,6 +350,18 @@ const CustomersDetails = ({ route }) => {
                         iconLibrary="feather"
                         color="#00BCD4"
                         onPress={() => setDailyLogModalVisible(true)}
+                    />
+
+                    <ActionButton
+                        label="Sale Return"
+                        icon="assignment-return"
+                        iconLibrary="material"
+                        color="#FF9800"
+                        onPress={() => {
+                            navigation.navigate("SalesReturn", {
+                                item,
+                            })
+                        }}
                     />
 
                     <ActionButton
@@ -575,6 +560,58 @@ const CustomersDetails = ({ route }) => {
                         </View>
                     </View>
                 </View>
+            </Modal>
+
+            {/* Order Navigation Modal */}
+            <Modal
+                visible={showOrderModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowOrderModal(false)}>
+                <TouchableOpacity
+                    style={styles.orderModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowOrderModal(false)}>
+                    <View style={styles.orderModalContent}>
+                        <Text style={styles.orderModalTitle}>Create Order</Text>
+
+                        <View style={styles.orderOptionsRow}>
+                            <TouchableOpacity
+                                style={styles.orderOptionCard}
+                                activeOpacity={0.75}
+                                onPress={() => {
+                                    setShowOrderModal(false);
+                                    navigation.navigate("Sales", { item });
+                                }}>
+                                <View style={[styles.orderOptionIcon, { backgroundColor: "#4CAF5015" }]}>
+                                    <FeatherIcon name="shopping-cart" size={28} color="#4CAF50" />
+                                </View>
+                                <Text style={styles.orderOptionLabel}>Sales</Text>
+                                <Text style={styles.orderOptionSub}>New sales order</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.orderOptionCard}
+                                activeOpacity={0.75}
+                                onPress={() => {
+                                    setShowOrderModal(false);
+                                    navigation.navigate("SalesInvoice", { item });
+                                }}>
+                                <View style={[styles.orderOptionIcon, { backgroundColor: "#E91E6315" }]}>
+                                    <MaterialIcon name="receipt" size={28} color="#E91E63" />
+                                </View>
+                                <Text style={styles.orderOptionLabel}>Sales Invoice</Text>
+                                <Text style={styles.orderOptionSub}>Generate invoice</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.orderCancelBtn}
+                            onPress={() => setShowOrderModal(false)}>
+                            <Text style={styles.orderCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
             </Modal>
         </SafeAreaView>
     );
@@ -798,7 +835,74 @@ const styles = StyleSheet.create({
     },
     cancelButtonText: {
         ...typography.button(),
+    },
+    orderModalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.55)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: spacing.lg,
+    },
+    orderModalContent: {
+        backgroundColor: customColors.white,
+        width: "100%",
+        borderRadius: 20,
+        padding: spacing.lg,
+        ...shadows.large,
+    },
+    orderModalTitle: {
+        ...typography.h6(),
         color: customColors.grey900,
+        textAlign: "center",
+        marginBottom: spacing.lg,
+        fontWeight: "700",
+    },
+    orderOptionsRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: spacing.md,
+        marginBottom: spacing.md,
+    },
+    orderOptionCard: {
+        flex: 1,
+        alignItems: "center",
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 16,
+        backgroundColor: customColors.grey50,
+        borderWidth: 1,
+        borderColor: customColors.grey100,
+    },
+    orderOptionIcon: {
+        width: 60,
+        height: 60,
+        borderRadius: 16,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+    orderOptionLabel: {
+        ...typography.body1(),
+        fontWeight: "700",
+        color: customColors.grey900,
+        textAlign: "center",
+    },
+    orderOptionSub: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: 4,
+        textAlign: "center",
+    },
+    orderCancelBtn: {
+        alignItems: "center",
+        paddingVertical: spacing.md,
+        marginTop: spacing.xs,
+        borderRadius: 12,
+        backgroundColor: customColors.grey100,
+    },
+    orderCancelText: {
+        ...typography.button(),
+        color: customColors.grey700,
     },
     updateButtonText: {
         ...typography.button(),

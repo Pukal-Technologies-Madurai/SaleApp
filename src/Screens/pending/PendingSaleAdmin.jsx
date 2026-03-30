@@ -55,7 +55,10 @@ const PendingSaleAdmin = ({ route }) => {
                 ),
             enabled: !!selectedFromDate && !!selectedToDate,
             select: data => {
-                return data.filter(item => item.isConverted !== 2);
+                // Filter and sort by So_Date ascending (01 to 31)
+                return data
+                    .filter(item => item.isConverted !== 2)
+                    .sort((a, b) => new Date(a.So_Date) - new Date(b.So_Date));
             },
         });
 
