@@ -2,58 +2,67 @@ import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-nati
 import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../Components/AppHeader";
-import { customColors, typography, spacing, shadows } from "../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius, iconSizes } from "../Config/helper";
+import { appVersion } from "../Api/auth";
 
 const Settings = () => {
     const navigation = useNavigation();
+    const APPVERSION = appVersion();
 
     const settingsOptions = [
         {
             id: 1,
             title: "Set Route",
             subtitle: "Configure delivery routes",
-            icon: "route",
+            icon: "map-pin",
             iconColor: customColors.primary,
+            bgColor: customColors.primaryFaded,
             onPress: () => navigation.navigate("RoutePath")
         },
         {
             id: 2,
             title: "Master Data",
             subtitle: "Manage system data",
-            icon: "storage",
+            icon: "database",
             iconColor: customColors.success,
+            bgColor: customColors.successFaded,
             onPress: () => navigation.navigate("MasterData")
         },
         {
             id: 3,
             title: "Set Stock Godown",
             subtitle: "Configure warehouse settings",
-            icon: "warehouse",
-            iconColor: customColors.accent2,
+            icon: "package",
+            iconColor: customColors.info,
+            bgColor: customColors.infoFaded,
             onPress: () => navigation.navigate("MasterGodown")
         },
         {
             id: 4,
             title: "Set Stock Transfer",
             subtitle: "Manage stock transfers",
-            icon: "swap-horiz",
+            icon: "repeat",
             iconColor: customColors.warning,
+            bgColor: customColors.warningFaded,
             onPress: () => navigation.navigate("GodownTransfer")
         }
     ];
 
-    const renderSettingsItem = (item) => (
+    const renderSettingsItem = (item, index) => (
         <TouchableOpacity
             key={item.id}
-            style={styles.settingsCard}
+            style={[
+                styles.settingsCard,
+                index === settingsOptions.length - 1 && styles.lastCard
+            ]}
             onPress={item.onPress}
             activeOpacity={0.7}>
-            <View style={styles.iconContainer}>
-                <MaterialIcons
+            <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
+                <FeatherIcon
                     name={item.icon}
-                    size={24}
+                    size={iconSizes.lg}
                     color={item.iconColor}
                 />
             </View>
@@ -61,11 +70,13 @@ const Settings = () => {
                 <Text style={styles.settingsTitle}>{item.title}</Text>
                 <Text style={styles.settingsSubtitle}>{item.subtitle}</Text>
             </View>
-            <MaterialIcons
-                name="chevron-right"
-                size={24}
-                color={customColors.grey400}
-            />
+            <View style={styles.arrowContainer}>
+                <FeatherIcon
+                    name="chevron-right"
+                    size={iconSizes.md}
+                    color={customColors.grey400}
+                />
+            </View>
         </TouchableOpacity>
     );
 
@@ -78,10 +89,14 @@ const Settings = () => {
 
             <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
                 <View style={styles.settingsSection}>
-                    <Text style={styles.sectionTitle}>Configuration</Text>
                     <View style={styles.settingsGroup}>
-                        {settingsOptions.map(renderSettingsItem)}
+                        {settingsOptions.map((item, index) => renderSettingsItem(item, index))}
                     </View>
+                </View>
+
+                {/* App Info */}
+                <View style={styles.appInfoSection}>
+                <Text style={styles.appVersion}>Version: {APPVERSION}</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -97,36 +112,31 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.grey50,
     },
     settingsSection: {
-        padding: spacing.lg,
-    },
-    sectionTitle: {
-        ...typography.h6(),
-        color: customColors.grey700,
-        fontWeight: "600",
-        marginBottom: spacing.md,
-        paddingHorizontal: spacing.xs,
+        padding: spacing.md,
     },
     settingsGroup: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         overflow: "hidden",
         ...shadows.small,
     },
     settingsCard: {
         flexDirection: "row",
         alignItems: "center",
-        padding: spacing.lg,
+        padding: spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey100,
     },
+    lastCard: {
+        borderBottomWidth: 0,
+    },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: customColors.grey50,
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.lg,
         justifyContent: "center",
         alignItems: "center",
         marginRight: spacing.md,
@@ -135,14 +145,30 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     settingsTitle: {
-        ...typography.subtitle1(),
+        ...typography.subtitle2(),
         color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: spacing.xs,
+        marginBottom: spacing.xxs,
     },
     settingsSubtitle: {
-        ...typography.body2(),
-        color: customColors.grey600,
-        lineHeight: 18,
+        ...typography.caption(),
+        color: customColors.grey500,
+        lineHeight: 16,
+    },
+    arrowContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    appInfoSection: {
+        alignItems: "center",
+        paddingVertical: spacing.xl,
+    },
+    appVersion: {
+        ...typography.caption(),
+        color: customColors.grey400,
     },
 })

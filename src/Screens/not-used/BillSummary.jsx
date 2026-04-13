@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
 import DatePickerButton from "../../Components/DatePickerButton";
-import { fetchPaymentReceipts } from "../../Api/payment";
+import { fetchPaymentReceipts } from "./payment";
 import {
     customColors,
     typography,

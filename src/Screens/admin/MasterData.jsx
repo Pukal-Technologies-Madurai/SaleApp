@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
 import AddDataModal from "../../Components/AddDataModal";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
@@ -18,6 +18,8 @@ import {
     typography,
     shadows,
     spacing,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -248,11 +250,13 @@ const MasterData = () => {
                             }
                             setModalType("route");
                         }}>
-                        <MaterialCommunityIcons
-                            name="road-variant"
-                            size={24}
-                            color={customColors.white}
-                        />
+                        <View style={styles.actionIconContainer}>
+                            <FeatherIcon
+                                name="navigation"
+                                size={iconSizes.md}
+                                color={customColors.white}
+                            />
+                        </View>
                         <Text style={styles.actionButtonText}>Add Route</Text>
                     </TouchableOpacity>
 
@@ -268,11 +272,13 @@ const MasterData = () => {
                             }
                             setModalType("area");
                         }}>
-                        <MaterialCommunityIcons
-                            name="map-marker-plus"
-                            size={24}
-                            color={customColors.white}
-                        />
+                        <View style={styles.actionIconContainer}>
+                            <FeatherIcon
+                                name="map-pin"
+                                size={iconSizes.md}
+                                color={customColors.white}
+                            />
+                        </View>
                         <Text style={styles.actionButtonText}>Add Area</Text>
                     </TouchableOpacity>
                 </View>
@@ -308,10 +314,7 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.white,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        ...shadows.small,
+        backgroundColor: customColors.grey50,
     },
     loadingContainer: {
         flex: 1,
@@ -324,13 +327,13 @@ const styles = StyleSheet.create({
     },
     dropdownCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         ...shadows.small,
     },
     sectionTitle: {
-        ...typography.h6(),
-        color: customColors.primary,
+        ...typography.subtitle1(),
+        color: customColors.grey700,
         marginBottom: spacing.md,
         fontWeight: "600",
     },
@@ -340,28 +343,37 @@ const styles = StyleSheet.create({
     actionSection: {
         flexDirection: "row",
         justifyContent: "space-between",
-        padding: spacing.md,
-        gap: spacing.md,
+        paddingHorizontal: spacing.md,
+        gap: spacing.sm,
     },
     actionButton: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        padding: spacing.md,
-        borderRadius: 8,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.lg,
         gap: spacing.sm,
         ...shadows.small,
+    },
+    actionIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.md,
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     routeButton: {
         backgroundColor: customColors.primary,
     },
     areaButton: {
-        backgroundColor: customColors.secondary,
+        backgroundColor: customColors.success,
     },
     actionButtonText: {
+        ...typography.subtitle2(),
         color: customColors.white,
-        ...typography.subtitle1(),
         fontWeight: "600",
     },
 });

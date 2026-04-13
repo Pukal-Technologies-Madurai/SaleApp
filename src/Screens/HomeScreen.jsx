@@ -8,14 +8,14 @@ import {
     Modal,
     Alert,
     Platform,
+    Animated,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import Feather from "react-native-vector-icons/Feather";
 import NetInfo from "@react-native-community/netinfo";
 import RNFS from "react-native-fs";
 import Share from "react-native-share";
@@ -23,7 +23,7 @@ import AttendanceInfo from "./attendance/AttendanceInfo";
 import AppHeader from "../Components/AppHeader";
 import assetImages from "../Config/Image";
 import Dashboard from "./Dashboard";
-import { customColors, typography, spacing, shadows } from "../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius } from "../Config/helper";
 
 const HomeScreen = () => {
     const navigation = useNavigation();
@@ -32,6 +32,8 @@ const HomeScreen = () => {
     const [error, setError] = useState(null);
     const [isQRVisible, setIsQRVisible] = useState(false);
     const [companyName, setCompanyName] = useState("");
+    const [isFabOpen, setIsFabOpen] = useState(false);
+    const fabAnimation = useRef(new Animated.Value(0)).current;
 
     const ADMIN_USER_TYPES = ["0", "1", "2"];
     const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
@@ -78,112 +80,75 @@ const HomeScreen = () => {
     const buttons = [
         {
             title: "Retailers",
-            iconLibrary: "MaterialIcons",
-            iconName: "store",
+            image: assetImages.shops,
             navigate: "Customers",
-            color: "#6366F1",
-            backgroundColor: "#EEF2FF",
+            gradientStart: "#6366F1",
+            gradientEnd: "#818CF8",
         },
         {
             title: "Visit Log",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "map-marker-path",
+            image: assetImages.dailyLog,
             navigate: "RetailerLog",
-            color: "#10B981",
-            backgroundColor: "#ECFDF5",
+            gradientStart: "#10B981",
+            gradientEnd: "#34D399",
         },
         {
             title: "Sale List",
-            iconLibrary: "MaterialIcons",
-            iconName: "shopping-cart",
+            image: assetImages.sales,
             navigate: "OrderPreview",
-            color: "#F59E0B",
-            backgroundColor: "#FFFBEB",
-        },
-        {
-            title: "Stock List",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "warehouse",
-            navigate: "StockInfo",
-            color: "#8B5CF6",
-            backgroundColor: "#F3E8FF",
+            gradientStart: "#F59E0B",
+            gradientEnd: "#FBBF24",
         },
         {
             title: "Delivery",
-            iconLibrary: "MaterialIcons",
-            iconName: "local-shipping",
+            image: assetImages.delivery,
             navigate: "DeliveryUpdate",
-            color: "#EF4444",
-            backgroundColor: "#FEF2F2",
+            gradientStart: "#EF4444",
+            gradientEnd: "#F87171",
         },
         {
             title: "Receipts",
-            iconLibrary: "Ionicons",
-            iconName: "receipt-outline",
+            image: assetImages.receipts,
             navigate: "ReceiptInfo",
-            color: "#84CC16",
-            backgroundColor: "#F7FEE7",
+            gradientStart: "#84CC16",
+            gradientEnd: "#A3E635",
         },
         {
-            title: "Invoices List",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "file-document-outline",
+            title: "Invoices",
+            image: assetImages.invoice,
             navigate: "SaleInvoiceList",
-            color: "#3B82F6",
-            backgroundColor: "#EFF6FF",
+            gradientStart: "#3B82F6",
+            gradientEnd: "#60A5FA",
+        },
+        {
+            title: "Retailers Stock",
+            image: assetImages.stock,
+            navigate: "StockInfo",
+            gradientStart: "#8B5CF6",
+            gradientEnd: "#A78BFA",
         },
         {
             title: "TripSheet",
-            iconLibrary: "MaterialCommunityIcons",
-            iconName: "truck-delivery",
+            image: assetImages.TripSheet,
             navigate: "TripSheet",
-            color: "#06B6D4",
-            backgroundColor: "#ECFEFF",
-        },
-        {
-            title: "Delivery Return",
-            iconLibrary: "MaterialIcons",
-            iconName: "turn-left",
-            navigate: "PendingDeliveryIndividual",
-            color: "#3B82F6",
-            backgroundColor: "#EFF6FF",
+            gradientStart: "#06B6D4",
+            gradientEnd: "#22D3EE",
         },
         {
             title: "Credit Note",
-            iconLibrary: "MaterialIcons",
-            iconName: "credit-card",
+            image: assetImages.creditNote,
             navigate: "DeliveryReturn",
-            color: "#EC4899",
-            backgroundColor: "#FDF2F8",
+            gradientStart: "#F97316",
+            gradientEnd: "#FB923C",
         },
         // {
-        //     title: "Sales Return",
-        //     iconLibrary: "MaterialCommunityIcons",
-        //     iconName: "arrow-u-left-top-bold",
-        //     navigate: "SalesReturnList",
-        //     color: "#F97316",
-        //     backgroundColor: "#FFFAF0",
+        //     title: "Delivery Return",
+        //     image: assetImages.deliveryCancel,
+        //     navigate: "PendingDeliveryIndividual",
+        //     gradientStart: "#EC4899",
+        //     gradientEnd: "#F472B6",
         // }
     ];
-
-    const renderIcon = (iconLibrary, iconName, color) => {
-        const iconProps = {
-            name: iconName,
-            size: 28,
-            color: color,
-        };
-
-        switch (iconLibrary) {
-            case "MaterialIcons":
-                return <MaterialIcons {...iconProps} />;
-            case "MaterialCommunityIcons":
-                return <MaterialCommunityIcons {...iconProps} />;
-            case "Ionicons":
-                return <Ionicons {...iconProps} />;
-            default:
-                return <MaterialIcons {...iconProps} />;
-        }
-    };
 
     if (error) {
         return (
@@ -194,47 +159,69 @@ const HomeScreen = () => {
     }
 
     const handleShowQR = () => {
-        setIsQRVisible(true); // This should set the state to show the modal
+        setIsQRVisible(true);
+    };
+
+    const toggleFab = () => {
+        const toValue = isFabOpen ? 0 : 1;
+        Animated.spring(fabAnimation, {
+            toValue,
+            friction: 5,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+        setIsFabOpen(!isFabOpen);
+    };
+
+    const handleFabOption = (screen) => {
+        toggleFab();
+        navigation.navigate(screen);
     };
 
     const handleShareQR = async () => {
         try {
-            // 1) Resolve the asset URI
-            const srcUri = Image.resolveAssetSource(assetImages.gpayLogo)?.uri;
-            if (!srcUri) throw new Error("Could not resolve asset URI");
+            const destPath = `${RNFS.CachesDirectoryPath}/qr_code.jpg`;
+            
+            // Get the asset source
+            const asset = Image.resolveAssetSource(assetImages.gpayLogo);
+            if (!asset?.uri) throw new Error("Could not resolve asset URI");
+            
+            const srcUri = asset.uri;
 
-            // 2) Materialize to a file when needed (dev http:// uri or file://)
-            let urlToShare = srcUri;
-
+            // Always copy to cache for reliable sharing
             if (srcUri.startsWith("http")) {
-                // dev mode: download the asset to cache
-                const destPath = `${RNFS.TemporaryDirectoryPath}/qr_code.jpg`;
-                await RNFS.downloadFile({ fromUrl: srcUri, toFile: destPath })
-                    .promise;
-                urlToShare = `file://${destPath}`;
-            } else if (srcUri.startsWith("file://")) {
-                urlToShare = srcUri; // already a file
-            } else if (
-                Platform.OS === "android" &&
-                srcUri.startsWith("asset:/")
-            ) {
-                // react-native-share understands asset:// on Android:
-                // convert asset:/ to asset://
-                urlToShare = srcUri.replace("asset:/", "asset://");
+                // Dev mode: download from metro bundler
+                await RNFS.downloadFile({ 
+                    fromUrl: srcUri, 
+                    toFile: destPath 
+                }).promise;
+            } else if (Platform.OS === "android") {
+                // Android production: copy from asset
+                const assetPath = srcUri.replace("asset:/", "");
+                await RNFS.copyFileAssets(assetPath, destPath);
+            } else {
+                // iOS: copy from bundle
+                const bundlePath = srcUri.replace("file://", "");
+                if (await RNFS.exists(bundlePath)) {
+                    await RNFS.copyFile(bundlePath, destPath);
+                } else {
+                    throw new Error("Source file not found");
+                }
             }
 
+            // Convert to base64 for reliable cross-platform sharing
+            const base64Data = await RNFS.readFile(destPath, "base64");
+            
             await Share.open({
-                title: "Share QR Code",
-                message:
-                    "Here is the QR code for payment. Scan to make payment!",
-                url: urlToShare,
+                title: "Payment QR Code",
+                url: `data:image/jpeg;base64,${base64Data}`,
                 type: "image/jpeg",
                 failOnCancel: false,
             });
         } catch (error) {
             if (error.message !== "User did not share") {
                 console.error("Error sharing image:", error);
-                Alert.alert("Error", "Failed to share QR code");
+                Alert.alert("Error", "Failed to share QR code. Please try again.");
             }
         }
     };
@@ -301,29 +288,38 @@ const HomeScreen = () => {
                                     {buttons.map((button, index) => (
                                         <TouchableOpacity
                                             key={index}
-                                            style={styles.button}
+                                            style={[
+                                                styles.button,
+                                                {
+                                                    backgroundColor: button.gradientStart + "15",
+                                                    borderColor: button.gradientStart + "30",
+                                                },
+                                            ]}
                                             onPress={() =>
                                                 navigation.navigate(
                                                     button.navigate,
                                                 )
                                             }
-                                            activeOpacity={0.7}>
+                                            activeOpacity={0.8}>
                                             <View
                                                 style={[
                                                     styles.iconContainer,
                                                     {
-                                                        backgroundColor:
-                                                            button.backgroundColor,
+                                                        backgroundColor: button.gradientStart + "20",
+                                                        shadowColor: button.gradientStart,
                                                     },
                                                 ]}>
-                                                {renderIcon(
-                                                    button.iconLibrary,
-                                                    button.iconName,
-                                                    button.color,
-                                                )}
+                                                <Image
+                                                    source={button.image}
+                                                    style={styles.buttonImage}
+                                                    resizeMode="contain"
+                                                />
                                             </View>
                                             <Text
-                                                style={styles.buttonText}
+                                                style={[
+                                                    styles.buttonText,
+                                                    { color: button.gradientStart },
+                                                ]}
                                                 numberOfLines={2}>
                                                 {button.title}
                                             </Text>
@@ -336,30 +332,39 @@ const HomeScreen = () => {
                 </ScrollView>
             </View>
 
-            {/* Simplified QR Modal */}
+            {/* QR Code Modal */}
             <Modal
                 visible={isQRVisible}
                 transparent={true}
-                animationType="fade"
+                animationType="slide"
                 onRequestClose={() => setIsQRVisible(false)}>
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
-                        <TouchableOpacity
-                            style={styles.closeIconButton}
-                            onPress={() => setIsQRVisible(false)}
-                            activeOpacity={0.7}>
-                            <MaterialIcons
-                                name="close"
-                                size={28}
-                                color={customColors.grey700}
-                            />
-                        </TouchableOpacity>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Scan to Pay</Text>
+                            <TouchableOpacity
+                                style={styles.closeIconButton}
+                                onPress={() => setIsQRVisible(false)}
+                                activeOpacity={0.7}>
+                                <MaterialIcons
+                                    name="close"
+                                    size={24}
+                                    color={customColors.grey700}
+                                />
+                            </TouchableOpacity>
+                        </View>
 
-                        <Image
-                            source={assetImages.gpayLogo}
-                            style={styles.qrImage}
-                            resizeMode="contain"
-                        />
+                        <View style={styles.qrContainer}>
+                            <Image
+                                source={assetImages.gpayLogo}
+                                style={styles.qrImage}
+                                resizeMode="contain"
+                            />
+                        </View>
+
+                        <Text style={styles.qrHint}>
+                            Scan this QR code with any UPI app to make payment
+                        </Text>
 
                         <TouchableOpacity
                             style={styles.shareButton}
@@ -369,13 +374,105 @@ const HomeScreen = () => {
                                 name="share"
                                 size={20}
                                 color={customColors.white}
-                                style={{ marginRight: 8 }}
                             />
-                            <Text style={styles.shareButtonText}>Share</Text>
+                            <Text style={styles.shareButtonText}>Share QR Code</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
+
+            {/* Floating Action Button */}
+            {!isAdmin && (
+                <>
+                    {/* Backdrop */}
+                    {isFabOpen && (
+                        <TouchableOpacity
+                            style={styles.fabBackdrop}
+                            activeOpacity={1}
+                            onPress={toggleFab}
+                        />
+                    )}
+                    
+                    <View style={styles.fabContainer}>
+                        {/* FAB Options */}
+                        <Animated.View
+                            style={[
+                                styles.fabOption,
+                                styles.fabOption1,
+                                {
+                                    opacity: fabAnimation,
+                                    transform: [
+                                        {
+                                            scale: fabAnimation.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0.3, 1],
+                                            }),
+                                        },
+                                    ],
+                                },
+                            ]}
+                            pointerEvents={isFabOpen ? "auto" : "none"}>
+                            <TouchableOpacity
+                                style={[styles.fabOptionButton, styles.fabOptionRetailer]}
+                                onPress={() => handleFabOption("AddCustomer")}
+                                activeOpacity={0.8}>
+                                <Feather name="user-plus" size={22} color={customColors.white} />
+                            </TouchableOpacity>
+                            <View style={styles.fabLabelContainer}>
+                                <Text style={styles.fabOptionLabel}>Add Retailer</Text>
+                            </View>
+                        </Animated.View>
+
+                        <Animated.View
+                            style={[
+                                styles.fabOption,
+                                styles.fabOption2,
+                                {
+                                    opacity: fabAnimation,
+                                    transform: [
+                                        {
+                                            scale: fabAnimation.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0.3, 1],
+                                            }),
+                                        },
+                                    ],
+                                },
+                            ]}
+                            pointerEvents={isFabOpen ? "auto" : "none"}>
+                            <TouchableOpacity
+                                style={[styles.fabOptionButton, styles.fabOptionVisit]}
+                                onPress={() => handleFabOption("RetailerVisit")}
+                                activeOpacity={0.8}>
+                                <Feather name="map-pin" size={22} color={customColors.white} />
+                            </TouchableOpacity>
+                            <View style={styles.fabLabelContainer}>
+                                <Text style={styles.fabOptionLabel}>Visit Entry</Text>
+                            </View>
+                        </Animated.View>
+
+                        {/* Main FAB */}
+                        <TouchableOpacity
+                            style={[styles.fab, isFabOpen && styles.fabActive]}
+                            onPress={toggleFab}
+                            activeOpacity={0.9}>
+                            <Animated.View
+                                style={{
+                                    transform: [
+                                        {
+                                            rotate: fabAnimation.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: ["0deg", "135deg"],
+                                            }),
+                                        },
+                                    ],
+                                }}>
+                                <Feather name="plus" size={28} color={customColors.white} />
+                            </Animated.View>
+                        </TouchableOpacity>
+                    </View>
+                </>
+            )}
         </SafeAreaView>
     );
 };
@@ -394,17 +491,17 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 20,
+        borderRadius: borderRadius.xl,
         padding: spacing.lg,
         marginHorizontal: spacing.md,
         marginVertical: spacing.md,
-        ...shadows.medium,
+        ...shadows.small,
     },
     sectionTitleContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
     },
     sectionTitle: {
         ...typography.h5(),
@@ -415,34 +512,48 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         justifyContent: "space-between",
-        gap: spacing.md,
+        gap: spacing.sm,
     },
     button: {
-        width: "47%",
+        width: "31%",
         backgroundColor: customColors.white,
-        borderRadius: 16,
-        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xs,
         alignItems: "center",
         justifyContent: "center",
-        borderWidth: 1,
-        borderColor: customColors.grey100,
-        ...shadows.small,
-        minHeight: 120,
+        borderWidth: 1.5,
+        marginBottom: spacing.xs,
+        // 3D effect
+        // shadowColor: "#000",
+        // shadowOffset: { width: 0, height: 4 },
+        // shadowOpacity: 0.15,
+        // shadowRadius: 8,
+        // elevation: 6,
+        // minHeight: 110,
     },
     iconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 16,
+        width: 52,
+        height: 52,
+        borderRadius: borderRadius.lg,
         justifyContent: "center",
         alignItems: "center",
         marginBottom: spacing.sm,
+        // 3D effect for icon container
+        // shadowOffset: { width: 0, height: 3 },
+        // shadowOpacity: 0.2,
+        // shadowRadius: 4,
+        // elevation: 4,
+    },
+    buttonImage: {
+        width: 36,
+        height: 36,
     },
     buttonText: {
         ...typography.body2(),
-        fontWeight: "600",
-        color: customColors.grey800,
+        fontWeight: "700",
         textAlign: "center",
-        lineHeight: 18,
+        lineHeight: 14,
     },
     errorContainer: {
         flex: 1,
@@ -461,57 +572,153 @@ const styles = StyleSheet.create({
         color: customColors.grey600,
         textAlign: "center",
     },
-    // Simplified modal styles
+    // QR Modal styles
     modalContainer: {
         flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        justifyContent: "flex-end",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
     modalContent: {
-        width: "90%",
-        maxWidth: 400,
         backgroundColor: customColors.white,
-        borderRadius: 20,
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
         padding: spacing.lg,
-        alignItems: "center",
-        position: "relative",
-        margin: spacing.lg,
+        paddingBottom: spacing.xxl,
         ...shadows.large,
     },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: spacing.md,
+    },
+    modalTitle: {
+        ...typography.h5(),
+        fontWeight: "700",
+        color: customColors.grey900,
+    },
     closeIconButton: {
-        position: "absolute",
-        top: 10,
-        right: 10,
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
         justifyContent: "center",
         alignItems: "center",
-        zIndex: 1,
+    },
+    qrContainer: {
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.lg,
+        padding: spacing.sm,
+        marginBottom: spacing.md,
     },
     qrImage: {
         width: "100%",
-        height: 510,
-        borderRadius: 12,
-        marginBottom: spacing.xxs,
+        height: 400,
+        borderRadius: borderRadius.md,
+    },
+    qrHint: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        textAlign: "center",
+        marginBottom: spacing.lg,
     },
     shareButton: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: customColors.primary,
-        borderRadius: 12,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        width: "60%",
+        borderRadius: borderRadius.lg,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        gap: spacing.sm,
         ...shadows.small,
     },
     shareButtonText: {
+        ...typography.body1(),
         color: customColors.white,
-        ...typography.body2(),
         fontWeight: "600",
-        marginLeft: spacing.xs,
+    },
+    // FAB styles
+    fabBackdrop: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+    },
+    fabContainer: {
+        position: "absolute",
+        bottom: spacing.xl * 2.5, // move up from bottom (e.g., 32–40px above system nav)
+        right: spacing.lg + 4,
+        alignItems: "center",
+        zIndex: 100,
+    },
+    fab: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: customColors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        shadowColor: customColors.primary,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    fabActive: {
+        backgroundColor: customColors.grey800,
+    },
+    fabOption: {
+        position: "absolute",
+        alignItems: "center",
+        flexDirection: "row-reverse",
+        gap: spacing.sm,
+    },
+    fabOption1: {
+        // Add Retailer: up and left (diagonal)
+        left: -90,
+        bottom: 110,
+    },
+    fabOption2: {
+        // Visit Entry: up and slightly left
+        left: -50,
+        bottom: 60,
+    },
+    fabOptionButton: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: "center",
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    fabOptionRetailer: {
+        backgroundColor: "#10B981",
+    },
+    fabOptionVisit: {
+        backgroundColor: "#6366F1",
+    },
+    fabLabelContainer: {
+        backgroundColor: customColors.white,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.md,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    fabOptionLabel: {
+        ...typography.body2(),
+        color: customColors.grey800,
+        fontWeight: "600",
     },
 });

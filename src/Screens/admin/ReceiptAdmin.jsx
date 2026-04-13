@@ -22,6 +22,8 @@ import {
     typography,
     spacing,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 
 
@@ -234,7 +236,7 @@ const ReceiptAdmin = ({ route }) => {
                 <View style={styles.searchInputContainer}>
                     <MaterialIcons
                         name="search"
-                        size={20}
+                        size={iconSizes.md}
                         color={customColors.grey500}
                     />
                     <TextInput
@@ -251,7 +253,7 @@ const ReceiptAdmin = ({ route }) => {
                             style={styles.clearButton}>
                             <MaterialIcons
                                 name="clear"
-                                size={18}
+                                size={iconSizes.sm}
                                 color={customColors.grey500}
                             />
                         </TouchableOpacity>
@@ -274,7 +276,7 @@ const ReceiptAdmin = ({ route }) => {
                 activeOpacity={0.7}>
                 <MaterialIcons
                     name="all-inclusive"
-                    size={16}
+                    size={iconSizes.sm}
                     color={
                         selectedPaymentFilter === "all"
                             ? customColors.white
@@ -301,7 +303,7 @@ const ReceiptAdmin = ({ route }) => {
                 activeOpacity={0.7}>
                 <MaterialIcons
                     name="account-balance"
-                    size={16}
+                    size={iconSizes.sm}
                     color={
                         selectedPaymentFilter === "bank"
                             ? customColors.white
@@ -328,7 +330,7 @@ const ReceiptAdmin = ({ route }) => {
                 activeOpacity={0.7}>
                 <MaterialIcons
                     name="money"
-                    size={16}
+                    size={iconSizes.sm}
                     color={
                         selectedPaymentFilter === "cash"
                             ? customColors.white
@@ -359,7 +361,7 @@ const ReceiptAdmin = ({ route }) => {
                 <View style={styles.statCard}>
                     <MaterialIcons
                         name="receipt-long"
-                        size={24}
+                        size={iconSizes.lg}
                         color={customColors.primary}
                     />
                     <View style={styles.statContent}>
@@ -380,7 +382,7 @@ const ReceiptAdmin = ({ route }) => {
                 <View style={styles.statCard}>
                     <MaterialIcons
                         name="currency-rupee"
-                        size={24}
+                        size={iconSizes.lg}
                         color={customColors.success}
                     />
                     <View style={styles.statContent}>
@@ -444,7 +446,7 @@ const ReceiptAdmin = ({ route }) => {
             <View style={styles.customerInfo}>
                 <MaterialIcons
                     name="store"
-                    size={16}
+                    size={iconSizes.sm}
                     color={customColors.grey600}
                 />
                 <Text style={styles.customerName} numberOfLines={2}>
@@ -460,7 +462,7 @@ const ReceiptAdmin = ({ route }) => {
                             ? "account-balance"
                             : "money"
                     }
-                    size={16}
+                    size={iconSizes.sm}
                     color={
                         receipt.debit_ledger_name?.includes("Canara Bank")
                             ? customColors.info
@@ -477,7 +479,7 @@ const ReceiptAdmin = ({ route }) => {
                 <View style={styles.salesPersonInfo}>
                     <MaterialIcons
                         name="person"
-                        size={16}
+                        size={iconSizes.sm}
                         color={customColors.grey600}
                     />
                     <Text style={styles.salesPersonText} numberOfLines={1}>
@@ -493,7 +495,7 @@ const ReceiptAdmin = ({ route }) => {
                 <View style={styles.timeInfo}>
                     <MaterialIcons
                         name="access-time"
-                        size={14}
+                        size={iconSizes.xs}
                         color={customColors.grey500}
                     />
                     <Text style={styles.timeText}>
@@ -509,9 +511,9 @@ const ReceiptAdmin = ({ route }) => {
         <View style={styles.emptyStateContainer}>
             <MaterialIcons
                 name="receipt-long"
-                size={64}
+                size={iconSizes.xxl}
                 color={customColors.grey400}
-            />
+                />
             <Text style={styles.emptyStateTitle}>No Receipts Found</Text>
             <Text style={styles.emptyStateSubtitle}>
                 No receipts found for the selected filters.{"\n"}
@@ -566,7 +568,7 @@ const ReceiptAdmin = ({ route }) => {
                     <View style={styles.errorContainer}>
                         <MaterialIcons
                             name="error-outline"
-                            size={48}
+                            size={iconSizes.xl}
                             color={customColors.error}
                         />
                         <Text style={styles.errorTitle}>
@@ -625,7 +627,7 @@ const ReceiptAdmin = ({ route }) => {
                                         style={styles.searchButton}>
                                         <MaterialIcons
                                             name={showSearch ? "close" : "search"}
-                                            size={22}
+                                            size={iconSizes.md}
                                             color={customColors.primary}
                                         />
                                     </TouchableOpacity>
@@ -682,7 +684,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginTop: spacing.sm,
     },
     retryButtonText: {
@@ -704,7 +706,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         backgroundColor: customColors.grey100,
         borderWidth: 1,
         borderColor: customColors.grey200,
@@ -725,7 +727,7 @@ const styles = StyleSheet.create({
     // Payment breakdown styles
     breakdownContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         marginBottom: spacing.md,
         ...shadows.small,
@@ -790,7 +792,7 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         flexDirection: "row",
         alignItems: "center",
@@ -834,7 +836,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderWidth: 1,
@@ -853,7 +855,7 @@ const styles = StyleSheet.create({
     },
     receiptCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         marginBottom: spacing.sm,
         borderWidth: 1,
@@ -890,7 +892,7 @@ const styles = StyleSheet.create({
     statusBadge: {
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
     },
     statusText: {
         ...typography.caption(),

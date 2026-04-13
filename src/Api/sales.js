@@ -73,6 +73,8 @@ export const fetchSaleOrder = async ({
     return data.data;
 };
 
+// Not used Api
+
 export const fetchSaleOrderRetilerWise = async ({ retailerId, from, to }) => {
     const response = await fetch(
         `${API.saleOrder()}?Retailer_Id=${retailerId}&Fromdate=${from}&Todate=${to}`,

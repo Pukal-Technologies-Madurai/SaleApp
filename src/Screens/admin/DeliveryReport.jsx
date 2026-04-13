@@ -10,7 +10,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 
@@ -21,13 +21,17 @@ const DeliveryTable = ({ deliveryData }) => {
     const filteredData = deliveryData.filter(item => {
         if (selectedFilter === "all") return true;
         if (selectedFilter === "delivered") {
-            return item.DeliveryStatusName === "Delivered";
+            return item.Delivery_Status === 7;
         }
         if (selectedFilter === "pending") {
-            return item.DeliveryStatusName === "New"; // Show items with pending payment
+            // Pending includes status 0 (NILL) and 1 (New)
+            return item.Delivery_Status === 0 || item.Delivery_Status === 1;
         }
         if (selectedFilter === "return") {
             return item.Delivery_Status === 6;
+        }
+        if (selectedFilter === "cancel") {
+            return item.Cancel_status === "0" && item.Cancel_status !== 0;
         }
         return true;
     });
@@ -37,83 +41,12 @@ const DeliveryTable = ({ deliveryData }) => {
         return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}`;
     };
 
-    // Filter buttons component
-    const FilterButtons = () => (
-        <View style={styles.filterContainer}>
-            <TouchableOpacity
-                style={[
-                    styles.filterButton,
-                    selectedFilter === "all" && styles.filterButtonActive,
-                ]}
-                onPress={() => setSelectedFilter("all")}
-            >
-                <Text
-                    style={[
-                        styles.filterText,
-                        selectedFilter === "all" && styles.filterTextActive,
-                    ]}
-                >
-                    All
-                </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[
-                    styles.filterButton,
-                    selectedFilter === "delivered" && styles.filterButtonActive,
-                ]}
-                onPress={() => setSelectedFilter("delivered")}
-            >
-                <Text
-                    style={[
-                        styles.filterText,
-                        selectedFilter === "delivered" &&
-                            styles.filterTextActive,
-                    ]}
-                >
-                    Delivered
-                </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[
-                    styles.filterButton,
-                    selectedFilter === "pending" && styles.filterButtonActive,
-                ]}
-                onPress={() => setSelectedFilter("pending")}
-            >
-                <Text
-                    style={[
-                        styles.filterText,
-                        selectedFilter === "pending" && styles.filterTextActive,
-                    ]}
-                >
-                    Pending
-                </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[
-                    styles.filterButton,
-                    selectedFilter === "return" && styles.filterButtonActive,
-                ]}
-                onPress={() => setSelectedFilter("return")}
-            >
-                <Text
-                    style={[
-                        styles.filterText,
-                        selectedFilter === "return" && styles.filterTextActive,
-                    ]}
-                >
-                    Return
-                </Text>
-            </TouchableOpacity>
-        </View>
-    );
-
     const totalDelivery = deliveryData.filter(
         item => item.Delivery_Status === 7,
     ).length;
 
     const pendingDelivery = deliveryData.filter(
-        item => item.Delivery_Status === 1,
+        item => item.Delivery_Status === 0 || item.Delivery_Status === 1,
     ).length;
 
     const returnDelivery = deliveryData.filter(
@@ -127,50 +60,99 @@ const DeliveryTable = ({ deliveryData }) => {
     };
 
     const getDeliveryStatus = status => {
+        if (status === 0) return "Nil";
         if (status === 1) return "New";
-        if (status === 6) return "Returned";
-        if (status === 7) return "Delivered";
+        if (status === 6) return "Return";
+        if (status === 7) return "Done";
         return "Pending";
     };
 
     return (
         <View style={styles.tableContainer}>
-            {/* Statistics Cards */}
+            {/* Statistics Cards - Pressable for filtering */}
             <View style={styles.statsContainer}>
-                <View style={styles.statsCard}>
-                    <Text style={styles.statsNumber}>
+                <TouchableOpacity 
+                    style={[
+                        styles.statsCard,
+                        selectedFilter === "all" && styles.statsCardActive
+                    ]}
+                    onPress={() => setSelectedFilter("all")}
+                    activeOpacity={0.7}
+                >
+                    <Text style={[
+                        styles.statsNumber,
+                        selectedFilter === "all" && styles.statsNumberActive
+                    ]}>
                         {deliveryData.length}
                     </Text>
-                    <Text style={styles.statsLabel}>Total</Text>
-                </View>
-                <View style={styles.statsCard}>
-                    <Text style={styles.statsNumber}>{totalDelivery}</Text>
-                    <Text style={styles.statsLabel}>Delivered</Text>
-                </View>
-                <View style={styles.statsCard}>
-                    <Text style={styles.statsNumber}>{pendingDelivery}</Text>
-                    <Text style={styles.statsLabel}>Pending</Text>
-                </View>
-                <View style={styles.statsCard}>
-                    <Text style={styles.statsNumber}>{returnDelivery}</Text>
-                    <Text style={styles.statsLabel}>Return</Text>
-                </View>
+                    <Text style={[
+                        styles.statsLabel,
+                        selectedFilter === "all" && styles.statsLabelActive
+                    ]}>Total</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[
+                        styles.statsCard,
+                        selectedFilter === "delivered" && styles.statsCardActive
+                    ]}
+                    onPress={() => setSelectedFilter("delivered")}
+                    activeOpacity={0.7}
+                >
+                    <Text style={[
+                        styles.statsNumber,
+                        selectedFilter === "delivered" && styles.statsNumberActive
+                    ]}>{totalDelivery}</Text>
+                    <Text style={[
+                        styles.statsLabel,
+                        selectedFilter === "delivered" && styles.statsLabelActive
+                    ]}>Delivered</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[
+                        styles.statsCard,
+                        selectedFilter === "pending" && styles.statsCardActive
+                    ]}
+                    onPress={() => setSelectedFilter("pending")}
+                    activeOpacity={0.7}
+                >
+                    <Text style={[
+                        styles.statsNumber,
+                        selectedFilter === "pending" && styles.statsNumberActive
+                    ]}>{pendingDelivery}</Text>
+                    <Text style={[
+                        styles.statsLabel,
+                        selectedFilter === "pending" && styles.statsLabelActive
+                    ]}>Pending</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[
+                        styles.statsCard,
+                        selectedFilter === "return" && styles.statsCardActive
+                    ]}
+                    onPress={() => setSelectedFilter("return")}
+                    activeOpacity={0.7}
+                >
+                    <Text style={[
+                        styles.statsNumber,
+                        selectedFilter === "return" && styles.statsNumberActive
+                    ]}>{returnDelivery}</Text>
+                    <Text style={[
+                        styles.statsLabel,
+                        selectedFilter === "return" && styles.statsLabelActive
+                    ]}>Return</Text>
+                </TouchableOpacity>
             </View>
-
-            <FilterButtons />
 
             {/* Table Header */}
             <View style={styles.headerRow}>
-                <Text style={[styles.headerCell, { flex: 1 }]}>SaleDt</Text>
-                <Text style={[styles.headerCell, { flex: 3 }]}>Retailer</Text>
-                <Text style={[styles.headerCell, { flex: 2 }]}>
-                    Delivery By
-                </Text>
-                <Text style={[styles.headerCell, { flex: 1.5 }]}>Status</Text>
+                <Text style={[styles.headerCell, { flex: 1.2 }]}>Date</Text>
+                <Text style={[styles.headerCell, { flex: 2.5 }]}>Retailer</Text>
+                <Text style={[styles.headerCell, { flex: 2 }]}>Delivery By</Text>
+                <Text style={[styles.headerCell, { flex: 1.3, textAlign: "center" }]}>Status</Text>
             </View>
 
             {/* Table Body */}
-            <ScrollView style={styles.tableBody}>
+            <ScrollView style={styles.tableBody} showsVerticalScrollIndicator={false}>
                 {filteredData.map((item, index) => {
                     let displayName = "N/A";
                     if (item.Delivery_Person_Name === "not available" && item.Delivery_Status === 7) {
@@ -181,7 +163,7 @@ const DeliveryTable = ({ deliveryData }) => {
 
                     return (
                         <View key={item.Do_Id} style={styles.row}>
-                            <Text style={[styles.cell, { flex: 1 }]}>
+                            <Text style={[styles.cell, { flex: 1.2 }]}>
                                 {formatDate(
                                     item.SalesDate === null
                                         ? item.Do_Date
@@ -189,24 +171,18 @@ const DeliveryTable = ({ deliveryData }) => {
                                 )}
                             </Text>
                             <Text
-                                style={[styles.cell, { flex: 3 }]}
-                                numberOfLines={4}
+                                style={[styles.cell, { flex: 2.5 }]}
+                                numberOfLines={3}
                             >
                                 {item.Retailer_Name}
                             </Text>
                             <Text
-                                style={[
-                                    styles.cell,
-                                    {
-                                        flex: 2,
-                                        ...typography.caption(),
-                                        textAlign: "center",
-                                    },
-                                ]}
+                                style={[styles.cell, { flex: 2 }]}
+                                numberOfLines={2}
                             >
                                 {displayName}
                             </Text>
-                            <View style={[styles.statusContainer, { flex: 2 }]}>
+                            <View style={[styles.statusContainer, { flex: 1.3 }]}>
                                 <View
                                     style={[
                                         styles.statusBadge,
@@ -215,7 +191,11 @@ const DeliveryTable = ({ deliveryData }) => {
                                         ),
                                     ]}
                                 >
-                                    <Text style={styles.statusText}>
+                                    <Text style={[
+                                        styles.statusText,
+                                        item.Delivery_Status === 6 && { color: customColors.error },
+                                        (item.Delivery_Status === 0 || item.Delivery_Status === 1) && { color: customColors.warning },
+                                    ]}> 
                                         {getDeliveryStatus(
                                             item.Delivery_Status,
                                         )}
@@ -224,7 +204,7 @@ const DeliveryTable = ({ deliveryData }) => {
                             </View>
                             {/* Return Reason */}
                             {getDeliveryStatus(item.Delivery_Status) ===
-                                "Returned" && (
+                                "Return" && (
                                 <View style={styles.returnReasonContainer}>
                                     <Text style={styles.returnReasonLabel}>
                                         Return Reason:
@@ -237,6 +217,11 @@ const DeliveryTable = ({ deliveryData }) => {
                                             item.Payment_Ref_No ||
                                             "No reason provided"}
                                     </Text>
+                                    {item.Sales_Person_Name && item.Sales_Person_Name !== "unknown" && (
+                                        <Text style={styles.salesPersonText}>
+                                            Sales Person: {item.Sales_Person_Name}
+                                        </Text>
+                                    )}
                                 </View>
                             )}
                         </View>
@@ -335,7 +320,7 @@ const DeliveryReport = ({ route }) => {
             <View style={styles.contentContainer}>
                 {isLoading ? (
                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#0000ff" />
+                        <ActivityIndicator size="large" color={customColors.primary} />
                         <Text style={styles.loadingText}>Loading...</Text>
                     </View>
                 ) : (
@@ -365,140 +350,137 @@ const styles = StyleSheet.create({
         minHeight: 200,
     },
     loadingText: {
-        marginTop: 10,
+        marginTop: spacing.sm,
         ...typography.h6(),
-        color: "#666",
+        color: customColors.grey600,
     },
     tableContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-        // marginHorizontal: 16,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
+        borderTopLeftRadius: borderRadius.lg,
+        borderTopRightRadius: borderRadius.lg,
         overflow: "hidden",
-        elevation: 2,
+        ...shadows.small,
     },
     statsContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        padding: 16,
+        padding: spacing.md,
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        margin: 16,
-        elevation: 2,
+        borderRadius: borderRadius.lg,
+        margin: spacing.md,
+        ...shadows.small,
     },
     statsCard: {
         alignItems: "center",
         flex: 1,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xs,
+        borderRadius: borderRadius.md,
+        backgroundColor: customColors.white,
+    },
+    statsCardActive: {
+        backgroundColor: customColors.primary,
     },
     statsNumber: {
         ...typography.h4(),
         color: customColors.primary,
         fontWeight: "bold",
     },
+    statsNumberActive: {
+        color: customColors.white,
+    },
     statsLabel: {
         ...typography.body2(),
-        color: "#666",
-        marginTop: 4,
+        color: customColors.grey600,
+        marginTop: spacing.xxs,
     },
-    filterContainer: {
-        flexDirection: "row",
-        backgroundColor: customColors.white,
-        justifyContent: "space-around",
-        marginBottom: 16,
-        // padding: 16,
-        // marginHorizontal: 16,
-    },
-    filterButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 20,
-        borderRadius: 25,
-        backgroundColor: "#f5f5f5",
-    },
-    filterButtonActive: {
-        backgroundColor: customColors.primary,
-    },
-    filterText: {
-        ...typography.body2(),
-        color: "#666",
-        fontWeight: "500",
-    },
-    filterTextActive: {
+    statsLabelActive: {
         color: customColors.white,
     },
     headerRow: {
         flexDirection: "row",
-        backgroundColor: "#f8f9fa",
-        padding: 16,
+        alignItems: "center",
+        backgroundColor: customColors.grey100,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        borderBottomColor: customColors.grey200,
     },
     headerCell: {
-        textAlign: "left",
         ...typography.caption(),
         fontWeight: "600",
-        color: "#444",
-        paddingHorizontal: 8,
+        color: customColors.grey700,
+        paddingHorizontal: spacing.xs,
     },
     tableBody: {
+        flex: 1,
         backgroundColor: customColors.white,
     },
     row: {
         flexDirection: "row",
-        padding: 16,
+        alignItems: "center",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        borderBottomColor: customColors.grey200,
         backgroundColor: customColors.white,
         flexWrap: "wrap",
     },
     cell: {
-        ...typography.tableCell(),
-        color: "#444",
-        textAlign: "left",
-        paddingHorizontal: 8,
+        ...typography.caption(),
+        color: customColors.grey700,
+        paddingHorizontal: spacing.xs,
     },
     statusContainer: {
         alignItems: "center",
+        justifyContent: "center",
     },
     statusBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.lg,
     },
     deliveredBadge: {
-        backgroundColor: "#e6f4ea",
+        backgroundColor: customColors.successFaded,
     },
     pendingBadge: {
-        backgroundColor: "#fff3e0",
+        backgroundColor: customColors.warningFaded,
     },
     returnBadge: {
-        backgroundColor: "#FFE4E4",
+        backgroundColor: customColors.errorFaded,
     },
     statusText: {
         ...typography.caption(),
         fontWeight: "600",
-        color: "#1b5e20",
+        color: customColors.success,
     },
     returnReasonContainer: {
         width: "100%",
-        marginTop: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        backgroundColor: "#fff8f8",
+        marginTop: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.sm,
+        backgroundColor: customColors.errorFaded,
         borderLeftWidth: 3,
         borderLeftColor: customColors.warning,
-        borderRadius: 4,
+        borderRadius: borderRadius.xs,
     },
     returnReasonLabel: {
         ...typography.caption(),
         fontWeight: "700",
         color: customColors.warning,
-        marginBottom: 2,
+        marginBottom: spacing.xxs,
     },
     returnReasonText: {
         ...typography.caption(),
-        color: "#666",
+        color: customColors.grey600,
         fontStyle: "italic",
         lineHeight: 16,
+    },
+    salesPersonText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+        marginTop: spacing.xs,
     },
 });

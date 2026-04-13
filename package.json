@@ -1,6 +1,6 @@
 {
     "name": "pukalvirpanai",
-    "version": "4.3.9",
+    "version": "4.4.2",
     "private": true,
     "scripts": {
         "android": "react-native run-android",
@@ -32,6 +32,7 @@
         "react-native-fs": "^2.20.0",
         "react-native-gesture-handler": "^2.25.0",
         "react-native-html-to-pdf": "^0.12.0",
+        "react-native-linear-gradient": "^2.8.3",
         "react-native-maps": "^1.26.1",
         "react-native-reanimated": "^3.19.1",
         "react-native-rename": "^3.2.17",

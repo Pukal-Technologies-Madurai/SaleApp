@@ -3,24 +3,26 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     ToastAndroid,
     TouchableOpacity,
     View,
     Modal,
     Alert,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import Icon from "react-native-vector-icons/AntDesign";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import {
     customColors,
     typography,
     spacing,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import CustomRadioButton from "../../Components/CustomRadioButton";
 import LocationIndicator from "../../Components/LocationIndicator";
@@ -37,6 +39,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const RetailerVisit = () => {
     const navigation = useNavigation();
+    const scrollViewRef = useRef(null);
     const [userId, setUserId] = useState();
     const [companyId, setCompanyId] = useState(null);
     const [selectedRetail, setSelectedRetail] = useState(null);
@@ -194,276 +197,390 @@ const RetailerVisit = () => {
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader title="Visit Entry" navigation={navigation} />
 
-            <View style={styles.contentContainer}>
-                <View style={styles.locationSection}>
-                    <LocationIndicator
-                        onLocationUpdate={locationData =>
-                            setLocation(locationData)
-                        }
-                        autoFetch={true}
-                        autoFetchOnMount={true}
-                    />
-                </View>
+            <KeyboardAvoidingView
+                style={styles.keyboardAvoid}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}>
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.contentContainer}
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}>
+                    <View style={styles.locationSection}>
+                        <LocationIndicator
+                            onLocationUpdate={locationData =>
+                                setLocation(locationData)
+                            }
+                            autoFetch={true}
+                            autoFetchOnMount={true}
+                        />
+                    </View>
 
-                <View style={styles.radioSection}>
-                    <CustomRadioButton
-                        label="New shop"
-                        selected={selectedValue === "new"}
-                        onSelect={() => setSelectedValue("new")}
-                    />
-                    <CustomRadioButton
-                        label="Regular shop"
-                        selected={selectedValue === "exist"}
-                        onSelect={() => setSelectedValue("exist")}
-                    />
-                </View>
+                    <View style={styles.radioSection}>
+                        <CustomRadioButton
+                            label="New Shop"
+                            icon="plus-circle"
+                            selected={selectedValue === "new"}
+                            onSelect={() => setSelectedValue("new")}
+                        />
+                        <View style={{ width: spacing.md }} />
+                        <CustomRadioButton
+                            label="Regular Shop"
+                            icon="users"
+                            selected={selectedValue === "exist"}
+                            onSelect={() => setSelectedValue("exist")}
+                        />
+                    </View>
 
                 {selectedValue === "exist" && (
                     <View style={styles.formSection}>
-                        <ScrollView
-                            keyboardShouldPersistTaps="always"
-                            nestedScrollEnabled={true}
-                            contentContainerStyle={styles.scrollContent}>
-                            <View style={styles.formCard}>
-                                {/* Show filtered retailers count */}
-                                {routeInfo && (
+                        <View style={styles.formCard}>
+                            {/* Show filtered retailers count */}
+                            {routeInfo && (
+                                <View style={styles.routeInfoCard}>
+                                    <FeatherIcon
+                                        name="map-pin"
+                                        size={iconSizes.sm}
+                                        color={customColors.primary}
+                                    />
                                     <Text style={styles.retailerCountText}>
-                                        {filteredRetailers.length} retailers
-                                        available in {routeInfo}
+                                        {filteredRetailers.length} retailers in{" "}
+                                        <Text style={styles.routeName}>
+                                            {routeInfo}
+                                        </Text>
                                     </Text>
+                                </View>
+                            )}
+
+                            <EnhancedDropdown
+                                data={filteredRetailers}
+                                labelField="Retailer_Name"
+                                valueField="Retailer_Id"
+                                placeholder={
+                                    filteredRetailers.length > 0
+                                        ? "Select Retailer"
+                                        : "No retailers available"
+                                }
+                                value={selectedRetail}
+                                onChange={item => {
+                                    setSelectedRetail(item.Retailer_Id);
+                                    handleInputChange(
+                                        "Retailer_Id",
+                                        item.Retailer_Id,
+                                    );
+                                }}
+                                disabled={filteredRetailers.length === 0}
+                            />
+
+                            <FormField
+                                label="Narration"
+                                value={formValues.Narration}
+                                onChangeText={text =>
+                                    handleInputChange("Narration", text)
+                                }
+                                placeholder="Enter visit notes..."
+                                multiline
+                                inputProps={{
+                                    onFocus: () => {
+                                        setTimeout(() => {
+                                            scrollViewRef.current?.scrollToEnd({
+                                                animated: true,
+                                            });
+                                        }, 150);
+                                    },
+                                }}
+                            />
+
+                            <View style={styles.photoSection}>
+                                {capturedPhotoPath ? (
+                                    <TouchableOpacity
+                                        onPress={handlePreviewPress}
+                                        activeOpacity={0.9}>
+                                        <Image
+                                            source={{
+                                                uri: "file://" + capturedPhotoPath,
+                                            }}
+                                            style={styles.capturedImage}
+                                        />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View style={styles.photoPlaceholder}>
+                                        <FeatherIcon
+                                            name="camera"
+                                            size={iconSizes.xl}
+                                            color={customColors.grey400}
+                                        />
+                                        <Text style={styles.photoPlaceholderText}>
+                                            Add Photo
+                                        </Text>
+                                    </View>
                                 )}
-
-                                <EnhancedDropdown
-                                    data={filteredRetailers}
-                                    labelField="Retailer_Name"
-                                    valueField="Retailer_Id"
-                                    placeholder={
-                                        filteredRetailers.length > 0
-                                            ? "Select Retailer"
-                                            : "No retailers available for this route"
-                                    }
-                                    value={selectedRetail}
-                                    onChange={item => {
-                                        setSelectedRetail(item.Retailer_Id);
-                                        handleInputChange(
-                                            "Retailer_Id",
-                                            item.Retailer_Id,
-                                        );
-                                    }}
-                                    disable={filteredRetailers.length === 0}
-                                />
-
-                                <FormField
-                                    value={formValues.Narration}
-                                    onChangeText={text =>
-                                        handleInputChange("Narration", text)
-                                    }
-                                    placeholder="Enter a narration"
-                                    multiline
-                                />
-
                                 <TouchableOpacity
                                     onPress={handlePreviewPress}
-                                    style={styles.cameraButton}>
-                                    <MaterialIcon
-                                        name="camera-alt"
-                                        size={24}
+                                    style={styles.cameraButton}
+                                    activeOpacity={0.8}>
+                                    <FeatherIcon
+                                        name="camera"
+                                        size={iconSizes.md}
                                         color={customColors.white}
                                     />
                                     <Text style={styles.cameraButtonText}>
-                                        {!capturedPhotoPath
-                                            ? "Take Photo"
-                                            : "Preview Photo"}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    onPress={handleSubmit}
-                                    style={[
-                                        styles.button,
-                                        {
-                                            marginVertical: spacing.md,
-                                            backgroundColor:
-                                                filteredRetailers.length === 0
-                                                    ? customColors.grey400
-                                                    : customColors.primary,
-                                        },
-                                    ]}
-                                    disabled={filteredRetailers.length === 0}>
-                                    <Text style={styles.buttonText}>
-                                        Submit
+                                        {capturedPhotoPath
+                                            ? "Update Photo"
+                                            : "Take Photo"}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
-                        </ScrollView>
+
+                            <TouchableOpacity
+                                onPress={handleSubmit}
+                                style={[
+                                    styles.submitButton,
+                                    filteredRetailers.length === 0 &&
+                                        styles.submitButtonDisabled,
+                                ]}
+                                disabled={
+                                    filteredRetailers.length === 0 ||
+                                    mutation.isPending
+                                }
+                                activeOpacity={0.8}>
+                                <FeatherIcon
+                                    name="check-circle"
+                                    size={iconSizes.md}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.submitButtonText}>
+                                    {mutation.isPending
+                                        ? "Submitting..."
+                                        : "Submit Visit"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 )}
 
                 {selectedValue === "new" && (
                     <View style={styles.formSection}>
-                        <ScrollView
-                            style={styles.scrollView}
-                            contentContainerStyle={styles.scrollContent}>
-                            <View style={styles.formCard}>
-                                <FormField
-                                    value={formValues.Retailer_Name}
-                                    onChangeText={text =>
-                                        handleInputChange("Retailer_Name", text)
-                                    }
-                                    placeholder="Enter retailer name"
-                                />
+                        <View style={styles.formCard}>
+                            <FormField
+                                label="Retailer Name"
+                                required
+                                value={formValues.Retailer_Name}
+                                onChangeText={text =>
+                                    handleInputChange("Retailer_Name", text)
+                                }
+                                placeholder="Enter retailer name"
+                            />
 
-                                <FormField
-                                    value={formValues.Contact_Person}
-                                    onChangeText={text =>
-                                        handleInputChange(
-                                            "Contact_Person",
-                                            text,
-                                        )
-                                    }
-                                    placeholder="Contact Person"
-                                />
+                            <FormField
+                                label="Contact Person"
+                                value={formValues.Contact_Person}
+                                onChangeText={text =>
+                                    handleInputChange("Contact_Person", text)
+                                }
+                                placeholder="Contact person name"
+                            />
 
-                                <FormField
-                                    value={formValues.Mobile_No}
-                                    onChangeText={text =>
-                                        handleInputChange("Mobile_No", text)
-                                    }
-                                    placeholder="Mobile Number"
-                                />
+                            <FormField
+                                label="Mobile Number"
+                                value={formValues.Mobile_No}
+                                onChangeText={text =>
+                                    handleInputChange("Mobile_No", text)
+                                }
+                                placeholder="10-digit mobile number"
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                            />
 
-                                <FormField
-                                    value={formValues.Location_Address}
-                                    onChangeText={text =>
-                                        handleInputChange(
-                                            "Location_Address",
-                                            text,
-                                        )
-                                    }
-                                    placeholder="Address"
-                                    multiline
-                                />
+                            <FormField
+                                label="Address"
+                                value={formValues.Location_Address}
+                                onChangeText={text =>
+                                    handleInputChange("Location_Address", text)
+                                }
+                                placeholder="Shop address"
+                                multiline
+                                inputProps={{
+                                    onFocus: () => {
+                                        setTimeout(() => {
+                                            scrollViewRef.current?.scrollToEnd({
+                                                animated: true,
+                                            });
+                                        }, 150);
+                                    },
+                                }}
+                            />
 
-                                <FormField
-                                    value={formValues.Narration}
-                                    onChangeText={text =>
-                                        handleInputChange("Narration", text)
-                                    }
-                                    placeholder="Enter a narration"
-                                    multiline
-                                />
+                            <FormField
+                                label="Narration"
+                                value={formValues.Narration}
+                                onChangeText={text =>
+                                    handleInputChange("Narration", text)
+                                }
+                                placeholder="Visit notes..."
+                                multiline
+                                inputProps={{
+                                    onFocus: () => {
+                                        setTimeout(() => {
+                                            scrollViewRef.current?.scrollToEnd({
+                                                animated: true,
+                                            });
+                                        }, 150);
+                                    },
+                                }}
+                            />
 
+                            <View style={styles.photoSection}>
+                                {capturedPhotoPath ? (
+                                    <TouchableOpacity
+                                        onPress={handlePreviewPress}
+                                        activeOpacity={0.9}>
+                                        <Image
+                                            source={{
+                                                uri: "file://" + capturedPhotoPath,
+                                            }}
+                                            style={styles.capturedImage}
+                                        />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View style={styles.photoPlaceholder}>
+                                        <FeatherIcon
+                                            name="camera"
+                                            size={iconSizes.xl}
+                                            color={customColors.grey400}
+                                        />
+                                        <Text style={styles.photoPlaceholderText}>
+                                            Add Photo
+                                        </Text>
+                                    </View>
+                                )}
                                 <TouchableOpacity
                                     onPress={handlePreviewPress}
-                                    style={styles.cameraButton}>
-                                    <MaterialIcon
-                                        name="camera-alt"
-                                        size={24}
+                                    style={styles.cameraButton}
+                                    activeOpacity={0.8}>
+                                    <FeatherIcon
+                                        name="camera"
+                                        size={iconSizes.md}
                                         color={customColors.white}
                                     />
                                     <Text style={styles.cameraButtonText}>
-                                        {!capturedPhotoPath
-                                            ? "Take Photo"
-                                            : "Preview Photo"}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    onPress={handleSubmit}
-                                    style={[
-                                        styles.button,
-                                        { marginVertical: spacing.md },
-                                    ]}>
-                                    <Text style={styles.buttonText}>
-                                        Submit
+                                        {capturedPhotoPath
+                                            ? "Update Photo"
+                                            : "Take Photo"}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
-                        </ScrollView>
-                    </View>
-                )}
 
-                {/* Camera Modal */}
-                <Modal
-                    visible={showCamera}
-                    animationType="slide"
-                    onRequestClose={() => setShowCamera(false)}
-                    statusBarTranslucent>
-                    <View style={styles.cameraModalContainer}>
-                        <OpenCamera
-                            onPhotoCapture={handlePhotoCapture}
-                            enableCompression={true}
-                            onClose={() => setShowCamera(false)}
-                        />
-                    </View>
-                </Modal>
-
-                {/* Photo Preview Modal */}
-                <Modal
-                    visible={showPreview}
-                    animationType="slide"
-                    onRequestClose={() => setShowPreview(false)}
-                    transparent={true}>
-                    <View style={styles.previewModalContainer}>
-                        <View style={styles.previewContent}>
-                            <View style={styles.previewHeader}>
-                                <TouchableOpacity
-                                    style={styles.closeButton}
-                                    onPress={() => setShowPreview(false)}>
-                                    <Icon
-                                        name="close"
-                                        size={24}
-                                        color={customColors.white}
-                                    />
-                                </TouchableOpacity>
-                            </View>
-
-                            <Image
-                                source={{ uri: "file://" + capturedPhotoPath }}
-                                style={styles.previewImage}
-                                resizeMode="contain"
-                            />
-
-                            <View style={styles.previewActions}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.previewButton,
-                                        styles.retakeButton,
-                                    ]}
-                                    onPress={() => {
-                                        setShowPreview(false);
-                                        setShowCamera(true);
-                                    }}>
-                                    <MaterialIcon
-                                        name="camera-alt"
-                                        size={24}
-                                        color={customColors.white}
-                                    />
-                                    <Text style={styles.previewButtonText}>
-                                        Retake
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[
-                                        styles.previewButton,
-                                        styles.closePreviewButton,
-                                    ]}
-                                    onPress={() => setShowPreview(false)}>
-                                    <MaterialIcon
-                                        name="check"
-                                        size={24}
-                                        color={customColors.white}
-                                    />
-                                    <Text style={styles.previewButtonText}>
-                                        Done
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                            <TouchableOpacity
+                                onPress={handleSubmit}
+                                style={[
+                                    styles.submitButton,
+                                    mutation.isPending &&
+                                        styles.submitButtonDisabled,
+                                ]}
+                                disabled={mutation.isPending}
+                                activeOpacity={0.8}>
+                                <FeatherIcon
+                                    name="check-circle"
+                                    size={iconSizes.md}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.submitButtonText}>
+                                    {mutation.isPending
+                                        ? "Submitting..."
+                                        : "Submit Visit"}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
-                </Modal>
-            </View>
+                )}
+                </ScrollView>
+            </KeyboardAvoidingView>
+
+            {/* Camera Modal */}
+            <Modal
+                visible={showCamera}
+                animationType="slide"
+                onRequestClose={() => setShowCamera(false)}
+                statusBarTranslucent>
+                <View style={styles.cameraModalContainer}>
+                    <OpenCamera
+                        onPhotoCapture={handlePhotoCapture}
+                        enableCompression={true}
+                        onClose={() => setShowCamera(false)}
+                    />
+                </View>
+            </Modal>
+
+            {/* Photo Preview Modal */}
+            <Modal
+                visible={showPreview}
+                animationType="fade"
+                onRequestClose={() => setShowPreview(false)}
+                transparent={true}>
+                <View style={styles.previewModalContainer}>
+                    <View style={styles.previewContent}>
+                        <View style={styles.previewHeader}>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setShowPreview(false)}
+                                activeOpacity={0.8}>
+                                <FeatherIcon
+                                    name="x"
+                                    size={iconSizes.lg}
+                                    color={customColors.white}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Image
+                            source={{ uri: "file://" + capturedPhotoPath }}
+                            style={styles.previewImage}
+                            resizeMode="contain"
+                        />
+
+                        <View style={styles.previewActions}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.previewButton,
+                                    styles.retakeButton,
+                                ]}
+                                onPress={() => {
+                                    setShowPreview(false);
+                                    setShowCamera(true);
+                                }}
+                                activeOpacity={0.8}>
+                                <FeatherIcon
+                                    name="refresh-cw"
+                                    size={iconSizes.md}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.previewButtonText}>
+                                    Retake
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.previewButton,
+                                    styles.closePreviewButton,
+                                ]}
+                                onPress={() => setShowPreview(false)}
+                                activeOpacity={0.8}>
+                                <FeatherIcon
+                                    name="check"
+                                    size={iconSizes.md}
+                                    color={customColors.white}
+                                />
+                                <Text style={styles.previewButtonText}>
+                                    Done
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -473,80 +590,86 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: customColors.primaryDark,
     },
-    contentContainer: {
+    keyboardAvoid: {
         flex: 1,
-        padding: spacing.md,
         backgroundColor: customColors.white,
     },
+    contentContainer: {
+        flex: 1,
+        backgroundColor: customColors.white,
+    },
+    scrollContent: {
+        padding: spacing.md,
+        paddingBottom: 120,
+    },
     locationSection: {
-        marginBottom: spacing.xs,
+        marginBottom: spacing.md,
     },
     radioSection: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: spacing.xs,
-        // paddingHorizontal: spacing.sm,
+        marginBottom: spacing.lg,
     },
     formSection: {
         flex: 1,
-        marginBottom: spacing.xl,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingBottom: spacing.xxl,
     },
     formCard: {
-        // backgroundColor: customColors.white,
-        // borderRadius: spacing.xl,
-        // padding: spacing.sm,
-        // ...shadows.small,
+        // Empty - form elements handle their own spacing
     },
-    dropdownContainer: {
+    routeInfoCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.primary + "10",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
         marginBottom: spacing.md,
-        backgroundColor: customColors.white,
-        borderRadius: spacing.md,
-        ...shadows.small,
+        gap: spacing.sm,
     },
-    button: {
+    retailerCountText: {
+        ...typography.caption(),
+        color: customColors.grey700,
         flex: 1,
-        backgroundColor: customColors.primary,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        borderRadius: spacing.md,
-        alignItems: "center",
-        justifyContent: "center",
-        ...shadows.small,
     },
-    buttonText: {
-        ...typography.button(),
-        color: customColors.white,
+    routeName: {
         fontWeight: "600",
+        color: customColors.primary,
     },
-    clearPhotoButton: {
-        backgroundColor: customColors.error,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        borderRadius: spacing.md,
+    photoSection: {
         alignItems: "center",
-        justifyContent: "center",
-        marginTop: spacing.md,
-        ...shadows.small,
+        marginVertical: spacing.md,
     },
-    cameraModalContainer: {
-        flex: 1,
-        backgroundColor: customColors.black,
+    capturedImage: {
+        width: 120,
+        height: 120,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
+        backgroundColor: customColors.grey100,
+    },
+    photoPlaceholder: {
+        width: 90,
+        height: 90,
+        borderRadius: borderRadius.lg,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        borderStyle: "dashed",
+    },
+    photoPlaceholderText: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: spacing.xs,
     },
     cameraButton: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: customColors.primary,
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.sm,
         paddingHorizontal: spacing.lg,
-        borderRadius: spacing.md,
-        marginTop: spacing.md,
+        borderRadius: borderRadius.lg,
         gap: spacing.sm,
         ...shadows.small,
     },
@@ -555,9 +678,32 @@ const styles = StyleSheet.create({
         color: customColors.white,
         fontWeight: "600",
     },
+    submitButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: customColors.primary,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginTop: spacing.xs,
+        gap: spacing.sm,
+        ...shadows.medium,
+    },
+    submitButtonDisabled: {
+        backgroundColor: customColors.grey400,
+    },
+    submitButtonText: {
+        ...typography.button(),
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    cameraModalContainer: {
+        flex: 1,
+        backgroundColor: customColors.black,
+    },
     previewModalContainer: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.9)",
+        backgroundColor: "rgba(0, 0, 0, 0.95)",
         justifyContent: "center",
         alignItems: "center",
     },
@@ -572,10 +718,10 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     closeButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.round,
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
         justifyContent: "center",
         alignItems: "center",
     },
@@ -586,21 +732,23 @@ const styles = StyleSheet.create({
     },
     previewActions: {
         flexDirection: "row",
-        justifyContent: "space-around",
-        padding: spacing.md,
-        gap: spacing.md,
+        justifyContent: "center",
+        padding: spacing.lg,
+        gap: spacing.lg,
     },
     previewButton: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        padding: spacing.md,
-        borderRadius: spacing.md,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
         gap: spacing.sm,
+        maxWidth: 160,
+        ...shadows.medium,
     },
     retakeButton: {
-        backgroundColor: customColors.primary,
+        backgroundColor: customColors.grey700,
     },
     closePreviewButton: {
         backgroundColor: customColors.success,
@@ -609,13 +757,6 @@ const styles = StyleSheet.create({
         ...typography.button(),
         color: customColors.white,
         fontWeight: "600",
-    },
-    retailerCountText: {
-        ...typography.caption(),
-        color: customColors.grey600,
-        textAlign: "center",
-        marginBottom: spacing.sm,
-        fontStyle: "italic",
     },
 });
 

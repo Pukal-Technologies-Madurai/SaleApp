@@ -7,11 +7,19 @@ import {
     Alert,
     Linking,
     Platform,
+    Animated,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Geolocation from "@react-native-community/geolocation";
-import Icon from "react-native-vector-icons/Ionicons";
-import { customColors, typography } from "../Config/helper";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import {
+    customColors,
+    typography,
+    spacing,
+    shadows,
+    borderRadius,
+    iconSizes,
+} from "../Config/helper";
 
 const LocationIndicator = ({
     onLocationUpdate,
@@ -24,6 +32,27 @@ const LocationIndicator = ({
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const spinValue = useRef(new Animated.Value(0)).current;
+
+    // Spinning animation for refresh icon
+    useEffect(() => {
+        if (isLoading) {
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        } else {
+            spinValue.setValue(0);
+        }
+    }, [isLoading]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ["0deg", "360deg"],
+    });
 
     const requestLocationPermission = async () => {
         try {
@@ -165,49 +194,84 @@ const LocationIndicator = ({
         return null;
     }
 
+    const hasLocation = location.latitude && location.longitude;
+    const statusColor = error
+        ? customColors.accent2
+        : hasLocation
+        ? customColors.success
+        : customColors.primary;
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, error && styles.containerError]}>
+            <View style={styles.iconContainer}>
+                <View
+                    style={[
+                        styles.iconBackground,
+                        { backgroundColor: statusColor + "15" },
+                    ]}>
+                    <FeatherIcon
+                        name={error ? "alert-circle" : "map-pin"}
+                        size={iconSizes.md}
+                        color={statusColor}
+                    />
+                </View>
+            </View>
+
             <View style={styles.locationInfo}>
-                <Icon
-                    name={error ? "warning" : "location"}
-                    size={20}
-                    color={error ? customColors.accent2 : customColors.primary}
-                />
-                <View style={styles.locationTextContainer}>
-                    {location.latitude ? (
-                        <>
-                            <Text style={styles.locationText}>
-                                Lat: {location.latitude.toFixed(4)}
-                            </Text>
-                            <Text style={styles.locationText}>
-                                Long: {location.longitude.toFixed(4)}
-                            </Text>
-                        </>
-                    ) : (
+                {hasLocation ? (
+                    <>
+                        <Text style={styles.locationLabel}>Current Location</Text>
+                        <View style={styles.coordinatesRow}>
+                            <View style={styles.coordinateItem}>
+                                <Text style={styles.coordinateLabel}>Lat</Text>
+                                <Text style={styles.coordinateValue}>
+                                    {location.latitude.toFixed(6)}
+                                </Text>
+                            </View>
+                            <View style={styles.coordinateDivider} />
+                            <View style={styles.coordinateItem}>
+                                <Text style={styles.coordinateLabel}>Long</Text>
+                                <Text style={styles.coordinateValue}>
+                                    {location.longitude.toFixed(6)}
+                                </Text>
+                            </View>
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <Text style={styles.locationLabel}>
+                            {error ? "Location Error" : "Fetching Location"}
+                        </Text>
                         <Text
                             style={[
-                                styles.locationText,
+                                styles.statusText,
                                 error && styles.errorText,
-                            ]}>
-                            {error || "Getting location..."}
+                            ]}
+                            numberOfLines={1}>
+                            {error || "Please wait..."}
                         </Text>
-                    )}
-                </View>
+                    </>
+                )}
             </View>
 
             <TouchableOpacity
                 style={[
                     styles.refreshButton,
-                    isLoading && styles.refreshButtonDisabled,
-                    error && styles.refreshButtonError,
+                    { backgroundColor: statusColor + "15" },
                 ]}
                 onPress={getLocation}
-                disabled={isLoading}>
-                <Icon
-                    name={isLoading ? "sync" : "refresh"}
-                    size={20}
-                    color={error ? customColors.accent2 : customColors.primary}
-                />
+                disabled={isLoading}
+                activeOpacity={0.7}>
+                <Animated.View
+                    style={{
+                        transform: [{ rotate: isLoading ? spin : "0deg" }],
+                    }}>
+                    <FeatherIcon
+                        name="refresh-cw"
+                        size={iconSizes.md}
+                        color={statusColor}
+                    />
+                </Animated.View>
             </TouchableOpacity>
         </View>
     );
@@ -219,42 +283,78 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
         backgroundColor: customColors.white,
-        padding: 12,
-        borderRadius: 8,
-        marginVertical: 8,
-        shadowColor: customColors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        ...shadows.small,
+    },
+    containerError: {
+        borderColor: customColors.accent2 + "30",
+        backgroundColor: customColors.accent2 + "05",
+    },
+    iconContainer: {
+        marginRight: spacing.md,
+    },
+    iconBackground: {
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.lg,
+        justifyContent: "center",
+        alignItems: "center",
     },
     locationInfo: {
+        flex: 1,
+    },
+    locationLabel: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        fontWeight: "500",
+        marginBottom: spacing.xxs,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    coordinatesRow: {
         flexDirection: "row",
         alignItems: "center",
-        flex: 1,
-        gap: 8,
     },
-    locationTextContainer: {
-        flex: 1,
+    coordinateItem: {
+        flexDirection: "row",
+        alignItems: "baseline",
+        gap: spacing.xs,
     },
-    locationText: {
+    coordinateLabel: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        fontWeight: "500",
+    },
+    coordinateValue: {
         ...typography.body2(),
         color: customColors.grey900,
+        fontWeight: "600",
+        fontVariant: ["tabular-nums"],
+    },
+    coordinateDivider: {
+        width: 1,
+        height: 12,
+        backgroundColor: customColors.grey300,
+        marginHorizontal: spacing.sm,
+    },
+    statusText: {
+        ...typography.body2(),
+        color: customColors.grey600,
     },
     errorText: {
         color: customColors.accent2,
     },
     refreshButton: {
-        padding: 8,
-        borderRadius: 20,
-        backgroundColor: customColors.grey100,
-    },
-    refreshButtonDisabled: {
-        opacity: 0.5,
-    },
-    refreshButtonError: {
-        backgroundColor: customColors.accent2 + "20",
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.lg,
+        justifyContent: "center",
+        alignItems: "center",
+        marginLeft: spacing.sm,
     },
 });

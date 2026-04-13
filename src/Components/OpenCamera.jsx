@@ -7,7 +7,8 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
-    SafeAreaView,
+    Linking,
+    Dimensions,
 } from "react-native";
 import {
     Camera,
@@ -15,10 +16,20 @@ import {
     useCameraPermission,
 } from "react-native-vision-camera";
 import { useNavigation } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/Ionicons";
-import { customColors, typography } from "../Config/helper";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import {
+    customColors,
+    typography,
+    spacing,
+    shadows,
+    borderRadius,
+    iconSizes,
+} from "../Config/helper";
 import ImageResizer from "@bam.tech/react-native-image-resizer";
 import RNFS from "react-native-fs";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const { width, height } = Dimensions.get("window");
 
 const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     const navigation = useNavigation();
@@ -145,107 +156,143 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     if (!device) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={customColors.primary} />
-                <Text style={styles.loadingText}>Initializing camera...</Text>
+                <View style={styles.loadingContent}>
+                    <ActivityIndicator
+                        size="large"
+                        color={customColors.primary}
+                    />
+                    <Text style={styles.loadingText}>Initializing camera...</Text>
+                </View>
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => {
-                        if (onClose) {
-                            onClose();
-                        }
-                    }}>
-                    <Icon name="close" size={24} color={customColors.white} />
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+            {/* Camera View */}
             <Camera
                 ref={camera}
                 photo={true}
                 style={StyleSheet.absoluteFill}
                 device={device}
-                isActive={true}
+                isActive={!photoPath}
             />
 
+            {/* Header with close button */}
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => onClose?.()}
+                    activeOpacity={0.8}>
+                    <FeatherIcon
+                        name="x"
+                        size={iconSizes.lg}
+                        color={customColors.white}
+                    />
+                </TouchableOpacity>
+            </View>
+
+            {/* Error Toast */}
             {error && (
                 <View style={styles.errorContainer}>
-                    <Icon
-                        name="warning"
-                        size={20}
+                    <FeatherIcon
+                        name="alert-circle"
+                        size={iconSizes.md}
                         color={customColors.accent2}
                     />
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
             )}
 
+            {/* Photo Preview */}
             {photoPath ? (
-                <View style={styles.previewContainer}>
+                <View style={styles.previewOverlay}>
                     <Image
                         style={styles.previewImage}
                         source={{ uri: "file://" + photoPath }}
+                        resizeMode="contain"
                     />
-                    <View style={styles.buttonContainer}>
+
+                    {/* Preview Actions */}
+                    <View style={styles.previewActions}>
                         <TouchableOpacity
-                            style={[styles.button, styles.retakeButton]}
-                            onPress={retakePhoto}>
-                            <Icon
-                                name="refresh"
-                                size={24}
-                                color={customColors.white}
-                            />
-                            <Text style={styles.buttonText}>Retake</Text>
+                            style={styles.actionButton}
+                            onPress={retakePhoto}
+                            activeOpacity={0.8}>
+                            <View
+                                style={[
+                                    styles.actionIconBg,
+                                    { backgroundColor: customColors.grey700 },
+                                ]}>
+                                <FeatherIcon
+                                    name="refresh-cw"
+                                    size={iconSizes.lg}
+                                    color={customColors.white}
+                                />
+                            </View>
+                            <Text style={styles.actionText}>Retake</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[
-                                styles.button,
-                                styles.saveButton,
-                                isSaving && styles.buttonDisabled,
-                            ]}
+                            style={styles.actionButton}
                             onPress={savePhoto}
-                            disabled={isSaving}>
-                            {isSaving ? (
-                                <ActivityIndicator color={customColors.white} />
-                            ) : (
-                                <>
-                                    <Icon
-                                        name="checkmark"
-                                        size={24}
+                            disabled={isSaving}
+                            activeOpacity={0.8}>
+                            <View
+                                style={[
+                                    styles.actionIconBg,
+                                    styles.saveIconBg,
+                                    isSaving && styles.actionDisabled,
+                                ]}>
+                                {isSaving ? (
+                                    <ActivityIndicator
+                                        size="small"
                                         color={customColors.white}
                                     />
-                                    <Text style={styles.buttonText}>Save</Text>
-                                </>
-                            )}
+                                ) : (
+                                    <FeatherIcon
+                                        name="check"
+                                        size={iconSizes.lg}
+                                        color={customColors.white}
+                                    />
+                                )}
+                            </View>
+                            <Text style={styles.actionText}>
+                                {isSaving ? "Saving..." : "Use Photo"}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             ) : (
-                <TouchableOpacity
-                    style={[
-                        styles.captureButton,
-                        isCapturing && styles.buttonDisabled,
-                    ]}
-                    onPress={takePhoto}
-                    disabled={isCapturing}>
-                    {isCapturing ? (
-                        <ActivityIndicator color={customColors.white} />
-                    ) : (
-                        <>
-                            <Icon
-                                name="camera"
-                                size={24}
-                                color={customColors.white}
-                            />
-                            <Text style={styles.buttonText}>Capture</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
+                /* Capture Controls */
+                <View style={styles.captureControls}>
+                    <TouchableOpacity
+                        style={[
+                            styles.captureButton,
+                            isCapturing && styles.captureButtonActive,
+                        ]}
+                        onPress={takePhoto}
+                        disabled={isCapturing}
+                        activeOpacity={0.9}>
+                        <View style={styles.captureButtonOuter}>
+                            <View
+                                style={[
+                                    styles.captureButtonInner,
+                                    isCapturing && styles.captureButtonInnerActive,
+                                ]}>
+                                {isCapturing && (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color={customColors.primary}
+                                    />
+                                )}
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                    <Text style={styles.captureHint}>
+                        {isCapturing ? "Capturing..." : "Tap to capture"}
+                    </Text>
+                </View>
             )}
         </SafeAreaView>
     );
@@ -264,94 +311,129 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: customColors.black,
     },
+    loadingContent: {
+        alignItems: "center",
+        padding: spacing.xl,
+    },
     loadingText: {
         ...typography.body1(),
         color: customColors.white,
-        marginTop: 10,
-    },
-    previewContainer: {
-        flex: 1,
-        justifyContent: "space-between",
-        padding: 20,
-    },
-    previewImage: {
-        width: "100%",
-        height: "70%",
-        borderRadius: 12,
-        marginTop: 20,
-    },
-    buttonContainer: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-        marginBottom: 20,
-    },
-    button: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 25,
-        gap: 8,
-    },
-    captureButton: {
-        position: "absolute",
-        bottom: 40,
-        alignSelf: "center",
-        backgroundColor: customColors.primary,
-        paddingVertical: 15,
-        paddingHorizontal: 30,
-        borderRadius: 25,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    retakeButton: {
-        backgroundColor: customColors.grey700,
-    },
-    saveButton: {
-        backgroundColor: customColors.primary,
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    buttonText: {
-        ...typography.button(),
-        color: customColors.white,
-    },
-    errorContainer: {
-        position: "absolute",
-        top: 20,
-        left: 20,
-        right: 20,
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: customColors.accent2 + "20",
-        padding: 12,
-        borderRadius: 8,
-        gap: 8,
-    },
-    errorText: {
-        ...typography.body2(),
-        color: customColors.accent2,
-        flex: 1,
+        marginTop: spacing.md,
     },
     header: {
         position: "absolute",
-        top: 0,
+        top: spacing.md,
         left: 0,
         right: 0,
         flexDirection: "row",
         justifyContent: "flex-end",
-        padding: 16,
-        zIndex: 1,
+        paddingHorizontal: spacing.md,
+        zIndex: 10,
     },
     closeButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.round,
         backgroundColor: "rgba(0, 0, 0, 0.5)",
         justifyContent: "center",
         alignItems: "center",
+        ...shadows.medium,
+    },
+    errorContainer: {
+        position: "absolute",
+        top: 70,
+        left: spacing.md,
+        right: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.accent2 + "E6",
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        gap: spacing.sm,
+        ...shadows.medium,
+    },
+    errorText: {
+        ...typography.body2(),
+        color: customColors.white,
+        flex: 1,
+    },
+    previewOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: customColors.black,
+    },
+    previewImage: {
+        flex: 1,
+        width: "100%",
+    },
+    previewActions: {
+        position: "absolute",
+        bottom: spacing.xxl,
+        left: 0,
+        right: 0,
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: spacing.xxl,
+    },
+    actionButton: {
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    actionIconBg: {
+        width: 60,
+        height: 60,
+        borderRadius: borderRadius.round,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.large,
+    },
+    saveIconBg: {
+        backgroundColor: customColors.success,
+    },
+    actionDisabled: {
+        opacity: 0.7,
+    },
+    actionText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    captureControls: {
+        position: "absolute",
+        bottom: spacing.xxl,
+        left: 0,
+        right: 0,
+        alignItems: "center",
+    },
+    captureButton: {
+        marginBottom: spacing.md,
+    },
+    captureButtonActive: {
+        transform: [{ scale: 0.95 }],
+    },
+    captureButtonOuter: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        borderWidth: 4,
+        borderColor: customColors.white,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.large,
+    },
+    captureButtonInner: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: customColors.white,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    captureButtonInnerActive: {
+        backgroundColor: customColors.grey200,
+    },
+    captureHint: {
+        ...typography.caption(),
+        color: customColors.white,
+        textAlign: "center",
     },
 });

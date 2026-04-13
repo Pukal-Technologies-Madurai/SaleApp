@@ -1,4 +1,4 @@
-import { API } from "../Config/Endpoint";
+import { API } from "../../Config/Endpoint";
 
 export const fetchPaymentReceipts = async ({ from, to, uId }) => {
     const response = await fetch(

@@ -1,30 +1,36 @@
 import {
-    ScrollView,
     StyleSheet,
     Text,
     View,
     TextInput,
     TouchableOpacity,
+    ScrollView,
+    LayoutAnimation,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
-import Accordion from "../../Components/Accordion";
 import { API } from "../../Config/Endpoint";
 import {
     customColors,
+    customFonts,
     shadows,
     spacing,
     typography,
 } from "../../Config/helper";
 import FilterModal from "../../Components/FilterModal";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FlashList } from "@shopify/flash-list";
 
 const SalesAdmin = ({ route }) => {
-    const { selectedDate: passedDate, selectedBranch } = route.params || {};
+    const {
+        selectedDate: passedDate,
+        selectedBranch,
+        selectedSalesPersonId,
+    } = route.params || {};
     // console.log("Selected Branch in SalesAdmin:", selectedBranch);
 
     const navigation = useNavigation();
@@ -37,12 +43,15 @@ const SalesAdmin = ({ route }) => {
     });
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
+    // Modal dates - only applied when user taps Apply
+    const [modalFromDate, setModalFromDate] = useState(new Date());
+    const [modalToDate, setModalToDate] = useState(new Date());
     const [productSummary, setProductSummary] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState("All");
-    const [brandList, setBrandList] = useState([]);
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [modalVisible, setModalVisible] = useState(false);
+    const [expandedId, setExpandedId] = useState(null);
 
     useEffect(() => {
         (async () => {
@@ -60,19 +69,25 @@ const SalesAdmin = ({ route }) => {
 
                 setCompanyId(Number(Company_Id));
                 fetchSalesPerson(Company_Id);
-                setSelectedSalesPerson({ label: "All", value: "all" });
+
+                // Use selectedSalesPersonId if passed, otherwise show all
+                const salesPersonIdToUse = selectedSalesPersonId || "all";
+                setSelectedSalesPerson({
+                    label: selectedSalesPersonId ? "Selected" : "All",
+                    value: salesPersonIdToUse,
+                });
 
                 fetchSaleOrder(
                     formattedDate,
                     formattedDate,
                     Company_Id,
-                    userId,
+                    salesPersonIdToUse,
                 );
             } catch (err) {
                 console.log("Error in useEffect:", err);
             }
         })();
-    }, [passedDate]);
+    }, [passedDate, selectedSalesPersonId]);
 
     // Add new useEffect for date changes
     useEffect(() => {
@@ -106,7 +121,10 @@ const SalesAdmin = ({ route }) => {
 
             if (data.success === true && Array.isArray(data.data)) {
                 // console.log("Data received:", data.data.length, "items");
-                const filteredData = data.data.filter(item => item.Cancel_status !== "0" && item.Cancel_status !== 0);
+                const filteredData = data.data.filter(
+                    item =>
+                        item.Cancel_status !== "0" && item.Cancel_status !== 0,
+                );
                 setLogData(filteredData);
                 calculateProductSummaryAndTotals(filteredData);
             } else {
@@ -168,33 +186,49 @@ const SalesAdmin = ({ route }) => {
         }
     };
 
-    const handleFromDateChange = date => {
+    // Modal date handlers - no validation during selection
+    const handleFromDateChange = useCallback(date => {
         if (date) {
-            const newFromDate = date > selectedToDate ? selectedToDate : date;
-            setSelectedFromDate(newFromDate);
+            setModalFromDate(date);
         }
-    };
+    }, []);
 
-    const handleToDateChange = date => {
+    const handleToDateChange = useCallback(date => {
         if (date) {
-            const newToDate = date < selectedFromDate ? selectedFromDate : date;
-            setSelectedToDate(newToDate);
+            setModalToDate(date);
         }
-    };
+    }, []);
 
-    useEffect(() => {
-        if (logData.length > 0) {
-            const brands = new Set();
-            logData.forEach(order => {
-                order.Products_List.forEach(p => {
-                    if (p.BrandGet) {
-                        brands.add(p.BrandGet.trim());
-                    }
-                });
+    // Open modal and initialize modal dates from current selected dates
+    const handleOpenModal = useCallback(() => {
+        setModalFromDate(selectedFromDate);
+        setModalToDate(selectedToDate);
+        setModalVisible(true);
+    }, [selectedFromDate, selectedToDate]);
+
+    // Apply filter - validate and set actual dates
+    const handleApplyFilter = useCallback(() => {
+        // Ensure fromDate <= toDate
+        const validFromDate = modalFromDate > modalToDate ? modalToDate : modalFromDate;
+        const validToDate = modalToDate < modalFromDate ? modalFromDate : modalToDate;
+        
+        setSelectedFromDate(validFromDate);
+        setSelectedToDate(validToDate);
+        setModalVisible(false);
+    }, [modalFromDate, modalToDate]);
+
+    // Memoized brand list extraction
+    const brandList = useMemo(() => {
+        if (logData.length === 0) return [];
+        const brands = new Set();
+        logData.forEach(order => {
+            order.Products_List.forEach(p => {
+                if (p.BrandGet) {
+                    brands.add(p.BrandGet.trim());
+                }
             });
-
-            setBrandList(["All", ...Array.from(brands)]);
-        }
+        });
+        return ["All", ...Array.from(brands)];
     }, [logData]);
 
     const handleSalesPersonChange = item => {
@@ -211,146 +245,193 @@ const SalesAdmin = ({ route }) => {
         );
     };
 
-    const renderHeader = item => {
-        return (
-            <View style={styles.accordionHeader}>
-                <View style={styles.headerLeft}>
-                    <Text style={styles.retailerName} numberOfLines={1}>
-                        {item.Retailer_Name}
-                    </Text>
-                    <Text style={styles.orderDate}>
-                        {item.So_Date
-                            ? new Date(item.So_Date).toLocaleDateString("en-GB")
-                            : "N/A"}
-                    </Text>
-                </View>
-                <View style={styles.headerRight}>
-                    <Text style={styles.orderAmount}>
-                        ₹{item.Total_Invoice_value}
-                    </Text>
-                    <Text style={styles.orderCount}>
-                        {item.Products_List.length} items
-                    </Text>
-                </View>
-            </View>
-        );
-    };
+    // Toggle accordion expansion
+    const toggleExpanded = useCallback(itemId => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpandedId(prev => (prev === itemId ? null : itemId));
+    }, []);
 
-    const renderContent = item => {
-        return (
-            <View style={styles.content}>
-                <View style={styles.orderInfo}>
-                    <Text style={styles.orderNumber}>Order #{item.So_Id}</Text>
-                    <Text style={styles.createdBy}>
-                        by {item.Created_BY_Name}
-                    </Text>
-                </View>
-
-                <View style={styles.productsContainer}>
-                    {item.Products_List.map((product, index) => (
-                        <View key={index} style={styles.productItem}>
-                            <View style={styles.productInfo}>
-                                <Text
-                                    style={styles.productName}
-                                    numberOfLines={3}>
-                                    {product.Product_Name}
-                                </Text>
-                                <Text style={styles.productDetails}>
-                                    Qty: {product.Bill_Qty || product.Total_Qty}{" "}
-                                    • ₹{product.Item_Rate} each
-                                </Text>
-                            </View>
-                            <Text style={styles.productAmount}>
-                                ₹
-                                {product.Amount ||
-                                    product.Final_Amo?.toFixed(2)}
-                            </Text>
-                        </View>
-                    ))}
-                </View>
-
-                <View style={styles.footer}>
-                    <View style={styles.totalSection}>
-                        <Text style={styles.totalLabel}>Total Amount</Text>
-                        <Text style={styles.totalValue}>
-                            ₹{item.Total_Invoice_value}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-        );
-    };
-
-    const handleProductSummaryPress = () => {
+    const handleProductSummaryPress = useCallback(() => {
         navigation.navigate("SalesReport", {
             logData,
             productSummary,
             selectedDate: selectedFromDate,
             isNotAdmin: false,
         });
-    };
+    }, [navigation, logData, productSummary, selectedFromDate]);
 
-    // const filteredLogData = logData.filter(order =>
-    //     selectedBrand === "All"
-    //         ? true
-    //         : order.Products_List.some(
-    //             p => p.BrandGet?.trim() === selectedBrand,
-    //         ),
-    // );
-
-    // Modified filtering to show only orders with selected brand products
-    const getFilteredDataByBrand = () => {
+    // Memoized filtered data by brand
+    const filteredLogData = useMemo(() => {
         if (selectedBrand === "All") {
             return logData;
         }
 
-        // Filter orders and products by selected brand
-        return logData.map(order => {
-            const filteredProducts = order.Products_List.filter(
-                product => product.BrandGet?.trim() === selectedBrand
-            );
-
-            if (filteredProducts.length > 0) {
-                // Calculate new total for filtered products only
-                const brandTotal = filteredProducts.reduce(
-                    (sum, product) => sum + (product.Amount || product.Final_Amo || 0),
-                    0
+        return logData
+            .map(order => {
+                const filteredProducts = order.Products_List.filter(
+                    product => product.BrandGet?.trim() === selectedBrand,
                 );
 
-                return {
-                    ...order,
-                    Products_List: filteredProducts,
-                    Total_Invoice_value: brandTotal, // Override with brand-specific total
-                    Original_Total: order.Total_Invoice_value // Keep original for reference
-                };
-            }
-            return null;
-        }).filter(order => order !== null); // Remove orders with no matching brand products
-    };
+                if (filteredProducts.length > 0) {
+                    const brandTotal = filteredProducts.reduce(
+                        (sum, product) =>
+                            sum + (product.Amount || product.Final_Amo || 0),
+                        0,
+                    );
 
-    const filteredLogData = getFilteredDataByBrand();
-    const filteredTotalSales = filteredLogData.length;
+                    return {
+                        ...order,
+                        Products_List: filteredProducts,
+                        Total_Invoice_value: brandTotal,
+                        Original_Total: order.Total_Invoice_value,
+                    };
+                }
+                return null;
+            })
+            .filter(order => order !== null);
+    }, [logData, selectedBrand]);
 
-    const filteredTotalAmount = filteredLogData.reduce((sum, order) => {
-        if (selectedBrand === "All") {
+    // Memoized stats
+    const { filteredTotalSales, filteredTotalAmount } = useMemo(() => {
+        const totalSales = filteredLogData.length;
+        const totalAmount = filteredLogData.reduce((sum, order) => {
             return sum + (order.Total_Invoice_value || 0);
-        } else {
-            // For specific brand, sum only the brand products
-            const brandAmount = order.Products_List.reduce(
-                (productSum, product) => productSum + (product.Amount || product.Final_Amo || 0),
-                0
-            );
-            return sum + brandAmount;
-        }
-    }, 0);
+        }, 0);
+        return {
+            filteredTotalSales: totalSales,
+            filteredTotalAmount: totalAmount,
+        };
+    }, [filteredLogData]);
 
-    const filteredOrderData = filteredLogData.filter(order =>
-        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase())
+    // Memoized search filtered data
+    const filteredOrderData = useMemo(() => {
+        if (!searchQuery.trim()) return filteredLogData;
+        const query = searchQuery.toLowerCase();
+        return filteredLogData.filter(order =>
+            order.Retailer_Name.toLowerCase().includes(query),
+        );
+    }, [filteredLogData, searchQuery]);
+
+    const handleCloseModal = useCallback(() => {
+        setModalVisible(false);
+    }, []);
+
+    // Memoized FlatList item renderer
+    const renderItem = useCallback(
+        ({ item }) => {
+            const isExpanded = expandedId === item.So_Id;
+
+            return (
+                <View
+                    style={[
+                        styles.itemContainer,
+                        isExpanded && styles.expandedItem,
+                    ]}
+                >
+                    <TouchableOpacity
+                        onPress={() => toggleExpanded(item.So_Id)}
+                        activeOpacity={0.9}
+                    >
+                        <View
+                            style={[
+                                styles.accordionHeader,
+                                isExpanded && styles.headerExpanded,
+                            ]}
+                        >
+                            <View style={styles.headerLeft}>
+                                <Text
+                                    style={styles.retailerName}
+                                    numberOfLines={1}
+                                >
+                                    {item.Retailer_Name}
+                                </Text>
+                                <Text style={styles.orderDate}>
+                                    {item.So_Date
+                                        ? new Date(
+                                              item.So_Date,
+                                          ).toLocaleDateString("en-GB")
+                                        : "N/A"}
+                                </Text>
+                            </View>
+                            <View style={styles.headerRight}>
+                                <Text style={styles.orderAmount}>
+                                    ₹{item.Total_Invoice_value}
+                                </Text>
+                                <Text style={styles.orderCount}>
+                                    {item.Products_List.length} items
+                                </Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                        <View style={styles.content}>
+                            <View style={styles.orderInfo}>
+                                <Text style={styles.orderNumber}>
+                                    Order #{item.So_Id}
+                                </Text>
+                                <Text style={styles.createdBy}>
+                                    by {item.Created_BY_Name}
+                                </Text>
+                            </View>
+
+                            <View style={styles.productsContainer}>
+                                {item.Products_List.map((product, index) => (
+                                    <View
+                                        key={index}
+                                        style={styles.productItem}
+                                    >
+                                        <View style={styles.productInfo}>
+                                            <Text
+                                                style={styles.productName}
+                                                numberOfLines={3}
+                                            >
+                                                {product.Product_Name}
+                                            </Text>
+                                            <Text style={styles.productDetails}>
+                                                Qty:{" "}
+                                                {product.Bill_Qty ||
+                                                    product.Total_Qty}{" "}
+                                                • ₹{product.Item_Rate} each
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.productAmount}>
+                                            ₹
+                                            {product.Amount ||
+                                                product.Final_Amo?.toFixed(2)}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            <View style={styles.footer}>
+                                <View style={styles.totalSection}>
+                                    <Text style={styles.totalLabel}>
+                                        Total Amount
+                                    </Text>
+                                    <Text style={styles.totalValue}>
+                                        ₹{item.Total_Invoice_value}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+                </View>
+            );
+        },
+        [expandedId, toggleExpanded],
     );
 
-    const handleCloseModal = () => {
-        setModalVisible(false);
-    };
+    const keyExtractor = useCallback(item => item.So_Id.toString(), []);
+
+    const getItemLayout = useCallback(
+        (data, index) => ({
+            length: 80,
+            offset: 80 * index,
+            index,
+        }),
+        [],
+    );
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -360,16 +441,16 @@ const SalesAdmin = ({ route }) => {
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
                 rightIconName="filter-list"
-                onRightPress={() => setModalVisible(true)}
+                onRightPress={handleOpenModal}
             />
 
             <FilterModal
                 visible={modalVisible}
-                fromDate={selectedFromDate}
-                toDate={selectedToDate}
+                fromDate={modalFromDate}
+                toDate={modalToDate}
                 onFromDateChange={handleFromDateChange}
                 onToDateChange={handleToDateChange}
-                onApply={() => setModalVisible(false)}
+                onApply={handleApplyFilter}
                 onClose={handleCloseModal}
                 showToDate={true}
                 title="Filter options"
@@ -392,7 +473,8 @@ const SalesAdmin = ({ route }) => {
                                 flex: 1,
                                 paddingHorizontal: spacing.md,
                                 marginVertical: spacing.sm,
-                            }}>
+                            }}
+                        >
                             {brandList.map((brand, index) => (
                                 <TouchableOpacity
                                     key={index}
@@ -406,15 +488,21 @@ const SalesAdmin = ({ route }) => {
                                                 ? customColors.primary
                                                 : customColors.grey200,
                                     }}
-                                    onPress={() => setSelectedBrand(brand)}>
+                                    onPress={() => setSelectedBrand(brand)}
+                                >
                                     <Text
                                         style={{
                                             color:
                                                 selectedBrand === brand
                                                     ? customColors.white
                                                     : customColors.grey900,
-                                            ...typography.caption(),
-                                        }}>
+                                            fontFamily:
+                                                customFonts.poppinsRegular,
+                                                
+                                            fontWeight: "600",
+                                            textTransform: "capitalize",
+                                        }}
+                                    >
                                         {brand}
                                     </Text>
                                 </TouchableOpacity>
@@ -426,7 +514,8 @@ const SalesAdmin = ({ route }) => {
                             onPress={() => {
                                 setSearchQuery("");
                                 setShowSearch(!showSearch);
-                            }}>
+                            }}
+                        >
                             <MaterialIcon
                                 name={showSearch ? "close" : "search"}
                                 size={24}
@@ -439,7 +528,8 @@ const SalesAdmin = ({ route }) => {
                         <TouchableOpacity
                             style={styles.reportButton}
                             onPress={handleProductSummaryPress}
-                            activeOpacity={0.7}>
+                            activeOpacity={0.7}
+                        >
                             <FeatherIcon
                                 name="arrow-up-right"
                                 size={14}
@@ -450,7 +540,9 @@ const SalesAdmin = ({ route }) => {
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
-                                    {selectedBrand === "All" ? "Total Sales" : `${selectedBrand} Sales`}
+                                    {selectedBrand === "All"
+                                        ? "Total Sales"
+                                        : `${selectedBrand} Sales`}
                                 </Text>
                                 <Text style={styles.statValue}>
                                     {filteredTotalSales}
@@ -459,7 +551,9 @@ const SalesAdmin = ({ route }) => {
 
                             <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>
-                                    {selectedBrand === "All" ? "Total Amount" : `${selectedBrand} Amount`}
+                                    {selectedBrand === "All"
+                                        ? "Total Amount"
+                                        : `${selectedBrand} Amount`}
                                 </Text>
                                 <Text style={styles.statValue}>
                                     {filteredTotalAmount
@@ -483,17 +577,32 @@ const SalesAdmin = ({ route }) => {
                     )}
                 </View>
 
-                <ScrollView
+                <FlashList
+                    data={filteredOrderData}
+                    renderItem={renderItem}
+                    keyExtractor={keyExtractor}
                     style={styles.retailersScrollContainer}
                     contentContainerStyle={styles.retailersScrollContent}
-                    showsVerticalScrollIndicator={false}>
-                    <Accordion
-                        data={filteredOrderData}
-                        renderHeader={renderHeader}
-                        renderContent={renderContent}
-                    />
-                    <View style={styles.bottomSpacer} />
-                </ScrollView>
+                    showsVerticalScrollIndicator={false}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={true}
+                    updateCellsBatchingPeriod={50}
+                    ListFooterComponent={<View style={styles.bottomSpacer} />}
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <MaterialIcon
+                                name="inbox"
+                                size={48}
+                                color={customColors.grey300}
+                            />
+                            <Text style={styles.emptyText}>
+                                No orders found
+                            </Text>
+                        </View>
+                    }
+                />
             </View>
         </SafeAreaView>
     );
@@ -710,7 +819,7 @@ const styles = StyleSheet.create({
     searchHeader: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: spacing.sm,
+        marginBottom: spacing.xs,
     },
     searchIcon: {
         padding: spacing.xs,
@@ -730,6 +839,34 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
         color: customColors.grey900,
+    },
+    // FlatList item styles
+    itemContainer: {
+        marginBottom: spacing.xs,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: customColors.grey100,
+    },
+    expandedItem: {
+        ...shadows.medium,
+        borderColor: customColors.primary + "30",
+    },
+    headerExpanded: {
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+    },
+    emptyContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.xxl * 2,
+    },
+    emptyText: {
+        ...typography.body1(),
+        color: customColors.grey400,
+        marginTop: spacing.md,
     },
 });
 

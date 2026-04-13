@@ -15,7 +15,7 @@ import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { customColors, typography } from "../../Config/helper";
-import { fetchPendingDeliveryList } from "../../Api/delivery";
+import { fetchPendingDeliveryList, fetchPendingSalesList } from "../../Api/delivery";
 import { fetchSaleInvoices } from "../../Api/sales";
 
 const PendingDeliveryAdmin = ({ route }) => {
@@ -60,6 +60,30 @@ const PendingDeliveryAdmin = ({ route }) => {
         enabled: !!selectedFromDate && !!selectedToDate,
     });
 
+    const { data: pendingSales = [], isLoading: isLoadingPendingSales } =
+            useQuery({
+                queryKey: [
+                    "pendingSalesOrder",
+                    selectedFromDate,
+                    selectedToDate,
+                    selectedBranch || "",
+                ],
+                queryFn: () =>
+                    fetchPendingSalesList(
+                        selectedFromDate,
+                        selectedToDate,
+                        selectedBranch || "",
+                    ),
+                enabled: !!selectedFromDate && !!selectedToDate,
+                select: data => {
+                    // Filter and sort by So_Date ascending (01 to 31)
+                    return data
+                        .filter(item => item.isConverted !== 2 && Number(item.Cancel_status) !== 0)
+                        .sort((a, b) => new Date(a.So_Date) - new Date(b.So_Date));
+                },
+            });
+
+
     // Delivery_Status: 1 = New/Pending (sorted by Do_Date ascending: 01 to 31)
     const pendingDeliveries = pendingDelivery
         .filter(item => item.Delivery_Status === 1)
@@ -99,6 +123,53 @@ const PendingDeliveryAdmin = ({ route }) => {
 
     const SummaryCard = () => (
         <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                    <View style={styles.summaryIconBox}>
+                        <Icon
+                            name="shopping-cart"
+                            size={18}
+                            color={customColors.primary}
+                        />
+                    </View>
+                    <View style={styles.summaryText}>
+                        <Text style={styles.summaryValue}>
+                            {pendingSales.length}
+                        </Text>
+                        <Text style={styles.summaryLabel}>Sales</Text>
+                    </View>
+                </View>
+
+                <View style={styles.summaryVerticalDivider} />
+
+                <View style={styles.summaryItem}>
+                    <View style={styles.summaryIconBox}>
+                        <FontAwesomeIcon
+                            name="inr"
+                            size={18}
+                            color={customColors.primary}
+                        />
+                    </View>
+                    <View style={styles.summaryText}>
+                        <Text style={styles.summaryValue}>
+                            {formatCurrency(
+                                pendingSales.reduce(
+                                    (sum, item) =>
+                                        sum +
+                                        parseFloat(
+                                            item.Total_Invoice_value || 0,
+                                        ),
+                                    0,
+                                ),
+                            )}
+                        </Text>
+                        <Text style={styles.summaryLabel}>S.Value</Text>
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.summaryHorizontalDivider} />
+
             <View style={styles.summaryRow}>
                 <View style={styles.summaryItem}>
                     <View style={styles.summaryIconBox}>
@@ -198,6 +269,30 @@ const PendingDeliveryAdmin = ({ route }) => {
             <TouchableOpacity
                 style={[
                     styles.tab,
+                    activeTab === "sales" && styles.activeTab,
+                ]}
+                onPress={() => setActiveTab("sales")}>
+                <Icon
+                    name="shopping-cart"
+                    size={18}
+                    color={
+                        activeTab === "sales"
+                            ? customColors.white
+                            : customColors.grey900
+                    }
+                />
+                <Text
+                    style={[
+                        styles.tabText,
+                        activeTab === "sales" && styles.activeTabText,
+                    ]}>
+                    Sales ({pendingSales.length})
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={[
+                    styles.tab,
                     activeTab === "delivery" && styles.activeTab,
                 ]}
                 onPress={() => setActiveTab("delivery")}>
@@ -242,6 +337,73 @@ const PendingDeliveryAdmin = ({ route }) => {
                     Returns ({returnedDeliveries.length})
                 </Text>
             </TouchableOpacity>
+        </View>
+    );
+
+    const SalesItem = ({ item }) => (
+        <View style={styles.deliveryCard}>
+            <View style={styles.cardHeader}>
+                <Text style={styles.invoiceNumber}>{item.So_Inv_No}</Text>
+                <Text style={styles.invoiceValue}>
+                    {formatCurrency(item.Total_Invoice_value)}
+                </Text>
+            </View>
+
+            <View style={styles.cardContent}>
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="date-range"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value}>{formatDate(item.So_Date)}</Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="store"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value} numberOfLines={2}>
+                        {item.Retailer_Name}
+                    </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                    <Icon
+                        name="person"
+                        size={16}
+                        color={customColors.grey900}
+                        style={styles.icon}
+                    />
+                    <Text style={styles.value}>{item.Sales_Person_Name}</Text>
+                </View>
+
+                {item.Narration && (
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="note"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value} numberOfLines={1}>
+                            {item.Narration}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
+            <View
+                style={[
+                    styles.statusBadge,
+                    { backgroundColor: customColors.primary },
+                ]}>
+                <Text style={styles.statusText}>Pending</Text>
+            </View>
         </View>
     );
 
@@ -415,17 +577,23 @@ const PendingDeliveryAdmin = ({ route }) => {
         </View>
     );
 
-    const isLoading = isLoadingPendingDelivery;
+    const isLoading = activeTab === "sales" ? isLoadingPendingSales : isLoadingPendingDelivery;
 
     const renderContent = () => {
-        let data, renderItem;
+        let data, renderItem, keyExtractor;
 
-        if (activeTab === "delivery") {
+        if (activeTab === "sales") {
+            data = pendingSales;
+            renderItem = SalesItem;
+            keyExtractor = item => item.So_Id?.toString();
+        } else if (activeTab === "delivery") {
             data = pendingDeliveries;
             renderItem = DeliveryItem;
+            keyExtractor = item => item.Do_Id?.toString() || item.Delivery_Order_id?.toString();
         } else if (activeTab === "returned") {
             data = returnedDeliveries;
             renderItem = ReturnedItem;
+            keyExtractor = item => item.Do_Id?.toString() || item.Delivery_Order_id?.toString();
         }
 
         if (isLoading) {
@@ -437,11 +605,11 @@ const PendingDeliveryAdmin = ({ route }) => {
             );
         }
 
-        if (data.length > 0) {
+        if (data && data.length > 0) {
             return (
                 <FlashList
                     data={data}
-                    keyExtractor={item => item.Do_Id?.toString() || item.Delivery_Order_id?.toString()}
+                    keyExtractor={keyExtractor}
                     renderItem={renderItem}
                     estimatedItemSize={150}
                     showsVerticalScrollIndicator={false}
@@ -449,10 +617,15 @@ const PendingDeliveryAdmin = ({ route }) => {
                 />
             );
         } else {
+            const emptyText = activeTab === "sales" 
+                ? "pending sales" 
+                : activeTab === "returned" 
+                    ? "returned deliveries" 
+                    : "pending delivery";
             return (
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>
-                        No {activeTab === "returned" ? "returned deliveries" : `pending ${activeTab}`} found
+                        No {emptyText} found
                     </Text>
                 </View>
             );
@@ -462,7 +635,7 @@ const PendingDeliveryAdmin = ({ route }) => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Pending Delivery"
+                title="Pending Summary"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"

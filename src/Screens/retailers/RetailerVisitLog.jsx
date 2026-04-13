@@ -11,12 +11,14 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import {
     customColors,
     typography,
     spacing,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
@@ -104,13 +106,20 @@ const RetailerVisitLog = () => {
         }
     };
 
-    const renderTabButton = (tabKey, title, count) => (
+    const renderTabButton = (tabKey, title, count, icon) => (
         <TouchableOpacity
             style={[
                 styles.tabButton,
                 activeTab === tabKey && styles.activeTabButton
             ]}
-            onPress={() => setActiveTab(tabKey)}>
+            onPress={() => setActiveTab(tabKey)}
+            activeOpacity={0.8}>
+            <FeatherIcon
+                name={icon}
+                size={iconSizes.sm}
+                color={activeTab === tabKey ? customColors.white : customColors.grey500}
+                style={styles.tabIcon}
+            />
             <Text style={[
                 styles.tabButtonText,
                 activeTab === tabKey && styles.activeTabButtonText
@@ -158,9 +167,9 @@ const RetailerVisitLog = () => {
                                 </Text>
                             </View>
                             <View style={styles.metaRow}>
-                                <MaterialIcon 
-                                    name="access-time" 
-                                    size={14} 
+                                <FeatherIcon 
+                                    name="clock" 
+                                    size={iconSizes.xs} 
                                     color="rgba(255,255,255,0.8)" 
                                 />
                                 <Text style={styles.modernTimestamp}>
@@ -169,9 +178,9 @@ const RetailerVisitLog = () => {
                                 {item.Contact_Person && (
                                     <>
                                         <View style={styles.separator} />
-                                        <MaterialIcon 
-                                            name="person" 
-                                            size={14} 
+                                        <FeatherIcon 
+                                            name="user" 
+                                            size={iconSizes.xs} 
                                             color="rgba(255,255,255,0.8)" 
                                         />
                                         <Text style={styles.contactPerson} numberOfLines={1}>
@@ -184,9 +193,9 @@ const RetailerVisitLog = () => {
                     </View>
 
                     <View style={styles.headerRight}>
-                        <MaterialIcon
-                            name={isExpanded ? "expand-less" : "expand-more"}
-                            size={28}
+                        <FeatherIcon
+                            name={isExpanded ? "chevron-up" : "chevron-down"}
+                            size={iconSizes.lg}
                             color="rgba(255,255,255,0.9)"
                         />
                     </View>
@@ -202,14 +211,14 @@ const RetailerVisitLog = () => {
                                 style={[styles.modernInfoItem, styles.firstInfoItem]}
                                 onPress={() => Linking.openURL(`tel:${item.Contact_Mobile}`)}
                                 activeOpacity={0.7}>
-                                <View style={styles.iconContainer}>
-                                    <MaterialIcon name="phone" size={20} color="#4CAF50" />
+                                <View style={[styles.iconContainer, styles.phoneIcon]}>
+                                    <FeatherIcon name="phone" size={iconSizes.md} color={customColors.success} />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoLabel}>Phone</Text>
                                     <Text style={styles.infoValue}>{item.Contact_Mobile}</Text>
                                 </View>
-                                <MaterialIcon name="call" size={18} color="#4CAF50" />
+                                <FeatherIcon name="phone-call" size={iconSizes.sm} color={customColors.success} />
                             </TouchableOpacity>
 
                             {/* Location */}
@@ -217,8 +226,8 @@ const RetailerVisitLog = () => {
                                 <>
                                     <View style={styles.infoDivider} />
                                     <View style={styles.modernInfoItem}>
-                                        <View style={styles.iconContainer}>
-                                            <MaterialIcon name="location-on" size={20} color="#FF5722" />
+                                        <View style={[styles.iconContainer, styles.locationIcon]}>
+                                            <FeatherIcon name="map-pin" size={iconSizes.md} color={customColors.accent2} />
                                         </View>
                                         <View style={styles.infoContent}>
                                             <Text style={styles.infoLabel}>Address</Text>
@@ -235,8 +244,8 @@ const RetailerVisitLog = () => {
                                 <>
                                     <View style={styles.infoDivider} />
                                     <View style={[styles.modernInfoItem, styles.lastInfoItem]}>
-                                        <View style={styles.iconContainer}>
-                                            <MaterialIcon name="sticky-note-2" size={20} color="#9C27B0" />
+                                        <View style={[styles.iconContainer, styles.notesIcon]}>
+                                            <FeatherIcon name="file-text" size={iconSizes.md} color="#9C27B0" />
                                         </View>
                                         <View style={styles.infoContent}>
                                             <Text style={styles.infoLabel}>Notes</Text>
@@ -255,9 +264,9 @@ const RetailerVisitLog = () => {
                                 style={styles.modernMapButton}
                                 onPress={() => Linking.openURL(googleMapsUrl)}
                                 activeOpacity={0.8}>
-                                <MaterialIcon name="map" size={20} color="#ffffff" />
-                                <Text style={styles.modernMapButtonText}>View Location</Text>
-                                <MaterialIcon name="open-in-new" size={16} color="rgba(255,255,255,0.8)" />
+                                <FeatherIcon name="map" size={iconSizes.md} color={customColors.white} />
+                                <Text style={styles.modernMapButtonText}>View on Map</Text>
+                                <FeatherIcon name="external-link" size={iconSizes.sm} color="rgba(255,255,255,0.8)" />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -276,12 +285,8 @@ const RetailerVisitLog = () => {
                 title="Daily Entries"
                 navigation={navigation}
                 showRightIcon={true}
-                // rightIconLibrary="MaterialIcon"
-                // rightIconName="add"
-                // onRightPress={() => navigation.navigate("RetailerVisit")}
-
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="Feather"
+                rightIconName="filter"
                 onRightPress={() => setModalVisible(true)}
             />
 
@@ -315,16 +320,15 @@ const RetailerVisitLog = () => {
                         onPress={() => navigation.navigate("RetailerVisit")}
                         activeOpacity={0.8}
                     >
-                        <MaterialIcon name="add" size={20} color={customColors.white} />
+                        <FeatherIcon name="plus" size={iconSizes.md} color={customColors.white} />
                         <Text style={styles.addButtonText}>Add Visit</Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* Tab Navigation */}
                 <View style={styles.tabContainer}>
-                    {/* {renderTabButton('all', 'All', allLogData.length)} */}
-                    {renderTabButton('existing', 'Existing', existingCount)}
-                    {renderTabButton('new', 'New', newCount)}
+                    {renderTabButton('existing', 'Existing', existingCount, 'users')}
+                    {renderTabButton('new', 'New', newCount, 'user-plus')}
                 </View>
 
                 {logData && logData.length > 0 ? (
@@ -340,11 +344,13 @@ const RetailerVisitLog = () => {
                 ) : (
                     <View style={styles.noDataContainer}>
                         <View style={styles.noDataContent}>
-                            <MaterialIcon 
-                                name="store" 
-                                size={64} 
-                                color={customColors.grey400} 
-                            />
+                            <View style={styles.noDataIconContainer}>
+                                <FeatherIcon 
+                                    name="shopping-bag" 
+                                    size={iconSizes.xxl} 
+                                    color={customColors.grey300} 
+                                />
+                            </View>
                             <Text style={styles.noDataTitle}>No Visits Today</Text>
                             <Text style={styles.noDataMessage}>
                                 Start your day by visiting retailers and building relationships
@@ -354,7 +360,7 @@ const RetailerVisitLog = () => {
                                 onPress={() => navigation.navigate("RetailerVisit")}
                                 activeOpacity={0.8}
                             >
-                                <MaterialIcon name="add" size={20} color={customColors.white} />
+                                <FeatherIcon name="plus" size={iconSizes.md} color={customColors.white} />
                                 <Text style={styles.noDataButtonText}>Start First Visit</Text>
                             </TouchableOpacity>
                         </View>
@@ -382,7 +388,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         backgroundColor: customColors.white,
         padding: spacing.lg,
-        borderRadius: 16,
+        borderRadius: borderRadius.xl,
         ...shadows.medium,
         elevation: 4,
         borderLeftWidth: 4,
@@ -418,7 +424,8 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
+        gap: spacing.xs,
         ...shadows.small,
         elevation: 3,
     },
@@ -426,16 +433,13 @@ const styles = StyleSheet.create({
         ...typography.button(),
         color: customColors.white,
         fontWeight: "600",
-        marginLeft: spacing.xs,
     },
     tabContainer: {
         flexDirection: "row",
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        marginBottom: spacing.sm,
-        marginHorizontal: spacing.xs,
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
         padding: spacing.xs,
-        ...shadows.small,
     },
     tabButton: {
         flex: 1,
@@ -443,11 +447,16 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.xs,
-        borderRadius: 8,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.md,
+        gap: spacing.xs,
     },
     activeTabButton: {
         backgroundColor: customColors.primary,
+        ...shadows.small,
+    },
+    tabIcon: {
+        marginRight: spacing.xxs,
     },
     tabButtonText: {
         ...typography.body2(),
@@ -461,12 +470,12 @@ const styles = StyleSheet.create({
     },
     tabCountBadge: {
         backgroundColor: customColors.grey200,
-        borderRadius: 10,
-        minWidth: 20,
-        height: 20,
+        borderRadius: borderRadius.round,
+        minWidth: 22,
+        height: 22,
         justifyContent: "center",
         alignItems: "center",
-        paddingHorizontal: spacing.xs,
+        paddingHorizontal: spacing.sm,
     },
     activeTabCountBadge: {
         backgroundColor: customColors.white,
@@ -489,18 +498,15 @@ const styles = StyleSheet.create({
     // Modern card styles
     modernCard: {
         backgroundColor: customColors.white,
-        borderRadius: 16,
+        borderRadius: borderRadius.xl,
         overflow: "hidden",
-        marginBottom: spacing.xs,
-        marginHorizontal: 5,
-        // ...shadows.medium,
-        // elevation: 8,
-        // shadowColor: customColors.primary,
-        // shadowOpacity: 0.08,
+        marginBottom: spacing.sm,
+        marginHorizontal: spacing.xs,
+        ...shadows.small,
     },
     expandedCard: {
-        elevation: 3,
-        shadowOpacity: 0.12,
+        ...shadows.medium,
+        elevation: 4,
     },
     modernCardHeader: {
         flexDirection: "row",
@@ -512,7 +518,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
     },
     newHeader: {
-        backgroundColor: "#2E7D32", // Green for new retailers
+        backgroundColor: customColors.success,
     },
     headerLeft: {
         flex: 1,
@@ -566,12 +572,10 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
     },
     modernInfoSection: {
-        backgroundColor: customColors.white,
-        borderRadius: 16,
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.lg,
         overflow: 'hidden',
-        marginBottom: spacing.xxs,
-        // ...shadows.small,
-        // elevation: 3,
+        marginBottom: spacing.md,
     },
     modernInfoItem: {
         flexDirection: "row",
@@ -592,14 +596,21 @@ const styles = StyleSheet.create({
         marginHorizontal: spacing.lg,
     },
     iconContainer: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "#F8F9FA",
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.round,
         justifyContent: "center",
         alignItems: "center",
         marginRight: spacing.md,
-        marginTop: spacing.xs,
+    },
+    phoneIcon: {
+        backgroundColor: "rgba(76, 175, 80, 0.12)",
+    },
+    locationIcon: {
+        backgroundColor: "rgba(255, 87, 34, 0.12)",
+    },
+    notesIcon: {
+        backgroundColor: "rgba(156, 39, 176, 0.12)",
     },
     infoContent: {
         flex: 1,
@@ -622,18 +633,17 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#FF5722",
+        backgroundColor: customColors.accent2,
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
-        borderRadius: 12,
-        ...shadows.medium,
-        elevation: 4,
+        borderRadius: borderRadius.lg,
+        gap: spacing.sm,
+        ...shadows.small,
     },
     modernMapButtonText: {
         ...typography.button(),
-        color: "#ffffff",
+        color: customColors.white,
         fontWeight: "600",
-        marginHorizontal: spacing.sm,
     },
     // No Data Container Styles
     noDataContainer: {
@@ -647,11 +657,19 @@ const styles = StyleSheet.create({
         alignItems: "center",
         maxWidth: 280,
     },
+    noDataIconContainer: {
+        width: 120,
+        height: 120,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.lg,
+    },
     noDataTitle: {
         ...typography.h5(),
-        color: customColors.grey700,
+        color: customColors.grey800,
         fontWeight: "700",
-        marginTop: spacing.lg,
         marginBottom: spacing.sm,
         textAlign: "center",
     },
@@ -668,15 +686,14 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingHorizontal: spacing.xl,
         paddingVertical: spacing.md,
-        borderRadius: 25,
+        borderRadius: borderRadius.round,
+        gap: spacing.sm,
         ...shadows.medium,
-        elevation: 4,
     },
     noDataButtonText: {
         ...typography.button(),
         color: customColors.white,
         fontWeight: "700",
-        marginLeft: spacing.sm,
     },
 });
 export default RetailerVisitLog;

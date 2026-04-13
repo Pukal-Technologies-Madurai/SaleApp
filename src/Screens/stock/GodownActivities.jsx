@@ -4,17 +4,14 @@ import {
     Text,
     View,
     TouchableOpacity,
-    Dimensions,
 } from "react-native";
 import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
-import { customColors, typography, spacing } from "../../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius, iconSizes } from "../../Config/helper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 
 const GodownActivities = () => {
     const navigation = useNavigation();
@@ -42,39 +39,30 @@ const GodownActivities = () => {
 
     const navScreens = [
         {
-            id: 1,
-            title: "Set Godown",
-            subtitle: "Manage godown settings",
-            icon: "warehouse",
-            iconColor: customColors.warning,
-            bgColor: customColors.warning + "15",
-            onPress: () => navigation.navigate("MasterGodown"),
-        },
-        {
             id: 2,
-            title: "Godown Transfer",
-            subtitle: "Transfer stock",
-            icon: "swap-horiz",
-            iconColor: customColors.info,
-            bgColor: customColors.info + "15",
-            onPress: () => navigation.navigate("GodownTransfer"),
+            title: "Stock In Hand",
+            subtitle: "View current stock in hand",
+            icon: "layers",
+            iconColor: customColors.primary,
+            bgColor: customColors.primaryFaded,
+            onPress: () => navigation.navigate("StockInHand"),
         },
         {
             id: 3,
             title: "Live Stock",
             subtitle: "Current sales stock",
-            icon: "inventory",
+            icon: "box",
             iconColor: customColors.primary,
-            bgColor: customColors.primary + "15",
+            bgColor: customColors.primaryFaded,
             onPress: () => navigation.navigate("LiveStock"),
         },
         {
             id: 4,
             title: "Delivery Return Items",
             subtitle: "View all delivery return items",
-            icon: "assignment-return",
+            icon: "rotate-ccw",
             iconColor: customColors.secondary,
-            bgColor: customColors.secondary + "20",
+            bgColor: customColors.secondaryFaded,
             onPress: () => navigation.navigate("DeliveryReturn", {
                 selectedBranch: branchId,
             }),
@@ -83,7 +71,7 @@ const GodownActivities = () => {
             id: 5,
             title: "Sale Orders",
             subtitle: "View all sale orders",
-            icon: "assignment-turned-in",
+            icon: "check-square",
             iconColor: customColors.accent1,
             bgColor: customColors.accent1 + "20",
             onPress: () => navigation.navigate("SalesAdmin"),
@@ -92,28 +80,26 @@ const GodownActivities = () => {
             id: 6,
             title: "Invoice List",
             subtitle: "View all invoices",
-            icon: "receipt-long",
+            icon: "file-text",
             iconColor: customColors.success,
-            bgColor: customColors.success + "15",
-            onPress: () => navigation.navigate("SaleInvoiceList" , {
+            bgColor: customColors.successFaded,
+            onPress: () => navigation.navigate("SaleInvoiceList", {
                 isAdmin: true,
                 selectedBranch: branchId,
             }),
         },
     ];
 
-    const renderNavCard = item => (
+    const renderNavCard = (item, index) => (
         <TouchableOpacity
             key={item.id}
             style={styles.navCard}
             onPress={item.onPress}
-            activeOpacity={0.75}>
-            {/* Left icon pill */}
+            activeOpacity={0.7}>
             <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
-                <MaterialIcons name={item.icon} size={24} color={item.iconColor} />
+                <FeatherIcon name={item.icon} size={iconSizes.lg} color={item.iconColor} />
             </View>
 
-            {/* Label block */}
             <View style={styles.labelBlock}>
                 <Text style={styles.navTitle}>{item.title}</Text>
                 <Text style={styles.navSubtitle} numberOfLines={1}>
@@ -121,8 +107,9 @@ const GodownActivities = () => {
                 </Text>
             </View>
 
-            {/* Right arrow */}
-            <FeatherIcon name="chevron-right" size={20} color={customColors.grey400} />
+            <View style={styles.arrowContainer}>
+                <FeatherIcon name="chevron-right" size={iconSizes.md} color={customColors.grey400} />
+            </View>
         </TouchableOpacity>
     );
 
@@ -136,9 +123,9 @@ const GodownActivities = () => {
                 {/* Welcome Section */}
                 <View style={styles.welcomeSection}>
                     <View style={styles.welcomeIcon}>
-                        <MaterialIcons
-                            name="warehouse"
-                            size={40}
+                        <FeatherIcon
+                            name="package"
+                            size={iconSizes.xxl}
                             color={customColors.primary}
                         />
                     </View>
@@ -150,7 +137,7 @@ const GodownActivities = () => {
 
                 {/* Navigation Grid */}
                 <View style={styles.navGrid}>
-                    {navScreens.map(item => renderNavCard(item))}
+                    {navScreens.map((item, index) => renderNavCard(item, index))}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -166,10 +153,10 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.grey50,
     },
     scrollContent: {
-        padding: spacing.lg,
+        padding: spacing.md,
         paddingBottom: spacing.xl * 2,
     },
     welcomeSection: {
@@ -180,8 +167,8 @@ const styles = StyleSheet.create({
     welcomeIcon: {
         width: 80,
         height: 80,
-        borderRadius: 40,
-        backgroundColor: customColors.primary + "15",
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.primaryFaded,
         justifyContent: "center",
         alignItems: "center",
         marginBottom: spacing.md,
@@ -194,7 +181,7 @@ const styles = StyleSheet.create({
     },
     welcomeSubtitle: {
         ...typography.body2(),
-        color: customColors.grey600,
+        color: customColors.grey500,
     },
     navGrid: {
         gap: spacing.sm,
@@ -203,21 +190,16 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
-        borderRadius: 14,
+        borderRadius: borderRadius.lg,
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.md,
         gap: spacing.md,
-        // subtle shadow
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        ...shadows.small,
     },
     iconContainer: {
-        width: 46,
-        height: 46,
-        borderRadius: 12,
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.lg,
         justifyContent: "center",
         alignItems: "center",
     },
@@ -225,13 +207,21 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     navTitle: {
-        ...typography.subtitle1(),
+        ...typography.subtitle2(),
         color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: 2,
+        marginBottom: spacing.xxs,
     },
     navSubtitle: {
         ...typography.caption(),
         color: customColors.grey500,
+    },
+    arrowContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
     },
 });

@@ -10,7 +10,6 @@ import {
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
 import Accordion from "../../Components/Accordion";
@@ -22,6 +21,8 @@ import {
     shadows,
     spacing,
     typography,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 
 const DeliveryReturn = ({ route }) => {
@@ -301,14 +302,14 @@ const DeliveryReturn = ({ route }) => {
                         })}
                         activeOpacity={0.7}
                     >
-                        <MaterialIcon name="edit" size={20} color={customColors.white} />
+                        <FeatherIcon name="edit-2" size={iconSizes.sm} color={customColors.white} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.deleteButton}
                         onPress={() => handleDeleteCreditNote(item)}
                         activeOpacity={0.7}
                     >
-                        <MaterialIcon name="delete" size={20} color={customColors.white} />
+                        <FeatherIcon name="trash-2" size={iconSizes.sm} color={customColors.white} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -321,8 +322,8 @@ const DeliveryReturn = ({ route }) => {
                 title="Credit Notes"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="FeatherIcon"
+                rightIconName="filter"
                 onRightPress={() => setModalVisible(true)}
             />
 
@@ -379,9 +380,9 @@ const DeliveryReturn = ({ route }) => {
                                 setSearchQuery("");
                                 setShowSearch(!showSearch);
                             }}>
-                            <MaterialIcon
-                                name={showSearch ? "close" : "search"}
-                                size={24}
+                            <FeatherIcon
+                                name={showSearch ? "x" : "search"}
+                                size={iconSizes.lg}
                                 color={customColors.grey900}
                             />
                         </TouchableOpacity>
@@ -396,7 +397,7 @@ const DeliveryReturn = ({ route }) => {
                             activeOpacity={0.7}>
                             <FeatherIcon
                                 name="arrow-up-right"
-                                size={14}
+                                size={iconSizes.sm}
                                 color={customColors.grey600}
                             />
                         </TouchableOpacity>
@@ -481,7 +482,7 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.xs,
         paddingHorizontal: spacing.md,
         marginRight: spacing.sm,
-        borderRadius: 20,
+        borderRadius: borderRadius.xl,
         backgroundColor: customColors.grey200,
     },
     brandPillActive: {
@@ -496,14 +497,14 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         padding: spacing.xs,
-        borderRadius: 50,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
         marginLeft: spacing.sm,
         ...shadows.small,
     },
     statsContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.lg,
         marginHorizontal: spacing.xs,
         position: "relative",
@@ -515,7 +516,7 @@ const styles = StyleSheet.create({
         right: spacing.sm,
         width: 24,
         height: 24,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         backgroundColor: customColors.grey50,
         justifyContent: "center",
         alignItems: "center",
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     searchContainer: {
         marginTop: spacing.sm,
         marginBottom: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         overflow: "hidden",
         backgroundColor: customColors.white,
         ...shadows.medium,
@@ -563,7 +564,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginBottom: 2,
     },
     headerLeft: {
@@ -601,7 +602,7 @@ const styles = StyleSheet.create({
         margin: spacing.xs,
         borderWidth: 1,
         borderColor: customColors.grey200,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         backgroundColor: customColors.white,
     },
     orderInfo: {
@@ -686,7 +687,7 @@ const styles = StyleSheet.create({
     editButton: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.primary,
         justifyContent: "center",
         alignItems: "center",
@@ -695,7 +696,7 @@ const styles = StyleSheet.create({
     deleteButton: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.error,
         justifyContent: "center",
         alignItems: "center",

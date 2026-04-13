@@ -24,14 +24,6 @@ export const fetchState = async () => {
     return json.data;
 };
 
-export const fetchDistrict = async () => {
-    const res = await fetch(API.district());
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json.data;
-};
-
 export const fetchGodown = async () => {
     const res = await fetch(API.getGoDown());
     const json = await res.json();
@@ -58,61 +50,6 @@ export const fetchRetailers = async companyId => {
 
 export const fetchRetailersName = async () => {
     const res = await fetch(API.retailerName());
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json.data;
-};
-
-export const fetchRetailerInfo = async retailerId => {
-    const res = await fetch(`${API.retailerInfo()}${retailerId}`);
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json;
-};
-
-export const fetchRetailersClosingDropDown = async () => {
-    const res = await fetch(API.retailersClosingStockDropDown());
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json.data;
-};
-
-export const fetchRetailerClosingInfo = async (retailerId, from, to) => {
-    const res = await fetch(
-        `${API.retailerClosingDetailedInfo()}${retailerId}&Fromdate=${from}&Todate=${to}`,
-    );
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json;
-};
-
-// soldItemsForRetailer
-export const fetchRetailerSoldItems = async () => {
-    const res = await fetch(API.soldItemsForRetailer());
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json;
-};
-
-export const fetchProductsAvailableInRetailer = async (itemId, from, to) => {
-    const res = await fetch(
-        `${API.itemAvailableInRetailer()}${itemId}&Fromdate=${from}&Todate=${to}`,
-    );
-    const json = await res.json();
-
-    if (!json.success) throw new Error(json.message);
-    return json;
-};
-
-export const fetchItemSaleReturn = async (fromDate, toDate, userId) => {
-    const url = `${API.salesReturnItems()}?Fromdate=${fromDate}&Todate=${toDate}&createdBy=${userId}`;
-    // console.log("Fetching Item Sale Return from URL:", url);
-    const res = await fetch(url);
     const json = await res.json();
 
     if (!json.success) throw new Error(json.message);
@@ -288,4 +225,70 @@ export const deleteRoutePathData = async id => {
 
     if (!json.success) throw new Error(json.message);
     return json.data;
+};
+
+
+// Not Used API
+
+export const fetchDistrict = async () => {
+    const res = await fetch(API.district());
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
+export const fetchRetailerInfo = async retailerId => {
+    const res = await fetch(`${API.retailerInfo()}${retailerId}`);
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
+export const fetchRetailersClosingDropDown = async () => {
+    const res = await fetch(API.retailersClosingStockDropDown());
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
+export const fetchItemSaleReturn = async (fromDate, toDate, userId) => {
+    const url = `${API.salesReturnItems()}?Fromdate=${fromDate}&Todate=${toDate}&createdBy=${userId}`;
+    // console.log("Fetching Item Sale Return from URL:", url);
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};
+
+// soldItemsForRetailer
+export const fetchRetailerSoldItems = async () => {
+    const res = await fetch(API.soldItemsForRetailer());
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
+export const fetchRetailerClosingInfo = async (retailerId, from, to) => {
+    const res = await fetch(
+        `${API.retailerClosingDetailedInfo()}${retailerId}&Fromdate=${from}&Todate=${to}`,
+    );
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
+export const fetchProductsAvailableInRetailer = async (itemId, from, to) => {
+    const res = await fetch(
+        `${API.itemAvailableInRetailer()}${itemId}&Fromdate=${from}&Todate=${to}`,
+    );
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
 };

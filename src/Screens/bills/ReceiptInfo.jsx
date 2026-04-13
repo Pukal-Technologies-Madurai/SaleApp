@@ -13,7 +13,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { fetchUserInvolvedReceipts } from "../../Api/receipt";
@@ -22,7 +23,36 @@ import {
     typography,
     spacing,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
+
+// Status Badge Component
+const StatusBadge = ({ label, color, icon }) => (
+    <View style={[styles.statusBadge, { backgroundColor: color + "15" }]}>
+        {icon && <FeatherIcon name={icon} size={iconSizes.xs} color={color} />}
+        <Text style={[styles.statusBadgeText, { color }]}>{label}</Text>
+    </View>
+);
+
+// Summary Card Component
+const SummaryCard = ({ icon, iconLibrary = "Feather", value, label, color, isActive, onPress }) => (
+    <TouchableOpacity
+        style={[styles.summaryCard, isActive && styles.activeSummaryCard]}
+        onPress={onPress}
+        activeOpacity={0.7}
+    >
+        <View style={[styles.summaryIconContainer, { backgroundColor: isActive ? customColors.white + "20" : color + "15" }]}>
+            {iconLibrary === "FontAwesome" ? (
+                <FontAwesomeIcon name={icon} size={iconSizes.md} color={isActive ? customColors.white : color} />
+            ) : (
+                <FeatherIcon name={icon} size={iconSizes.md} color={isActive ? customColors.white : color} />
+            )}
+        </View>
+        <Text style={[styles.summaryNumber, isActive && styles.activeSummaryText]}>{value}</Text>
+        <Text style={[styles.summaryLabel, isActive && styles.activeSummaryText]}>{label}</Text>
+    </TouchableOpacity>
+);
 
 const ReceiptInfo = () => {
     const navigation = useNavigation();
@@ -33,7 +63,7 @@ const ReceiptInfo = () => {
     const [activeFilter, setActiveFilter] = useState("all"); // 'all', 'cash', 'bank'
     const [searchTerm, setSearchTerm] = useState("");
     const [showSearch, setShowSearch] = useState(false);
-    const [showUnreferenced, setShowUnreferenced] = useState(false); // Filter for TotalReferencedAmount = 0
+    const [receiptFilter, setReceiptFilter] = useState("all"); // 'all', 'liveSale', 'normal'
 
     useEffect(() => {
         (async () => {
@@ -83,124 +113,90 @@ const ReceiptInfo = () => {
         });
     };
 
-    const renderReceiptCard = receipt => (
-        <TouchableOpacity
-            disabled
-            key={receipt.receipt_id}
-            style={styles.receiptCard}
-            activeOpacity={0.7}>
-            {/* Header: Retailer name and amount */}
-            <View style={styles.receiptHeader}>
-                <Text style={styles.retailerName} numberOfLines={2}>
-                    {receipt.credit_ledger_name}
-                </Text>
-                <Text style={styles.receiptAmount}>
-                    ₹{receipt.credit_amount.toLocaleString("en-IN")}
-                </Text>
-            </View>
-
-            {/* Invoice and Date row */}
-            <View style={styles.invoiceDateRow}>
-                <Text style={styles.invoiceNumber}>
-                    {receipt.receipt_invoice_no}
-                </Text>
-                <Text style={styles.receiptDate}>
-                    {formatDate(receipt.receipt_date)}
-                </Text>
-            </View>
-
-            {/* Method and Note with icons only */}
-            <View style={styles.iconDetailsContainer}>
-                <View style={styles.iconDetail}>
-                    <MaterialIcons
-                        name="account-balance-wallet"
-                        size={18}
-                        color={customColors.grey600}
-                    />
-                    <Text style={styles.iconDetailText} numberOfLines={1}>
-                        {receipt.debit_ledger_name}
-                    </Text>
-                </View>
-
-                {receipt.remarks && (
-                    <View style={styles.iconDetail}>
-                        <MaterialIcons
-                            name="note"
-                            size={18}
-                            color={customColors.grey600}
-                        />
-                        <Text style={styles.iconDetailText} numberOfLines={1}>
-                            {receipt.remarks}
+    const renderReceiptCard = receipt => {
+        const isCompleted = receipt.status === 1;
+        return (
+            <View key={receipt.receipt_id} style={styles.receiptCard}>
+                {/* Header Row */}
+                <View style={styles.receiptHeader}>
+                    <View style={styles.receiptIconWrap}>
+                        <FeatherIcon name="file-text" size={iconSizes.lg} color={customColors.primary} />
+                    </View>
+                    <View style={styles.receiptHeaderInfo}>
+                        <Text style={styles.retailerName} numberOfLines={2}>
+                            {receipt.credit_ledger_name}
+                        </Text>
+                        <Text style={styles.invoiceNumber}>
+                            {receipt.receipt_invoice_no}
                         </Text>
                     </View>
-                )}
-            </View>
+                    <View style={styles.receiptHeaderRight}>
+                        <Text style={styles.receiptAmount}>
+                            ₹{receipt.credit_amount.toLocaleString("en-IN")}
+                        </Text>
+                        <View style={styles.dateContainer}>
+                            <FeatherIcon name="calendar" size={iconSizes.xs} color={customColors.grey500} />
+                            <Text style={styles.receiptDate}>
+                                {formatDate(receipt.receipt_date)}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
 
-            {/* Footer with status and time */}
-            <View style={styles.receiptFooter}>
-                <View style={styles.timestampContainer}>
-                    <MaterialIcons
-                        name="access-time"
-                        size={14}
-                        color={customColors.grey500}
-                    />
-                    <Text style={styles.timestamp}>
-                        {formatTime(receipt.created_on)}
-                    </Text>
+                {/* Details Row */}
+                <View style={styles.detailsRow}>
+                    <View style={styles.detailItem}>
+                        <FeatherIcon name="credit-card" size={iconSizes.sm} color={customColors.grey500} />
+                        <Text style={styles.detailText} numberOfLines={1}>
+                            {receipt.debit_ledger_name}
+                        </Text>
+                    </View>
+                    {receipt.remarks && (
+                        <View style={styles.detailItem}>
+                            <FeatherIcon name="message-square" size={iconSizes.sm} color={customColors.grey500} />
+                            <Text style={styles.detailText} numberOfLines={1}>
+                                {receipt.remarks}
+                            </Text>
+                        </View>
+                    )}
                 </View>
-                <View
-                    style={[
-                        styles.statusBadge,
-                        {
-                            backgroundColor:
-                                receipt.status === 1
-                                    ? customColors.success + "20"
-                                    : customColors.error + "20",
-                        },
-                    ]}>
-                    <Text
-                        style={[
-                            styles.statusText,
-                            {
-                                color:
-                                    receipt.status === 1
-                                        ? customColors.success
-                                        : customColors.error,
-                            },
-                        ]}>
-                        {receipt.status === 1 ? "Completed" : "Cancelled"}
-                    </Text>
+
+                {/* Footer with status and time */}
+                <View style={styles.receiptFooter}>
+                    <View style={styles.timestampContainer}>
+                        <FeatherIcon name="clock" size={iconSizes.xs} color={customColors.grey500} />
+                        <Text style={styles.timestamp}>
+                            {formatTime(receipt.created_on)}
+                        </Text>
+                    </View>
+                    <StatusBadge
+                        label={isCompleted ? "Completed" : "Cancelled"}
+                        color={isCompleted ? customColors.success : customColors.error}
+                        icon={isCompleted ? "check-circle" : "x-circle"}
+                    />
                 </View>
             </View>
-        </TouchableOpacity>
-    );
+        );
+    };
 
     const renderEmptyState = () => (
         <View style={styles.emptyStateContainer}>
-            <MaterialIcons
-                name="receipt-long"
-                size={64}
-                color={customColors.grey400}
-            />
+            <View style={styles.emptyIconContainer}>
+                <FeatherIcon name="file-text" size={iconSizes.xxl} color={customColors.grey300} />
+            </View>
             <Text style={styles.emptyStateTitle}>No Receipts Found</Text>
             <Text style={styles.emptyStateSubtitle}>
                 No receipts found for the selected date range.{"\n"}
                 Try adjusting your filters or create new receipts.
             </Text>
 
-            {/* Add Create Receipt Button */}
             <TouchableOpacity
                 style={styles.createReceiptButton}
                 onPress={() => navigation.navigate("CreateReceipts")}
-                activeOpacity={0.8}>
-                <MaterialIcons
-                    name="add"
-                    size={20}
-                    color={customColors.white}
-                />
-                <Text style={styles.createReceiptButtonText}>
-                    Create New Receipt
-                </Text>
+                activeOpacity={0.7}
+            >
+                <FeatherIcon name="plus" size={iconSizes.md} color={customColors.white} />
+                <Text style={styles.createReceiptButtonText}>Create New Receipt</Text>
             </TouchableOpacity>
         </View>
     );
@@ -208,10 +204,14 @@ const ReceiptInfo = () => {
     const getFilteredReceipts = () => {
         let activeReceipts = receiptData.filter(receipt => receipt.status !== 0);
 
-        // Apply referenced filter if enabled (show receipts with TotalReferencedAmount > 0)
-        if (showUnreferenced) {
+        // Apply receipt type filter
+        if (receiptFilter === "liveSale") {
             activeReceipts = activeReceipts.filter(
-                receipt => Number(receipt.TotalReferencedAmount) > 0
+                receipt => receipt.remarks && receipt.remarks.includes("Live Sale")
+            );
+        } else if (receiptFilter === "normal") {
+            activeReceipts = activeReceipts.filter(
+                receipt => !receipt.remarks || !receipt.remarks.includes("Live Sale")
             );
         }
 
@@ -241,11 +241,14 @@ const ReceiptInfo = () => {
     };
 
     const renderSummaryStats = () => {
-        // Base receipts filtered by status and optionally by referenced
         let baseReceipts = receiptData.filter(receipt => receipt.status !== 0);
-        if (showUnreferenced) {
+        if (receiptFilter === "liveSale") {
             baseReceipts = baseReceipts.filter(
-                receipt => Number(receipt.TotalReferencedAmount) > 0
+                receipt => receipt.remarks && receipt.remarks.includes("Live Sale")
+            );
+        } else if (receiptFilter === "normal") {
+            baseReceipts = baseReceipts.filter(
+                receipt => !receipt.remarks || !receipt.remarks.includes("Live Sale")
             );
         }
 
@@ -261,82 +264,35 @@ const ReceiptInfo = () => {
             (sum, receipt) => sum + (receipt.debit_ledger_name === "Canara Bank (795956)" ? receipt.credit_amount : 0),
             0,
         );
-        const liveReceiptsCount = baseReceipts.filter(
-            receipt => receipt.Voucher_Type === "LIVE_RECEIPT",
-        ).length;
-        const totalReceipts = baseReceipts.length;
 
         return (
             <View style={styles.summaryContainer}>
-                <TouchableOpacity
-                    style={[
-                        styles.summaryCard,
-                        activeFilter === "all" && styles.activeSummaryCard
-                    ]}
+                <SummaryCard
+                    icon="inr"
+                    iconLibrary="FontAwesome"
+                    value={`₹${totalAmount.toLocaleString("en-IN")}`}
+                    label="Total"
+                    color={customColors.accent2}
+                    isActive={activeFilter === "all"}
                     onPress={() => setActiveFilter("all")}
-                    activeOpacity={0.7}>
-                    <MaterialIcons
-                        name="currency-rupee"
-                        size={24}
-                        color={activeFilter === "all" ? customColors.white : customColors.accent2}
-                    />
-                    <Text style={[
-                        styles.summaryNumber,
-                        activeFilter === "all" && styles.activeSummaryText
-                    ]}>
-                        ₹{totalAmount.toLocaleString("en-IN")}
-                    </Text>
-                    <Text style={[
-                        styles.summaryLabel,
-                        activeFilter === "all" && styles.activeSummaryText
-                    ]}>Total Amount</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[
-                        styles.summaryCard,
-                        activeFilter === "cash" && styles.activeSummaryCard
-                    ]}
+                />
+                <SummaryCard
+                    icon="inr"
+                    iconLibrary="FontAwesome"
+                    value={`₹${cashTotal.toLocaleString("en-IN")}`}
+                    label="Cash"
+                    color={customColors.primary}
+                    isActive={activeFilter === "cash"}
                     onPress={() => setActiveFilter(activeFilter === "cash" ? "all" : "cash")}
-                    activeOpacity={0.7}>
-                    <MaterialIcons
-                        name="currency-rupee"
-                        size={24}
-                        color={activeFilter === "cash" ? customColors.white : customColors.primary}
-                    />
-                    <Text style={[
-                        styles.summaryNumber,
-                        activeFilter === "cash" && styles.activeSummaryText
-                    ]}>
-                        ₹{cashTotal.toLocaleString("en-IN")}
-                    </Text>
-                    <Text style={[
-                        styles.summaryLabel,
-                        activeFilter === "cash" && styles.activeSummaryText
-                    ]}>Cash</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[
-                        styles.summaryCard,
-                        activeFilter === "bank" && styles.activeSummaryCard
-                    ]}
+                />
+                <SummaryCard
+                    icon="home"
+                    value={`₹${bankTotal.toLocaleString("en-IN")}`}
+                    label="Bank"
+                    color={customColors.success}
+                    isActive={activeFilter === "bank"}
                     onPress={() => setActiveFilter(activeFilter === "bank" ? "all" : "bank")}
-                    activeOpacity={0.7}>
-                    <MaterialIcons
-                        name="account-balance"
-                        size={24}
-                        color={activeFilter === "bank" ? customColors.white : customColors.success}
-                    />
-                    <Text style={[
-                        styles.summaryNumber,
-                        activeFilter === "bank" && styles.activeSummaryText
-                    ]}>
-                        ₹{bankTotal.toLocaleString("en-IN")}
-                    </Text>
-                    <Text style={[
-                        styles.summaryLabel,
-                        activeFilter === "bank" && styles.activeSummaryText
-                    ]}>Bank</Text>
-                </TouchableOpacity>
+                />
             </View>
         );
     };
@@ -347,11 +303,7 @@ const ReceiptInfo = () => {
         return (
             <View style={styles.searchContainer}>
                 <View style={styles.searchInputContainer}>
-                    <MaterialIcons
-                        name="search"
-                        size={20}
-                        color={customColors.grey500}
-                    />
+                    <FeatherIcon name="search" size={iconSizes.md} color={customColors.grey500} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Search by retailer name..."
@@ -363,12 +315,9 @@ const ReceiptInfo = () => {
                     {searchTerm.length > 0 && (
                         <TouchableOpacity
                             onPress={() => setSearchTerm("")}
-                            style={styles.clearButton}>
-                            <MaterialIcons
-                                name="clear"
-                                size={18}
-                                color={customColors.grey500}
-                            />
+                            style={styles.clearButton}
+                        >
+                            <FeatherIcon name="x" size={iconSizes.sm} color={customColors.grey500} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -400,8 +349,8 @@ const ReceiptInfo = () => {
                 title="Receipts Summary"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="FeatherIcon"
+                rightIconName="filter"
                 onRightPress={() => setModalVisible(true)}
             />
 
@@ -432,11 +381,9 @@ const ReceiptInfo = () => {
                     </View>
                 ) : error ? (
                     <View style={styles.errorContainer}>
-                        <MaterialIcons
-                            name="error-outline"
-                            size={48}
-                            color={customColors.error}
-                        />
+                        <View style={styles.errorIconContainer}>
+                            <FeatherIcon name="alert-circle" size={iconSizes.xl} color={customColors.error} />
+                        </View>
                         <Text style={styles.errorTitle}>
                             Error Loading Receipts
                         </Text>
@@ -446,7 +393,10 @@ const ReceiptInfo = () => {
                         </Text>
                         <TouchableOpacity
                             style={styles.retryButton}
-                            onPress={refetch}>
+                            onPress={refetch}
+                            activeOpacity={0.7}
+                        >
+                            <FeatherIcon name="refresh-cw" size={iconSizes.sm} color={customColors.white} />
                             <Text style={styles.retryButtonText}>Retry</Text>
                         </TouchableOpacity>
                     </View>
@@ -471,22 +421,30 @@ const ReceiptInfo = () => {
                                 {renderSearchInput()}
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionTitle}>
-                                        {/* {showUnreferenced ? "Referenced " : ""} */}
                                         {searchTerm.trim() ? "Search Results" :
+                                            receiptFilter === "liveSale" ? "Live Sale" :
+                                            receiptFilter === "normal" ? "Normal" :
                                             activeFilter === "all" ? "All" :
-                                                activeFilter === "cash" ? "Cash" : "Bank"} Receipts ({getFilteredReceipts().length})
+                                            activeFilter === "cash" ? "Cash" : "Bank"} Receipts ({getFilteredReceipts().length})
                                     </Text>
                                     <View style={styles.headerActions}>
                                         <TouchableOpacity
-                                            onPress={() => setShowUnreferenced(!showUnreferenced)}
+                                            onPress={() => {
+                                                // Cycle: all -> liveSale -> normal -> all
+                                                if (receiptFilter === "all") setReceiptFilter("liveSale");
+                                                else if (receiptFilter === "liveSale") setReceiptFilter("normal");
+                                                else setReceiptFilter("all");
+                                            }}
                                             style={[
                                                 styles.actionButton,
-                                                showUnreferenced && styles.activeActionButton
-                                            ]}>
-                                            <MaterialIcons
-                                                name="pending-actions"
-                                                size={22}
-                                                color={showUnreferenced ? customColors.white : customColors.primary}
+                                                receiptFilter === "liveSale" && styles.activeActionButton,
+                                                receiptFilter === "normal" && styles.normalFilterButton
+                                            ]}
+                                        >
+                                            <FeatherIcon
+                                                name={receiptFilter === "normal" ? "file-text" : "zap"}
+                                                size={iconSizes.md}
+                                                color={receiptFilter !== "all" ? customColors.white : customColors.primary}
                                             />
                                         </TouchableOpacity>
                                         <TouchableOpacity
@@ -496,23 +454,21 @@ const ReceiptInfo = () => {
                                                     setSearchTerm("");
                                                 }
                                             }}
-                                            style={styles.actionButton}>
-                                            <MaterialIcons
-                                                name={showSearch ? "close" : "search"}
-                                                size={22}
+                                            style={styles.actionButton}
+                                        >
+                                            <FeatherIcon
+                                                name={showSearch ? "x" : "search"}
+                                                size={iconSizes.md}
                                                 color={customColors.primary}
                                             />
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            onPress={() =>
-                                                navigation.navigate(
-                                                    "CreateReceipts",
-                                                )
-                                            }
-                                            style={styles.actionButton}>
-                                            <MaterialIcons
-                                                name="add"
-                                                size={24}
+                                            onPress={() => navigation.navigate("CreateReceipts")}
+                                            style={styles.actionButton}
+                                        >
+                                            <FeatherIcon
+                                                name="plus"
+                                                size={iconSizes.lg}
                                                 color={customColors.primary}
                                             />
                                         </TouchableOpacity>
@@ -537,8 +493,9 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.grey50,
     },
+    // Loading State
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
@@ -549,33 +506,45 @@ const styles = StyleSheet.create({
         ...typography.body1(),
         color: customColors.grey600,
     },
+    // Error State
     errorContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
         paddingHorizontal: spacing.xl,
-        gap: spacing.md,
+        gap: spacing.sm,
+    },
+    errorIconContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.errorFaded,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.sm,
     },
     errorTitle: {
-        ...typography.h5(),
-        color: customColors.error,
+        ...typography.h6(),
+        color: customColors.grey800,
         fontWeight: "600",
     },
     errorText: {
-        ...typography.body1(),
-        color: customColors.grey600,
+        ...typography.body2(),
+        color: customColors.grey500,
         textAlign: "center",
-        lineHeight: 22,
     },
     retryButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
         backgroundColor: customColors.primary,
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
-        borderRadius: 8,
-        marginTop: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.round,
+        marginTop: spacing.md,
     },
     retryButtonText: {
-        ...typography.button(),
+        ...typography.body2(),
         color: customColors.white,
         fontWeight: "600",
     },
@@ -585,19 +554,29 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: spacing.xl,
     },
+    // Summary Cards
     summaryContainer: {
         flexDirection: "row",
-        padding: spacing.md,
+        padding: spacing.sm,
+        justifyContent: "space-between",
         gap: spacing.sm,
     },
     summaryCard: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: spacing.md,
+        borderRadius: borderRadius.xl,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         alignItems: "center",
-        gap: spacing.xs,
+        // gap: spacing.xs,
         ...shadows.small,
+    },
+    summaryIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.lg,
+        justifyContent: "center",
+        alignItems: "center",
     },
     activeSummaryCard: {
         backgroundColor: customColors.primary,
@@ -607,131 +586,145 @@ const styles = StyleSheet.create({
         color: customColors.white,
     },
     summaryNumber: {
-        ...typography.h5(),
+        ...typography.body1(),
         color: customColors.grey900,
         fontWeight: "700",
     },
     summaryLabel: {
         ...typography.caption(),
-        color: customColors.grey600,
-        textAlign: "center",
+        color: customColors.grey500,
     },
+    // Section Header
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
+        marginBottom: spacing.sm,
     },
     sectionTitle: {
-        ...typography.h6(),
-        color: customColors.grey900,
+        ...typography.body1(),
+        color: customColors.grey800,
         fontWeight: "600",
         flex: 1,
     },
     headerActions: {
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.sm,
+        gap: spacing.xs,
     },
     actionButton: {
-        padding: spacing.xs,
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.md,
+        backgroundColor: customColors.primaryFaded,
+        justifyContent: "center",
+        alignItems: "center",
     },
     activeActionButton: {
         backgroundColor: customColors.primary,
-        borderRadius: 6,
-        padding: spacing.xs,
     },
+    normalFilterButton: {
+        backgroundColor: customColors.accent2,
+    },
+    // Search
     searchContainer: {
-        paddingHorizontal: spacing.md,
-        paddingBottom: spacing.sm,
+        marginVertical: spacing.md,
     },
     searchInputContainer: {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderWidth: 1,
-        borderColor: customColors.grey300,
         gap: spacing.sm,
         ...shadows.small,
     },
     searchInput: {
         flex: 1,
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.grey900,
         paddingVertical: spacing.xs,
     },
     clearButton: {
         padding: spacing.xs,
     },
+    // Receipts Container
     receiptsContainer: {
         paddingHorizontal: spacing.md,
     },
+    // Receipt Card
     receiptCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: spacing.md,
-        marginBottom: spacing.md,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
+        borderRadius: borderRadius.xl,
+        padding: spacing.sm,
+        marginBottom: spacing.sm,
         ...shadows.small,
     },
     receiptHeader: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "flex-start",
-        marginBottom: spacing.md,
+    },
+    receiptIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.lg,
+        backgroundColor: customColors.primaryFaded,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    receiptHeaderInfo: {
+        flex: 1,
+        marginLeft: spacing.sm,
+    },
+    receiptHeaderRight: {
+        alignItems: "flex-end",
     },
     retailerName: {
-        ...typography.subtitle1(),
+        ...typography.h6(),
         color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: spacing.xs,
-        flex: 1,
-    },
-    invoiceDateRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: spacing.md,
     },
     invoiceNumber: {
-        ...typography.body1(),
-        color: customColors.grey900,
-        fontWeight: "500",
-        flex: 1,
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: spacing.xxs,
     },
     receiptAmount: {
         ...typography.h6(),
-        color: customColors.primary,
+        color: customColors.primaryDark,
         fontWeight: "700",
-        marginBottom: spacing.xs,
+    },
+    dateContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xxs,
+        marginTop: spacing.xxs,
     },
     receiptDate: {
         ...typography.caption(),
-        color: customColors.grey600,
+        color: customColors.grey500,
     },
-    iconDetailsContainer: {
-        // flexDirection: "row",
-        // justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: spacing.md,
+    // Details Row
+    detailsRow: {
+        marginTop: spacing.sm,
+        paddingTop: spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey100,
+        gap: spacing.sm,
     },
-    iconDetail: {
+    detailItem: {
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.xs,
-        flex: 1,
+        gap: spacing.sm,
     },
-    iconDetailText: {
+    detailText: {
         ...typography.body2(),
-        color: customColors.grey900,
+        color: customColors.grey700,
         flex: 1,
-        lineHeight: 18,
     },
+    // Receipt Footer
     receiptFooter: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -739,7 +732,7 @@ const styles = StyleSheet.create({
         marginTop: spacing.sm,
         paddingTop: spacing.sm,
         borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
+        borderTopColor: customColors.grey100,
     },
     timestampContainer: {
         flexDirection: "row",
@@ -750,51 +743,60 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey500,
     },
+    // Status Badge
     statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
         paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 12,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
     },
-    statusText: {
+    statusBadgeText: {
         ...typography.caption(),
         fontWeight: "600",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
     },
+    // Empty State
     emptyStateContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
         paddingHorizontal: spacing.xl,
-        marginVertical: spacing.xxl,
-        gap: spacing.md,
+        paddingVertical: spacing.xxl,
+    },
+    emptyIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     emptyStateTitle: {
-        ...typography.h5(),
+        ...typography.h6(),
         color: customColors.grey700,
         fontWeight: "600",
+        marginBottom: spacing.xs,
     },
     emptyStateSubtitle: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.grey500,
         textAlign: "center",
-        lineHeight: 22,
-        marginBottom: spacing.lg,
     },
     createReceiptButton: {
-        backgroundColor: customColors.primary,
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
-        borderRadius: 12,
         gap: spacing.sm,
-        ...shadows.medium,
-        marginTop: spacing.md,
+        backgroundColor: customColors.primary,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.round,
+        marginTop: spacing.lg,
+        ...shadows.small,
     },
     createReceiptButtonText: {
-        ...typography.button(),
+        ...typography.body2(),
         color: customColors.white,
         fontWeight: "600",
     },

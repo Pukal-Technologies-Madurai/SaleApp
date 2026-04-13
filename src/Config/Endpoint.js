@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-let baseURL = "https://pukalfoods.erpsmt.in/"; // Live api
+let baseURL = "https://erpsmt.in/"; // Live api
 // let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
 // let baseURL = "http://test.erpsmt.in/";
 // let baseURL = "http://192.168.0.116:9001/"; // Localhost endpoint
@@ -28,24 +28,24 @@ export const setBaseUrl = async url => {
 };
 
 export const API = {
-    login: () => `${baseURL}api/authorization/login`,
-
     userPortal: () =>
         `${baseURL}api/authorization/userPortal/accounts?username=`,
     userPortalLogin: () => `${baseURL}api/authorization/userPortal/login`,
-    getUserAuth: () => `${baseURL}api/authorization/userAuth`,
+    getUserAuthInfo: () => `${baseURL}api/authorization/userAuth`,
+
     getUserAuthMob: () => `${baseURL}api/authorization/userAuthmobile`,
     changePassword: () => `${baseURL}api/masters/users/changePassword`,
+
     getBranches: () => `${baseURL}api/masters/branch`,
+    users: () => `${baseURL}api/masters/users?Company_id=`,
+    costCenterData: () => `${baseURL}api/dataEntry/costCenter/`,
 
     routes: () => `${baseURL}api/masters/routes`,
     areas: () => `${baseURL}api/masters/areas`,
     state: () => `${baseURL}api/masters/state`,
     district: () => `${baseURL}api/masters/district`,
+    distributors: () => `${baseURL}api/masters/distributors`,
     getGoDown: () => `${baseURL}api/masters/godown`,
-
-    users: () => `${baseURL}api/masters/users?Company_id=`,
-    costCenterData: () => `${baseURL}api/dataEntry/costCenter/`,
 
     attendance: () => `${baseURL}api/empAttendance/attendance`,
     attendanceHistory: () => `${baseURL}api/empAttendance/attendance/history?`,
@@ -57,35 +57,22 @@ export const API = {
     retailerInfo: () => `${baseURL}api/masters/retailers/info?Retailer_Id=`,
 
     uom: () => `${baseURL}api/masters/uom`,
-    groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
+    products: () => `${baseURL}api/masters/products?Company_Id=`,
+
     stockValueWithProduct: () => `${baseURL}api/masters/products/withStock`,
     goDownwiseStockValue: () => `${baseURL}api/reports/storageStock/godownWiseForMobile?Godown_Id=`,
     createGodownTransfer: () => `${baseURL}api/inventory/tripSheet/arrivalEntry/bulk`,
 
+    posOrderBranch: () => `${baseURL}api/masters/posbranch`,
     posProducts: () => `${baseURL}api/masters/products/allProducts`,
     posProductsWithStockValue: () => `${baseURL}api/pos/productMaster`,
     productPacks: () => `${baseURL}api/masters/products/packs?Company_Id=`,
-    closingStock: () => `${baseURL}api/masters/retailers/closingStock`,
     productClosingStock: () =>
         `${baseURL}api/masters/retailers/closingStock?Retailer_Id=`,
     productBasedClosingStock: () =>
         `${baseURL}api/masters/retailers/closingStock/productBased?Retailer_Id=`,
     closingStockReport: () =>
         `${baseURL}api/masters/retailers/closingStock/myEntry?UserId=`,
-
-    retailersClosingStockDropDown: () =>
-        `${baseURL}api/masters/retailers/whoHasClosingStock`,
-
-    retailerClosingDetailedInfo: () =>
-        `${baseURL}api/reports/customerClosingStock/retailerBased/detailedInfo?Retailer_Id=`,
-
-    soldItemsForRetailer: () =>
-        `${baseURL}api/reports/customerClosingStock/soldItems`,
-
-    salesReturnItems: () => `${baseURL}api/sales/salesReturn`,
-
-    itemAvailableInRetailer: () =>
-        `${baseURL}api/reports/customerClosingStock/itemSearch?Item_Id=`,
 
     delivery: () =>
         `${baseURL}api/delivery/deliveryOrderList?Delivery_Person_Id=`,
@@ -109,40 +96,20 @@ export const API = {
     closingStockAreaBased: () =>
         `${baseURL}api/masters/retailers/closingStock/areaBased?Company_id=`,
 
-    accountsMaster: () => `${baseURL}api/masters/accounts`,
-
     customerWhoHasBills: () => `${baseURL}api/receipt/getCustomerWhoHasBills`,
 
     createReceipt: () => `${baseURL}api/receipt/receiptMaster`,
     userInvoltedReceipts: () =>
         `${baseURL}api/receipt/receiptMaster?createdBy=`,
-
     getReceipt: () => `${baseURL}api/receipt/receiptMaster?Fromdate=`,
-
-    deliveryReturn: () => `${baseURL}api/reports/returnReports?Fromdate=`,
-
-    salesLive: () => `${baseURL}api/sales/salesInvoice/liveSales`,
-
     pendingSalesInvoice: () =>
         `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt?Acc_Id=`,
-
-    retailerBasedPendingSalesInvoiceReceipt: () =>
-        `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt/retailerBased?Retailer_id=`,
-
+    retailerAccountPendingReference: () => 
+        `${baseURL}api/journal/accountPendingReference?Acc_Id=`,
     defaultAccountMaster: () =>
         `${baseURL}api/masters/defaultAccountMaster?AC_Reason=MOBILE_CASH`,
-
-    defaultDebitLiveSales: () =>
-        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=ONLINE_LIVE_SALES`,
-
     defaultCreditAccountMaster: () => `${baseURL}api/masters/accountMaster`,
-
     setRoutePath: () => `${baseURL}api/masters/setRoutes`,
-    getRetailersWhoHasBills: () =>
-        `${baseURL}api/receipt/getRetailersWhoHasBills`,
-    retailerPendingBills: () =>
-        `${baseURL}api/receipt/retailerBills?retailer_id=`,
-    paymentCollection: () => `${baseURL}api/receipt/collectionReceipts`,
     receiptFilter: () => `${baseURL}api/receipt/filterValues`,
 
     google_map: "https://www.google.com/maps/search/?api=1&query=",
@@ -155,15 +122,46 @@ export const API = {
     updateCreditNote: () => `${baseURL}api/creditNote/`,
     getCreditNoteList: () => `${baseURL}api/creditNote?Fromdate=`,
 
+    closingStock: () => `${baseURL}api/masters/retailers/closingStock`,
+
+    godownWiseStackInHand: () => `${baseURL}/api/reports/storageStock/godownWiseMobile?`,
+    godownExpenseReport: () => `${baseURL}api/reports/godownexpenseReport?`,
+
+    // Doubtful APIs
+    salesLive: () => `${baseURL}api/sales/salesInvoice/liveSales`,
+    defaultDebitLiveSales: () =>
+        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=ONLINE_LIVE_SALES`,
+
+    // not used
+    salesReturnItems: () => `${baseURL}api/sales/salesReturn`,
+    soldItemsForRetailer: () =>
+        `${baseURL}api/reports/customerClosingStock/soldItems`,
+    retailerClosingDetailedInfo: () =>
+        `${baseURL}api/reports/customerClosingStock/retailerBased/detailedInfo?Retailer_Id=`,
+    itemAvailableInRetailer: () =>
+        `${baseURL}api/reports/customerClosingStock/itemSearch?Item_Id=`,
+    
+    accountsMaster: () => `${baseURL}api/masters/accounts`,
+    retailerBasedPendingSalesInvoiceReceipt: () =>
+        `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt/retailerBased?Retailer_id=`,
+    retailersClosingStockDropDown: () =>
+        `${baseURL}api/masters/retailers/whoHasClosingStock`,
+    deliveryReturn: () => `${baseURL}api/reports/returnReports?Fromdate=`,
+    groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
+
+    getRetailersWhoHasBills: () =>
+        `${baseURL}api/receipt/getRetailersWhoHasBills`,
+    retailerPendingBills: () =>
+        `${baseURL}api/receipt/retailerBills?retailer_id=`,
+    paymentCollection: () => `${baseURL}api/receipt/collectionReceipts`,
+
     // Not Used API
+    login: () => `${baseURL}api/authorization/login`,
     company: () => `${baseURL}api/masters/company?Company_id=`,
-    distributors: () => `${baseURL}api/masters/distributors`,
     closingStockReturn: () =>
         `${baseURL}api/transaction/retailers/closingStock?Retailer_Id=`,
     productGroups: () =>
         `${baseURL}api/masters/products/productGroups?Company_Id=`,
     areaRetailers: () =>
         `${baseURL}api/masters/retailers/areaRetailers?Company_Id=`,
-    products: () => `${baseURL}api/masters/products?Company_Id=`,
-    posOrderBranch: () => `${baseURL}api/masters/posbranch`,
 };

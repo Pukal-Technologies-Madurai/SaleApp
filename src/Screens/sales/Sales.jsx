@@ -16,8 +16,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/FontAwesome";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
@@ -26,15 +25,12 @@ import { API } from "../../Config/Endpoint";
 import { createSaleOrder } from "../../Api/sales";
 import { fetchUOM, fetchProductsWithStockValue, fetchGoDownwiseStockValue } from "../../Api/product";
 import {
-    createLiveSales,
-    fetchCreditLiveSale,
-    fetchDebitLiveSale,
-} from "../../Api/receipt";
-import {
     customColors,
     typography,
     shadows,
     spacing,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 
 const Sales = ({ route }) => {
@@ -72,8 +68,6 @@ const Sales = ({ route }) => {
 
     const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLiveSale, setIsLiveSale] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState("cash");
     const [location, setLocation] = useState({
         latitude: null,
         longitude: null,
@@ -84,9 +78,6 @@ const Sales = ({ route }) => {
     // Add animation for refresh button
     const rotateAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
-
-    // Add new state for partial amount
-    const [partialAmount, setPartialAmount] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -120,6 +111,26 @@ const Sales = ({ route }) => {
                 // Parse activeGodown as integer, default to 0 if invalid
                 const parsedGodown = parseInt(activeGodown, 10);
                 setIsActiveGoDown(isNaN(parsedGodown) ? 0 : parsedGodown);
+
+                // Warn user if no godown is set
+                if (isNaN(parsedGodown) || parsedGodown === 0) {
+                    Alert.alert(
+                        "Godown Not Set",
+                        "Please set an active godown before creating Sales.",
+                        [
+                            {
+                                text: "Set Godown",
+                                onPress: () => navigation.navigate("MasterGodown"),
+                            },
+                            {
+                                text: "Go Back",
+                                onPress: () => navigation.goBack(),
+                                style: "cancel",
+                            },
+                        ],
+                        { cancelable: false }
+                    );
+                }
             } catch (err) {
                 console.log("Error fetching data:", err);
             }
@@ -581,45 +592,6 @@ const Sales = ({ route }) => {
         [calculateOrderTotal],
     );
 
-    // Optimized queries for live sale ledger data
-    const { data: debitLedgerData = [], isLoading: isDebitLoading } = useQuery({
-        queryKey: ["debitLedgerData"],
-        queryFn: fetchDebitLiveSale,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
-        retry: 2,
-    });
-
-    const { data: creditLedgerData = [], isLoading: isCreditLoading } =
-        useQuery({
-            queryKey: ["creditLedgerData"],
-            queryFn: fetchCreditLiveSale,
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            cacheTime: 10 * 60 * 1000, // 10 minutes
-            retry: 2,
-        });
-
-    // Memoized credit ledger information with validation
-    const creditLedgerInfo = useMemo(() => {
-        if (!creditLedgerData.length) {
-            return { id: 0, name: "", isValid: false };
-        }
-
-        const matchedLedger = creditLedgerData.find(
-            ledger => ledger.Account_name === item.Retailer_Name,
-        );
-
-        if (matchedLedger) {
-            return {
-                id: matchedLedger.Acc_Id,
-                name: matchedLedger.Account_name,
-                isValid: true,
-            };
-        }
-
-        return { id: 0, name: "", isValid: false };
-    }, [creditLedgerData, item.Retailer_Name]);
-
     const mutation = useMutation({
         mutationFn: createSaleOrder,
         onSuccess: data => {
@@ -632,31 +604,6 @@ const Sales = ({ route }) => {
         },
         onError: error => {
             Alert.alert("Error", error.message || "Failed to submit order");
-        },
-    });
-
-    const liveSaleMutation = useMutation({
-        mutationFn: createLiveSales,
-        onSuccess: data => {
-            Alert.alert(
-                "Live Sale Success",
-                data.message || "Live sale completed successfully!",
-                [
-                    {
-                        text: "OK",
-                        onPress: () => {
-                            setIsSummaryModalVisible(false);
-                            navigation.goBack();
-                        },
-                    },
-                ],
-            );
-        },
-        onError: error => {
-            Alert.alert(
-                "Live Sale Error",
-                error.message || "Failed to complete live sale",
-            );
         },
     });
 
@@ -721,88 +668,13 @@ const Sales = ({ route }) => {
             return;
         }
 
-        // Validate partial amount for cash/bank payments
-        if (
-            isLiveSale &&
-            (paymentMethod === "cash" || paymentMethod === "bank")
-        ) {
-            if (!validatePartialAmount()) {
-                return;
-            }
-        }
-
         setIsSubmitting(true);
 
-        let createPaymentReceipt = false;
-        if (paymentMethod === "cash" || paymentMethod === "bank") {
-            createPaymentReceipt = true;
-        }
-
-        if (isLiveSale) {
-            // Validate credit ledger information before proceeding
-            if (!creditLedgerInfo.isValid) {
-                setIsSubmitting(false);
-                Alert.alert(
-                    "Account Information Required",
-                    "Credit ledger information is not available for this retailer. Please contact your account manager to set up the account information before proceeding with live sales.",
-                    [{ text: "OK" }],
-                );
-                return;
-            }
-
-            // Validate debit ledger information
-            if (!debitLedgerData.length) {
-                setIsSubmitting(false);
-                Alert.alert(
-                    "Account Configuration Error",
-                    "Debit ledger information is not available. Please contact your account manager.",
-                    [{ text: "OK" }],
-                );
-                return;
-            }
-
-            // Use partial amount if provided for cash/bank, otherwise use full amount
-            const paymentAmount =
-                paymentMethod === "cash" || paymentMethod === "bank"
-                    ? parseFloat(partialAmount)
-                    : orderTotal;
-
-            // Construct the proper request body for live sales
-            const resBody = {
-                Branch_Id: initialValue.Branch_Id,
-                Narration: `Live sale order created with ${paymentMethod.toUpperCase()} payment of ₹${paymentAmount} (Total: ₹${orderTotal})`,
-                Created_by: initialValue.Created_by,
-                GST_Inclusive: 1,
-                IS_IGST: 0,
-                credit_ledger: Number(creditLedgerInfo.id),
-                credit_ledger_name: creditLedgerInfo.name,
-                debit_ledger: debitLedgerData[0]?.Acc_Id,
-                debit_ledger_name: debitLedgerData[0]?.AC_Reason,
-                credit_amount: paymentAmount,
-                Staff_Involved_List: [],
-                Product_Array: initialValue.Product_Array.map(product => ({
-                    Item_Id: product.Item_Id,
-                    Bill_Qty: product.Bill_Qty,
-                    GoDown_Id: Number(isActiveGoDown),
-                    Item_Rate:
-                        editedPrices[product.Item_Id] || product.Item_Rate,
-                    UOM: product.UOM,
-                    Units: product.Units,
-                })),
-                createReceipt: createPaymentReceipt,
-            };
-
-            // Call live sales API
-            liveSaleMutation.mutate(resBody, {
-                onSettled: () => setIsSubmitting(false),
-            });
+        const visitEntrySuccess = await handleSubmitforVisitLog();
+        if (!visitEntrySuccess) {
+            setIsSubmitting(false);
             return;
         }
-
-        const visitEntrySuccess = await handleSubmitforVisitLog();
-        if (!visitEntrySuccess) return;
-
-        // console.log("Submitting order with data:", initialValue);
 
         mutation.mutate(
             { orderData: initialValue },
@@ -810,53 +682,6 @@ const Sales = ({ route }) => {
                 onSettled: () => setIsSubmitting(false),
             },
         );
-    };
-
-    // Add validation for partial amount
-    const validatePartialAmount = () => {
-        const amount = parseFloat(partialAmount);
-        if (isNaN(amount) || amount <= 0) {
-            Alert.alert("Error", "Please enter a valid amount");
-            return false;
-        }
-        if (amount > orderTotal) {
-            Alert.alert("Error", "Partial amount cannot exceed total amount");
-            return false;
-        }
-        return true;
-    };
-
-    const handlePaymentMethodChange = method => {
-        setPaymentMethod(method);
-        if (method === "cash" || method === "bank") {
-            // Set the full amount as default
-            setPartialAmount(orderTotal.toString());
-        } else {
-            setPartialAmount("");
-        }
-    };
-
-    // Add useEffect to update partial amount when orderTotal changes
-    useEffect(() => {
-        if (
-            isLiveSale &&
-            (paymentMethod === "cash" || paymentMethod === "bank")
-        ) {
-            setPartialAmount(orderTotal.toString());
-        }
-    }, [isLiveSale, paymentMethod, orderTotal]);
-
-    // Update the TextInput handling
-    const handleAmountFocus = () => {
-        // When user focuses, select all text so they can easily replace it
-        // This is handled by selectTextOnFocus prop
-    };
-
-    const handleAmountChange = value => {
-        // Allow empty value or valid numbers
-        if (value === "" || /^\d*\.?\d*$/.test(value)) {
-            setPartialAmount(value);
-        }
     };
 
     return (
@@ -930,9 +755,9 @@ const Sales = ({ route }) => {
                                             }
                                         ]
                                     }}>
-                                    <MaterialIcons 
-                                        name="refresh" 
-                                        size={20} 
+                                    <FeatherIcon 
+                                        name="refresh-cw" 
+                                        size={iconSizes.md} 
                                         color={
                                             !isActiveGoDown || isGodownRefetching 
                                                 ? customColors.grey400 
@@ -955,9 +780,9 @@ const Sales = ({ route }) => {
                         <View style={styles.productsContainer}>
                             <View style={styles.sectionHeader}>
                                 <View style={styles.sectionHeaderLeft}>
-                                    <MaterialIcons
-                                        name="inventory"
-                                        size={20}
+                                    <FeatherIcon
+                                        name="package"
+                                        size={iconSizes.md}
                                         color={customColors.primary}
                                     />
                                     <Text style={styles.sectionTitle}>
@@ -971,9 +796,9 @@ const Sales = ({ route }) => {
                                     style={styles.outOfStockToggle} 
                                     onPress={handleOutOfStockToggle}
                                     activeOpacity={0.7}>
-                                    <MaterialIcons
-                                        name={showOutOfStock ? "visibility" : "visibility-off"}  
-                                        size={16}
+                                    <FeatherIcon
+                                        name={showOutOfStock ? "eye" : "eye-off"}  
+                                        size={iconSizes.sm}
                                         color={showOutOfStock ? customColors.primary : customColors.grey500}
                                     />
                                     <Text style={[
@@ -1000,9 +825,9 @@ const Sales = ({ route }) => {
                                                 style={
                                                     styles.availabilityContainer
                                                 }>
-                                                <MaterialIcons
-                                                    name="inventory-2"
-                                                    size={14}
+                                                <FeatherIcon
+                                                    name="box"
+                                                    size={iconSizes.xs}
                                                     color={
                                                         product.CL_Qty > 0
                                                             ? customColors.success
@@ -1182,9 +1007,9 @@ const Sales = ({ route }) => {
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <View style={styles.modalTitleContainer}>
-                                <MaterialIcons
+                                <FeatherIcon
                                     name="shopping-cart"
-                                    size={24}
+                                    size={iconSizes.lg}
                                     color={customColors.primary}
                                 />
                                 <Text style={styles.modalTitle}>
@@ -1194,10 +1019,10 @@ const Sales = ({ route }) => {
                             <TouchableOpacity
                                 onPress={() => setIsSummaryModalVisible(false)}
                                 style={styles.closeButton}>
-                                <MaterialIcons
-                                    name="close"
+                                <FeatherIcon
+                                    name="x"
                                     color={customColors.grey600}
-                                    size={24}
+                                    size={iconSizes.lg}
                                 />
                             </TouchableOpacity>
                         </View>
@@ -1205,57 +1030,69 @@ const Sales = ({ route }) => {
                         <ScrollView
                             style={styles.summaryList}
                             showsVerticalScrollIndicator={false}>
-                            {initialValue.Product_Array.map(item => {
-                                const product = productData.find(
-                                    p => p.Product_Id === item.Item_Id,
-                                );
-                                const uom = uomData.find(
-                                    u => u.Unit_Id === item.UOM,
-                                );
+                            {initialValue.Product_Array.length === 0 ? (
+                                <View style={styles.emptyCartContainer}>
+                                    <FeatherIcon
+                                        name="shopping-bag"
+                                        size={iconSizes.xxl}
+                                        color={customColors.grey300}
+                                    />
+                                    <Text style={styles.emptyCartText}>No products added</Text>
+                                    <Text style={styles.emptyCartSubtext}>Add products from the list to create an order</Text>
+                                </View>
+                            ) : (
+                                initialValue.Product_Array.map(item => {
+                                    const product = productData.find(
+                                        p => p.Product_Id === item.Item_Id,
+                                    );
+                                    const uom = uomData.find(
+                                        u => u.Unit_Id === item.UOM,
+                                    );
 
-                                return (
-                                    <View
-                                        key={item.Item_Id}
-                                        style={styles.summaryItem}>
-                                        <View style={styles.summaryItemDetails}>
-                                            <Text
-                                                style={styles.summaryItemName}>
-                                                {product?.Product_Name}
-                                            </Text>
-                                            <Text style={styles.summaryItemQty}>
-                                                {item.Bill_Qty} {uom?.Units}
-                                            </Text>
-                                            <Text
-                                                style={styles.summaryItemRate}>
-                                                ₹{item.Item_Rate} per unit
-                                            </Text>
+                                    return (
+                                        <View
+                                            key={item.Item_Id}
+                                            style={styles.summaryItem}>
+                                            <View style={styles.summaryItemDetails}>
+                                                <Text
+                                                    style={styles.summaryItemName}>
+                                                    {product?.Product_Name}
+                                                </Text>
+                                                <Text style={styles.summaryItemQty}>
+                                                    {item.Bill_Qty} {uom?.Units}
+                                                </Text>
+                                                <Text
+                                                    style={styles.summaryItemRate}>
+                                                    ₹{item.Item_Rate} per unit
+                                                </Text>
+                                            </View>
+                                            <View style={styles.summaryItemRight}>
+                                                <Text
+                                                    style={styles.summaryItemPrice}>
+                                                    ₹
+                                                    {(
+                                                        item.Bill_Qty *
+                                                        item.Item_Rate
+                                                    ).toFixed(2)}
+                                                </Text>
+                                                <TouchableOpacity
+                                                    style={styles.deleteButton}
+                                                    onPress={() =>
+                                                        handleDeleteItem(
+                                                            item.Item_Id,
+                                                        )
+                                                    }>
+                                                    <FeatherIcon
+                                                        name="trash-2"
+                                                        size={iconSizes.md}
+                                                        color={customColors.white}
+                                                    />
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
-                                        <View style={styles.summaryItemRight}>
-                                            <Text
-                                                style={styles.summaryItemPrice}>
-                                                ₹
-                                                {(
-                                                    item.Bill_Qty *
-                                                    item.Item_Rate
-                                                ).toFixed(2)}
-                                            </Text>
-                                            <TouchableOpacity
-                                                style={styles.deleteButton}
-                                                onPress={() =>
-                                                    handleDeleteItem(
-                                                        item.Item_Id,
-                                                    )
-                                                }>
-                                                <MaterialIcons
-                                                    name="delete-outline"
-                                                    size={20}
-                                                    color={customColors.error}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                );
-                            })}
+                                    );
+                                })
+                            )}
                         </ScrollView>
 
                         <View style={styles.summaryFooter}>
@@ -1268,275 +1105,10 @@ const Sales = ({ route }) => {
                                 </Text>
                             </View>
 
-                            {/* Live Sale Toggle */}
-                            <View style={styles.liveSaleContainer}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.liveSaleToggle,
-                                        (isCreditLoading ||
-                                            isDebitLoading ||
-                                            !creditLedgerInfo.isValid) &&
-                                        styles.liveSaleToggleDisabled,
-                                    ]}
-                                    onPress={() => {
-                                        if (isCreditLoading || isDebitLoading)
-                                            return;
-
-                                        if (!creditLedgerInfo.isValid) {
-                                            Alert.alert(
-                                                "Account Setup Required",
-                                                "Live sale is not available for this retailer. Please contact your account manager to set up the account information.",
-                                                [{ text: "OK" }],
-                                            );
-                                            return;
-                                        }
-
-                                        setIsLiveSale(!isLiveSale);
-                                    }}
-                                    disabled={
-                                        isCreditLoading ||
-                                        isDebitLoading ||
-                                        !creditLedgerInfo.isValid
-                                    }
-                                    activeOpacity={0.7}>
-                                    <View style={styles.liveSaleContent}>
-                                        {isCreditLoading || isDebitLoading ? (
-                                            <ActivityIndicator
-                                                size="small"
-                                                color={customColors.grey500}
-                                            />
-                                        ) : (
-                                            <MaterialIcons
-                                                name={
-                                                    creditLedgerInfo.isValid
-                                                        ? "flash-on"
-                                                        : "warning"
-                                                }
-                                                size={20}
-                                                color={
-                                                    !creditLedgerInfo.isValid
-                                                        ? customColors.warning
-                                                        : isLiveSale
-                                                            ? customColors.success
-                                                            : customColors.grey500
-                                                }
-                                            />
-                                        )}
-                                        <Text
-                                            style={[
-                                                styles.liveSaleText,
-                                                {
-                                                    color: !creditLedgerInfo.isValid
-                                                        ? customColors.warning
-                                                        : isLiveSale
-                                                            ? customColors.success
-                                                            : customColors.grey700,
-                                                },
-                                            ]}>
-                                            Live Sale
-                                        </Text>
-                                        <Text
-                                            style={styles.liveSaleDescription}>
-                                            {isCreditLoading || isDebitLoading
-                                                ? "Loading account info..."
-                                                : !creditLedgerInfo.isValid
-                                                    ? "Account setup required"
-                                                    : "Complete sale instantly"}
-                                        </Text>
-                                    </View>
-                                    <View
-                                        style={[
-                                            styles.toggle,
-                                            {
-                                                backgroundColor:
-                                                    !creditLedgerInfo.isValid
-                                                        ? customColors.grey300
-                                                        : isLiveSale
-                                                            ? customColors.success
-                                                            : customColors.grey300,
-                                            },
-                                        ]}>
-                                        <View
-                                            style={[
-                                                styles.toggleCircle,
-                                                {
-                                                    marginLeft:
-                                                        isLiveSale &&
-                                                            creditLedgerInfo.isValid
-                                                            ? 21
-                                                            : 2,
-                                                },
-                                            ]}
-                                        />
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Payment Method Selection (only show when Live Sale is enabled) */}
-                            {isLiveSale && (
-                                <View style={styles.paymentMethodContainer}>
-                                    <Text style={styles.paymentMethodLabel}>
-                                        Payment Method:
-                                    </Text>
-                                    <View style={styles.paymentMethodOptions}>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                paymentMethod === "cash" &&
-                                                styles.paymentOptionSelected,
-                                            ]}
-                                            onPress={() =>
-                                                handlePaymentMethodChange(
-                                                    "cash",
-                                                )
-                                            }>
-                                            <Icon
-                                                name="money"
-                                                size={18}
-                                                color={
-                                                    paymentMethod === "cash"
-                                                        ? customColors.white
-                                                        : customColors.grey600
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    paymentMethod === "cash" &&
-                                                    styles.paymentOptionTextSelected,
-                                                ]}>
-                                                Cash
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                paymentMethod === "bank" &&
-                                                styles.paymentOptionSelected,
-                                            ]}
-                                            onPress={() =>
-                                                handlePaymentMethodChange(
-                                                    "bank",
-                                                )
-                                            }>
-                                            <MaterialIcons
-                                                name="account-balance"
-                                                size={18}
-                                                color={
-                                                    paymentMethod === "bank"
-                                                        ? customColors.white
-                                                        : customColors.grey600
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    paymentMethod === "bank" &&
-                                                    styles.paymentOptionTextSelected,
-                                                ]}>
-                                                Bank
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.paymentOption,
-                                                paymentMethod === "credit" &&
-                                                styles.paymentOptionSelected,
-                                            ]}
-                                            onPress={() =>
-                                                handlePaymentMethodChange(
-                                                    "credit",
-                                                )
-                                            }>
-                                            <MaterialIcons
-                                                name="credit-card"
-                                                size={18}
-                                                color={
-                                                    paymentMethod === "credit"
-                                                        ? customColors.white
-                                                        : customColors.grey600
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.paymentOptionText,
-                                                    paymentMethod ===
-                                                    "credit" &&
-                                                    styles.paymentOptionTextSelected,
-                                                ]}>
-                                                Credit
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    {/* Payment Amount Input (only for cash/bank) */}
-                                    {(paymentMethod === "cash" ||
-                                        paymentMethod === "bank") && (
-                                            <View
-                                                style={
-                                                    styles.partialAmountContainer
-                                                }>
-                                                <Text
-                                                    style={
-                                                        styles.partialAmountLabel
-                                                    }>
-                                                    Payment Amount:
-                                                </Text>
-                                                <View
-                                                    style={
-                                                        styles.amountInputContainer
-                                                    }>
-                                                    <Text
-                                                        style={
-                                                            styles.currencySymbol
-                                                        }>
-                                                        ₹
-                                                    </Text>
-                                                    <TextInput
-                                                        style={styles.amountInput}
-                                                        value={partialAmount}
-                                                        onChangeText={
-                                                            handleAmountChange
-                                                        }
-                                                        onFocus={handleAmountFocus}
-                                                        keyboardType="numeric"
-                                                        placeholder={orderTotal.toString()}
-                                                        placeholderTextColor={
-                                                            customColors.grey400
-                                                        }
-                                                        selectTextOnFocus={true}
-                                                        returnKeyType="done"
-                                                    />
-                                                    <Text
-                                                        style={
-                                                            styles.totalAmountText
-                                                        }>
-                                                        Total: ₹
-                                                        {orderTotal.toFixed(2)}
-                                                    </Text>
-                                                </View>
-                                                <Text
-                                                    style={
-                                                        styles.partialAmountHint
-                                                    }>
-                                                    {partialAmount &&
-                                                        parseFloat(partialAmount) <
-                                                        orderTotal
-                                                        ? `Remaining: ₹${(orderTotal - parseFloat(partialAmount || 0)).toFixed(2)} (Credit)`
-                                                        : "Amount auto-filled. Tap to modify for partial payment"}
-                                                </Text>
-                                            </View>
-                                        )}
-                                </View>
-                            )}
-
                             <TouchableOpacity
                                 style={[
                                     styles.submitButton,
                                     isSubmitting && styles.submitButtonDisabled,
-                                    isLiveSale && styles.liveSaleButton,
                                 ]}
                                 onPress={handleSubmitOrder}
                                 disabled={isSubmitting}>
@@ -1544,41 +1116,14 @@ const Sales = ({ route }) => {
                                     <ActivityIndicator color="white" />
                                 ) : (
                                     <View style={styles.submitButtonContent}>
-                                        <MaterialIcons
-                                            name={
-                                                isLiveSale
-                                                    ? "flash-on"
-                                                    : "shopping-bag"
-                                            }
-                                            size={20}
+                                        <FeatherIcon
+                                            name="shopping-bag"
+                                            size={iconSizes.md}
                                             color={customColors.white}
                                         />
                                         <Text style={styles.submitButtonText}>
-                                            {isLiveSale
-                                                ? `Complete Live Sale`
-                                                : "Submit Order"}
+                                            Submit Order
                                         </Text>
-                                        {isLiveSale &&
-                                            (paymentMethod === "cash" ||
-                                                paymentMethod === "bank") && (
-                                                <Text
-                                                    style={
-                                                        styles.submitButtonSubtext
-                                                    }>
-                                                    ₹{partialAmount || "0"} (
-                                                    {paymentMethod.toUpperCase()}
-                                                    )
-                                                </Text>
-                                            )}
-                                        {isLiveSale &&
-                                            paymentMethod === "credit" && (
-                                                <Text
-                                                    style={
-                                                        styles.submitButtonSubtext
-                                                    }>
-                                                    (CREDIT)
-                                                </Text>
-                                            )}
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -1609,7 +1154,7 @@ const styles = StyleSheet.create({
     filterSection: {
         marginBottom: spacing.md,
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         ...shadows.small,
     },
@@ -1696,7 +1241,7 @@ const styles = StyleSheet.create({
     },
     productsContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         ...shadows.small,
     },
@@ -1734,7 +1279,7 @@ const styles = StyleSheet.create({
     },
     productCard: {
         backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         padding: spacing.md,
         marginBottom: spacing.sm,
         borderWidth: 1,
@@ -1905,7 +1450,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         marginBottom: spacing.xs,
         backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: customColors.grey200,
     },
@@ -1965,14 +1510,11 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         backgroundColor: customColors.primary,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         alignItems: "center",
         marginTop: spacing.md,
         ...shadows.medium,
-    },
-    liveSaleButton: {
-        backgroundColor: customColors.success,
     },
     submitButtonContent: {
         flexDirection: "row",
@@ -1987,160 +1529,23 @@ const styles = StyleSheet.create({
         color: customColors.white,
         fontWeight: "600",
     },
-    submitButtonSubtext: {
+    // Empty Cart Styles
+    emptyCartContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.xxl,
+        paddingHorizontal: spacing.md,
+    },
+    emptyCartText: {
+        ...typography.h6(),
+        color: customColors.grey500,
+        fontWeight: '600',
+        marginTop: spacing.md,
+    },
+    emptyCartSubtext: {
         ...typography.caption(),
-        color: customColors.white,
-        opacity: 0.9,
-        marginLeft: spacing.xs,
+        color: customColors.grey400,
+        textAlign: 'center',
+        marginTop: spacing.xs,
     },
-    // Live Sale Styles
-    liveSaleContainer: {
-        marginBottom: spacing.md,
-        backgroundColor: customColors.grey50,
-        borderRadius: 12,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
-    },
-    liveSaleToggle: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-    },
-    liveSaleToggleDisabled: {
-        opacity: 0.6,
-    },
-    liveSaleContent: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-    },
-    liveSaleText: {
-        ...typography.subtitle2(),
-        fontWeight: "600",
-    },
-    liveSaleDescription: {
-        ...typography.caption(),
-        color: customColors.grey600,
-        marginLeft: spacing.sm,
-    },
-    toggle: {
-        width: 40,
-        height: 20,
-        borderRadius: 10,
-        justifyContent: "center",
-    },
-    toggleCircle: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: customColors.white,
-    },
-    // Updated payment method styles
-    paymentMethodContainer: {
-        marginBottom: spacing.md,
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: customColors.success,
-    },
-    paymentMethodLabel: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-        fontWeight: "600",
-        marginBottom: spacing.sm,
-    },
-    paymentMethodOptions: {
-        flexDirection: "row",
-        gap: spacing.xs,
-        marginBottom: spacing.sm,
-    },
-    paymentOption: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: spacing.xs,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.xs,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: customColors.grey300,
-        backgroundColor: customColors.white,
-        minHeight: 40,
-    },
-    paymentOptionSelected: {
-        backgroundColor: customColors.success,
-        borderColor: customColors.success,
-    },
-    paymentOptionText: {
-        ...typography.caption(),
-        color: customColors.grey700,
-        fontWeight: "500",
-    },
-    paymentOptionTextSelected: {
-        color: customColors.white,
-        fontWeight: "600",
-    },
-
-    // New partial amount styles
-    partialAmountContainer: {
-        backgroundColor: customColors.grey50,
-        borderRadius: 8,
-        padding: spacing.sm,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
-    },
-    partialAmountLabel: {
-        ...typography.caption(),
-        color: customColors.grey700,
-        fontWeight: "600",
-        marginBottom: spacing.xs,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    amountInputContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: customColors.white,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: customColors.grey300,
-        paddingHorizontal: spacing.sm,
-        marginBottom: spacing.xs,
-    },
-    currencySymbol: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-        fontWeight: "600",
-        marginRight: spacing.xs,
-    },
-    amountInput: {
-        flex: 1,
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-        fontWeight: "600",
-        textAlign: "center",
-        paddingVertical: spacing.sm,
-        minHeight: 40,
-    },
-    totalAmountText: {
-        ...typography.caption(),
-        color: customColors.grey600,
-        marginLeft: spacing.xs,
-    },
-    partialAmountHint: {
-        ...typography.caption(),
-        color: customColors.grey600,
-        textAlign: "center",
-        fontStyle: "italic",
-        lineHeight: 16,
-    },
-
-    // Remove delivery styles (commented out or deleted)
-    // deliveryContainer: { ... },
-    // deliveryCheckbox: { ... },
-    // deliveryLabel: { ... },
 });

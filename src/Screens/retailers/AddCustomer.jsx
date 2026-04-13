@@ -7,14 +7,16 @@ import {
     ScrollView,
     Image,
     Alert,
-    ActivityIndicator,
     Modal,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import LocationIndicator from "../../Components/LocationIndicator";
@@ -23,7 +25,8 @@ import {
     typography,
     spacing,
     shadows,
-    componentStyles,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import { fetchAreas, fetchRoutes, postRetailer } from "../../Api/retailers";
 import FormField from "../../Components/FormField";
@@ -32,6 +35,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const AddCustomer = () => {
     const navigation = useNavigation();
+    const scrollViewRef = useRef(null);
 
     const [formValues, setFormValues] = useState({
         Retailer_Name: "",
@@ -242,8 +246,17 @@ const AddCustomer = () => {
                     onRightPress={() => navigation.push("Customers")}
                 />
 
-                <ScrollView style={styles.contentContainer}>
-                    <View style={styles.formContainer}>
+                <KeyboardAvoidingView
+                    style={styles.keyboardAvoid}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}>
+                    <ScrollView
+                        ref={scrollViewRef}
+                        style={styles.contentContainer}
+                        contentContainerStyle={styles.scrollContent}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}>
+                        <View style={styles.formContainer}>
                         <LocationIndicator
                             onLocationUpdate={handleLocationUpdate}
                             autoFetch={true}
@@ -258,7 +271,7 @@ const AddCustomer = () => {
                                 }>
                                 <Icon
                                     name="settings-outline"
-                                    size={20}
+                                    size={iconSizes.md}
                                     color={customColors.accent2}
                                 />
                                 <Text style={styles.masterDataText}>
@@ -348,20 +361,43 @@ const AddCustomer = () => {
                         />
 
                         <View style={styles.cameraSection}>
-                            {imageUri && (
-                                <Image
-                                    source={{ uri: `file://${imageUri}` }}
-                                    style={styles.previewImage}
-                                />
-                            )}
-
-                            <TouchableOpacity
-                                style={styles.cameraButton}
-                                onPress={handleOpenCamera}>
-                                <Text style={styles.cameraButtonText}>
-                                    {imageUri ? "Preview Photo" : "Take Photo"}
-                                </Text>
-                            </TouchableOpacity>
+                            <View style={styles.photoContainer}>
+                                {imageUri ? (
+                                    <TouchableOpacity
+                                        onPress={() => setShowPreview(true)}
+                                        activeOpacity={0.9}>
+                                        <Image
+                                            source={{ uri: `file://${imageUri}` }}
+                                            style={styles.capturedImage}
+                                        />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View style={styles.placeholderImage}>
+                                        <FeatherIcon
+                                            name="camera"
+                                            size={iconSizes.xxl}
+                                            color={customColors.grey400}
+                                        />
+                                        <Text style={styles.placeholderText}>
+                                            Add Photo
+                                        </Text>
+                                    </View>
+                                )}
+                                <TouchableOpacity
+                                    style={styles.cameraButton}
+                                    onPress={handleOpenCamera}
+                                    activeOpacity={0.8}>
+                                    <FeatherIcon
+                                        name="camera"
+                                        size={iconSizes.md}
+                                        color={customColors.white}
+                                        style={styles.buttonIcon}
+                                    />
+                                    <Text style={styles.cameraButtonText}>
+                                        {imageUri ? "Update Photo" : "Take Photo"}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         <FormField
@@ -374,6 +410,13 @@ const AddCustomer = () => {
                             }
                             placeholder="Enter complete address"
                             multiline
+                            inputProps={{
+                                onFocus: () => {
+                                    setTimeout(() => {
+                                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                                    }, 150);
+                                },
+                            }}
                         />
 
                         <FormField
@@ -385,6 +428,13 @@ const AddCustomer = () => {
                                 handleInputChange("Reatailer_City", text)
                             }
                             placeholder="Enter city name"
+                            inputProps={{
+                                onFocus: () => {
+                                    setTimeout(() => {
+                                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                                    }, 150);
+                                },
+                            }}
                         />
 
                         <FormField
@@ -395,6 +445,13 @@ const AddCustomer = () => {
                             }
                             placeholder="Pin Code"
                             keyboardType="phone-pad"
+                            inputProps={{
+                                onFocus: () => {
+                                    setTimeout(() => {
+                                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                                    }, 150);
+                                },
+                            }}
                         />
 
                         <TouchableOpacity
@@ -404,15 +461,17 @@ const AddCustomer = () => {
                                 styles.submitButtonDisabled,
                             ]}
                             onPress={handleSubmit}
-                            disabled={mutation.isPending}>
+                            disabled={mutation.isPending}
+                            activeOpacity={0.8}>
                             <Text style={styles.submitButtonText}>
                                 {mutation.isPending
                                     ? "Saving..."
                                     : "Save Retailer"}
                             </Text>
                         </TouchableOpacity>
-                    </View>
-                </ScrollView>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </View>
 
             {/* Camera Modal */}
@@ -443,7 +502,7 @@ const AddCustomer = () => {
                                 onPress={() => setShowPreview(false)}>
                                 <Icon
                                     name="close"
-                                    size={24}
+                                    size={iconSizes.lg}
                                     color={customColors.white}
                                 />
                             </TouchableOpacity>
@@ -467,7 +526,7 @@ const AddCustomer = () => {
                                 }}>
                                 <Icon
                                     name="camera"
-                                    size={24}
+                                    size={iconSizes.lg}
                                     color={customColors.white}
                                 />
                                 <Text style={styles.previewButtonText}>
@@ -483,7 +542,7 @@ const AddCustomer = () => {
                                 onPress={() => setShowPreview(false)}>
                                 <Icon
                                     name="checkmark"
-                                    size={24}
+                                    size={iconSizes.lg}
                                     color={customColors.white}
                                 />
                                 <Text style={styles.previewButtonText}>
@@ -509,10 +568,17 @@ const styles = StyleSheet.create({
         flex: 1,
         width: "100%",
     },
+    keyboardAvoid: {
+        flex: 1,
+    },
     contentContainer: {
         flex: 1,
         width: "100%",
         backgroundColor: customColors.white,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: 120,
     },
     formContainer: {
         padding: spacing.md,
@@ -529,7 +595,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: spacing.xs,
         paddingHorizontal: spacing.sm,
-        borderRadius: 20,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.accent2 + "10",
         gap: spacing.xs,
         ...shadows.small,
@@ -558,38 +624,73 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.sm,
         ...shadows.small,
     },
     cameraSection: {
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
     },
-    previewImage: {
-        width: "100%",
-        height: 200,
-        borderRadius: 8,
-        marginBottom: spacing.sm,
+    photoContainer: {
+        alignItems: "center",
+    },
+    capturedImage: {
+        width: 120,
+        height: 120,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
         backgroundColor: customColors.grey100,
     },
+    placeholderImage: {
+        width: 120,
+        height: 120,
+        borderRadius: borderRadius.lg,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        borderStyle: "dashed",
+    },
+    placeholderText: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: spacing.xs,
+    },
     cameraButton: {
-        ...componentStyles.button.primary,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        borderRadius: borderRadius.lg,
+        ...shadows.small,
+    },
+    buttonIcon: {
+        marginRight: spacing.sm,
     },
     cameraButtonText: {
-        textAlign: "center",
         ...typography.button(),
+        color: customColors.white,
+        fontWeight: "600",
     },
     submitButton: {
-        ...componentStyles.button.primary,
+        backgroundColor: customColors.primary,
         marginTop: spacing.lg,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
+        ...shadows.small,
     },
     submitButtonDisabled: {
-        opacity: 0.5,
+        backgroundColor: customColors.grey400,
     },
     submitButtonText: {
         textAlign: "center",
         ...typography.button(),
+        color: customColors.white,
+        fontWeight: "600",
     },
     centered: {
         flex: 1,
@@ -618,9 +719,9 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     closeButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.round,
         backgroundColor: "rgba(0, 0, 0, 0.5)",
         justifyContent: "center",
         alignItems: "center",
@@ -642,7 +743,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         padding: spacing.md,
-        borderRadius: spacing.md,
+        borderRadius: borderRadius.lg,
         gap: spacing.sm,
     },
     retakeButton: {

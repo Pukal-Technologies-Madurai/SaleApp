@@ -1,6 +1,11 @@
 import CryptoJS from "react-native-crypto-js";
 import { API } from "../Config/Endpoint";
 
+export const appVersion = () => {
+    const pkg = require("../../package.json");
+    return pkg.version;
+};
+
 export const fetchUserCompanies = async userName => {
     const res = await fetch(`${API.userPortal()}${userName}`);
 
@@ -8,6 +13,8 @@ export const fetchUserCompanies = async userName => {
     if (!json.success) throw new Error(json.message);
     return json.data;
 };
+
+// Not used anywhere
 
 export const loginUser = async ({ selectedCompany, userName, password }) => {
     const passHash = CryptoJS.AES.encrypt(
@@ -31,7 +38,7 @@ export const loginUser = async ({ selectedCompany, userName, password }) => {
     });
 
     const json = await res.json();
-    console.log("loginUser", json);
+    // console.log("loginUser", json);
     if (!json.success) throw new Error(json.message);
     return json.data;
 };
@@ -45,7 +52,7 @@ export const fetchUserAuth = async ({ webApi, userAuth }) => {
     });
 
     const json = await res.json();
-    console.log("fetchUserAuth", json);
+    // console.log("fetchUserAuth", json);
     if (!json.success) throw new Error(json.message);
     return json.user;
 };

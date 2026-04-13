@@ -22,8 +22,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/FontAwesome";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
@@ -45,11 +44,15 @@ import {
     typography,
     shadows,
     spacing,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 
 const SalesInvoice = ({ route }) => {
     const navigation = useNavigation();
     const { item } = route.params;
+
+    // console.log("Initial item data:", item);
 
     const [initialValue, setInitialValue] = useState({
         Company_Id: "",
@@ -137,11 +140,33 @@ const SalesInvoice = ({ route }) => {
                 // Parse activeGodown as integer, default to 0 if invalid
                 const parsedGodown = parseInt(activeGodown, 10);
                 setIsActiveGoDown(isNaN(parsedGodown) ? 0 : parsedGodown);
+
+                // Warn user if no godown is set
+                if (isNaN(parsedGodown) || parsedGodown === 0) {
+                    Alert.alert(
+                        "Godown Not Set",
+                        "Please set an active godown before creating invoices.",
+                        [
+                            {
+                                text: "Set Godown",
+                                onPress: () => navigation.navigate("MasterGodown"),
+                            },
+                            {
+                                text: "Go Back",
+                                onPress: () => navigation.goBack(),
+                                style: "cancel",
+                            },
+                        ],
+                        { cancelable: false }
+                    );
+                }
             } catch (err) {
                 console.log("Error fetching data:", err);
             }
         })();
     }, []);
+
+    // console.log("isActiveGoDown:", isActiveGoDown);
 
     // IMPORTANT: Godown stock query MUST come first since product query depends on it
     const {
@@ -837,10 +862,11 @@ const SalesInvoice = ({ route }) => {
             const result = await createSaleInvoice(invoiceBody);
 
             // ── Auto-create receipt when payment is Cash/G-Pay + Completed ───
+            // Credit mode (3) does NOT create a receipt
             const isInstantPayment =
                 paymentStatus === 3 && (paymentMode === 1 || paymentMode === 2);
 
-            if (isInstantPayment && creditLedgerInfo.isValid) {
+            if (isInstantPayment && creditLedgerInfo.isValid && result?.others) {
                 const debitAcc = autoSelectDebitAccount();
                 if (debitAcc) {
                     try {
@@ -851,28 +877,13 @@ const SalesInvoice = ({ route }) => {
                                 ? parseFloat(partialAmount)
                                 : roundedTotal;
 
-                        // console.log("Creating Receipt", {
-                        //     receipt_voucher_type_id: 10,
-                        //     receipt_bill_type: 1,
-                        //     remarks: `Payment received for ${item.Retailer_Name} | Invoice total: ₹${roundedTotal.toFixed(2)} | Received: ₹${receiptAmount.toFixed(2)}`,
-                        //     status: 1,
-                        //     credit_ledger: Number(creditLedgerInfo.id),
-                        //     credit_ledger_name: creditLedgerInfo.name,
-                        //     debit_ledger: Number(debitAcc.Acc_Id),
-                        //     debit_ledger_name: debitAcc.Account_Name,
-                        //     credit_amount: receiptAmount,
-                        //     created_by: Number(userId),
-                        //     transaction_type: getTransactionType(debitAcc),
-                        //     receipt_date: new Date().toISOString(),
-                        //     is_new_ref: 0,
-                        //     is_journal_type: 0,
-                        //     BillsDetails: [],
-                        // })
+                        // Extract invoice details from response
+                        const invoiceDetails = result.others;
                         
                         await createReceipt({
                             receipt_voucher_type_id: 10,
                             receipt_bill_type: 1,
-                            remarks: `Payment received for ${item.Retailer_Name} | Invoice total: ₹${roundedTotal.toFixed(2)} | Received: ₹${receiptAmount.toFixed(2)}`,
+                            remarks: `Live Sale | Payment received for ${item.Retailer_Name} | Invoice: ${invoiceDetails.Do_Inv_No} | Total: ₹${invoiceDetails.Total_Invoice_value} | Received: ₹${receiptAmount.toFixed(2)}`,
                             status: 1,
                             credit_ledger: Number(creditLedgerInfo.id),
                             credit_ledger_name: creditLedgerInfo.name,
@@ -884,7 +895,14 @@ const SalesInvoice = ({ route }) => {
                             receipt_date: new Date().toISOString(),
                             is_new_ref: 0,
                             is_journal_type: 0,
-                            BillsDetails: [],
+                            BillsDetails: [
+                                {
+                                    bill_id: invoiceDetails.Do_Id,
+                                    bill_name: invoiceDetails.Do_Inv_No,
+                                    bill_amount: receiptAmount,
+                                    Credit_Amo: receiptAmount,
+                                },
+                            ],
                         });
                         ToastAndroid.show("Receipt created ✓", ToastAndroid.SHORT);
                     } catch (receiptErr) {
@@ -990,9 +1008,9 @@ const SalesInvoice = ({ route }) => {
                                         ],
                                     }}
                                 >
-                                    <MaterialIcons
-                                        name="refresh"
-                                        size={20}
+                                    <FeatherIcon
+                                        name="refresh-cw"
+                                        size={iconSizes.md}
                                         color={
                                             !isActiveGoDown ||
                                                 isGodownRefetching
@@ -1018,9 +1036,9 @@ const SalesInvoice = ({ route }) => {
                         <View style={styles.productsContainer}>
                             <View style={styles.sectionHeader}>
                                 <View style={styles.sectionHeaderLeft}>
-                                    <MaterialIcons
-                                        name="inventory"
-                                        size={20}
+                                    <FeatherIcon
+                                        name="package"
+                                        size={iconSizes.md}
                                         color={customColors.primary}
                                     />
                                     <Text style={styles.sectionTitle}>
@@ -1035,13 +1053,13 @@ const SalesInvoice = ({ route }) => {
                                     onPress={handleOutOfStockToggle}
                                     activeOpacity={0.7}
                                 >
-                                    <MaterialIcons
+                                    <FeatherIcon
                                         name={
                                             showOutOfStock
-                                                ? "visibility"
-                                                : "visibility-off"
+                                                ? "eye"
+                                                : "eye-off"
                                         }
-                                        size={16}
+                                        size={iconSizes.sm}
                                         color={
                                             showOutOfStock
                                                 ? customColors.primary
@@ -1086,9 +1104,9 @@ const SalesInvoice = ({ route }) => {
                                                         styles.availabilityContainer
                                                     }
                                                 >
-                                                    <MaterialIcons
-                                                        name="inventory-2"
-                                                        size={14}
+                                                    <FeatherIcon
+                                                        name="box"
+                                                        size={iconSizes.xs}
                                                         color={
                                                             product.CL_Qty > 0
                                                                 ? customColors.success
@@ -1291,9 +1309,9 @@ const SalesInvoice = ({ route }) => {
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <View style={styles.modalTitleContainer}>
-                                <MaterialIcons
+                                <FeatherIcon
                                     name="shopping-cart"
-                                    size={24}
+                                    size={iconSizes.lg}
                                     color={customColors.primary}
                                 />
                                 <Text style={styles.modalTitle}>
@@ -1304,103 +1322,103 @@ const SalesInvoice = ({ route }) => {
                                 onPress={() => setIsSummaryModalVisible(false)}
                                 style={styles.closeButton}
                             >
-                                <MaterialIcons
-                                    name="close"
+                                <FeatherIcon
+                                    name="x"
                                     color={customColors.grey600}
-                                    size={24}
+                                    size={iconSizes.lg}
                                 />
                             </TouchableOpacity>
                         </View>
 
                         <ScrollView
-                            style={styles.summaryList}
+                            style={styles.modalScrollContent}
                             showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.modalScrollContainer}
                         >
-                            {initialValue.Product_Array.map(item => {
-                                const product = productData.find(
-                                    p => p.Product_Id === item.Item_Id,
-                                );
-                                const uom = uomData.find(
-                                    u => u.Unit_Id === item.UOM,
-                                );
-
-                                return (
-                                    <View
-                                        key={item.Item_Id}
-                                        style={styles.summaryItem}
-                                    >
-                                        <View style={styles.summaryItemDetails}>
-                                            <Text
-                                                style={styles.summaryItemName}
-                                            >
-                                                {product?.Product_Name}
-                                            </Text>
-                                            <Text style={styles.summaryItemQty}>
-                                                {item.Bill_Qty} {uom?.Units}
-                                            </Text>
-                                            <Text
-                                                style={styles.summaryItemRate}
-                                            >
-                                                ₹{item.Item_Rate} per unit
-                                            </Text>
-                                        </View>
-                                        <View style={styles.summaryItemRight}>
-                                            <Text
-                                                style={styles.summaryItemPrice}
-                                            >
-                                                ₹
-                                                {(
-                                                    item.Bill_Qty *
-                                                    item.Item_Rate
-                                                ).toFixed(2)}
-                                            </Text>
-                                            <TouchableOpacity
-                                                style={styles.deleteButton}
-                                                onPress={() =>
-                                                    handleDeleteItem(
-                                                        item.Item_Id,
-                                                    )
-                                                }
-                                            >
-                                                <MaterialIcons
-                                                    name="delete-outline"
-                                                    size={20}
-                                                    color={customColors.error}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
+                            {/* Products Section */}
+                            <View style={styles.productsSection}>
+                                <Text style={styles.sectionLabel}>Products ({initialValue.Product_Array.length})</Text>
+                                {initialValue.Product_Array.length === 0 ? (
+                                    <View style={styles.emptyCartContainer}>
+                                        <FeatherIcon
+                                            name="shopping-bag"
+                                            size={iconSizes.xxl}
+                                            color={customColors.grey300}
+                                        />
+                                        <Text style={styles.emptyCartText}>No products added</Text>
+                                        <Text style={styles.emptyCartSubtext}>Add products from the list to create an invoice</Text>
                                     </View>
-                                );
-                            })}
-                        </ScrollView>
+                                ) : (
+                                    initialValue.Product_Array.map(item => {
+                                        const product = productData.find(
+                                            p => p.Product_Id === item.Item_Id,
+                                        );
+                                        const uom = uomData.find(
+                                            u => u.Unit_Id === item.UOM,
+                                        );
 
-                        <View style={styles.summaryFooter}>
-                            <View style={styles.totalRow}>
-                                <Text style={styles.totalLabel}>
-                                    Total:
-                                </Text>
-                                <Text style={styles.totalAmount}>
-                                    ₹{roundedTotal.toFixed(2)}
-                                </Text>
+                                        return (
+                                            <View
+                                                key={item.Item_Id}
+                                                style={styles.summaryItem}
+                                            >
+                                                <View style={styles.summaryItemDetails}>
+                                                    <Text
+                                                        style={styles.summaryItemName}
+                                                    >
+                                                        {product?.Product_Name}
+                                                    </Text>
+                                                    <Text style={styles.summaryItemQty}>
+                                                        {item.Bill_Qty} {uom?.Units}
+                                                    </Text>
+                                                    <Text
+                                                        style={styles.summaryItemRate}
+                                                    >
+                                                        ₹{item.Item_Rate} per unit
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.summaryItemRight}>
+                                                    <Text
+                                                        style={styles.summaryItemPrice}
+                                                    >
+                                                        ₹
+                                                        {(
+                                                            item.Bill_Qty *
+                                                            item.Item_Rate
+                                                        ).toFixed(2)}
+                                                    </Text>
+                                                    <TouchableOpacity
+                                                        style={styles.deleteButton}
+                                                        onPress={() =>
+                                                            handleDeleteItem(
+                                                                item.Item_Id,
+                                                            )
+                                                        }
+                                                    >
+                                                        <FeatherIcon
+                                                            name="trash-2"
+                                                            size={iconSizes.md}
+                                                            color={customColors.error}
+                                                        />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </View>
+                                        );
+                                    })
+                                )}
                             </View>
-                            {/* {roundOff !== 0 && (
+
+                            {/* Total Section */}
+                            <View style={styles.totalSection}>
                                 <View style={styles.totalRow}>
                                     <Text style={styles.totalLabel}>
-                                        Round Off:
+                                        Total:
                                     </Text>
-                                    <Text style={[styles.totalAmount, { color: roundOff > 0 ? customColors.success : customColors.error }]}>
-                                        {roundOff > 0 ? '+' : ''}₹{roundOff.toFixed(2)}
+                                    <Text style={styles.totalAmount}>
+                                        ₹{roundedTotal.toFixed(2)}
                                     </Text>
                                 </View>
-                            )}
-                            <View style={[styles.totalRow, { borderTopWidth: 1, borderTopColor: customColors.grey200, paddingTop: 8, marginTop: 4 }]}>
-                                <Text style={[styles.totalLabel, { fontWeight: '700' }]}>
-                                    Total Amount:
-                                </Text>
-                                <Text style={[styles.totalAmount, { fontWeight: '700' }]}>
-                                    ₹{roundedTotal.toFixed(2)}
-                                </Text>
-                            </View> */}
+                            </View>
 
                             {/* Payment Mode */}
                             <View style={styles.paymentMethodContainer}>
@@ -1409,9 +1427,9 @@ const SalesInvoice = ({ route }) => {
                                 </Text>
                                 <View style={styles.paymentMethodOptions}>
                                     {[
-                                        { label: "Cash", value: 1, icon: "money", lib: "fa" },
-                                        { label: "G-Pay", value: 2, icon: "payment", lib: "material" },
-                                        { label: "Credit", value: 3, icon: "credit-card", lib: "material" },
+                                        { label: "Cash", value: 1, icon: "dollar-sign" },
+                                        { label: "G-Pay", value: 2, icon: "smartphone" },
+                                        { label: "Credit", value: 3, icon: "credit-card" },
                                     ].map(opt => (
                                         <TouchableOpacity
                                             key={opt.value}
@@ -1420,29 +1438,23 @@ const SalesInvoice = ({ route }) => {
                                                 paymentMode === opt.value &&
                                                 styles.paymentOptionSelected,
                                             ]}
-                                            onPress={() => setPaymentMode(opt.value)}
+                                            onPress={() => {
+                                                setPaymentMode(opt.value);
+                                                // Auto-set payment status to Completed for Cash/G-Pay
+                                                if (opt.value === 1 || opt.value === 2) {
+                                                    setPaymentStatus(3);
+                                                }
+                                            }}
                                         >
-                                            {opt.lib === "fa" ? (
-                                                <Icon
-                                                    name={opt.icon}
-                                                    size={18}
-                                                    color={
-                                                        paymentMode === opt.value
-                                                            ? customColors.white
-                                                            : customColors.grey600
-                                                    }
-                                                />
-                                            ) : (
-                                                <MaterialIcons
-                                                    name={opt.icon}
-                                                    size={18}
-                                                    color={
-                                                        paymentMode === opt.value
-                                                            ? customColors.white
-                                                            : customColors.grey600
-                                                    }
-                                                />
-                                            )}
+                                            <FeatherIcon
+                                                name={opt.icon}
+                                                size={iconSizes.sm}
+                                                color={
+                                                    paymentMode === opt.value
+                                                        ? customColors.white
+                                                        : customColors.grey600
+                                                }
+                                            />
                                             <Text
                                                 style={[
                                                     styles.paymentOptionText,
@@ -1464,7 +1476,7 @@ const SalesInvoice = ({ route }) => {
                                 </Text>
                                 <View style={styles.paymentMethodOptions}>
                                     {[
-                                        { label: "Pending", value: 1, icon: "hourglass-empty" },
+                                        { label: "Pending", value: 1, icon: "clock" },
                                         { label: "Completed", value: 3, icon: "check-circle" },
                                     ].map(opt => (
                                         <TouchableOpacity
@@ -1476,9 +1488,9 @@ const SalesInvoice = ({ route }) => {
                                             ]}
                                             onPress={() => setPaymentStatus(opt.value)}
                                         >
-                                            <MaterialIcons
+                                            <FeatherIcon
                                                 name={opt.icon}
-                                                size={18}
+                                                size={iconSizes.sm}
                                                 color={
                                                     paymentStatus === opt.value
                                                         ? customColors.white
@@ -1506,9 +1518,9 @@ const SalesInvoice = ({ route }) => {
                                 </Text>
                                 <View style={styles.paymentMethodOptions}>
                                     {[
-                                        { label: "Pending", value: 5, icon: "schedule" },
-                                        { label: "Cancelled", value: 0, icon: "cancel" },
-                                        { label: "Delivered", value: 7, icon: "local-shipping" },
+                                        { label: "Pending", value: 5, icon: "clock" },
+                                        { label: "Cancelled", value: 0, icon: "x-circle" },
+                                        { label: "Delivered", value: 7, icon: "truck" },
                                     ].map(opt => (
                                         <TouchableOpacity
                                             key={opt.value}
@@ -1519,9 +1531,9 @@ const SalesInvoice = ({ route }) => {
                                             ]}
                                             onPress={() => setDeliveryStatus(opt.value)}
                                         >
-                                            <MaterialIcons
+                                            <FeatherIcon
                                                 name={opt.icon}
-                                                size={18}
+                                                size={iconSizes.sm}
                                                 color={
                                                     deliveryStatus === opt.value
                                                         ? customColors.white
@@ -1596,9 +1608,9 @@ const SalesInvoice = ({ route }) => {
                                     <ActivityIndicator color="white" />
                                 ) : (
                                     <View style={styles.submitButtonContent}>
-                                        <MaterialIcons
-                                            name="receipt"
-                                            size={20}
+                                        <FeatherIcon
+                                            name="file-text"
+                                            size={iconSizes.md}
                                             color={customColors.white}
                                         />
                                         <Text style={styles.submitButtonText}>
@@ -1607,7 +1619,7 @@ const SalesInvoice = ({ route }) => {
                                     </View>
                                 )}
                             </TouchableOpacity>
-                        </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -1624,8 +1636,7 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: customColors.white,
-        ...shadows.small,
+        backgroundColor: customColors.grey50,
     },
     scrollContent: {
         flexGrow: 1,
@@ -1634,7 +1645,7 @@ const styles = StyleSheet.create({
     filterSection: {
         marginBottom: spacing.md,
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         ...shadows.small,
     },
@@ -1650,15 +1661,15 @@ const styles = StyleSheet.create({
         marginBottom: 0,
     },
     refreshButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.lg,
         backgroundColor: customColors.white,
         justifyContent: "center",
         alignItems: "center",
         marginLeft: spacing.sm,
         borderWidth: 1,
-        borderColor: customColors.grey300,
+        borderColor: customColors.grey200,
         ...shadows.small,
         position: "relative",
     },
@@ -1668,7 +1679,7 @@ const styles = StyleSheet.create({
         right: -2,
         width: 12,
         height: 12,
-        borderRadius: 6,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.success,
         justifyContent: "center",
         alignItems: "center",
@@ -1676,7 +1687,7 @@ const styles = StyleSheet.create({
     refreshLoadingDot: {
         width: 6,
         height: 6,
-        borderRadius: 3,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.white,
     },
     label: {
@@ -1688,20 +1699,19 @@ const styles = StyleSheet.create({
     dropdown: {
         height: 48,
         backgroundColor: customColors.white,
-        borderColor: customColors.grey300,
+        borderColor: customColors.grey200,
         borderWidth: 1,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.md,
         marginBottom: spacing.md,
-        ...shadows.small,
     },
     disabledDropdown: {
         opacity: 0.5,
     },
     dropdownContainer: {
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: customColors.grey300,
+        borderColor: customColors.grey200,
     },
     placeholderStyle: {
         ...typography.body1(),
@@ -1721,7 +1731,7 @@ const styles = StyleSheet.create({
     },
     productsContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         ...shadows.small,
     },
@@ -1732,14 +1742,14 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         paddingBottom: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+        borderBottomColor: customColors.grey100,
     },
     sectionHeaderLeft: {
         flexDirection: "row",
         alignItems: "center",
     },
     sectionTitle: {
-        ...typography.h5(),
+        ...typography.subtitle1(),
         color: customColors.grey900,
         marginLeft: spacing.sm,
         fontWeight: "600",
@@ -1749,7 +1759,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
-        borderRadius: 16,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
         gap: spacing.xs,
     },
@@ -1759,11 +1769,11 @@ const styles = StyleSheet.create({
     },
     productCard: {
         backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         padding: spacing.md,
         marginBottom: spacing.sm,
         borderWidth: 1,
-        borderColor: customColors.grey200,
+        borderColor: customColors.grey100,
     },
     productHeader: {
         flexDirection: "row",
@@ -1825,8 +1835,8 @@ const styles = StyleSheet.create({
     quantityInput: {
         height: 40,
         borderWidth: 1,
-        borderColor: customColors.grey300,
-        borderRadius: 6,
+        borderColor: customColors.grey200,
+        borderRadius: borderRadius.md,
         padding: spacing.xs,
         textAlign: "center",
         ...typography.body1(),
@@ -1834,7 +1844,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
     },
     uomDropdownContainer: {
-        borderRadius: 6,
+        borderRadius: borderRadius.md,
     },
     uomPlaceholderStyle: {
         ...typography.label(),
@@ -1853,8 +1863,8 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         borderWidth: 1,
-        borderColor: customColors.grey300,
-        borderRadius: 6,
+        borderColor: customColors.grey200,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.xs,
         backgroundColor: customColors.white,
         height: 40,
@@ -1888,10 +1898,11 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     modalContent: {
-        maxHeight: "95%",
+        minHeight: "60%",
+        maxHeight: "90%",
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
         padding: spacing.md,
     },
     modalHeader: {
@@ -1915,12 +1926,54 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: spacing.xs,
-        borderRadius: 20,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
     },
-    summaryList: {
-        maxHeight: "50%",
+    modalScrollContent: {
+        flexGrow: 1,
+    },
+    modalScrollContainer: {
+        flexGrow: 1,
+        paddingBottom: spacing.lg,
+    },
+    productsSection: {
         marginBottom: spacing.md,
+    },
+    sectionLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey600,
+        marginBottom: spacing.sm,
+        fontWeight: "600",
+    },
+    emptyCartContainer: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.xl,
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        borderStyle: "dashed",
+    },
+    emptyCartText: {
+        ...typography.subtitle1(),
+        color: customColors.grey600,
+        marginTop: spacing.md,
+        fontWeight: "600",
+    },
+    emptyCartSubtext: {
+        ...typography.body2(),
+        color: customColors.grey400,
+        marginTop: spacing.xs,
+        textAlign: "center",
+    },
+    totalSection: {
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
     summaryItem: {
         flexDirection: "row",
@@ -1930,9 +1983,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         marginBottom: spacing.xs,
         backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: customColors.grey200,
+        borderColor: customColors.grey100,
     },
     summaryItemDetails: {
         flex: 1,
@@ -1965,13 +2018,8 @@ const styles = StyleSheet.create({
     },
     deleteButton: {
         padding: spacing.xs,
-        borderRadius: 4,
-        backgroundColor: customColors.errorLight,
-    },
-    summaryFooter: {
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
+        borderRadius: borderRadius.md,
+        backgroundColor: customColors.errorFaded,
     },
     totalRow: {
         flexDirection: "row",
@@ -1990,11 +2038,11 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         backgroundColor: customColors.primary,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         alignItems: "center",
         marginTop: spacing.md,
-        ...shadows.medium,
+        ...shadows.small,
     },
     liveSaleButton: {
         backgroundColor: customColors.success,
@@ -2022,10 +2070,10 @@ const styles = StyleSheet.create({
     liveSaleContainer: {
         marginBottom: spacing.md,
         backgroundColor: customColors.grey50,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         borderWidth: 1,
-        borderColor: customColors.grey200,
+        borderColor: customColors.grey100,
     },
     liveSaleToggle: {
         flexDirection: "row",
@@ -2053,20 +2101,20 @@ const styles = StyleSheet.create({
     toggle: {
         width: 40,
         height: 20,
-        borderRadius: 10,
+        borderRadius: borderRadius.round,
         justifyContent: "center",
     },
     toggleCircle: {
         width: 16,
         height: 16,
-        borderRadius: 8,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.white,
     },
     // Partial amount input (Cash / G-Pay)
     partialAmtContainer: {
         marginBottom: spacing.md,
-        backgroundColor: customColors.primary + "08",
-        borderRadius: 12,
+        backgroundColor: customColors.primaryFaded,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         borderWidth: 1,
         borderColor: customColors.primary + "30",
@@ -2083,7 +2131,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
-        borderRadius: 10,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: customColors.grey200,
         paddingHorizontal: spacing.sm,
@@ -2103,9 +2151,9 @@ const styles = StyleSheet.create({
     },
     partialAmtFullBtn: {
         backgroundColor: customColors.primary,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
+        paddingVertical: spacing.xxs,
     },
     partialAmtFullBtnText: {
         ...typography.caption(),
@@ -2122,10 +2170,10 @@ const styles = StyleSheet.create({
     paymentMethodContainer: {
         marginBottom: spacing.md,
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         borderWidth: 1,
-        borderColor: customColors.success,
+        borderColor: customColors.grey200,
     },
     paymentMethodLabel: {
         ...typography.subtitle2(),
@@ -2146,9 +2194,9 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.xs,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: customColors.grey300,
+        borderColor: customColors.grey200,
         backgroundColor: customColors.white,
         minHeight: 40,
     },
@@ -2169,10 +2217,10 @@ const styles = StyleSheet.create({
     // New partial amount styles
     partialAmountContainer: {
         backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         padding: spacing.sm,
         borderWidth: 1,
-        borderColor: customColors.grey200,
+        borderColor: customColors.grey100,
     },
     partialAmountLabel: {
         ...typography.caption(),
@@ -2186,9 +2234,9 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
-        borderRadius: 6,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: customColors.grey300,
+        borderColor: customColors.grey200,
         paddingHorizontal: spacing.sm,
         marginBottom: spacing.xs,
     },

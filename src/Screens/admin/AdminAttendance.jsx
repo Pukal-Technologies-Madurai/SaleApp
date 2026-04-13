@@ -4,18 +4,26 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/Ionicons";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import { attendanceHistory, fetchSalePerson } from "../../Api/employee";
-import { customColors, shadows, typography } from "../../Config/helper";
+import {
+    customColors,
+    shadows,
+    typography,
+    spacing,
+    borderRadius,
+    iconSizes,
+} from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 
 const SummaryCard = ({ icon, title, value, color }) => (
-    <View style={[styles.card, { backgroundColor: color }]}>
-        <Icon name={icon} size={28} color={customColors.white} />
-        <Text style={styles.cardTitle}>{title}</Text>
+    <View style={styles.card}>
+        <View style={[styles.cardIconContainer, { backgroundColor: color }]}>
+            <FeatherIcon name={icon} size={iconSizes.lg} color={customColors.white} />
+        </View>
         <Text style={styles.cardValue}>{value}</Text>
+        <Text style={styles.cardTitle}>{title}</Text>
     </View>
 );
 
@@ -135,8 +143,8 @@ const AdminAttendance = ({ route }) => {
                 title="Attendance Report"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="Feather"
+                rightIconName="filter"
                 onRightPress={() => setModalVisible(true)}
             />
 
@@ -162,6 +170,7 @@ const AdminAttendance = ({ route }) => {
             />
 
             <View style={styles.contentContainer}>
+                {/* Summary Cards */}
                 <View style={styles.summarySection}>
                     <SummaryCard
                         icon="calendar"
@@ -169,17 +178,17 @@ const AdminAttendance = ({ route }) => {
                         value={
                             attendanceData
                                 ? countTotalAttendances(attendanceData)
-                                : "N/A"
+                                : "0"
                         }
                         color={customColors.primary}
                     />
                     <SummaryCard
-                        icon="speedometer"
+                        icon="navigation"
                         title="Total KMs"
                         value={
                             attendanceData
                                 ? calculateTotalKms(attendanceData)
-                                : "N/A"
+                                : "0"
                         }
                         color={customColors.accent}
                     />
@@ -189,20 +198,27 @@ const AdminAttendance = ({ route }) => {
                         value={
                             attendanceData
                                 ? countUnclosedAttendances(attendanceData)
-                                : "N/A"
+                                : "0"
                         }
                         color={customColors.accent2}
                     />
                 </View>
 
                 <View style={styles.tableSection}>
-                    <Text style={styles.sectionTitle}>Attendance Details - {person.User_Name}</Text>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>{person.User_Name}</Text>
+                        <View style={styles.recordCount}>
+                            <Text style={styles.recordCountText}>
+                                {attendanceData?.length || 0} records
+                            </Text>
+                        </View>
+                    </View>
                     <View style={styles.tableContainer}>
                         <View style={styles.tableHeader}>
-                            <Text style={styles.headerCell}>Date</Text>
-                            <Text style={styles.headerCell}>Start KM</Text>
-                            <Text style={styles.headerCell}>End KM</Text>
-                            <Text style={styles.headerCell}>Distance</Text>
+                            <Text style={[styles.headerCell, styles.dateCell]}>Date</Text>
+                            <Text style={styles.headerCell}>Start</Text>
+                            <Text style={styles.headerCell}>End</Text>
+                            <Text style={styles.headerCell}>KMs</Text>
                         </View>
                         <ScrollView
                             style={styles.tableBody}
@@ -216,43 +232,57 @@ const AdminAttendance = ({ route }) => {
                                             styles.alternateRow,
                                         ]}
                                         key={item.Id}>
-                                        <Text style={styles.cell}>
-                                            {new Date(
-                                                item.Start_Date,
-                                            ).toLocaleDateString("en-GB", {
-                                                day: "2-digit",
-                                                month: "2-digit",
-                                            })}
-                                        </Text>
+                                        <View style={[styles.cellContainer, styles.dateCell]}>
+                                            <Text style={styles.dateText}>
+                                                {new Date(
+                                                    item.Start_Date,
+                                                ).toLocaleDateString("en-GB", {
+                                                    day: "2-digit",
+                                                    month: "short",
+                                                })}
+                                            </Text>
+                                        </View>
                                         <Text style={styles.cell}>
                                             {item.Start_KM}
                                         </Text>
-                                        <Text style={styles.cell}>
+                                        <Text style={[
+                                            styles.cell,
+                                            item.End_KM === null && styles.naCell
+                                        ]}>
                                             {item.End_KM !== null
                                                 ? item.End_KM
-                                                : "N/A"}
+                                                : "--"}
                                         </Text>
-                                        <Text
-                                            style={[
-                                                styles.cell,
+                                        <View style={styles.distanceCellContainer}>
+                                            <Text style={[
                                                 styles.distanceCell,
+                                                item.End_KM === null && styles.naDistanceCell
                                             ]}>
-                                            {calculateDistance(
-                                                item.Start_KM,
-                                                item.End_KM,
+                                                {calculateDistance(
+                                                    item.Start_KM,
+                                                    item.End_KM,
+                                                )}
+                                            </Text>
+                                            {item.End_KM !== null && (
+                                                <Text style={styles.kmLabel}>km</Text>
                                             )}
-                                        </Text>
+                                        </View>
                                     </View>
                                 ))
                             ) : (
                                 <View style={styles.noDataContainer}>
-                                    <MaterialIcon
-                                        name="event-busy"
-                                        size={48}
-                                        color={customColors.grey500}
-                                    />
+                                    <View style={styles.noDataIconContainer}>
+                                        <FeatherIcon
+                                            name="user"
+                                            size={iconSizes.xxl}
+                                            color={customColors.grey300}
+                                        />
+                                    </View>
+                                    <Text style={styles.noDataTitle}>
+                                        No Records Found
+                                    </Text>
                                     <Text style={styles.noDataText}>
-                                        Select a salesperson first.
+                                        Select a salesperson to view data
                                     </Text>
                                 </View>
                             )}
@@ -273,144 +303,173 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: customColors.white,
-        paddingTop: 20,
-        ...shadows.medium,
+        backgroundColor: customColors.grey50,
+        paddingTop: spacing.md,
     },
+    // Summary Cards
     summarySection: {
         flexDirection: "row",
         justifyContent: "space-between",
-        paddingHorizontal: 15,
-        marginBottom: 25,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.lg,
+        gap: spacing.sm,
     },
     card: {
         flex: 1,
         alignItems: "center",
-        borderRadius: 12,
-        padding: 15,
-        marginHorizontal: 5,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.xl,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
         ...shadows.medium,
     },
-    cardTitle: {
-        ...typography.subtitle2(),
-        color: customColors.white,
-        marginTop: 8,
+    cardIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: borderRadius.lg,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.sm,
     },
     cardValue: {
         ...typography.h5(),
-        color: customColors.white,
-        marginTop: 4,
+        color: customColors.grey900,
+        fontWeight: "800",
     },
+    cardTitle: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: spacing.xxs,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    // Table Section
     tableSection: {
         flex: 1,
-        paddingHorizontal: 20,
+        paddingHorizontal: spacing.md,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     sectionTitle: {
         ...typography.h6(),
         color: customColors.grey900,
-        marginBottom: 15,
+        fontWeight: "700",
+    },
+    recordCount: {
+        backgroundColor: customColors.primaryLight,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.round,
+    },
+    recordCountText: {
+        ...typography.caption(),
+        color: customColors.primary,
+        fontWeight: "600",
     },
     tableContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.xl,
         overflow: "hidden",
         ...shadows.small,
     },
     tableHeader: {
         flexDirection: "row",
-        backgroundColor: customColors.grey100,
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+        backgroundColor: customColors.primary,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
     },
     headerCell: {
         flex: 1,
         textAlign: "center",
-        ...typography.subtitle2(),
-        color: customColors.grey900,
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    dateCell: {
+        flex: 1.2,
     },
     tableBody: {
         flex: 1,
     },
     tableRow: {
         flexDirection: "row",
-        paddingVertical: 12,
-        paddingHorizontal: 15,
+        alignItems: "center",
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+        borderBottomColor: customColors.grey100,
     },
     alternateRow: {
         backgroundColor: customColors.grey50,
     },
+    cellContainer: {
+        flex: 1,
+        alignItems: "center",
+    },
+    dateText: {
+        ...typography.body2(),
+        color: customColors.grey800,
+        fontWeight: "600",
+    },
     cell: {
         flex: 1,
         ...typography.body2(),
-        color: customColors.grey900,
+        color: customColors.grey700,
         textAlign: "center",
     },
-    distanceCell: {
-        ...typography.subtitle2(),
-        color: customColors.primary,
+    naCell: {
+        color: customColors.grey400,
     },
+    distanceCellContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    distanceCell: {
+        ...typography.body1(),
+        color: customColors.primary,
+        fontWeight: "700",
+    },
+    naDistanceCell: {
+        color: customColors.grey400,
+        fontWeight: "400",
+    },
+    kmLabel: {
+        ...typography.caption(),
+        color: customColors.grey500,
+    },
+    // No Data
     noDataContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 40,
+        paddingVertical: spacing.xxl,
+    },
+    noDataIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
+    },
+    noDataTitle: {
+        ...typography.h6(),
+        color: customColors.grey700,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
     },
     noDataText: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.grey500,
-        marginTop: 10,
-    },
-
-    filterScreen: {
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: "60%",
-        backgroundColor: customColors.white,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        ...customColors.shadow,
-    },
-    filterScreenContent: {
-        flex: 1,
-        padding: 16,
-    },
-    filterScreenHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGrey,
-    },
-    filterScreenTitle: {
-        ...typography.h6(),
-        color: customColors.black,
-    },
-    closeButton: {
-        padding: 4,
-    },
-    filterItem: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.lightGrey,
-    },
-    selectedFilterItem: {
-        backgroundColor: customColors.accent,
-    },
-    filterItemText: {
-        ...typography.body1(),
-        color: customColors.grey,
-    },
-    selectedFilterItemText: {
-        color: customColors.primary,
-        fontWeight: "600",
     },
 });

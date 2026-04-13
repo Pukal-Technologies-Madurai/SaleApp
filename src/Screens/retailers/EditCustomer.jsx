@@ -9,26 +9,24 @@ import {
     View,
     Modal,
     Dimensions,
-    ActivityIndicator,
-    Linking,
 } from "react-native";
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { API } from "../../Config/Endpoint";
 import {
     customColors,
     spacing,
     typography,
     shadows,
-    componentStyles,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
-import CameraComponent from "../../Components/CameraComponent";
+import OpenCamera from "../../Components/OpenCamera";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import AppHeader from "../../Components/AppHeader";
 import FormField from "../../Components/FormField";
 import Icon from "react-native-vector-icons/AntDesign";
-import { Camera } from "react-native-vision-camera";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import {
     fetchAreas,
     fetchdistributors,
@@ -67,7 +65,6 @@ const EditCustomer = ({ route }) => {
 
     const [showCamera, setShowCamera] = useState(false);
     const [showImagePreview, setShowImagePreview] = useState(false);
-    const [hasPermission, setHasPermission] = useState(null);
 
     const [currentPhoto, setCurrentPhoto] = useState(
         item.Profile_Pic ? { uri: item.Profile_Pic } : null,
@@ -92,13 +89,6 @@ const EditCustomer = ({ route }) => {
         queryKey: ["Distributor_Name"],
         queryFn: fetchdistributors,
     });
-
-    useEffect(() => {
-        (async () => {
-            const { status } = await Camera.requestCameraPermission();
-            setHasPermission(status === "authorized");
-        })();
-    }, []);
 
     const handleInputChange = useCallback((field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -155,44 +145,12 @@ const EditCustomer = ({ route }) => {
             <AppHeader title="Edit Retailer" navigation={navigation} />
 
             {showCamera ? (
-                <View style={styles.cameraContainer}>
-                    {hasPermission === null ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator
-                                size="large"
-                                color={customColors.primary}
-                            />
-                            <Text style={styles.loadingText}>
-                                Requesting camera permission...
-                            </Text>
-                        </View>
-                    ) : hasPermission === false ? (
-                        <View style={styles.errorContainer}>
-                            <Icon
-                                name="error"
-                                size={40}
-                                color={customColors.accent2}
-                            />
-                            <Text style={styles.errorText}>
-                                Camera permission denied
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.permissionButton}
-                                onPress={() => Linking.openSettings()}>
-                                <Text style={styles.permissionButtonText}>
-                                    Open Settings
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <CameraComponent
-                            onPhotoCapture={handlePhotoCapture}
-                            showCamera={setShowCamera}
-                        />
-                    )}
-                </View>
+                <OpenCamera
+                    onPhotoCapture={handlePhotoCapture}
+                    onClose={() => setShowCamera(false)}
+                />
             ) : (
-                <ScrollView style={styles.contentContainer}>
+                <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
                     <View style={styles.formContainer}>
                         <View style={styles.imageSection}>
                             <View style={styles.photoContainer}>
@@ -209,29 +167,30 @@ const EditCustomer = ({ route }) => {
                                     </TouchableOpacity>
                                 ) : (
                                     <View style={styles.placeholderImage}>
-                                        <Icon
-                                            name="camera-alt"
-                                            size={40}
-                                            color={customColors.grey500}
+                                        <FeatherIcon
+                                            name="camera"
+                                            size={iconSizes.xxl}
+                                            color={customColors.grey400}
                                         />
                                         <Text style={styles.placeholderText}>
-                                            No Photo
+                                            Add Photo
                                         </Text>
                                     </View>
                                 )}
                                 <TouchableOpacity
                                     style={styles.updatePhotoButton}
-                                    onPress={() => setShowCamera(true)}>
-                                    <Icon
-                                        name="camera-alt"
-                                        size={20}
+                                    onPress={() => setShowCamera(true)}
+                                    activeOpacity={0.8}>
+                                    <FeatherIcon
+                                        name="camera"
+                                        size={iconSizes.md}
                                         color={customColors.white}
                                         style={styles.buttonIcon}
                                     />
                                     <Text style={styles.updatePhotoText}>
                                         {currentPhoto
                                             ? "Update Photo"
-                                            : "Add Photo"}
+                                            : "Take Photo"}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -345,7 +304,7 @@ const EditCustomer = ({ route }) => {
                         style={styles.closeButton}>
                         <Icon
                             name="close"
-                            size={24}
+                            size={iconSizes.lg}
                             color={customColors.white}
                         />
                     </TouchableOpacity>
@@ -363,7 +322,7 @@ const EditCustomer = ({ route }) => {
                             }}>
                             <Icon
                                 name="camera"
-                                size={20}
+                                size={iconSizes.md}
                                 color={customColors.white}
                                 style={styles.buttonIcon}
                             />
@@ -400,40 +359,41 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         padding: spacing.md,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.grey50,
     },
     formContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 16,
+        borderRadius: borderRadius.xl,
         padding: spacing.lg,
         ...shadows.medium,
     },
     imageSection: {
         alignItems: "center",
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg,
     },
     photoContainer: {
-        width: 150,
-        height: 150,
-        borderRadius: 75,
-        overflow: "hidden",
-        backgroundColor: customColors.grey100,
-        ...shadows.medium,
+        alignItems: "center",
     },
     previewImage: {
-        width: "100%",
-        height: "100%",
+        width: 120,
+        height: 120,
+        borderRadius: borderRadius.lg,
         resizeMode: "cover",
+        backgroundColor: customColors.grey100,
     },
     placeholderImage: {
-        width: "100%",
-        height: "100%",
+        width: 120,
+        height: 120,
+        borderRadius: borderRadius.lg,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: customColors.grey200,
+        backgroundColor: customColors.grey100,
+        borderWidth: 2,
+        borderColor: customColors.grey200,
+        borderStyle: "dashed",
     },
     placeholderText: {
-        ...typography.subtitle2(),
+        ...typography.caption(),
         color: customColors.grey500,
         marginTop: spacing.xs,
     },
@@ -442,7 +402,7 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.lg,
         backgroundColor: customColors.primary,
-        borderRadius: 8,
+        borderRadius: borderRadius.lg,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
@@ -453,7 +413,7 @@ const styles = StyleSheet.create({
         color: customColors.white,
     },
     fieldContainer: {
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
     modalContainer: {
         flex: 1,
@@ -463,66 +423,66 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         position: "absolute",
-        top: spacing.xl,
-        right: spacing.xl,
+        top: spacing.xxl,
+        right: spacing.lg,
         zIndex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        borderRadius: 25,
-        width: 40,
-        height: 40,
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        borderRadius: borderRadius.round,
+        width: 44,
+        height: 44,
         justifyContent: "center",
         alignItems: "center",
-        ...shadows.medium,
     },
     modalImage: {
         width: width * 0.9,
         height: width * 0.9,
-        borderRadius: 16,
+        borderRadius: borderRadius.xl,
         ...shadows.large,
     },
     modalActions: {
         position: "absolute",
-        bottom: spacing.xl,
+        bottom: spacing.xxl,
         left: spacing.lg,
         right: spacing.lg,
         flexDirection: "row",
         justifyContent: "center",
         gap: spacing.md,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
         padding: spacing.md,
-        borderRadius: 16,
-        ...shadows.medium,
+        borderRadius: borderRadius.xl,
     },
     modalButton: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: spacing.sm,
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
-        borderRadius: 8,
-        maxWidth: 200,
+        borderRadius: borderRadius.lg,
+        maxWidth: 180,
     },
     updateButton: {
-        ...componentStyles.button.primary,
-        marginTop: spacing.xl,
+        backgroundColor: customColors.primary,
+        marginTop: spacing.lg,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
+        ...shadows.small,
     },
     disabledButton: {
-        backgroundColor: customColors.grey500,
-        opacity: 0.7,
+        backgroundColor: customColors.grey400,
     },
     updateButtonText: {
         textAlign: "center",
         ...typography.button(),
         color: customColors.white,
+        fontWeight: "600",
     },
     closeModalButton: {
-        ...componentStyles.button.secondary,
         backgroundColor: customColors.grey200,
-        marginTop: spacing.xl,
+        marginTop: spacing.lg,
     },
     modalButtonText: {
-        ...typography.subtitle2(),
+        ...typography.button(),
         color: customColors.white,
         fontWeight: "600",
     },
@@ -530,46 +490,7 @@ const styles = StyleSheet.create({
         color: customColors.grey900,
     },
     buttonIcon: {
-        marginRight: spacing.xs,
-    },
-    cameraContainer: {
-        flex: 1,
-        backgroundColor: customColors.black,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: customColors.black,
-    },
-    loadingText: {
-        ...typography.subtitle1(),
-        color: customColors.white,
-        marginTop: spacing.md,
-    },
-    errorContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: customColors.black,
-        padding: spacing.xl,
-    },
-    errorText: {
-        ...typography.subtitle1(),
-        color: customColors.white,
-        marginTop: spacing.md,
-        textAlign: "center",
-    },
-    permissionButton: {
-        marginTop: spacing.xl,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.lg,
-        backgroundColor: customColors.primary,
-        borderRadius: 8,
-    },
-    permissionButtonText: {
-        ...typography.button(),
-        color: customColors.white,
+        marginRight: spacing.sm,
     },
 });
 

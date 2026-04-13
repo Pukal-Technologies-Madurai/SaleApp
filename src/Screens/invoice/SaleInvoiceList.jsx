@@ -9,13 +9,12 @@ import {
     RefreshControl,
     Alert,
 } from "react-native";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import RNHTMLtoPDF from "react-native-html-to-pdf";
 import Share from "react-native-share";
 import Accordion from "../../Components/Accordion";
@@ -25,10 +24,14 @@ import { API } from "../../Config/Endpoint";
 import { fetchSaleInvoices } from "../../Api/sales";
 import {
     customColors,
+    customFonts,
     shadows,
     spacing,
     typography,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
+import { FlashList } from "@shopify/flash-list";
 
 const SaleInvoiceList = () => {
     const navigation = useNavigation();
@@ -58,7 +61,7 @@ const SaleInvoiceList = () => {
         value: "all",
     });
 
-    // Payment filter state: 'all' | 'paid' | 'unpaid'
+    // Payment filter state: 'all' | 'cash' | 'gpay' | 'credit'
     const [paymentFilter, setPaymentFilter] = useState('all');
 
     useEffect(() => {
@@ -264,17 +267,22 @@ const SaleInvoiceList = () => {
 
     const filteredByBrand = getFilteredDataByBrand();
 
-    // Filter by payment status
+    // Filter by payment mode
     const filteredByPayment = useMemo(() => {
         if (paymentFilter === 'all') return filteredByBrand;
-        if (paymentFilter === 'paid') {
+        if (paymentFilter === 'cash') {
             return filteredByBrand.filter(
-                item => item.Payment_Status === 2 || item.Payment_Status === 3
+                item => item.Payment_Mode === 1 && (item.Payment_Status === 2 || item.Payment_Status === 3)
             );
         }
-        // unpaid
+        if (paymentFilter === 'gpay') {
+            return filteredByBrand.filter(
+                item => item.Payment_Mode === 2 && (item.Payment_Status === 2 || item.Payment_Status === 3)
+            );
+        }
+        // credit/unpaid
         return filteredByBrand.filter(
-            item => item.Payment_Status !== 2 && item.Payment_Status !== 3
+            item => item.Payment_Mode === 3 || (item.Payment_Status !== 2 && item.Payment_Status !== 3)
         );
     }, [filteredByBrand, paymentFilter]);
 
@@ -289,6 +297,7 @@ const SaleInvoiceList = () => {
     }, [filteredByPayment, searchQuery]);
 
     const totalInvoices = filteredInvoiceData.length;
+
     const totalAmount = useMemo(() => {
         return filteredInvoiceData.reduce(
             (sum, item) => sum + (parseFloat(item.Total_Invoice_value) || 0),
@@ -307,6 +316,17 @@ const SaleInvoiceList = () => {
         const cancelReturn = filteredInvoiceData.filter(
             item => item.Cancel_status === 0 || item.Cancel_status === "0"
         ).length;
+        
+        // Payment mode counts from brand filtered data (before payment filter)
+        const cashCount = filteredByBrand.filter(
+            item => item.Payment_Mode === 1 && (item.Payment_Status === 2 || item.Payment_Status === 3)
+        ).length;
+        const gpayCount = filteredByBrand.filter(
+            item => item.Payment_Mode === 2 && (item.Payment_Status === 2 || item.Payment_Status === 3)
+        ).length;
+        const creditCount = filteredByBrand.filter(
+            item => item.Payment_Mode === 3 || (item.Payment_Status !== 2 && item.Payment_Status !== 3)
+        ).length;
 
         return {
             deliveryCompleted,
@@ -315,8 +335,11 @@ const SaleInvoiceList = () => {
             paymentPending: filteredInvoiceData.length - paymentCompleted,
             cancelReturn,
             cancelReturnPending: filteredInvoiceData.length - cancelReturn,
+            cashCount,
+            gpayCount,
+            creditCount,
         };
-    }, [filteredInvoiceData]);
+    }, [filteredInvoiceData, filteredByBrand]);
 
     // Number to words helper
     function numberToWords(num) {
@@ -720,15 +743,16 @@ const SaleInvoiceList = () => {
         setModalVisible(false);
     };
 
-    const handleSalesReportPress = () => {
+    const handleSalesReportPress = useCallback(() => {
         navigation.navigate("SalesReport", {
             logData: salesPersonFilteredData,
             selectedDate: selectedFromDate,
             isNotAdmin: true,
         });
-    };
+    }, [navigation, salesPersonFilteredData, selectedFromDate]);
 
-    const renderHeader = item => {
+    // Memoized renderHeader using useCallback
+    const renderHeader = useCallback((item) => {
         const deliveryStatus = getDeliveryStatusInfo(item.Delivery_Status);
         const paymentStatus = getPaymentStatusInfo(item.Payment_Status);
         const isCancelled =
@@ -764,9 +788,10 @@ const SaleInvoiceList = () => {
                 </View>
             </View>
         );
-    };
+    }, []);
 
-    const renderContent = item => {
+    // Memoized renderContent using useCallback
+    const renderContent = useCallback((item) => {
         const deliveryStatus = getDeliveryStatusInfo(item.Delivery_Status);
         const paymentStatus = getPaymentStatusInfo(item.Payment_Status);
         const paymentModeLabel = getPaymentModeLabel(item.Payment_Mode);
@@ -784,13 +809,13 @@ const SaleInvoiceList = () => {
                                 },
                             ]}
                         >
-                            <MaterialIcon
+                            <FeatherIcon
                                 name={
                                     item.Payment_Status === 1
-                                        ? "pending-actions"
+                                        ? "clock"
                                         : "check-circle"
                                 }
-                                size={14}
+                                size={iconSizes.sm}
                                 color={paymentStatus.color}
                                 style={{ marginRight: 4 }}
                             />
@@ -809,9 +834,9 @@ const SaleInvoiceList = () => {
                                 { backgroundColor: paymentStatus.color + "20" },
                             ]}
                         >
-                            <MaterialIcon
-                                name="payment"
-                                size={14}
+                            <FeatherIcon
+                                name="credit-card"
+                                size={iconSizes.sm}
                                 color={paymentStatus.color}
                                 style={{ marginRight: 4 }}
                             />
@@ -897,7 +922,7 @@ const SaleInvoiceList = () => {
                             >
                                 <FeatherIcon
                                     name="edit"
-                                    size={14}
+                                    size={iconSizes.sm}
                                     color={customColors.white}
                                 />
                                 <Text style={styles.buttonText}>Edit</Text>
@@ -911,7 +936,7 @@ const SaleInvoiceList = () => {
                             >
                                 <FeatherIcon
                                     name="share"
-                                    size={14}
+                                    size={iconSizes.sm}
                                     color={customColors.white}
                                 />
                                 <Text style={styles.buttonText}>Share</Text>
@@ -921,7 +946,18 @@ const SaleInvoiceList = () => {
                 </View>
             </View>
         );
-    };
+    }, [isAdmin, navigation, downloadItemPDF]);
+
+    // Key extractor for FlatList
+    const keyExtractor = useCallback((item, index) => 
+        item.Do_Id?.toString() || `invoice-${index}`, []);
+
+    // Get item layout for better performance (estimated height)
+    const getItemLayout = useCallback((data, index) => ({
+        length: 80, // estimated item height
+        offset: 80 * index,
+        index,
+    }), []);
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -929,8 +965,8 @@ const SaleInvoiceList = () => {
                 title="Invoice Summary"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="FeatherIcon"
+                rightIconName="filter"
                 onRightPress={handleOpenModal}
             />
 
@@ -972,7 +1008,7 @@ const SaleInvoiceList = () => {
                                         paddingVertical: spacing.xs,
                                         paddingHorizontal: spacing.md,
                                         marginRight: spacing.sm,
-                                        borderRadius: 20,
+                                        borderRadius: borderRadius.xl,
                                         backgroundColor:
                                             selectedBrand === brand
                                                 ? customColors.primary
@@ -986,7 +1022,9 @@ const SaleInvoiceList = () => {
                                                 selectedBrand === brand
                                                     ? customColors.white
                                                     : customColors.grey900,
-                                            ...typography.caption(),
+                                            fontFamily: customFonts.poppinsRegular,
+                                            fontWeight: "600",
+                                            textTransform: "capitalize",
                                         }}
                                     >
                                         {brand}
@@ -1001,9 +1039,9 @@ const SaleInvoiceList = () => {
                                 setShowSearch(!showSearch);
                             }}
                         >
-                            <MaterialIcon
-                                name={showSearch ? "close" : "search"}
-                                size={24}
+                            <FeatherIcon
+                                name={showSearch ? "x" : "search"}
+                                size={iconSizes.lg}
                                 color={customColors.grey900}
                             />
                         </TouchableOpacity>
@@ -1029,7 +1067,7 @@ const SaleInvoiceList = () => {
                         >
                             <FeatherIcon
                                 name="arrow-up-right"
-                                size={14}
+                                size={iconSizes.sm}
                                 color={customColors.grey600}
                             />
                         </TouchableOpacity>
@@ -1085,9 +1123,11 @@ const SaleInvoiceList = () => {
                                     ]}
                                     onPress={() => {
                                         if (paymentFilter === 'all') {
-                                            setPaymentFilter('paid');
-                                        } else if (paymentFilter === 'paid') {
-                                            setPaymentFilter('unpaid');
+                                            setPaymentFilter('cash');
+                                        } else if (paymentFilter === 'cash') {
+                                            setPaymentFilter('gpay');
+                                        } else if (paymentFilter === 'gpay') {
+                                            setPaymentFilter('credit');
                                         } else {
                                             setPaymentFilter('all');
                                         }
@@ -1098,21 +1138,26 @@ const SaleInvoiceList = () => {
                                         styles.statLabel,
                                         paymentFilter !== 'all' && styles.activeFilterLabel,
                                     ]}>
-                                        {paymentFilter === 'all' ? 'Paid' : paymentFilter === 'paid' ? 'Paid Only' : 'Unpaid Only'}
+                                        {paymentFilter === 'all' ? 'Payment' 
+                                            : paymentFilter === 'cash' ? 'Cash' 
+                                            : paymentFilter === 'gpay' ? 'G-Pay' 
+                                            : 'Credit'}
                                     </Text>
                                     <Text
                                         style={[
                                             styles.statValue,
-                                            { color: paymentFilter === 'unpaid' ? customColors.warning : customColors.success },
+                                            { color: paymentFilter === 'credit' ? customColors.warning : customColors.success },
                                         ]}
                                     >
                                         {paymentFilter === 'all' 
                                             ? statusCounts.paymentCompleted 
-                                            : paymentFilter === 'paid' 
-                                                ? statusCounts.paymentCompleted 
-                                                : statusCounts.paymentPending}
+                                            : paymentFilter === 'cash' 
+                                                ? statusCounts.cashCount 
+                                                : paymentFilter === 'gpay'
+                                                    ? statusCounts.gpayCount
+                                                    : statusCounts.creditCount}
                                         <Text style={styles.statSubValue}>
-                                            /{totalInvoices}
+                                            /{filteredByBrand.length}
                                         </Text>
                                     </Text>
                                 </TouchableOpacity>
@@ -1133,43 +1178,58 @@ const SaleInvoiceList = () => {
                     </View>
                 </View>
 
-                <ScrollView
-                    style={styles.accordionScrollContainer}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefetching}
-                            onRefresh={refetch}
-                            colors={[customColors.primary]}
-                        />
-                    }
-                >
-                    {(isLoading || isFetching) ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={customColors.primary} />
-                            <Text style={styles.loadingText}>Loading invoices...</Text>
-                        </View>
-                    ) : filteredInvoiceData.length > 0 ? (
-                        <Accordion
-                            data={filteredInvoiceData}
-                            renderHeader={renderHeader}
-                            renderContent={renderContent}
-                        />
-                    ) : (
-                        <View style={styles.emptyContainer}>
-                            <MaterialIcon
-                                name="receipt-long"
-                                size={64}
+                {(isLoading || isFetching) ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={customColors.primary} />
+                        <Text style={styles.loadingText}>Loading invoices...</Text>
+                    </View>
+                ) : filteredInvoiceData.length > 0 ? (
+                    <FlashList
+                        data={filteredInvoiceData}
+                        keyExtractor={keyExtractor}
+                        renderItem={({ item, index }) => (
+                            <Accordion
+                                data={[item]}
+                                renderHeader={renderHeader}
+                                renderContent={renderContent}
+                                customStyles={{
+                                    container: { marginVertical: 0, marginHorizontal: 0 },
+                                    itemContainer: { marginBottom: spacing.xs },
+                                }}
+                            />
+                        )}
+                        style={styles.accordionScrollContainer}
+                        contentContainerStyle={{ paddingBottom: spacing.xl }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefetching}
+                                onRefresh={refetch}
+                                colors={[customColors.primary]}
+                            />
+                        }
+                        initialNumToRender={10}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                        removeClippedSubviews={true}
+                        showsVerticalScrollIndicator={false}
+                    />
+                ) : (
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIconContainer}>
+                            <FeatherIcon
+                                name="file-text"
+                                size={iconSizes.xxl}
                                 color={customColors.grey300}
                             />
-                            <Text style={styles.emptyText}>
-                                No invoices found
-                            </Text>
-                            <Text style={styles.emptySubtext}>
-                                Try adjusting the date range or search query
-                            </Text>
                         </View>
-                    )}
-                </ScrollView>
+                        <Text style={styles.emptyText}>
+                            No invoices found
+                        </Text>
+                        <Text style={styles.emptySubtext}>
+                            Try adjusting the date range or search query
+                        </Text>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -1198,14 +1258,14 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         padding: spacing.xs,
-        borderRadius: 50,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
         ...shadows.small,
     },
     searchContainer: {
         marginTop: spacing.xs,
         marginBottom: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         overflow: "hidden",
         backgroundColor: customColors.white,
         ...shadows.medium,
@@ -1217,7 +1277,7 @@ const styles = StyleSheet.create({
     },
     statsContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.lg,
         marginHorizontal: spacing.xs,
         position: "relative",
@@ -1229,7 +1289,7 @@ const styles = StyleSheet.create({
         right: spacing.sm,
         width: 24,
         height: 24,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         backgroundColor: customColors.grey50,
         justifyContent: "center",
         alignItems: "center",
@@ -1249,7 +1309,7 @@ const styles = StyleSheet.create({
     tappableStat: {
         paddingVertical: spacing.xs,
         paddingHorizontal: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
     },
     activeFilter: {
         backgroundColor: customColors.primary + '15',
@@ -1288,7 +1348,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginBottom: 2,
     },
     headerLeft: {
@@ -1322,7 +1382,7 @@ const styles = StyleSheet.create({
     },
     content: {
         backgroundColor: customColors.white,
-        borderRadius: 6,
+        borderRadius: borderRadius.sm,
         marginHorizontal: 2,
         marginBottom: spacing.xs,
         overflow: "hidden",
@@ -1353,7 +1413,7 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         paddingHorizontal: spacing.sm,
         paddingVertical: 2,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
     },
     statusText: {
         ...typography.caption(),
@@ -1435,7 +1495,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 6,
         paddingHorizontal: spacing.sm,
-        borderRadius: 6,
+        borderRadius: borderRadius.sm,
         gap: 4,
     },
     viewButton: {
@@ -1454,6 +1514,15 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         paddingVertical: spacing.xxl,
+    },
+    emptyIconContainer: {
+        width: 96,
+        height: 96,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     emptyText: {
         ...typography.subtitle1(),

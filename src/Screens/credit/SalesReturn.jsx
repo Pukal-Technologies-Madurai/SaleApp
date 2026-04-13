@@ -3,18 +3,25 @@ import React, { useState, useMemo, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "../../Components/AppHeader";
-import { customColors, typography, shadows } from "../../Config/helper";
+import {
+    customColors,
+    typography,
+    shadows,
+    spacing,
+    borderRadius,
+    iconSizes,
+} from "../../Config/helper";
 import { fetchProductsWithStockValue } from "../../Api/product";
 import { API } from "../../Config/Endpoint";
 
 const SalesReturn = ({ route }) => {
     const { item, isEditMode } = route.params;
 
-    console.log("SalesReturn Item:", item);
-    console.log("isEditMode:", isEditMode);
+    // console.log("SalesReturn Item:", item);
+    // console.log("isEditMode:", isEditMode);
 
     const navigation = useNavigation();
     const [expandedBrand, setExpandedBrand] = useState(null);
@@ -62,7 +69,7 @@ const SalesReturn = ({ route }) => {
         }
     }, [isEditMode, item]);
 
-    console.log("userId:", userId);
+    // console.log("userId:", userId);
 
     const { data: productQueryData = { productData: [], brandData: [] }, isLoading, isError } =
         useQuery({
@@ -297,7 +304,7 @@ const SalesReturn = ({ route }) => {
             httpMethod = "POST";
         }
 
-        console.log(`${isEditMode ? 'Update' : 'Create'} Credit Note Payload:`, JSON.stringify(creditNotePayload, null, 2));
+        // console.log(`${isEditMode ? 'Update' : 'Create'} Credit Note Payload:`, JSON.stringify(creditNotePayload, null, 2));
 
         setIsSubmitting(true);
         try {
@@ -344,7 +351,9 @@ const SalesReturn = ({ route }) => {
             <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
                 <AppHeader title="Sales Return" navigation={navigation} />
                 <View style={styles.errorContainer}>
-                    <Icon name="error-outline" size={48} color={customColors.error} />
+                    <View style={styles.errorIconContainer}>
+                        <FeatherIcon name="alert-circle" size={iconSizes.xl} color={customColors.error} />
+                    </View>
                     <Text style={styles.errorText}>Failed to load products</Text>
                     <Text style={styles.errorSubText}>Please try again later</Text>
                 </View>
@@ -389,7 +398,7 @@ const SalesReturn = ({ route }) => {
                 onPress={() => removeReturnItem(product.Product_Id)}
                 disabled={isSubmitting}
             >
-                <Icon name="delete" size={22} color={customColors.error} />
+                <FeatherIcon name="trash-2" size={iconSizes.md} color={customColors.error} />
             </TouchableOpacity>
         </View>
     );
@@ -401,7 +410,7 @@ const SalesReturn = ({ route }) => {
                 title={isEditMode ? "Edit Credit Note" : "Sales Return"}
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
+                rightIconLibrary="FeatherIcon"
                 rightIconName="check"
                 onRightPress={handleUpdate}
             />
@@ -414,7 +423,9 @@ const SalesReturn = ({ route }) => {
                 {/* Brand Accordions */}
                 {groupedData.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <Icon name="inventory-2" size={64} color={customColors.grey700} />
+                        <View style={styles.emptyIconContainer}>
+                            <FeatherIcon name="package" size={iconSizes.xxl} color={customColors.grey300} />
+                        </View>
                         <Text style={styles.emptyTitle}>No Active Products</Text>
                         <Text style={styles.emptySubtitle}>There are no active products available for return</Text>
                     </View>
@@ -434,9 +445,9 @@ const SalesReturn = ({ route }) => {
                                             {brand.groups.length} Groups | {brand.totalProducts} Products
                                         </Text>
                                     </View>
-                                    <Icon
-                                        name={expandedBrand === brand.brandName ? "expand-less" : "expand-more"}
-                                        size={24}
+                                    <FeatherIcon
+                                        name={expandedBrand === brand.brandName ? "chevron-up" : "chevron-down"}
+                                        size={iconSizes.lg}
                                         color={customColors.white}
                                     />
                                 </View>
@@ -463,9 +474,9 @@ const SalesReturn = ({ route }) => {
                                                             <Text style={styles.groupProductCount}>
                                                                 {group.products.length} items
                                                             </Text>
-                                                            <Icon
-                                                                name={isGroupExpanded ? "expand-less" : "expand-more"}
-                                                                size={20}
+                                                            <FeatherIcon
+                                                                name={isGroupExpanded ? "chevron-up" : "chevron-down"}
+                                                                size={iconSizes.md}
                                                                 color={customColors.grey700}
                                                             />
                                                         </View>
@@ -540,7 +551,7 @@ const SalesReturn = ({ route }) => {
                                 onPress={() => !isSubmitting && setShowSummaryModal(false)}
                                 disabled={isSubmitting}
                             >
-                                <Icon name="close" size={24} color={customColors.grey900} />
+                                <FeatherIcon name="x" size={iconSizes.lg} color={customColors.grey900} />
                             </TouchableOpacity>
                         </View>
 
@@ -625,7 +636,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.background,
     },
     scrollContent: {
-        paddingBottom: 20,
+        paddingBottom: spacing.lg,
     },
     loadingContainer: {
         flex: 1,
@@ -636,56 +647,74 @@ const styles = StyleSheet.create({
     loadingText: {
         ...typography.body1(),
         color: customColors.grey700,
-        marginTop: 10,
+        marginTop: spacing.sm,
     },
     errorContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: customColors.background,
-        padding: 20,
+        padding: spacing.lg,
+    },
+    errorIconContainer: {
+        width: 72,
+        height: 72,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.errorFaded,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: spacing.md,
     },
     errorText: {
         ...typography.h3(),
         color: customColors.error,
-        marginTop: 10,
+        marginTop: spacing.sm,
         textAlign: 'center',
     },
     errorSubText: {
         ...typography.body2(),
         color: customColors.grey700,
-        marginTop: 5,
+        marginTop: spacing.xs,
         textAlign: 'center',
     },
     emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 40,
+        padding: spacing.xxl,
+    },
+    emptyIconContainer: {
+        width: 96,
+        height: 96,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey50,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: spacing.md,
     },
     emptyTitle: {
         ...typography.h2(),
         color: customColors.grey900,
-        marginTop: 15,
+        marginTop: spacing.md,
     },
     emptySubtitle: {
         ...typography.body1(),
         color: customColors.grey700,
         textAlign: 'center',
-        marginTop: 8,
+        marginTop: spacing.sm,
     },
     // Brand Section
     brandSection: {
-        marginHorizontal: 15,
-        marginTop: 15,
+        marginHorizontal: spacing.md,
+        marginTop: spacing.md,
         backgroundColor: customColors.white,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         ...shadows.small,
         overflow: 'hidden',
     },
     brandHeader: {
         backgroundColor: customColors.primary,
-        padding: 12,
+        padding: spacing.md,
     },
     brandHeaderContent: {
         flexDirection: 'row',
@@ -698,7 +727,7 @@ const styles = StyleSheet.create({
     brandName: {
         ...typography.h4(),
         color: customColors.white,
-        marginBottom: 4,
+        marginBottom: spacing.xs,
     },
     brandStat: {
         ...typography.caption(),
@@ -715,8 +744,8 @@ const styles = StyleSheet.create({
     },
     groupHeader: {
         backgroundColor: customColors.background,
-        paddingVertical: 12,
-        paddingHorizontal: 15,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
     },
     groupHeaderContent: {
         flexDirection: 'row',
@@ -735,15 +764,15 @@ const styles = StyleSheet.create({
     groupProductCount: {
         ...typography.caption(),
         color: customColors.grey700,
-        marginRight: 5,
+        marginRight: spacing.xs,
     },
     // Products
     productsContainer: {
-        padding: 12,
+        padding: spacing.md,
     },
     productItem: {
         flexDirection: 'row',
-        paddingVertical: 12,
+        paddingVertical: spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: customColors.border,
     },
@@ -752,19 +781,19 @@ const styles = StyleSheet.create({
     },
     productInfo: {
         flex: 1,
-        paddingRight: 12,
+        paddingRight: spacing.md,
     },
     productName: {
         ...typography.body1(),
         color: customColors.grey900,
         fontWeight: '600',
-        marginBottom: 6,
+        marginBottom: spacing.xs,
         lineHeight: 20,
     },
     productDetails: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 4,
+        marginBottom: spacing.xs,
     },
     productRate: {
         ...typography.body2(),
@@ -782,14 +811,14 @@ const styles = StyleSheet.create({
     quantityLabel: {
         ...typography.caption(),
         color: customColors.grey700,
-        marginBottom: 4,
+        marginBottom: spacing.xs,
     },
     quantityInput: {
         borderWidth: 1,
         borderColor: customColors.border,
-        borderRadius: 6,
-        paddingHorizontal: 8,
-        paddingVertical: 6,
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
         minWidth: 70,
         textAlign: 'center',
         ...typography.body1(),
@@ -800,7 +829,7 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.success,
         fontWeight: '600',
-        marginTop: 4,
+        marginTop: spacing.xs,
     },
     // Summary Modal Styles
     summaryModalOverlay: {
@@ -810,16 +839,16 @@ const styles = StyleSheet.create({
     },
     summaryModalContainer: {
         backgroundColor: customColors.white,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
         height: '80%',
     },
     summaryModalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: customColors.border,
     },
@@ -829,42 +858,42 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     closeButton: {
-        padding: 5,
+        padding: spacing.xs,
     },
     summaryModalContent: {
-        paddingHorizontal: 20,
-        paddingTop: 15,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.md,
         height: "65%",
     },
     summaryProductsTitle: {
         ...typography.h4(),
         color: customColors.grey900,
         fontWeight: '600',
-        marginBottom: 15,
+        marginBottom: spacing.md,
     },
     summaryList: {
-        paddingBottom: 10,
+        paddingBottom: spacing.sm,
     },
     summaryProductItem: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: customColors.background,
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 10,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.sm,
     },
     summaryProductInfo: {
         flex: 1,
     },
     removeItemButton: {
-        padding: 8,
-        marginLeft: 10,
+        padding: spacing.sm,
+        marginLeft: spacing.sm,
     },
     summaryProductName: {
         ...typography.body1(),
         color: customColors.grey900,
         fontWeight: '600',
-        marginBottom: 8,
+        marginBottom: spacing.sm,
         lineHeight: 20,
     },
     summaryProductDetails: {
@@ -886,11 +915,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 15,
-        paddingHorizontal: 12,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
         backgroundColor: customColors.background,
-        borderRadius: 8,
-        marginTop: 10,
+        borderRadius: borderRadius.md,
+        marginTop: spacing.sm,
     },
     summaryTotalLabel: {
         ...typography.h4(),
@@ -904,23 +933,23 @@ const styles = StyleSheet.create({
     },
     // Narration Section
     narrationSection: {
-        marginBottom: 20,
+        marginBottom: spacing.lg,
     },
     narrationLabel: {
         ...typography.body1(),
         color: customColors.grey900,
         fontWeight: '600',
-        marginBottom: 10,
+        marginBottom: spacing.sm,
     },
     narrationOptions: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: spacing.sm,
     },
     narrationChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 20,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.xl,
         backgroundColor: customColors.background,
         borderWidth: 1,
         borderColor: customColors.border,
@@ -939,10 +968,10 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         backgroundColor: customColors.primary,
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        margin: 20,
-        borderRadius: 8,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        margin: spacing.lg,
+        borderRadius: borderRadius.md,
         alignItems: 'center',
         ...shadows.medium,
     },

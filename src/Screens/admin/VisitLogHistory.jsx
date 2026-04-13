@@ -10,7 +10,7 @@ import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { fetchRoutes, visitEntryLog } from "../../Api/retailers";
-import { customColors, shadows, typography } from "../../Config/helper";
+import { customColors, shadows, typography, spacing, borderRadius, iconSizes } from "../../Config/helper";
 import { attendanceHistory, fetchSalespersonRoute } from "../../Api/employee";
 
 const VisitLogHistory = ({ route }) => {
@@ -240,7 +240,7 @@ const VisitLogHistory = ({ route }) => {
 
     const renderStatCard = (title, value, icon, iconColor) => (
         <View style={styles.statCard}>
-            <Icon name={icon} size={24} color={iconColor} style={styles.statIcon} />
+            <Icon name={icon} size={iconSizes.lg} color={iconColor} style={styles.statIcon} />
             <Text style={styles.statValue}>{value}</Text>
             <Text style={styles.statTitle}>{title}</Text>
         </View>
@@ -276,7 +276,7 @@ const VisitLogHistory = ({ route }) => {
                         <Text style={styles.visitCount}>{item.totalVisits}</Text>
                         <Icon
                             name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-                            size={20}
+                            size={iconSizes.md}
                             color={customColors.grey600}
                         />
                     </View>
@@ -318,14 +318,14 @@ const VisitLogHistory = ({ route }) => {
                 <View style={styles.summaryHeader}>
                     <View style={styles.summaryPersonInfo}>
                         <View style={styles.summaryStatusRow}>
-                            <Icon name="access-time" size={12} color={customColors.grey600} />
+                            <Icon name="access-time" size={iconSizes.xs} color={customColors.grey600} />
                             <Text style={styles.summaryStatusText}>
                                 {startTime} - {endTime}
                             </Text>
                         </View>
                     </View>
                     <View style={styles.summaryDistance}>
-                        <Icon name="directions-car" size={16} color={customColors.warning} />
+                        <Icon name="directions-car" size={iconSizes.sm} color={customColors.warning} />
                         <Text style={styles.distanceText}>{distance} KM</Text>
                     </View>
                 </View>
@@ -333,7 +333,7 @@ const VisitLogHistory = ({ route }) => {
                 {/* Visit Statistics */}
                 <View style={styles.summaryStats}>
                     <View style={styles.summaryStatItem}>
-                        <Icon name="store" size={20} color={customColors.primaryDark} />
+                        <Icon name="store" size={iconSizes.md} color={customColors.primaryDark} />
                         <Text style={styles.statNumber}>{person.existingVisits}</Text>
                         <Text style={styles.statLabel}>Existing</Text>
                     </View>
@@ -341,7 +341,7 @@ const VisitLogHistory = ({ route }) => {
                     <View style={styles.summaryStatDivider} />
                     
                     <View style={styles.summaryStatItem}>
-                        <Icon name="add-business" size={20} color={customColors.success} />
+                        <Icon name="add-business" size={iconSizes.md} color={customColors.success} />
                         <Text style={styles.statNumber}>{person.newVisits}</Text>
                         <Text style={styles.statLabel}>New Shops</Text>
                     </View>
@@ -349,7 +349,7 @@ const VisitLogHistory = ({ route }) => {
                     <View style={styles.summaryStatDivider} />
                     
                     <View style={styles.summaryStatItem}>
-                        <Icon name="place" size={20} color={customColors.accent} />
+                        <Icon name="place" size={iconSizes.md} color={customColors.accent} />
                         <Text style={styles.statNumber}>{person.totalVisits}</Text>
                         <Text style={styles.statLabel}>Total</Text>
                     </View>
@@ -368,7 +368,7 @@ const VisitLogHistory = ({ route }) => {
                 >
                     <View style={styles.statusContent}>
                         <Text style={styles.statusText}>Further details</Text>
-                        <FeatherIcon name="chevron-right" size={16} color={customColors.primaryDark} />
+                        <FeatherIcon name="chevron-right" size={iconSizes.sm} color={customColors.primaryDark} />
                     </View>
                 </TouchableOpacity>
             </View>
@@ -442,21 +442,21 @@ const styles = StyleSheet.create({
     statsContainer: {
         flexDirection: "row",
         justifyContent: "space-around",
-        marginHorizontal: 10,
-        marginVertical: 6,
+        marginHorizontal: spacing.sm,
+        marginVertical: spacing.xs,
     },
     statCard: {
         backgroundColor: customColors.grey100,
-        borderRadius: 12,
-        padding: 10,
+        borderRadius: borderRadius.lg,
+        padding: spacing.sm,
         alignItems: "center",
         flex: 1,
-        marginHorizontal: 8,
-        marginVertical: 6,
+        marginHorizontal: spacing.sm,
+        marginVertical: spacing.xs,
         ...shadows.medium,
     },
     statIcon: {
-        marginBottom: 4,
+        marginBottom: spacing.xxs,
     },
     statValue: {
         ...typography.h4(),
@@ -473,20 +473,20 @@ const styles = StyleSheet.create({
         ...typography.h5(),
         fontWeight: "bold",
         color: customColors.grey900,
-        marginHorizontal: 10,
-        marginBottom: 8,
+        marginHorizontal: spacing.sm,
+        marginBottom: spacing.sm,
     },
     salespersonSection: {
-        paddingHorizontal: 14,
+        paddingHorizontal: spacing.md,
     },
     salespersonCardContainer: {
-        marginBottom: 10,
-        marginHorizontal: 6
+        marginBottom: spacing.sm,
+        marginHorizontal: spacing.xs,
     },
     salespersonCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
-        padding: 14,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
         ...typography.h5(),
         fontWeight: "600",
         color: customColors.grey900,
-        marginBottom: 2,
+        marginBottom: spacing.xxs,
     },
     salespersonStatus: {
         ...typography.body2(),
@@ -514,16 +514,15 @@ const styles = StyleSheet.create({
     },
     routeTag: {
         backgroundColor: customColors.warning,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginRight: 12,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.lg,
+        marginRight: spacing.md,
     },
     routeTagText: {
         color: customColors.black,
         ...typography.caption(),
         fontWeight: "600",
-        // textTransform: 'uppercase',
     },
     cardRight: {
         flexDirection: "row",
@@ -533,28 +532,27 @@ const styles = StyleSheet.create({
         ...typography.h4(),
         fontWeight: "700",
         color: customColors.primaryDark,
-        marginRight: 4,
+        marginRight: spacing.xxs,
         minWidth: 20,
         textAlign: "center",
     },
     expandedContent: {
         backgroundColor: customColors.white + "F0",
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
+        borderBottomLeftRadius: borderRadius.lg,
+        borderBottomRightRadius: borderRadius.lg,
         ...shadows.small,
     },
     // Summary Card Styles
     summaryCard: {
         backgroundColor: customColors.white,
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        padding: 16,
+        borderBottomLeftRadius: borderRadius.lg,
+        borderBottomRightRadius: borderRadius.lg,
+        padding: spacing.md,
     },
     summaryHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "flex-start",
-        // marginBottom: 16,
     },
     summaryPersonInfo: {
         flex: 1,
@@ -566,32 +564,32 @@ const styles = StyleSheet.create({
     summaryStatusText: {
         ...typography.body2(),
         color: customColors.grey600,
-        marginLeft: 4,
+        marginLeft: spacing.xxs,
         fontWeight: "500",
     },
     summaryDistance: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: customColors.warning + "33",
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
+        backgroundColor: customColors.warningFaded,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.lg,
     },
     distanceText: {
         ...typography.body2(),
         fontWeight: "700",
         color: customColors.warning,
-        marginLeft: 2.5,
+        marginLeft: spacing.xxs,
     },
     summaryStats: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         backgroundColor: customColors.grey100,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        marginVertical: 12,
+        borderRadius: borderRadius.lg,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        marginVertical: spacing.sm,
     },
     summaryStatItem: {
         alignItems: "center",
@@ -614,17 +612,17 @@ const styles = StyleSheet.create({
         width: 1,
         height: 40,
         backgroundColor: customColors.grey300,
-        marginHorizontal: 8,
+        marginHorizontal: spacing.sm,
     },
     statusIndicator: {
         alignSelf: "flex-end",
         backgroundColor: customColors.white,
         borderWidth: 1,
-        borderColor: customColors.primaryLight + "33",
-        borderRadius: 20,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        elevation: 2,
+        borderColor: customColors.primaryFaded,
+        borderRadius: borderRadius.round,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        ...shadows.small,
     },
     statusContent: {
         flexDirection: "row",
@@ -632,9 +630,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     statusText: {
-        color: '#2196F3',
+        color: customColors.primary,
         ...typography.body2(),
-        fontWeight: '600',
-        marginHorizontal: 6,
+        fontWeight: "600",
+        marginHorizontal: spacing.xs,
     },
 })

@@ -1,5 +1,5 @@
-import { StyleSheet, View, TouchableOpacity } from "react-native";
-import React, { useState } from "react";
+import { StyleSheet, View, TouchableOpacity, LayoutAnimation } from "react-native";
+import React, { useState, useCallback } from "react";
 import { customColors, shadows, spacing } from "../Config/helper";
 
 const Accordion = ({
@@ -10,9 +10,10 @@ const Accordion = ({
 }) => {
     const [expanded, setExpanded] = useState(null);
 
-    const toggleAccordion = index => {
-        setExpanded(expanded === index ? null : index);
-    };
+    const toggleAccordion = useCallback((index) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpanded(prev => prev === index ? null : index);
+    }, []);
 
     return (
         <View style={[styles.container, customStyles.container]}>
@@ -26,9 +27,12 @@ const Accordion = ({
                     ]}>
                     <TouchableOpacity
                         onPress={() => toggleAccordion(index)}
-                        activeOpacity={0.8}
+                        activeOpacity={0.9}
                         style={styles.headerButton}>
-                        <View style={styles.headerWrapper}>
+                        <View style={[
+                            styles.headerWrapper,
+                            expanded === index && styles.headerExpanded,
+                        ]}>
                             {renderHeader(item, index)}
                         </View>
                     </TouchableOpacity>
@@ -52,17 +56,20 @@ export default Accordion;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        marginVertical: spacing.sm,
+        marginVertical: spacing.xs,
         marginHorizontal: spacing.sm,
     },
     itemContainer: {
-        marginBottom: spacing.xs,
+        marginBottom: spacing.sm,
         backgroundColor: customColors.white,
-        borderRadius: 8,
+        borderRadius: 12,
         overflow: "hidden",
+        borderWidth: 1,
+        borderColor: customColors.grey100,
     },
     expandedItem: {
         ...shadows.medium,
+        borderColor: customColors.primary + "30",
     },
     headerButton: {
         width: "100%",
@@ -70,19 +77,16 @@ const styles = StyleSheet.create({
     headerWrapper: {
         position: "relative",
         width: "100%",
+        borderRadius: 12,
+        overflow: "hidden",
     },
-    chevronContainer: {
-        position: "absolute",
-        right: spacing.sm,
-        top: "50%",
-        transform: [{ translateY: -9 }],
-        width: 18,
-        height: 18,
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 2,
+    headerExpanded: {
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
     },
     contentContainer: {
         backgroundColor: customColors.white,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey100,
     },
 });
