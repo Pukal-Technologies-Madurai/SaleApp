@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     previewOverlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         backgroundColor: customColors.black,
     },
     previewImage: {

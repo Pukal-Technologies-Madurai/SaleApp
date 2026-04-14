@@ -47,10 +47,20 @@ const DrawerScreen = ({ navigation }) => {
             ]);
             ToastAndroid.show("Log out Successfully", ToastAndroid.LONG);
 
-            navigation.reset({
-                index: 0,
-                routes: [{ name: "LoginPortal" }],
-            });
+            // navigation.reset({
+            //     index: 0,
+            //     routes: [
+            //         {
+            //             name: "AppStack",
+            //             state: {
+            //                 routes: [{ name: "LoginPortal" }],
+            //             },
+            //         },
+            //     ],
+            // });
+            setTimeout(() => {
+                navigation.navigate("AppStack", { screen: "LoginPortal" });
+            }, 100);
             navigation.closeDrawer();
         } catch (err) {
             console.error("Error clearing AsyncStorage: ", err);
@@ -63,7 +73,8 @@ const DrawerScreen = ({ navigation }) => {
             iconLibrary: "MaterialCommunityIcons",
             label: "My Profile",
             description: "View & edit profile",
-            onPress: () => navigation.navigate("ProfileScreen"),
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "ProfileScreen" }),
             gradient: ["#10B981", "#059669"],
         },
         {
@@ -71,7 +82,8 @@ const DrawerScreen = ({ navigation }) => {
             iconLibrary: "MaterialCommunityIcons",
             label: "Add Retailer",
             description: "Register new retailer",
-            onPress: () => navigation.navigate("AddCustomer"),
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "AddCustomer" }),
             gradient: ["#3B82F6", "#2563EB"],
         },
         {
@@ -79,7 +91,8 @@ const DrawerScreen = ({ navigation }) => {
             iconLibrary: "MaterialCommunityIcons",
             label: "Settings",
             description: "App preferences",
-            onPress: () => navigation.navigate("Settings"),
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "Settings" }),
             gradient: ["#F59E0B", "#D97706"],
         },
         {
@@ -87,7 +100,8 @@ const DrawerScreen = ({ navigation }) => {
             iconLibrary: "MaterialIcons",
             label: "Godown",
             description: "Manage stock`",
-            onPress: () => navigation.navigate("GodownActivities"),
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "GodownActivities" }),
             gradient: ["#8B5CF6", "#7C3AED"],
         },
         {
@@ -151,68 +165,73 @@ const DrawerScreen = ({ navigation }) => {
             </LinearGradient>
 
             <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-            {/* Menu Items */}
-            <ScrollView
-                style={styles.scrollContainer}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
-                <View style={styles.menuSection}>
-                    {menuItems.map((item, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            style={[
-                                styles.menuItem,
-                                activeItem === index && styles.menuItemActive,
-                            ]}
-                            onPress={() => {
-                                setActiveItem(index);
-                                item.onPress();
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <LinearGradient
-                                colors={item.gradient}
-                                style={styles.menuIconContainer}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                            >
-                                {renderIcon(item.iconLibrary, item.icon)}
-                            </LinearGradient>
-                            <View style={styles.menuTextContainer}>
-                                <Text style={styles.menuLabel}>
-                                    {item.label}
-                                </Text>
-                                <Text style={styles.menuDescription}>
-                                    {item.description}
-                                </Text>
-                            </View>
-                            <Icon
-                                name="chevron-right"
-                                size={22}
-                                color={activeItem === index ? customColors.primary : customColors.grey300}
-                            />
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </ScrollView>
-
-            {/* Footer with Logout */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={styles.logoutButton}
-                    onPress={logout}
-                    activeOpacity={0.8}
+                {/* Menu Items */}
+                <ScrollView
+                    style={styles.scrollContainer}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
                 >
-                    <Icon name="logout" size={20} color="#DC2626" />
-                    <Text style={styles.logoutText}>Sign Out</Text>
-                </TouchableOpacity>
+                    <View style={styles.menuSection}>
+                        {menuItems.map((item, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[
+                                    styles.menuItem,
+                                    activeItem === index &&
+                                        styles.menuItemActive,
+                                ]}
+                                onPress={() => {
+                                    setActiveItem(index);
+                                    item.onPress();
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <LinearGradient
+                                    colors={item.gradient}
+                                    style={styles.menuIconContainer}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    {renderIcon(item.iconLibrary, item.icon)}
+                                </LinearGradient>
+                                <View style={styles.menuTextContainer}>
+                                    <Text style={styles.menuLabel}>
+                                        {item.label}
+                                    </Text>
+                                    <Text style={styles.menuDescription}>
+                                        {item.description}
+                                    </Text>
+                                </View>
+                                <Icon
+                                    name="chevron-right"
+                                    size={22}
+                                    color={
+                                        activeItem === index
+                                            ? customColors.primary
+                                            : customColors.grey300
+                                    }
+                                />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </ScrollView>
 
-                <View style={styles.footerDivider} />
-                <Text style={styles.footerText}>
-                    Pukal Tech | All rights reserved
-                </Text>
-            </View>
+                {/* Footer with Logout */}
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={styles.logoutButton}
+                        onPress={logout}
+                        activeOpacity={0.8}
+                    >
+                        <Icon name="logout" size={20} color="#DC2626" />
+                        <Text style={styles.logoutText}>Sign Out</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.footerDivider} />
+                    <Text style={styles.footerText}>
+                        Pukal Tech | All rights reserved
+                    </Text>
+                </View>
             </SafeAreaView>
         </View>
     );
