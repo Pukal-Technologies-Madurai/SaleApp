@@ -256,6 +256,9 @@ const TripSheet = () => {
                             const isCompleted = tripDetail &&
                                 Number(tripDetail.Payment_Status) === 3 &&
                                 Number(tripDetail.Delivery_Status) === 7;
+                            
+                            const isPaymentPending = tripDetail && Number(tripDetail.Delivery_Status) === 7 && Number(tripDetail.Payment_Status) === 1;
+                            const isCancelled = tripDetail && Number(tripDetail.Cancel_status) === 0;
 
                             return (
                                 <View key={product.Do_Id} style={styles.orderCard}>
@@ -263,6 +266,8 @@ const TripSheet = () => {
                                         style={[
                                             styles.orderHeader,
                                             isCompleted && styles.orderHeaderCompleted,
+                                            isPaymentPending && { backgroundColor: customColors.warningFaded },
+                                            isCancelled && { backgroundColor: customColors.errorFaded },
                                         ]}
                                         onPress={() => toggleProductExpand(product.Do_Id)}
                                         activeOpacity={0.7}
@@ -531,6 +536,7 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     orderHeader: {
+        backgroundColor: customColors.white,
         flexDirection: "row",
         justifyContent: "space-between",
         padding: spacing.md,

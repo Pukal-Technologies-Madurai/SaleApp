@@ -91,7 +91,16 @@ const Attendance = locationData => {
         mutationFn: startDay,
         onSuccess: data => {
             ToastAndroid.show(data.message, ToastAndroid.LONG);
-            navigation.replace("HomeScreen");
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
         },
         onError: err => {
             Alert.alert("Error", err.message || "Failed to start day");

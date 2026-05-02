@@ -181,46 +181,59 @@ const HomeScreen = () => {
     const handleShareQR = async () => {
         try {
             const destPath = `${RNFS.CachesDirectoryPath}/qr_code.jpg`;
-            
-            // Get the asset source
+
+            // Resolve the bundled asset URI
             const asset = Image.resolveAssetSource(assetImages.gpayLogo);
             if (!asset?.uri) throw new Error("Could not resolve asset URI");
-            
+
             const srcUri = asset.uri;
 
-            // Always copy to cache for reliable sharing
             if (srcUri.startsWith("http")) {
-                // Dev mode: download from metro bundler
-                await RNFS.downloadFile({ 
-                    fromUrl: srcUri, 
-                    toFile: destPath 
+                // Dev / Metro bundler — download the file directly
+                const result = await RNFS.downloadFile({
+                    fromUrl: srcUri,
+                    toFile: destPath,
                 }).promise;
-            } else if (Platform.OS === "android") {
-                // Android production: copy from asset
-                const assetPath = srcUri.replace("asset:/", "");
-                await RNFS.copyFileAssets(assetPath, destPath);
-            } else {
-                // iOS: copy from bundle
-                const bundlePath = srcUri.replace("file://", "");
-                if (await RNFS.exists(bundlePath)) {
-                    await RNFS.copyFile(bundlePath, destPath);
-                } else {
-                    throw new Error("Source file not found");
+                if (result.statusCode !== 200) {
+                    throw new Error(`Download failed with status ${result.statusCode}`);
                 }
+            } else if (Platform.OS === "android") {
+                // Release build — asset lives inside the APK.
+                // Strip all variants of the asset:// prefix before calling copyFileAssets.
+                const assetRelativePath = srcUri
+                    .replace(/^asset:\/\/\//, "")
+                    .replace(/^asset:\/\//, "")
+                    .replace(/^asset:\//, "");
+                await RNFS.copyFileAssets(assetRelativePath, destPath);
+            } else {
+                // iOS — file is in the app bundle
+                const bundlePath = srcUri.replace(/^file:\/\//, "");
+                if (!(await RNFS.exists(bundlePath))) {
+                    throw new Error("Source bundle file not found");
+                }
+                await RNFS.copyFile(bundlePath, destPath);
             }
 
-            // Convert to base64 for reliable cross-platform sharing
-            const base64Data = await RNFS.readFile(destPath, "base64");
-            
+            // Share via a real file:// URI.
+            // base64 data URIs are rejected by most Android share targets
+            // (WhatsApp, Gmail, Drive, etc.) — a file path is required.
             await Share.open({
                 title: "Payment QR Code",
-                url: `data:image/jpeg;base64,${base64Data}`,
+                url: `file://${destPath}`,
                 type: "image/jpeg",
                 failOnCancel: false,
             });
         } catch (error) {
-            if (error.message !== "User did not share") {
-                console.error("Error sharing image:", error);
+            // react-native-share signals cancellation in multiple ways — ignore them all
+            const msg = error?.message ?? "";
+            const isCancelled =
+                msg === "User did not share" ||
+                msg === "CANCELLED" ||
+                msg.toLowerCase().includes("cancel") ||
+                error?.error === "User did not share";
+
+            if (!isCancelled) {
+                console.error("Error sharing QR image:", error);
                 Alert.alert("Error", "Failed to share QR code. Please try again.");
             }
         }

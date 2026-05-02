@@ -148,9 +148,28 @@ const StartScreen = () => {
     useEffect(() => {
         if (!loading) {
             if (loggedIn) {
-                navigation.replace("HomeScreen");
+                navigation.reset({
+                    index: 0,
+                    routes: [{
+                        name: "HomeScreen",
+                        state: {
+                            index: 0,
+                            routes: [{ name: "HomeScreen"}] 
+                        }
+                    }],
+                });
             } else {
-                navigation.replace("LoginPortal");
+                // navigation.replace("LoginPortal");
+                navigation.reset({
+                    index: 0,
+                    routes: [{
+                        name: "LoginPortal",
+                        state: {
+                            index: 0,
+                            routes: [{ name: "LoginPortal"}] 
+                        }
+                    }],
+                });
             }
         }
     }, [loggedIn, loading, navigation]);

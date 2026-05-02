@@ -136,29 +136,3 @@ export const fetchGoDownExpenseReport = async ({ from, to, productId, goDownId }
     if (!data.success) throw new Error(data.message);
     return data.data;
 };
-
-// Not Used API
-export const fetchGroupedProducts = async company => {
-    // console.log("fetchGroupedProducts", `${API.groupedProducts()}${company}`);
-    const res = await fetch(`${API.groupedProducts()}${company}`);
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
-export const fetchRetailerClosingStock = async Retailer_Id => {
-    const res = await fetch(`${API.productClosingStock()}${Retailer_Id}`);
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
-export const fetchProductPack = async company => {
-    const res = await fetch(`${API.productPacks()}${company}`);
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};

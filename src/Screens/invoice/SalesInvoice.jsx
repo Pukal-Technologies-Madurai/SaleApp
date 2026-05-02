@@ -18,7 +18,7 @@ import React, {
     useRef,
     useState,
 } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -68,7 +68,7 @@ const SalesInvoice = ({ route }) => {
         Created_by: "",
         So_Id: "",
         TaxType: 0,
-        VoucherType: 0, // 13,
+        VoucherType: 13,
         Product_Array: [],
     });
 
@@ -106,6 +106,7 @@ const SalesInvoice = ({ route }) => {
     const rotateAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
+    // Load user session data once on mount (company, user, branch - these don't change)
     useEffect(() => {
         (async () => {
             try {
@@ -113,19 +114,17 @@ const SalesInvoice = ({ route }) => {
                 const userId = await AsyncStorage.getItem("UserId");
                 const userName = await AsyncStorage.getItem("userName");
                 const branchId = await AsyncStorage.getItem("branchId");
-                const activeGodown = await AsyncStorage.getItem("activeGodown");
                 setUID(userId);
                 if (companyId && userId) {
                     let parsedBranchId = branchId;
 
                     // Handle different formats: "[2]", "2", 2
                     if (typeof branchId === "string") {
-                        // Remove brackets if present and parse to integer
                         parsedBranchId = parseInt(
                             branchId.replace(/[\[\]]/g, ""),
                         );
                     } else {
-                        parsedBranchId = parseInt(branchId) || 1; // Default to 1 if invalid
+                        parsedBranchId = parseInt(branchId) || 1;
                     }
 
                     setInitialValue(prev => ({
@@ -137,34 +136,57 @@ const SalesInvoice = ({ route }) => {
                         Branch_Id: parsedBranchId,
                     }));
                 }
-                // Parse activeGodown as integer, default to 0 if invalid
-                const parsedGodown = parseInt(activeGodown, 10);
-                setIsActiveGoDown(isNaN(parsedGodown) ? 0 : parsedGodown);
-
-                // Warn user if no godown is set
-                if (isNaN(parsedGodown) || parsedGodown === 0) {
-                    Alert.alert(
-                        "Godown Not Set",
-                        "Please set an active godown before creating invoices.",
-                        [
-                            {
-                                text: "Set Godown",
-                                onPress: () => navigation.navigate("MasterGodown"),
-                            },
-                            {
-                                text: "Go Back",
-                                onPress: () => navigation.goBack(),
-                                style: "cancel",
-                            },
-                        ],
-                        { cancelable: false }
-                    );
-                }
             } catch (err) {
-                console.log("Error fetching data:", err);
+                console.log("Error fetching user data:", err);
             }
         })();
     }, []);
+
+    // Re-check godown every time this screen comes into focus.
+    // This handles the case where the user goes to MasterGodown to set a godown
+    // and then comes back — the godown ID will be re-read from AsyncStorage.
+    useFocusEffect(
+        useCallback(() => {
+            let isActive = true;
+            (async () => {
+                try {
+                    const activeGodown = await AsyncStorage.getItem("activeGodown");
+                    const parsedGodown = parseInt(activeGodown, 10);
+                    const godownId = isNaN(parsedGodown) ? 0 : parsedGodown;
+
+                    if (!isActive) return;
+                    setIsActiveGoDown(godownId);
+
+                    if (godownId === 0) {
+                        Alert.alert(
+                            "Godown Not Set",
+                            "Please set an active godown before creating invoices.",
+                            [
+                                {
+                                    text: "Set Godown",
+                                    onPress: () =>
+                                        navigation.navigate("MasterGodown", {
+                                            fromSales: true,
+                                        }),
+                                },
+                                {
+                                    text: "Go Back",
+                                    onPress: () => navigation.goBack(),
+                                    style: "cancel",
+                                },
+                            ],
+                            { cancelable: false }
+                        );
+                    }
+                } catch (err) {
+                    console.log("Error reading activeGodown:", err);
+                }
+            })();
+            return () => {
+                isActive = false;
+            };
+        }, [navigation])
+    );
 
     // console.log("isActiveGoDown:", isActiveGoDown);
 

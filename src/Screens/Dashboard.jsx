@@ -149,11 +149,13 @@ const Dashboard = () => {
         },
 
         fetchInvoiceData: async (from, to, branchId) => {
-            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}`;
+            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}&VoucherType=0`;
             // console.log("Fetching invoice data with URL:", url);
             const response = await fetch(url);
             const data = await response.json();
-            return data.success ? data.data : [];
+            if (!data.success) return [];
+            const filteredData = data.data.filter(invoice => invoice.Voucher_Type === "0" || invoice.Voucher_Type === "13");
+            return filteredData;
         },
 
         fetchReceiptData: async (from, to, branchId) => {

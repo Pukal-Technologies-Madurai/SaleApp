@@ -162,7 +162,16 @@ const RetailerVisit = () => {
         mutationFn: visitEntry,
         onSuccess: () => {
             ToastAndroid.show("Entry done", ToastAndroid.LONG);
-            navigation.navigate("HomeScreen");
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
             setLocation({ latitude: null, longitude: null });
             setFormValues({
                 Retailer_Name: "",

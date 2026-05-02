@@ -296,7 +296,16 @@ const ClosingStock = ({ route }) => {
                         data.message || "Stock updated successfully",
                         ToastAndroid.LONG,
                     );
-                    navigation.navigate("HomeScreen");
+                    navigation.reset({
+                        index: 0,
+                        routes: [{
+                            name: "HomeScreen",
+                            state: {
+                                index: 0,
+                                routes: [{ name: "HomeScreen"}] 
+                            }
+                        }],
+                    });
                 } else {
                     ToastAndroid.show(
                         (data && data.message) ||

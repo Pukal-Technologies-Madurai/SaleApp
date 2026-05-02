@@ -110,7 +110,6 @@ export const API = {
         `${baseURL}api/masters/defaultAccountMaster?AC_Reason=MOBILE_CASH`,
     defaultCreditAccountMaster: () => `${baseURL}api/masters/accountMaster`,
     setRoutePath: () => `${baseURL}api/masters/setRoutes`,
-    receiptFilter: () => `${baseURL}api/receipt/filterValues`,
 
     google_map: "https://www.google.com/maps/search/?api=1&query=",
     whatsApp: "https://wa.me/+91",
@@ -132,36 +131,6 @@ export const API = {
     defaultDebitLiveSales: () =>
         `${baseURL}api/masters/defaultAccountMaster?AC_Reason=ONLINE_LIVE_SALES`,
 
-    // not used
-    salesReturnItems: () => `${baseURL}api/sales/salesReturn`,
-    soldItemsForRetailer: () =>
-        `${baseURL}api/reports/customerClosingStock/soldItems`,
-    retailerClosingDetailedInfo: () =>
-        `${baseURL}api/reports/customerClosingStock/retailerBased/detailedInfo?Retailer_Id=`,
-    itemAvailableInRetailer: () =>
-        `${baseURL}api/reports/customerClosingStock/itemSearch?Item_Id=`,
-    
-    accountsMaster: () => `${baseURL}api/masters/accounts`,
-    retailerBasedPendingSalesInvoiceReceipt: () =>
-        `${baseURL}api/receipt/receiptMaster/pendingSalesInvoiceReceipt/retailerBased?Retailer_id=`,
-    retailersClosingStockDropDown: () =>
-        `${baseURL}api/masters/retailers/whoHasClosingStock`,
-    deliveryReturn: () => `${baseURL}api/reports/returnReports?Fromdate=`,
-    groupedProducts: () => `${baseURL}api/masters/products/grouped?Company_Id=`,
-
-    getRetailersWhoHasBills: () =>
-        `${baseURL}api/receipt/getRetailersWhoHasBills`,
-    retailerPendingBills: () =>
-        `${baseURL}api/receipt/retailerBills?retailer_id=`,
-    paymentCollection: () => `${baseURL}api/receipt/collectionReceipts`,
-
     // Not Used API
     login: () => `${baseURL}api/authorization/login`,
-    company: () => `${baseURL}api/masters/company?Company_id=`,
-    closingStockReturn: () =>
-        `${baseURL}api/transaction/retailers/closingStock?Retailer_Id=`,
-    productGroups: () =>
-        `${baseURL}api/masters/products/productGroups?Company_Id=`,
-    areaRetailers: () =>
-        `${baseURL}api/masters/retailers/areaRetailers?Company_Id=`,
 };

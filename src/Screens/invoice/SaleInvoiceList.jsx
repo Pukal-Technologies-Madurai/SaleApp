@@ -15,7 +15,8 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
-import RNHTMLtoPDF from "react-native-html-to-pdf";
+import { generatePDF } from "react-native-html-to-pdf";
+import RNFS from "react-native-fs";
 import Share from "react-native-share";
 import Accordion from "../../Components/Accordion";
 import AppHeader from "../../Components/AppHeader";
@@ -131,10 +132,10 @@ const SaleInvoiceList = () => {
                 const isCreatedByAdmin = invoice.Created_BY_Name?.toLowerCase() === "admin";
                 const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
                 const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
-                
+
                 let displayName;
                 let key;
-                
+
                 // If both Sales_Person_Name and Delivery_Person_Name are "unknown", use Created_BY_Name
                 if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
                     displayName = `${invoice.Created_BY_Name} - Live`;
@@ -148,7 +149,7 @@ const SaleInvoiceList = () => {
                     displayName = `${invoice.Created_BY_Name} - Live`;
                     key = invoice.Created_by;
                 }
-                    
+
                 if (key && displayName) {
                     salesPersonMap.set(key, displayName);
                 }
@@ -179,8 +180,8 @@ const SaleInvoiceList = () => {
     const salesPersonFilteredData = useMemo(() => {
         // First, filter out admin credit bill invoices
         const filteredData = saleInvoiceData.filter(invoice => {
-            const isAdminCreditBill = 
-                invoice.Created_BY_Name?.toLowerCase() === "admin" && 
+            const isAdminCreditBill =
+                invoice.Created_BY_Name?.toLowerCase() === "admin" &&
                 invoice.VoucherTypeGet === "ONLINE_Credit Bill";
             return !isAdminCreditBill;
         });
@@ -191,7 +192,7 @@ const SaleInvoiceList = () => {
         return filteredData.filter(invoice => {
             const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
             const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
-            
+
             // If both are "unknown", match against Created_by
             if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
                 return invoice.Created_by === selectedSalesPerson?.value;
@@ -316,7 +317,7 @@ const SaleInvoiceList = () => {
         const cancelReturn = filteredInvoiceData.filter(
             item => item.Cancel_status === 0 || item.Cancel_status === "0"
         ).length;
-        
+
         // Payment mode counts from brand filtered data (before payment filter)
         const cashCount = filteredByBrand.filter(
             item => item.Payment_Mode === 1 && (item.Payment_Status === 2 || item.Payment_Status === 3)
@@ -431,12 +432,12 @@ const SaleInvoiceList = () => {
             const dt = iso =>
                 iso
                     ? new Date(iso).toLocaleString("en-IN", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                      })
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    })
                     : "—";
 
             const products = Array.isArray(item?.Products_List)
@@ -512,16 +513,15 @@ const SaleInvoiceList = () => {
                 <body>
                     <div class="center">
                         <div class="header-title">${summarizeBranch}</div>
-                        ${
-                            currentRetailerInfo?.Branch_Address_1 ||
-                            currentRetailerInfo?.Branch_Address_2 ||
-                            currentRetailerInfo?.City
-                                ? `
+                        ${currentRetailerInfo?.Branch_Address_1 ||
+                    currentRetailerInfo?.Branch_Address_2 ||
+                    currentRetailerInfo?.City
+                    ? `
                         <div class="tiny mt-1">
                             ${[currentRetailerInfo?.Branch_Address_1, currentRetailerInfo?.Branch_Address_2, currentRetailerInfo?.City, currentRetailerInfo?.Pincode].filter(Boolean).join(", ")}
                         </div>`
-                                : ""
-                        } 
+                    : ""
+                } 
                         ${currentRetailerInfo?.GST_No ? `<div class="tiny">GSTIN: <span class="bold">${currentRetailerInfo.GST_No}</span></div>` : ""}
                     </div>
 
@@ -565,31 +565,30 @@ const SaleInvoiceList = () => {
                         </thead>
                         <tbody>
                             ${products
-                                .map(
-                                    p => `
+                    .map(
+                        p => `
                             <tr>
                                 <td>${p?.Product_Name || ""}</td>
                                 <td class="qty">${safeNum(p?.Bill_Qty ?? p?.Total_Qty, 0)}</td>
                                 <td class="rate">${rupee(p?.Item_Rate ?? 0)}</td>
                                 <td class="amt">₹${rupee(p?.Amount ?? p?.Final_Amo ?? 0)}</td>
                             </tr>`,
-                                )
-                                .join("")}
+                    )
+                    .join("")}
 
                             <tr class="totals">
                                 <td colspan="3" class="bold" style="text-align: right">Subtotal</td>
                                 <td class="amt bold">₹${rupee(subtotal)}</td>
                             </tr>
 
-                            ${
-                                roundOff
-                                    ? `
+                            ${roundOff
+                    ? `
                             <tr>
                                 <td colspan="3" style="text-align: right">Round Off</td>
                                 <td class="amt">₹${rupee(roundOff)}</td>
                             </tr>`
-                                    : ""
-                            }
+                    : ""
+                }
 
                             <tr>
                                 <td colspan="3" class="net" style="text-align: right">Net Amount</td>
@@ -624,14 +623,16 @@ const SaleInvoiceList = () => {
             const options = {
                 html: htmlContent,
                 fileName: `invoice-${(item?.Retailer_Name || item?.Do_Inv_No || Date.now()).toString().replace(/[^\w-]+/g, "_")}`,
-                directory: "Documents",
+                // No 'directory' → file goes to cacheDir, which IS covered by
+                // react-native-share's FileProvider (cache-path "/").
+                // 'Documents' maps to getExternalFilesDir which is NOT in the FileProvider paths.
                 width: 226,
                 height: estimatedHeight,
                 padding: 0,
                 base64: false,
             };
 
-            const pdf = await RNHTMLtoPDF.convert(options);
+            const pdf = await generatePDF(options);
             return pdf.filePath;
         } catch (err) {
             console.error("Error generating PDF:", err);
@@ -642,33 +643,43 @@ const SaleInvoiceList = () => {
     const downloadItemPDF = async item => {
         try {
             const pdfPath = await generateItemPDF(item);
-            if (pdfPath) {
-                try {
-                    await Share.open({
-                        url: `file://${pdfPath}`,
-                        title: "Sale Invoice",
-                        message: "Here is your invoice in PDF format",
-                        showAppsToView: true,
-                        subject: "Sale Invoice Receipt",
-                        filename: `invoice-${item?.Do_Inv_No || item?.Do_Id || Date.now()}.pdf`,
-                    });
-                } catch (shareError) {
-                    if (
-                        shareError.message &&
-                        shareError.message.includes("User did not share")
-                    ) {
-                        return;
-                    }
-                    throw shareError;
+
+            if (!pdfPath) {
+                Alert.alert("Error", "Failed to generate PDF. Please try again.");
+                return;
+            }
+
+            const exists = await RNFS.exists(pdfPath);
+            // console.log("[PDF] File exists:", exists);
+
+            if (!exists) {
+                Alert.alert("Error", "PDF file not found. Please try again.");
+                return;
+            }
+
+            const fileUrl = `file://${pdfPath}`;
+
+            try {
+                await Share.open({
+                    url: fileUrl,
+                    type: "application/pdf",
+                    title: "Sale Invoice",
+                    message: "Here is your invoice in PDF format",
+                    showAppsToView: true,
+                    subject: "Sale Invoice Receipt",
+                    filename: `invoice-${item?.Do_Inv_No || item?.Do_Id || Date.now()}.pdf`,
+                });
+            } catch (shareError) {
+                if (
+                    shareError.message &&
+                    shareError.message.includes("User did not share")
+                ) {
+                    return;
                 }
-            } else {
-                Alert.alert(
-                    "Error",
-                    "Failed to generate PDF. Please try again.",
-                );
+                throw shareError;
             }
         } catch (error) {
-            console.error("Error:", error);
+            console.error("[PDF] Share error:", error);
             Alert.alert("Error", "Something went wrong. Please try again.");
         }
     };
@@ -768,11 +779,11 @@ const SaleInvoiceList = () => {
                     <Text style={styles.invoiceDate}>
                         {item.Do_Date
                             ? new Date(item.Do_Date).toLocaleDateString(
-                                  "en-GB",
-                              ) +
-                              (isCancelled
-                                  ? " - (Cancelled)"
-                                  : isDelivered
+                                "en-GB",
+                            ) +
+                            (isCancelled
+                                ? " - (Cancelled)"
+                                : isDelivered
                                     ? " - (Delivered)"
                                     : "")
                             : "N/A"}
@@ -949,7 +960,7 @@ const SaleInvoiceList = () => {
     }, [isAdmin, navigation, downloadItemPDF]);
 
     // Key extractor for FlatList
-    const keyExtractor = useCallback((item, index) => 
+    const keyExtractor = useCallback((item, index) =>
         item.Do_Id?.toString() || `invoice-${index}`, []);
 
     // Get item layout for better performance (estimated height)
@@ -1138,10 +1149,10 @@ const SaleInvoiceList = () => {
                                         styles.statLabel,
                                         paymentFilter !== 'all' && styles.activeFilterLabel,
                                     ]}>
-                                        {paymentFilter === 'all' ? 'Payment' 
-                                            : paymentFilter === 'cash' ? 'Cash' 
-                                            : paymentFilter === 'gpay' ? 'G-Pay' 
-                                            : 'Credit'}
+                                        {paymentFilter === 'all' ? 'Payment'
+                                            : paymentFilter === 'cash' ? 'Cash'
+                                                : paymentFilter === 'gpay' ? 'G-Pay'
+                                                    : 'Credit'}
                                     </Text>
                                     <Text
                                         style={[
@@ -1149,10 +1160,10 @@ const SaleInvoiceList = () => {
                                             { color: paymentFilter === 'credit' ? customColors.warning : customColors.success },
                                         ]}
                                     >
-                                        {paymentFilter === 'all' 
-                                            ? statusCounts.paymentCompleted 
-                                            : paymentFilter === 'cash' 
-                                                ? statusCounts.cashCount 
+                                        {paymentFilter === 'all'
+                                            ? statusCounts.paymentCompleted
+                                            : paymentFilter === 'cash'
+                                                ? statusCounts.cashCount
                                                 : paymentFilter === 'gpay'
                                                     ? statusCounts.gpayCount
                                                     : statusCounts.creditCount}

@@ -212,7 +212,13 @@ const AddCustomer = () => {
             );
             navigation.reset({
                 index: 0,
-                routes: [{ name: "HomeScreen" }],
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
             });
         },
         onError: error => {

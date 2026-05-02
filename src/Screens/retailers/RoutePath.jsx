@@ -136,7 +136,16 @@ const RoutePath = () => {
 
             if (data.success) {
                 Alert.alert("Success", "Route has been added successfully!");
-                navigation.navigate("HomeScreen");
+                navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
                 setSelectedRoute(null);
             } else {
                 throw new Error(data.message || "Failed to add route");

@@ -94,7 +94,17 @@ const EndDay = () => {
                 data.message || "Your attendance update successfully",
                 ToastAndroid.LONG,
             );
-            navigation.navigate("HomeScreen");
+            // navigation.navigate("HomeScreen");
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
         },
         onError: error => {
             console.error("Error posting data:", error);

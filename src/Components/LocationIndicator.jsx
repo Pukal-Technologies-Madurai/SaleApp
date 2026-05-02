@@ -225,14 +225,14 @@ const LocationIndicator = ({
                             <View style={styles.coordinateItem}>
                                 <Text style={styles.coordinateLabel}>Lat</Text>
                                 <Text style={styles.coordinateValue}>
-                                    {location.latitude.toFixed(6)}
+                                    {location.latitude.toFixed(4)}
                                 </Text>
                             </View>
                             <View style={styles.coordinateDivider} />
                             <View style={styles.coordinateItem}>
                                 <Text style={styles.coordinateLabel}>Long</Text>
                                 <Text style={styles.coordinateValue}>
-                                    {location.longitude.toFixed(6)}
+                                    {location.longitude.toFixed(4)}
                                 </Text>
                             </View>
                         </View>

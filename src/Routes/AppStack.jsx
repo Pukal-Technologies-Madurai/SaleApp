@@ -72,19 +72,6 @@ import StatisticsScreen from "../Screens/StatisticsScreen";
 import ProfileScreen from "../Screens/ProfileScreen";
 import Settings from "../Screens/Settings";
 
-// Not used screens
-import AdminItemSaleReturn from "../Screens/not-used/AdminItemSaleReturn";
-import BillAdminView from "../Screens/not-used/BillAdminView";
-import BillPayment from "../Screens/not-used/BillPayment";
-import BillSummary from "../Screens/not-used/BillSummary";
-import PendingInvoice from "../Screens/not-used/PendingInvoice";
-import PendingSaleAdmin from "../Screens/not-used/PendingSaleAdmin";
-import RetailerStock from "../Screens/not-used/RetailerStock";
-import SalesAdminDetail from "../Screens/not-used/SalesAdminDetail";
-import SalesReturnList from "../Screens/not-used/SalesReturnList";
-import StockClosing from "../Screens/not-used/StockClosing";
-import VisitLogSummary from "../Screens/not-used/VisitLogSummary";
-
 const Stack = createStackNavigator();
 
 const AppStack = () => {
@@ -166,18 +153,6 @@ const AppStack = () => {
             <Stack.Screen name="LiveStock" component={LiveStock} />
             <Stack.Screen name="StockInHand" component={StockInHand} />
 
-            {/* No Need this  */}
-            <Stack.Screen name="AdminItemSaleReturn" component={AdminItemSaleReturn} />
-            <Stack.Screen name="BillAdminView" component={BillAdminView} />
-            <Stack.Screen name="BillPayment" component={BillPayment} />
-            <Stack.Screen name="BillSummary" component={BillSummary} />
-            <Stack.Screen name="PendingInvoice" component={PendingInvoice} />
-            <Stack.Screen name="PendingSaleAdmin" component={PendingSaleAdmin} />
-            <Stack.Screen name="RetailerStock" component={RetailerStock} />
-            <Stack.Screen name="SalesAdminDetail" component={SalesAdminDetail} />
-            <Stack.Screen name="SalesReturnList" component={SalesReturnList} />
-            <Stack.Screen name="StockClosing" component={StockClosing} />
-            <Stack.Screen name="VisitLogSummary" component={VisitLogSummary} />
         </Stack.Navigator>
     );
 };

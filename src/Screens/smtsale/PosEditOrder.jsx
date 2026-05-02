@@ -19,7 +19,11 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
 import { fetchRetailersName } from "../../Api/retailers";
 import { customColors, typography } from "../../Config/helper";
-import { fetchCostCenter, fetchPosAllProducts, fetchPosOrderBranch } from "../../Api/product";
+import {
+    fetchCostCenter,
+    fetchPosAllProducts,
+    fetchPosOrderBranch,
+} from "../../Api/product";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 
@@ -27,21 +31,24 @@ const PosEditOrder = ({ route }) => {
     const navigation = useNavigation();
     const { item } = route.params;
 
-    const initialStockValue = useMemo(() => ({
-        So_Id: item.So_Id,
-        Company_Id: item.Company_Id,
-        ST_Date: new Date().toISOString().split("T")[0],
-        Branch_Id: item.Branch_Id,
-        Cancel_status: 1,
-        Retailer_Id: item.Retailer_Id,
-        Retailer_Name: item.Retailer_Name,
-        Narration: item.Narration,
-        Created_by: item.Created_by,
-        VoucherType: item.VoucherType,
-        Product_Array: item.Products_List,
-        Sales_Person_Id: item.Sales_Person_Id,
-        Staff_Involved_List: item.Staff_Involved_List || [],
-    }), [item]);
+    const initialStockValue = useMemo(
+        () => ({
+            So_Id: item.So_Id,
+            Company_Id: item.Company_Id,
+            ST_Date: new Date().toISOString().split("T")[0],
+            Branch_Id: item.Branch_Id,
+            Cancel_status: 1,
+            Retailer_Id: item.Retailer_Id,
+            Retailer_Name: item.Retailer_Name,
+            Narration: item.Narration,
+            Created_by: item.Created_by,
+            VoucherType: item.VoucherType,
+            Product_Array: item.Products_List,
+            Sales_Person_Id: item.Sales_Person_Id,
+            Staff_Involved_List: item.Staff_Involved_List || [],
+        }),
+        [item],
+    );
 
     const [uID, setUID] = useState();
     const [isInitialized, setIsInitialized] = useState(false);
@@ -75,7 +82,7 @@ const PosEditOrder = ({ route }) => {
         },
     });
 
-    const extractPackWeight = useCallback((productName) => {
+    const extractPackWeight = useCallback(productName => {
         if (!productName) return 0;
 
         // Extract number before "KG" (case insensitive)
@@ -83,43 +90,46 @@ const PosEditOrder = ({ route }) => {
         return match ? parseFloat(match[1]) : 0;
     }, []);
 
-    const normalizeSearchText = useCallback((str) => {
+    const normalizeSearchText = useCallback(str => {
         return String(str)
             .toLowerCase()
-            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Keep Tamil characters, alphanumeric, and spaces
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .replace(/[^\u0B80-\u0BFF\w\s]/g, "") // Keep Tamil characters, alphanumeric, and spaces
+            .replace(/\s+/g, " ") // Replace multiple spaces with single space
             .trim();
     }, []);
 
-    const calculateTotal = useCallback(products => {
-        const newTotal = products.reduce((sum, product) => {
-            const bags = parseFloat(product.Bill_Qty) || 0;
-            const rate = parseFloat(product.Item_Rate) || 0;
+    const calculateTotal = useCallback(
+        products => {
+            const newTotal = products.reduce((sum, product) => {
+                const bags = parseFloat(product.Bill_Qty) || 0;
+                const rate = parseFloat(product.Item_Rate) || 0;
 
-            // First try to get PackGet from product data, then fallback to product name
-            let packWeight = product.Pack_Weight || 0;
+                // First try to get PackGet from product data, then fallback to product name
+                let packWeight = product.Pack_Weight || 0;
 
-            if (packWeight === 0) {
-                // Get the product data to access PackGet
-                const masterProduct = productQueryData.productData.find(
-                    p => p.Product_Id.toString() === product.Item_Id
-                );
+                if (packWeight === 0) {
+                    // Get the product data to access PackGet
+                    const masterProduct = productQueryData.productData.find(
+                        p => p.Product_Id.toString() === product.Item_Id,
+                    );
 
-                if (masterProduct?.PackGet) {
-                    packWeight = parseFloat(masterProduct.PackGet);
-                } else {
-                    packWeight = extractPackWeight(product.Product_Name);
+                    if (masterProduct?.PackGet) {
+                        packWeight = parseFloat(masterProduct.PackGet);
+                    } else {
+                        packWeight = extractPackWeight(product.Product_Name);
+                    }
                 }
-            }
 
-            const totalWeight = bags * packWeight;
-            const amount = totalWeight * rate;
+                const totalWeight = bags * packWeight;
+                const amount = totalWeight * rate;
 
-            // console.log(`Calculate: ${product.Product_Name} - ${bags} bags × ${packWeight} kg × ₹${rate} = ₹${amount}`);
-            return sum + amount;
-        }, 0);
-        setTotal(isNaN(newTotal) ? 0 : newTotal);
-    }, [productQueryData.productData, extractPackWeight]);
+                // console.log(`Calculate: ${product.Product_Name} - ${bags} bags × ${packWeight} kg × ₹${rate} = ₹${amount}`);
+                return sum + amount;
+            }, 0);
+            setTotal(isNaN(newTotal) ? 0 : newTotal);
+        },
+        [productQueryData.productData, extractPackWeight],
+    );
 
     useEffect(() => {
         const initialize = async () => {
@@ -127,40 +137,50 @@ const PosEditOrder = ({ route }) => {
                 const userId = await AsyncStorage.getItem("Company_Id");
                 setUID(userId);
 
-                if (!isInitialized &&
+                if (
+                    !isInitialized &&
                     item.Products_List &&
                     item.Products_List.length > 0 &&
                     productQueryData?.productData &&
-                    productQueryData.productData.length > 0) {
+                    productQueryData.productData.length > 0
+                ) {
+                    const initialEditableProducts = item.Products_List.map(
+                        product => {
+                            const masterProduct =
+                                productQueryData.productData.find(
+                                    p =>
+                                        p.Product_Id.toString() ===
+                                        product.Item_Id.toString(),
+                                );
 
-                    const initialEditableProducts = item.Products_List.map(product => {
-                        const masterProduct = productQueryData.productData.find(
-                            p => p.Product_Id.toString() === product.Item_Id.toString()
-                        );
+                            let packWeight = 0;
+                            if (masterProduct?.PackGet) {
+                                packWeight = parseFloat(masterProduct.PackGet);
+                            } else {
+                                const match =
+                                    product.Product_Name?.match(
+                                        /(\d+(?:\.\d+)?)\s*KG/i,
+                                    );
+                                packWeight = match ? parseFloat(match[1]) : 1;
+                            }
 
-                        let packWeight = 0;
-                        if (masterProduct?.PackGet) {
-                            packWeight = parseFloat(masterProduct.PackGet);
-                        } else {
-                            const match = product.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i);
-                            packWeight = match ? parseFloat(match[1]) : 1;
-                        }
+                            const totalKg = parseFloat(product.Bill_Qty) || 0;
+                            const bags =
+                                packWeight > 0 ? totalKg / packWeight : totalKg;
 
-                        const totalKg = parseFloat(product.Bill_Qty) || 0;
-                        const bags = packWeight > 0 ? (totalKg / packWeight) : totalKg;
-
-                        return {
-                            Item_Id: product.Item_Id.toString(),
-                            Product_Name: product.Product_Name,
-                            Product_Short_Name: product.Product_Short_Name,
-                            Bill_Qty: bags.toString(),
-                            Item_Rate: product.Item_Rate.toString(),
-                            Amount: product.Amount,
-                            isExisting: true,
-                            Original_Bill_Qty: totalKg,
-                            Pack_Weight: packWeight,
-                        };
-                    });
+                            return {
+                                Item_Id: product.Item_Id.toString(),
+                                Product_Name: product.Product_Name,
+                                Product_Short_Name: product.Product_Short_Name,
+                                Bill_Qty: bags.toString(),
+                                Item_Rate: product.Item_Rate.toString(),
+                                Amount: product.Amount,
+                                isExisting: true,
+                                Original_Bill_Qty: totalKg,
+                                Pack_Weight: packWeight,
+                            };
+                        },
+                    );
 
                     setEditableProducts(initialEditableProducts);
                     calculateTotal(initialEditableProducts);
@@ -172,17 +192,26 @@ const PosEditOrder = ({ route }) => {
         };
 
         initialize();
-    }, [item.Products_List, productQueryData?.productData, isInitialized, calculateTotal]);
+    }, [
+        item.Products_List,
+        productQueryData?.productData,
+        isInitialized,
+        calculateTotal,
+    ]);
 
     useEffect(() => {
         // Initialize broker and transport from Staff_Involved_List
         if (item?.Staff_Involved_List && item.Staff_Involved_List.length > 0) {
             const brokerFromList = item.Staff_Involved_List.find(
-                staff => staff.EmpType === "Broker" || staff.Cost_Center_Type_Id === 3
+                staff =>
+                    staff.EmpType === "Broker" ||
+                    staff.Cost_Center_Type_Id === 3,
             );
 
             const transportFromList = item.Staff_Involved_List.find(
-                staff => staff.EmpType === "Transport" || staff.Cost_Center_Type_Id === 2
+                staff =>
+                    staff.EmpType === "Transport" ||
+                    staff.Cost_Center_Type_Id === 2,
             );
 
             if (brokerFromList) {
@@ -190,7 +219,9 @@ const PosEditOrder = ({ route }) => {
             }
 
             if (transportFromList) {
-                setSelectedTransportId(String(transportFromList.Involved_Emp_Id));
+                setSelectedTransportId(
+                    String(transportFromList.Involved_Emp_Id),
+                );
             }
         }
     }, [item?.Staff_Involved_List]);
@@ -221,8 +252,12 @@ const PosEditOrder = ({ route }) => {
         const Broker_User_Type = 3;
         const Transport_User_Type = 2;
 
-        const broker = rawCostCenters.filter(item => item.User_Type === Broker_User_Type);
-        const transport = rawCostCenters.filter(item => item.User_Type === Transport_User_Type);
+        const broker = rawCostCenters.filter(
+            item => item.User_Type === Broker_User_Type,
+        );
+        const transport = rawCostCenters.filter(
+            item => item.User_Type === Transport_User_Type,
+        );
 
         return { brokersData: broker, transportData: transport };
     }, [rawCostCenters]);
@@ -230,7 +265,9 @@ const PosEditOrder = ({ route }) => {
     // Calculate active products count
     const activeProductsCount = useMemo(() => {
         if (!productQueryData?.productData) return 0;
-        return productQueryData.productData.filter(product => product.IsActive === 1).length;
+        return productQueryData.productData.filter(
+            product => product.IsActive === 1,
+        ).length;
     }, [productQueryData?.productData]);
 
     // Update the handleProductUpdate function to include PackGet calculation
@@ -243,7 +280,7 @@ const PosEditOrder = ({ route }) => {
 
         if (packWeight === 0) {
             const masterProduct = productQueryData.productData.find(
-                p => p.Product_Id.toString() === currentProduct.Item_Id
+                p => p.Product_Id.toString() === currentProduct.Item_Id,
             );
 
             if (masterProduct?.PackGet) {
@@ -280,8 +317,9 @@ const PosEditOrder = ({ route }) => {
         const staffInvolvedList = [];
 
         if (selectedBrokerId && brokersData.length > 0) {
-            const selectedBroker = brokersData.find(broker =>
-                String(broker.Cost_Center_Id) === String(selectedBrokerId)
+            const selectedBroker = brokersData.find(
+                broker =>
+                    String(broker.Cost_Center_Id) === String(selectedBrokerId),
             );
 
             if (selectedBroker) {
@@ -291,14 +329,16 @@ const PosEditOrder = ({ route }) => {
                     Involved_Emp_Id: parseInt(selectedBroker.Cost_Center_Id),
                     EmpName: selectedBroker.Cost_Center_Name || "",
                     Cost_Center_Type_Id: selectedBroker.User_Type || 3,
-                    EmpType: selectedBroker.UserTypeGet || "Broker"
+                    EmpType: selectedBroker.UserTypeGet || "Broker",
                 });
             }
         }
 
         if (selectedTransportId && transportData.length > 0) {
-            const selectedTransport = transportData.find(transport =>
-                String(transport.Cost_Center_Id) === String(selectedTransportId)
+            const selectedTransport = transportData.find(
+                transport =>
+                    String(transport.Cost_Center_Id) ===
+                    String(selectedTransportId),
             );
 
             if (selectedTransport) {
@@ -308,7 +348,7 @@ const PosEditOrder = ({ route }) => {
                     Involved_Emp_Id: parseInt(selectedTransport.Cost_Center_Id),
                     EmpName: selectedTransport.Cost_Center_Name || "",
                     Cost_Center_Type_Id: selectedTransport.User_Type || 2,
-                    EmpType: selectedTransport.UserTypeGet || "Transport"
+                    EmpType: selectedTransport.UserTypeGet || "Transport",
                 });
             }
         }
@@ -321,23 +361,29 @@ const PosEditOrder = ({ route }) => {
             if (newListString !== currentListString) {
                 return {
                     ...prev,
-                    Staff_Involved_List: staffInvolvedList
+                    Staff_Involved_List: staffInvolvedList,
                 };
             }
             return prev;
         });
-    }, [selectedBrokerId, selectedTransportId, brokersData, transportData, item.So_Id]);
+    }, [
+        selectedBrokerId,
+        selectedTransportId,
+        brokersData,
+        transportData,
+        item.So_Id,
+    ]);
 
     const transformedBranchData = useMemo(() => {
         return branchDropdownData.map(brand => ({
             label: brand.POS_Brand_Name,
             value: String(brand.POS_Brand_Id), // Convert to string for consistency
-            ...brand // Keep original data
+            ...brand, // Keep original data
         }));
     }, [branchDropdownData]);
 
     // Handle brand selection for SM TRADERS (POS_Brand_Id)
-    const handleBrandSelection = useCallback((selectedItem) => {
+    const handleBrandSelection = useCallback(selectedItem => {
         setSelectedBrand(String(selectedItem.value));
         setNewProductQuantities([]);
         setSearchQuery(""); // Clear search when brand changes
@@ -361,11 +407,17 @@ const PosEditOrder = ({ route }) => {
             if (searchQuery.trim()) {
                 const normalizedSearchTerm = normalizeSearchText(searchQuery);
                 filteredData = filteredData.filter(product => {
-                    const normalizedProductName = normalizeSearchText(product.Product_Name || "");
-                    const normalizedShortName = normalizeSearchText(product.Short_Name || "");
+                    const normalizedProductName = normalizeSearchText(
+                        product.Product_Name || "",
+                    );
+                    const normalizedShortName = normalizeSearchText(
+                        product.Short_Name || "",
+                    );
 
-                    return normalizedProductName.includes(normalizedSearchTerm) ||
-                        normalizedShortName.includes(normalizedSearchTerm);
+                    return (
+                        normalizedProductName.includes(normalizedSearchTerm) ||
+                        normalizedShortName.includes(normalizedSearchTerm)
+                    );
                 });
             }
 
@@ -436,7 +488,7 @@ const PosEditOrder = ({ route }) => {
 
         // Get the product data to access PackGet
         const productData = productQueryData.productData.find(
-            p => p.Product_Id.toString() === productId
+            p => p.Product_Id.toString() === productId,
         );
 
         // First try to get PackGet from product data, then fallback to product name
@@ -450,8 +502,12 @@ const PosEditOrder = ({ route }) => {
 
             // Calculate amount when bags or rate changes
             if (field === "Bill_Qty" || field === "Item_Rate") {
-                const bags = parseFloat(updatedQuantities[productIndex].Bill_Qty) || 0;
-                const rate = parseFloat(updatedQuantities[productIndex].Item_Rate) || parseFloat(productData?.Item_Rate) || 0;
+                const bags =
+                    parseFloat(updatedQuantities[productIndex].Bill_Qty) || 0;
+                const rate =
+                    parseFloat(updatedQuantities[productIndex].Item_Rate) ||
+                    parseFloat(productData?.Item_Rate) ||
+                    0;
                 const totalWeight = bags * packWeight;
                 updatedQuantities[productIndex].Amount = totalWeight * rate;
                 updatedQuantities[productIndex].Total_Weight = totalWeight;
@@ -461,7 +517,10 @@ const PosEditOrder = ({ route }) => {
             const newQuantity = {
                 Item_Id: productId,
                 Bill_Qty: field === "Bill_Qty" ? value : "0",
-                Item_Rate: field === "Item_Rate" ? value : (productData?.Item_Rate?.toString() || "0"),
+                Item_Rate:
+                    field === "Item_Rate"
+                        ? value
+                        : productData?.Item_Rate?.toString() || "0",
                 Pack_Weight: packWeight,
             };
 
@@ -531,7 +590,7 @@ const PosEditOrder = ({ route }) => {
             .map(p => {
                 // Get the product data to access PackGet
                 const productData = productQueryData.productData.find(
-                    prod => prod.Product_Id.toString() === p.Item_Id
+                    prod => prod.Product_Id.toString() === p.Item_Id,
                 );
                 const packWeight = parseFloat(productData?.PackGet || 0);
                 const bags = parseFloat(p.Bill_Qty) || 0;
@@ -570,7 +629,18 @@ const PosEditOrder = ({ route }) => {
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
                 setModalVisible(false);
-                navigation.navigate("HomeScreen");
+                navigation.reset({
+                    index: 0,
+                    routes: [
+                        {
+                            name: "HomeScreen",
+                            state: {
+                                index: 0,
+                                routes: [{ name: "HomeScreen" }],
+                            },
+                        },
+                    ],
+                });
             } else {
                 Alert.alert("Error", data.message);
             }
@@ -589,7 +659,7 @@ const PosEditOrder = ({ route }) => {
 
         if (packWeight === 0) {
             const masterProduct = productQueryData.productData.find(
-                p => p.Product_Id.toString() === product.Item_Id
+                p => p.Product_Id.toString() === product.Item_Id,
             );
 
             if (masterProduct?.PackGet) {
@@ -608,7 +678,9 @@ const PosEditOrder = ({ route }) => {
             <View key={index} style={styles.productRow}>
                 <View style={styles.productInfo}>
                     <Text style={styles.productName} numberOfLines={2}>
-                        {product.Short_Name || product.Product_Description || product.Product_Name}
+                        {product.Short_Name ||
+                            product.Product_Description ||
+                            product.Product_Name}
                     </Text>
 
                     <View style={styles.productMetaRow}>
@@ -625,10 +697,12 @@ const PosEditOrder = ({ route }) => {
                     {bags > 0 && (
                         <View style={styles.calculationInfo}>
                             <Text style={styles.calculationText}>
-                                {bags} bags × {packWeight} kg = {totalWeight.toFixed(2)} kg
+                                {bags} bags × {packWeight} kg ={" "}
+                                {totalWeight.toFixed(2)} kg
                             </Text>
                             <Text style={styles.calculationText}>
-                                {totalWeight.toFixed(2)} kg × ₹{rate} = ₹{totalAmount.toFixed(2)}
+                                {totalWeight.toFixed(2)} kg × ₹{rate} = ₹
+                                {totalAmount.toFixed(2)}
                             </Text>
                         </View>
                     )}
@@ -675,7 +749,8 @@ const PosEditOrder = ({ route }) => {
 
                     <TouchableOpacity
                         style={styles.removeButton}
-                        onPress={() => handleRemoveProduct(index)}>
+                        onPress={() => handleRemoveProduct(index)}
+                    >
                         <Icon
                             name="delete"
                             size={20}
@@ -716,12 +791,19 @@ const PosEditOrder = ({ route }) => {
                         style={[styles.addButton, showFilter && { opacity: 1 }]}
                         onPress={() => setShowFilter(!showFilter)}
                     >
-                        <Icon name="filter-list" size={20} color={customColors.white} />
+                        <Icon
+                            name="filter-list"
+                            size={20}
+                            color={customColors.white}
+                        />
                         <Text style={styles.addButtonText}>Filters</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.addButton, showAddProducts && { opacity: 0.6 }]}
+                        style={[
+                            styles.addButton,
+                            showAddProducts && { opacity: 0.6 },
+                        ]}
                         onPress={() => setShowAddProducts(!showAddProducts)}
                         disabled={showAddProducts}
                     >
@@ -740,7 +822,11 @@ const PosEditOrder = ({ route }) => {
                                     valueField="Cost_Center_Id"
                                     placeholder="Select Broker"
                                     value={selectedBrokerId}
-                                    onChange={item => setSelectedBrokerId(item?.Cost_Center_Id)}
+                                    onChange={item =>
+                                        setSelectedBrokerId(
+                                            item?.Cost_Center_Id,
+                                        )
+                                    }
                                     searchPlaceholder="Search brokers..."
                                 />
                             </View>
@@ -751,7 +837,11 @@ const PosEditOrder = ({ route }) => {
                                     valueField="Cost_Center_Id"
                                     placeholder="Select Transport"
                                     value={selectedTransportId}
-                                    onChange={item => setSelectedTransportId(item?.Cost_Center_Id)}
+                                    onChange={item =>
+                                        setSelectedTransportId(
+                                            item?.Cost_Center_Id,
+                                        )
+                                    }
                                     searchPlaceholder="Search transport..."
                                 />
                             </View>
@@ -761,18 +851,23 @@ const PosEditOrder = ({ route }) => {
 
                 <ScrollView style={styles.productsContainer}>
                     {/* Existing Products */}
-                    {!showAddProducts && (<>
-                        <Text style={styles.sectionTitle}>Order Items ({editableProducts.length})</Text>
-                        {editableProducts.length === 0 ? (
-                            <View style={styles.emptyStateContainer}>
-                                <Text style={styles.emptyStateText}>
-                                    Loading order items...
-                                </Text>
-                            </View>
-                        ) : (
-                            editableProducts.map((product, index) => renderProductRow(product, index))
-                        )}
-                    </>
+                    {!showAddProducts && (
+                        <>
+                            <Text style={styles.sectionTitle}>
+                                Order Items ({editableProducts.length})
+                            </Text>
+                            {editableProducts.length === 0 ? (
+                                <View style={styles.emptyStateContainer}>
+                                    <Text style={styles.emptyStateText}>
+                                        Loading order items...
+                                    </Text>
+                                </View>
+                            ) : (
+                                editableProducts.map((product, index) =>
+                                    renderProductRow(product, index),
+                                )
+                            )}
+                        </>
                     )}
 
                     {/* Add New Products Section - SM TRADERS Specific */}
@@ -784,7 +879,8 @@ const PosEditOrder = ({ route }) => {
                                 </Text>
                                 <TouchableOpacity
                                     style={styles.closeAddButton}
-                                    onPress={handleCloseAddProducts}>
+                                    onPress={handleCloseAddProducts}
+                                >
                                     <Icon
                                         name="close"
                                         size={20}
@@ -795,7 +891,6 @@ const PosEditOrder = ({ route }) => {
 
                             {/* SM TRADERS: Search first, then optional brand filter */}
                             <View style={styles.smTradersContainer}>
-
                                 {/* Product Search Input - Show first */}
                                 <View style={styles.searchContainer}>
                                     <View style={styles.searchInputContainer}>
@@ -810,11 +905,15 @@ const PosEditOrder = ({ route }) => {
                                             placeholder="Search products by name..."
                                             value={searchQuery}
                                             onChangeText={setSearchQuery}
-                                            placeholderTextColor={customColors.grey500}
+                                            placeholderTextColor={
+                                                customColors.grey500
+                                            }
                                         />
                                         {searchQuery.length > 0 && (
                                             <TouchableOpacity
-                                                onPress={() => setSearchQuery("")}
+                                                onPress={() =>
+                                                    setSearchQuery("")
+                                                }
                                                 style={styles.clearSearchButton}
                                             >
                                                 <Icon
@@ -827,14 +926,17 @@ const PosEditOrder = ({ route }) => {
                                     </View>
                                     {searchQuery.trim() && (
                                         <Text style={styles.searchResultText}>
-                                            {filteredProducts.length} product(s) found
+                                            {filteredProducts.length} product(s)
+                                            found
                                         </Text>
                                     )}
                                 </View>
 
                                 {/* Optional Brand Filter */}
                                 <View style={styles.smTradersBrandContainer}>
-                                    <Text style={styles.filterLabel}>Filter by Brand (Optional)</Text>
+                                    <Text style={styles.filterLabel}>
+                                        Filter by Brand (Optional)
+                                    </Text>
                                     <EnhancedDropdown
                                         data={transformedBranchData}
                                         labelField="label"
@@ -850,65 +952,143 @@ const PosEditOrder = ({ route }) => {
                                 {(searchQuery.trim() || selectedBrand) && (
                                     <View style={styles.brandInfoContainer}>
                                         <Text style={styles.productCountText}>
-                                            {filteredProducts.length} products available
-                                            {selectedBrand && ` in selected brand`}
-                                            {searchQuery.trim() && ` matching "${searchQuery}"`}
+                                            {filteredProducts.length} products
+                                            available
+                                            {selectedBrand &&
+                                                ` in selected brand`}
+                                            {searchQuery.trim() &&
+                                                ` matching "${searchQuery}"`}
                                         </Text>
                                     </View>
                                 )}
                             </View>
 
                             {/* Products List - Show when there's search query or brand selected */}
-                            {(searchQuery.trim() || selectedBrand) && filteredProducts.length > 0 && (
-                                <View style={styles.productsListContainer}>
-                                    <View style={styles.addProductsActions}>
-                                        <TouchableOpacity
-                                            style={styles.cancelAddButton}
-                                            onPress={handleCloseAddProducts}>
-                                            <Text style={styles.cancelAddButtonText}>
-                                                Cancel
-                                            </Text>
-                                        </TouchableOpacity>
+                            {(searchQuery.trim() || selectedBrand) &&
+                                filteredProducts.length > 0 && (
+                                    <View style={styles.productsListContainer}>
+                                        <View style={styles.addProductsActions}>
+                                            <TouchableOpacity
+                                                style={styles.cancelAddButton}
+                                                onPress={handleCloseAddProducts}
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.cancelAddButtonText
+                                                    }
+                                                >
+                                                    Cancel
+                                                </Text>
+                                            </TouchableOpacity>
 
-                                        <TouchableOpacity
-                                            style={styles.confirmAddButton}
-                                            onPress={handleAddNewProducts}>
-                                            <Text style={styles.confirmAddButtonText}>
-                                                Add Selected
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
+                                            <TouchableOpacity
+                                                style={styles.confirmAddButton}
+                                                onPress={handleAddNewProducts}
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.confirmAddButtonText
+                                                    }
+                                                >
+                                                    Add Selected
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
 
-                                    {filteredProducts.map((product, index) => {
-                                        const existingQuantity = newProductQuantities.find(
-                                            q => q.Item_Id === product.Product_Id.toString(),
-                                        );
+                                        {filteredProducts.map(
+                                            (product, index) => {
+                                                const existingQuantity =
+                                                    newProductQuantities.find(
+                                                        q =>
+                                                            q.Item_Id ===
+                                                            product.Product_Id.toString(),
+                                                    );
 
-                                        // First try to get PackGet from product data, then fallback to product name
-                                        let packWeight = parseFloat(product.PackGet || 0);
-                                        if (packWeight === 0) {
-                                            packWeight = extractPackWeight(product.Product_Name);
-                                        }
+                                                // First try to get PackGet from product data, then fallback to product name
+                                                let packWeight = parseFloat(
+                                                    product.PackGet || 0,
+                                                );
+                                                if (packWeight === 0) {
+                                                    packWeight =
+                                                        extractPackWeight(
+                                                            product.Product_Name,
+                                                        );
+                                                }
 
-                                        const bags = parseFloat(existingQuantity?.Bill_Qty || 0);
-                                        const rate = parseFloat(existingQuantity?.Item_Rate || product.Item_Rate || 0);
-                                        const totalWeight = bags * packWeight;
-                                        const totalAmount = totalWeight * rate;
+                                                const bags = parseFloat(
+                                                    existingQuantity?.Bill_Qty ||
+                                                        0,
+                                                );
+                                                const rate = parseFloat(
+                                                    existingQuantity?.Item_Rate ||
+                                                        product.Item_Rate ||
+                                                        0,
+                                                );
+                                                const totalWeight =
+                                                    bags * packWeight;
+                                                const totalAmount =
+                                                    totalWeight * rate;
 
-                                        return (
-                                            <View key={index} style={styles.productRow}>
-                                                <View style={styles.productInfo}>
-                                                    <Text style={styles.productName} numberOfLines={2}>
-                                                        {product.Short_Name || product.Product_Name}
-                                                    </Text>
-                                                    <Text style={styles.productDetails}>
-                                                        <Text>{packWeight} {product.Units || 'kg'} per bag • Base: ₹{product.Item_Rate}</Text>
-                                                        <Text style={styles.productSeparator}> • </Text>
-                                                        <Text style={{ color: customColors.success }}>Stock: {product.CL_Qty}</Text>
-                                                    </Text>
+                                                return (
+                                                    <View
+                                                        key={index}
+                                                        style={
+                                                            styles.productRow
+                                                        }
+                                                    >
+                                                        <View
+                                                            style={
+                                                                styles.productInfo
+                                                            }
+                                                        >
+                                                            <Text
+                                                                style={
+                                                                    styles.productName
+                                                                }
+                                                                numberOfLines={
+                                                                    2
+                                                                }
+                                                            >
+                                                                {product.Short_Name ||
+                                                                    product.Product_Name}
+                                                            </Text>
+                                                            <Text
+                                                                style={
+                                                                    styles.productDetails
+                                                                }
+                                                            >
+                                                                <Text>
+                                                                    {packWeight}{" "}
+                                                                    {product.Units ||
+                                                                        "kg"}{" "}
+                                                                    per bag •
+                                                                    Base: ₹
+                                                                    {
+                                                                        product.Item_Rate
+                                                                    }
+                                                                </Text>
+                                                                <Text
+                                                                    style={
+                                                                        styles.productSeparator
+                                                                    }
+                                                                >
+                                                                    {" "}
+                                                                    •{" "}
+                                                                </Text>
+                                                                <Text
+                                                                    style={{
+                                                                        color: customColors.success,
+                                                                    }}
+                                                                >
+                                                                    Stock:{" "}
+                                                                    {
+                                                                        product.CL_Qty
+                                                                    }
+                                                                </Text>
+                                                            </Text>
 
-                                                    {/* Show calculation for new products */}
-                                                    {/* {bags > 0 && (
+                                                            {/* Show calculation for new products */}
+                                                            {/* {bags > 0 && (
                                                         <View style={styles.calculationBreakdown}>
                                                             <Text style={styles.calculationText}>
                                                                 {bags} bags × {packWeight} kg = {totalWeight.toFixed(2)} kg
@@ -918,77 +1098,139 @@ const PosEditOrder = ({ route }) => {
                                                             </Text>
                                                         </View>
                                                     )} */}
-                                                </View>
-
-                                                {/* Rest of the input section remains the same */}
-                                                <View style={styles.inputGroup}>
-                                                    <View style={styles.inputContainer}>
-                                                        <Text style={styles.inputLabel}>Bags</Text>
-                                                        <TextInput
-                                                            style={styles.quantityInput}
-                                                            value={existingQuantity?.Bill_Qty || ""}
-                                                            onChangeText={text =>
-                                                                handleNewProductQuantityChange(
-                                                                    product.Product_Id.toString(),
-                                                                    "Bill_Qty",
-                                                                    text,
-                                                                )
-                                                            }
-                                                            keyboardType="numeric"
-                                                            placeholder="0"
-                                                        />
-                                                    </View>
-
-                                                    <View style={styles.inputContainer}>
-                                                        <Text style={styles.inputLabel}>Rate per kg</Text>
-                                                        <TextInput
-                                                            style={styles.rateInput}
-                                                            value={
-                                                                existingQuantity?.Item_Rate ||
-                                                                product.Item_Rate.toString()
-                                                            }
-                                                            onChangeText={text =>
-                                                                handleNewProductQuantityChange(
-                                                                    product.Product_Id.toString(),
-                                                                    "Item_Rate",
-                                                                    text,
-                                                                )
-                                                            }
-                                                            keyboardType="decimal-pad"
-                                                            placeholder="0.00"
-                                                        />
-                                                    </View>
-
-                                                    {totalAmount > 0 && (
-                                                        <View style={styles.amountContainer}>
-                                                            <Text style={styles.inputLabel}>Amount</Text>
-                                                            <Text style={styles.amountText}>
-                                                                ₹{totalAmount.toFixed(2)}
-                                                            </Text>
-                                                            <Text style={styles.weightText}>
-                                                                ({totalWeight.toFixed(2)} kg)
-                                                            </Text>
                                                         </View>
-                                                    )}
-                                                </View>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            )}
+
+                                                        {/* Rest of the input section remains the same */}
+                                                        <View
+                                                            style={
+                                                                styles.inputGroup
+                                                            }
+                                                        >
+                                                            <View
+                                                                style={
+                                                                    styles.inputContainer
+                                                                }
+                                                            >
+                                                                <Text
+                                                                    style={
+                                                                        styles.inputLabel
+                                                                    }
+                                                                >
+                                                                    Bags
+                                                                </Text>
+                                                                <TextInput
+                                                                    style={
+                                                                        styles.quantityInput
+                                                                    }
+                                                                    value={
+                                                                        existingQuantity?.Bill_Qty ||
+                                                                        ""
+                                                                    }
+                                                                    onChangeText={text =>
+                                                                        handleNewProductQuantityChange(
+                                                                            product.Product_Id.toString(),
+                                                                            "Bill_Qty",
+                                                                            text,
+                                                                        )
+                                                                    }
+                                                                    keyboardType="numeric"
+                                                                    placeholder="0"
+                                                                />
+                                                            </View>
+
+                                                            <View
+                                                                style={
+                                                                    styles.inputContainer
+                                                                }
+                                                            >
+                                                                <Text
+                                                                    style={
+                                                                        styles.inputLabel
+                                                                    }
+                                                                >
+                                                                    Rate per kg
+                                                                </Text>
+                                                                <TextInput
+                                                                    style={
+                                                                        styles.rateInput
+                                                                    }
+                                                                    value={
+                                                                        existingQuantity?.Item_Rate ||
+                                                                        product.Item_Rate.toString()
+                                                                    }
+                                                                    onChangeText={text =>
+                                                                        handleNewProductQuantityChange(
+                                                                            product.Product_Id.toString(),
+                                                                            "Item_Rate",
+                                                                            text,
+                                                                        )
+                                                                    }
+                                                                    keyboardType="decimal-pad"
+                                                                    placeholder="0.00"
+                                                                />
+                                                            </View>
+
+                                                            {totalAmount >
+                                                                0 && (
+                                                                <View
+                                                                    style={
+                                                                        styles.amountContainer
+                                                                    }
+                                                                >
+                                                                    <Text
+                                                                        style={
+                                                                            styles.inputLabel
+                                                                        }
+                                                                    >
+                                                                        Amount
+                                                                    </Text>
+                                                                    <Text
+                                                                        style={
+                                                                            styles.amountText
+                                                                        }
+                                                                    >
+                                                                        ₹
+                                                                        {totalAmount.toFixed(
+                                                                            2,
+                                                                        )}
+                                                                    </Text>
+                                                                    <Text
+                                                                        style={
+                                                                            styles.weightText
+                                                                        }
+                                                                    >
+                                                                        (
+                                                                        {totalWeight.toFixed(
+                                                                            2,
+                                                                        )}{" "}
+                                                                        kg)
+                                                                    </Text>
+                                                                </View>
+                                                            )}
+                                                        </View>
+                                                    </View>
+                                                );
+                                            },
+                                        )}
+                                    </View>
+                                )}
 
                             {/* No Products Messages */}
-                            {(searchQuery.trim() || selectedBrand) && filteredProducts.length === 0 && (
-                                <View style={styles.noProductsContainer}>
-                                    <Text style={styles.noProductsText}>
-                                        No products found matching your criteria.
-                                    </Text>
-                                </View>
-                            )}
+                            {(searchQuery.trim() || selectedBrand) &&
+                                filteredProducts.length === 0 && (
+                                    <View style={styles.noProductsContainer}>
+                                        <Text style={styles.noProductsText}>
+                                            No products found matching your
+                                            criteria.
+                                        </Text>
+                                    </View>
+                                )}
 
                             {!searchQuery.trim() && !selectedBrand && (
                                 <View style={styles.loadingContainer}>
-                                    {productQueryData?.productData && productQueryData.productData.length === 0 ? (
+                                    {productQueryData?.productData &&
+                                    productQueryData.productData.length ===
+                                        0 ? (
                                         <>
                                             <ActivityIndicator
                                                 size="large"
@@ -999,16 +1241,22 @@ const PosEditOrder = ({ route }) => {
                                                 Loading products...
                                             </Text>
                                             <Text style={styles.loadingSubText}>
-                                                Please wait while we fetch the product data
+                                                Please wait while we fetch the
+                                                product data
                                             </Text>
                                         </>
                                     ) : (
                                         <>
                                             <Text style={styles.noProductsText}>
-                                                Start typing to search for products or select a brand to filter.
+                                                Start typing to search for
+                                                products or select a brand to
+                                                filter.
                                             </Text>
-                                            <Text style={styles.productCountInfo}>
-                                                {activeProductsCount} active products available
+                                            <Text
+                                                style={styles.productCountInfo}
+                                            >
+                                                {activeProductsCount} active
+                                                products available
                                             </Text>
                                         </>
                                     )}
@@ -1029,7 +1277,8 @@ const PosEditOrder = ({ route }) => {
                     animationType="slide"
                     transparent={true}
                     visible={modalVisible}
-                    onRequestClose={() => setModalVisible(false)}>
+                    onRequestClose={() => setModalVisible(false)}
+                >
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalTitle}>Order Summary</Text>
@@ -1042,35 +1291,76 @@ const PosEditOrder = ({ route }) => {
                                     .filter(p => parseFloat(p.Bill_Qty) > 0)
                                     .map((product, index) => {
                                         // Get the product data to access PackGet
-                                        const productData = productQueryData.productData.find(
-                                            p => p.Product_Id.toString() === product.Item_Id
-                                        );
+                                        const productData =
+                                            productQueryData.productData.find(
+                                                p =>
+                                                    p.Product_Id.toString() ===
+                                                    product.Item_Id,
+                                            );
 
                                         // First try to get PackGet from product data, then fallback to product name
-                                        let packWeight = parseFloat(productData?.PackGet || 0);
-                                        if (packWeight === 0 && productData?.Product_Name) {
-                                            packWeight = extractPackWeight(productData.Product_Name);
+                                        let packWeight = parseFloat(
+                                            productData?.PackGet || 0,
+                                        );
+                                        if (
+                                            packWeight === 0 &&
+                                            productData?.Product_Name
+                                        ) {
+                                            packWeight = extractPackWeight(
+                                                productData.Product_Name,
+                                            );
                                         }
 
-                                        const bags = parseFloat(product.Bill_Qty);
-                                        const rate = parseFloat(product.Item_Rate);
+                                        const bags = parseFloat(
+                                            product.Bill_Qty,
+                                        );
+                                        const rate = parseFloat(
+                                            product.Item_Rate,
+                                        );
                                         const totalWeight = bags * packWeight;
                                         const amount = totalWeight * rate;
 
                                         return (
-                                            <View key={index} style={styles.modalProductRow}>
-                                                <View style={styles.modalProductInfo}>
-                                                    <Text style={styles.modalProductName} numberOfLines={2}>
+                                            <View
+                                                key={index}
+                                                style={styles.modalProductRow}
+                                            >
+                                                <View
+                                                    style={
+                                                        styles.modalProductInfo
+                                                    }
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.modalProductName
+                                                        }
+                                                        numberOfLines={2}
+                                                    >
                                                         {product.Product_Name}
                                                     </Text>
-                                                    <Text style={styles.modalProductCalc}>
-                                                        {bags} bags × {packWeight}kg = {totalWeight.toFixed(2)}kg
+                                                    <Text
+                                                        style={
+                                                            styles.modalProductCalc
+                                                        }
+                                                    >
+                                                        {bags} bags ×{" "}
+                                                        {packWeight}kg ={" "}
+                                                        {totalWeight.toFixed(2)}
+                                                        kg
                                                     </Text>
                                                 </View>
-                                                <Text style={styles.modalProductRate}>
+                                                <Text
+                                                    style={
+                                                        styles.modalProductRate
+                                                    }
+                                                >
                                                     ₹{rate.toFixed(2)}/kg
                                                 </Text>
-                                                <Text style={styles.modalProductAmount}>
+                                                <Text
+                                                    style={
+                                                        styles.modalProductAmount
+                                                    }
+                                                >
                                                     ₹{amount.toFixed(2)}
                                                 </Text>
                                             </View>
@@ -1100,7 +1390,8 @@ const PosEditOrder = ({ route }) => {
                             <View style={styles.modalActions}>
                                 <TouchableOpacity
                                     style={styles.modalCancelButton}
-                                    onPress={() => setModalVisible(false)}>
+                                    onPress={() => setModalVisible(false)}
+                                >
                                     <Text style={styles.modalCancelText}>
                                         Cancel
                                     </Text>
@@ -1108,7 +1399,8 @@ const PosEditOrder = ({ route }) => {
 
                                 <TouchableOpacity
                                     style={styles.modalSubmitButton}
-                                    onPress={handleSubmit}>
+                                    onPress={handleSubmit}
+                                >
                                     <Text style={styles.modalSubmitText}>
                                         Update Order
                                     </Text>
@@ -1200,9 +1492,9 @@ const styles = StyleSheet.create({
         color: customColors.grey900,
     },
     productMetaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginTop: 4,
     },
     calculationInfo: {
@@ -1215,13 +1507,13 @@ const styles = StyleSheet.create({
     },
     emptyStateContainer: {
         padding: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: "center",
+        justifyContent: "center",
     },
     emptyStateText: {
         ...typography.body1(),
         color: customColors.grey600,
-        fontStyle: 'italic',
+        fontStyle: "italic",
     },
     inputGroup: {
         flexDirection: "row",
@@ -1544,8 +1836,8 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     searchInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         borderWidth: 1,
         borderColor: customColors.grey300,
         borderRadius: 8,
@@ -1571,7 +1863,7 @@ const styles = StyleSheet.create({
         color: customColors.primary,
         marginTop: 6,
         fontWeight: "500",
-        textAlign: 'center',
+        textAlign: "center",
     },
     filterLabel: {
         ...typography.caption(),
@@ -1608,4 +1900,4 @@ const styles = StyleSheet.create({
         marginTop: 8,
         fontWeight: "500",
     },
-})
+});

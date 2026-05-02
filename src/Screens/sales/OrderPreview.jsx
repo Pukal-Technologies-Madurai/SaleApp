@@ -13,7 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import RNHTMLtoPDF from "react-native-html-to-pdf";
+import { generatePDF } from "react-native-html-to-pdf";
+import RNFS from "react-native-fs";
 import Share from "react-native-share";
 import { FlashList } from "@shopify/flash-list";
 import AppHeader from "../../Components/AppHeader";
@@ -121,7 +122,7 @@ const OrderPreview = () => {
     // Memoize filtered data by brand
     const filteredLogData = useMemo(() => {
         if (selectedBrand === "All") return logData;
-        
+
         return logData.map(order => {
             const filteredProducts = order.Products_List?.filter(
                 product => product.BrandGet?.trim() === selectedBrand
@@ -973,14 +974,16 @@ const OrderPreview = () => {
             const options = {
                 html: finalHTML,
                 fileName: `receipt-${(item?.Retailer_Name || item?.So_Inv_No || Date.now()).toString().replace(/[^\w-]+/g, "_")}`,
-                directory: "Documents",
+                // No 'directory' → file goes to cacheDir, which is covered by
+                // react-native-share's FileProvider (cache-path "/").
+                // getExternalFilesDir/Documents is NOT in the FileProvider paths XML.
                 width: 226,  // 80mm = 226 pixels at 72 DPI
                 height: estimatedHeight,
                 padding: 0,
                 base64: false,
             };
 
-            const pdf = await RNHTMLtoPDF.convert(options);
+            const pdf = await generatePDF(options);
             return pdf.filePath;
 
         } catch (err) {
@@ -992,33 +995,52 @@ const OrderPreview = () => {
     const downloadItemPDF = async item => {
         try {
             const pdfPath = await generateItemPDF(item, "80mm");
-            if (pdfPath) {
-                try {
-                    await Share.open({
-                        url: `file://${pdfPath}`,
-                        title: "Sale Order",
-                        message: "Here is your order preview in PDF format",
+            // console.log("[PDF] Generated path:", pdfPath);
 
-                        showAppsToView: true,
-                        subject: "Sale Order Receipt",
-                        // Optional: Add print-specific filename
-                        filename: `receipt-${item?.So_Inv_No || item?.So_Id || Date.now()}.pdf`,
-                    });
-                } catch (shareError) {
-                    // Silently handle user cancellation
-                    if (shareError.message && shareError.message.includes("User did not share")) {
-                        return; // User cancelled, do nothing
-                    }
-                    throw shareError; // Re-throw other errors
-                }
-            } else {
+            if (!pdfPath) {
                 Alert.alert("Error", "Failed to generate PDF. Please try again.");
+                return;
+            }
+
+            const exists = await RNFS.exists(pdfPath);
+            // console.log("[PDF] File exists:", exists);
+
+            if (!exists) {
+                Alert.alert("Error", "PDF file not found. Please try again.");
+                return;
+            }
+
+            // File is in cacheDir which is covered by react-native-share's
+            // FileProvider (cache-path "/"). It will be converted to a
+            // content:// URI automatically — no getScheme() crash.
+            const fileUrl = `file://${pdfPath}`;
+
+            try {
+                await Share.open({
+                    url: fileUrl,
+                    type: "application/pdf",
+                    title: "Sale Order",
+                    message: "Here is your order preview in PDF format",
+                    showAppsToView: true,
+                    subject: "Sale Order Receipt",
+                    filename: `receipt-${item?.So_Inv_No || item?.So_Id || Date.now()}.pdf`,
+                });
+            } catch (shareError) {
+                if (
+                    shareError.message &&
+                    shareError.message.includes("User did not share")
+                ) {
+                    return;
+                }
+                throw shareError;
             }
         } catch (error) {
-            console.error("Error:", error);
+            console.error("[PDF] Share error:", error);
             Alert.alert("Error", "Something went wrong. Please try again.");
         }
     };
+
+
 
     const editOption = item => {
         const isSMTraders = companyName === "SM TRADERS";
@@ -1103,7 +1125,7 @@ const OrderPreview = () => {
                                                 fontFamily: customFonts.poppinsRegular,
                                                 fontWeight: "600",
                                                 textTransform: "capitalize",
-                                                
+
                                             }}>
                                             {brand}
                                         </Text>

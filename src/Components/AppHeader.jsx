@@ -67,7 +67,7 @@ const AppHeader = ({
                         activeOpacity={0.7}>
                         <View style={styles.iconWrapper}>
                             <MaterialIcon
-                                name="arrow-back-ios"
+                                name="arrow-back"
                                 size={responsiveSize(20)}
                                 color={customColors.white}
                             />

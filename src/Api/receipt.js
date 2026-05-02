@@ -133,20 +133,6 @@ export const fetchUserInvolvedReceipts = async (
 };
 
 // Not used APIs
-export const fetchAccountsMaster = async () => {
-    const url = API.accountsMaster();
-
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
-
-    const data = await response.json();
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
 
 export const createLiveSales = async resBody => {
     try {
@@ -188,20 +174,4 @@ export const fetchDebitLiveSale = async () => {
     const data = await response.json();
     if (!data.success) throw new Error(data.message);
     return data.data;
-};
-
-export const fetchRetailerBasedPendingSalesInvoiceReceipt = async ({
-    retailerId,
-}) => {
-    try {
-        const url = `${API.retailerBasedPendingSalesInvoiceReceipt()}${retailerId}`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (!data.success) throw new Error(data.message);
-        return data.data;
-    } catch (error) {
-        console.error("Error fetching pending sales invoice receipt:", error);
-    }
 };

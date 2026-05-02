@@ -375,7 +375,16 @@ const CreateReceipts = () => {
                 result.message || "Receipt created successfully!",
             );
             setShowReceiptView(false);
-            navigation.navigate("HomeScreen");
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
             // Reset form
             setSelectedBills([]);
             setReceiptAmounts({});

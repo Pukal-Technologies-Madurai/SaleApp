@@ -47,21 +47,22 @@ const DrawerScreen = ({ navigation }) => {
             ]);
             ToastAndroid.show("Log out Successfully", ToastAndroid.LONG);
 
-            // navigation.reset({
-            //     index: 0,
-            //     routes: [
-            //         {
-            //             name: "AppStack",
-            //             state: {
-            //                 routes: [{ name: "LoginPortal" }],
-            //             },
-            //         },
-            //     ],
-            // });
-            setTimeout(() => {
-                navigation.navigate("AppStack", { screen: "LoginPortal" });
-            }, 100);
-            navigation.closeDrawer();
+            navigation.reset({
+                index: 0,
+                routes: [
+                    {
+                        name: "AppStack",
+                        state: {
+                            index: 0,
+                            routes: [{ name: "LoginPortal" }],
+                        },
+                    },
+                ],
+            });
+            // setTimeout(() => {
+            //     navigation.navigate("AppStack", { screen: "LoginPortal" });
+            // }, 100);
+            // navigation.closeDrawer();
         } catch (err) {
             console.error("Error clearing AsyncStorage: ", err);
         }

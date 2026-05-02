@@ -120,6 +120,7 @@ const LoginPortal = () => {
 
             if (data.success) {
                 const loginData = data.data;
+                // console.log("Login Data:", loginData);
                 
                 // Set baseURL from login response
                 await AsyncStorage.setItem("baseURL", loginData.Web_Api);
@@ -162,7 +163,16 @@ const LoginPortal = () => {
                 await setData(authData);
                 setAuthInfo(authData);
 
-                navigation.replace("HomeScreen");
+                navigation.reset({
+                    index: 0,
+                    routes: [{
+                        name: "HomeScreen",
+                        state: {
+                            index: 0,
+                            routes: [{ name: "HomeScreen"}] 
+                        }
+                    }],
+                });
                 ToastAndroid.show("Login Successful" || data.message, ToastAndroid.LONG);
             } else {
                 ToastAndroid.show(data.message || "User not found", ToastAndroid.LONG);
