@@ -72,13 +72,3 @@ export const fetchSaleOrder = async ({
     if (!data.success) throw new Error(data.message);
     return data.data;
 };
-
-export const fetchSaleOrderRetilerWise = async ({ retailerId, from, to }) => {
-    const response = await fetch(
-        `${API.saleOrder()}?Retailer_Id=${retailerId}&Fromdate=${from}&Todate=${to}`,
-    );
-    const data = await response.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};

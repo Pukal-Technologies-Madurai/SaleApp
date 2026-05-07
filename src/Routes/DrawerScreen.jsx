@@ -1,23 +1,33 @@
 import {
+    Linking,
+    StatusBar,
+    ScrollView,
     StyleSheet,
     Text,
     ToastAndroid,
     TouchableOpacity,
     View,
-    StatusBar,
-    Linking,
-    ScrollView,
 } from "react-native";
-import React, { useState } from "react";
+import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import IconAntDesign from "react-native-vector-icons/AntDesign";
 import IconFont from "react-native-vector-icons/FontAwesome6";
 import IconMaterial from "react-native-vector-icons/MaterialIcons";
-import { customColors, typography, shadows, spacing } from "../Config/helper";
+import {
+    customColors,
+    typography,
+    spacing,
+    responsiveSize,
+    borderRadius,
+} from "../Config/helper";
+import { appVersion } from "../Api/auth";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const DrawerScreen = ({ navigation }) => {
-    const [activeItem, setActiveItem] = useState(null);
+    const [activeItem, setActiveItem] = React.useState(null);
+    const APP_VERSION = appVersion();
 
     const logout = async () => {
         try {
@@ -39,9 +49,20 @@ const DrawerScreen = ({ navigation }) => {
 
             navigation.reset({
                 index: 0,
-                routes: [{ name: "LoginPortal" }],
+                routes: [
+                    {
+                        name: "AppStack",
+                        state: {
+                            index: 0,
+                            routes: [{ name: "LoginPortal" }],
+                        },
+                    },
+                ],
             });
-            navigation.closeDrawer();
+            // setTimeout(() => {
+            //     navigation.navigate("AppStack", { screen: "LoginPortal" });
+            // }, 100);
+            // navigation.closeDrawer();
         } catch (err) {
             console.error("Error clearing AsyncStorage: ", err);
         }
@@ -49,171 +70,173 @@ const DrawerScreen = ({ navigation }) => {
 
     const menuItems = [
         {
-            icon: "account-circle",
+            icon: "account-circle-outline",
             iconLibrary: "MaterialCommunityIcons",
-            label: "Account",
-            onPress: () => navigation.navigate("ProfileScreen"),
-            bgColor: "#E8F5E8",
-            iconColor: "#4CAF50",
+            label: "My Profile",
+            description: "View & edit profile",
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "ProfileScreen" }),
+            gradient: ["#10B981", "#059669"],
         },
         {
-            icon: "account-plus",
+            icon: "account-plus-outline",
             iconLibrary: "MaterialCommunityIcons",
             label: "Add Retailer",
-            onPress: () => navigation.navigate("AddCustomer"),
-            bgColor: "#E3F2FD",
-            iconColor: "#2196F3",
+            description: "Register new retailer",
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "AddCustomer" }),
+            gradient: ["#3B82F6", "#2563EB"],
         },
         {
-            icon: "cog",
+            icon: "cog-outline",
             iconLibrary: "MaterialCommunityIcons",
             label: "Settings",
-            onPress: () => navigation.navigate("Settings"),
-            bgColor: "#F3E5F5",
-            iconColor: "#9C27B0",
+            description: "App preferences",
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "Settings" }),
+            gradient: ["#F59E0B", "#D97706"],
         },
         {
             icon: "warehouse",
             iconLibrary: "MaterialIcons",
-            label: "Godown Activities",
-            onPress: () => navigation.navigate("GodownActivities"),
-            bgColor: "#FDF2F8",
-            iconColor: "#EC4899",
+            label: "Godown",
+            description: "Manage stock`",
+            onPress: () =>
+                navigation.navigate("AppStack", { screen: "GodownActivities" }),
+            gradient: ["#8B5CF6", "#7C3AED"],
         },
-        // {
-        //     icon: "map-marker-path",
-        //     iconLibrary: "MaterialCommunityIcons",
-        //     label: "Set Route",
-        //     onPress: () => navigation.navigate("RoutePath"),
-        //     bgColor: "#FFF3E0",
-        //     iconColor: "#FF9800",
-        // },
-        // {
-        //     icon: "cog",
-        //     iconLibrary: "MaterialCommunityIcons",
-        //     label: "Master Info",
-        //     onPress: () => navigation.navigate("MasterData"),
-        //     bgColor: "#F3E5F5",
-        //     iconColor: "#9C27B0",
-        // },
-        // {
-        //     icon: "receipt-long",
-        //     iconLibrary: "MaterialIcons",
-        //     label: "Collection",
-        //     onPress: () => navigation.navigate("BillSummary"),
-        //     bgColor: "#FDF2F8",
-        //     iconColor: "#EC4899",
-        // },
         {
             icon: "cellphone-cog",
             iconLibrary: "MaterialCommunityIcons",
-            label: "App Settings",
+            label: "Device Settings",
+            description: "System app settings",
             onPress: () => Linking.openSettings(),
-            bgColor: "#FFEBEE",
-            iconColor: "#F44336",
+            gradient: ["#EF4444", "#DC2626"],
         },
     ];
 
-    const renderIcon = (iconLibrary, iconName, color) => {
+    const renderIcon = (iconLibrary, iconName, color = customColors.white) => {
+        const size = 22;
         switch (iconLibrary) {
             case "MaterialCommunityIcons":
-                return <Icon name={iconName} size={22} color={color} />;
+                return <Icon name={iconName} size={size} color={color} />;
             case "FontAwesome6":
-                return <IconFont name={iconName} size={20} color={color} />;
+                return (
+                    <IconFont name={iconName} size={size - 2} color={color} />
+                );
             case "MaterialIcons":
-                return <IconMaterial name={iconName} size={20} color={color} />;
+                return (
+                    <IconMaterial name={iconName} size={size} color={color} />
+                );
             case "AntDesign":
                 return (
-                    <IconAntDesign name={iconName} size={20} color={color} />
+                    <IconAntDesign
+                        name={iconName}
+                        size={size - 2}
+                        color={color}
+                    />
                 );
             default:
-                return <Icon name={iconName} size={22} color={color} />;
+                return <Icon name={iconName} size={size} color={color} />;
         }
     };
 
-    const pkg = require("../../package.json");
-    const appVersion = pkg.version;
-
     return (
         <View style={styles.drawerContainer}>
-            <StatusBar backgroundColor={customColors.primaryDark} translucent />
+            <StatusBar
+                backgroundColor="transparent"
+                translucent
+                barStyle="light-content"
+            />
 
-            {/* Modern Header */}
-            <View style={styles.header}>
+            {/* Modern Gradient Header */}
+            <LinearGradient
+                colors={["#0D47A1", "#1565C0", "#1976D2"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <View style={styles.headerContent}>
-                    <View style={styles.headerTextContainer}>
-                        <Text style={styles.appName}>Pukal Virpanai</Text>
-                        <Text style={styles.appSubtitle}>Sales Management</Text>
-                    </View>
-                    <View style={styles.versionContainer}>
-                        <Text style={styles.appVersion}>v{appVersion}</Text>
+                    <Text style={styles.appName}>Pukal {"\n"} Virpanai</Text>
+                    <View style={styles.versionBadge}>
+                        <Icon name="shield-check" size={14} color="#4ADE80" />
+                        <Text style={styles.versionText}>v{APP_VERSION}</Text>
                     </View>
                 </View>
-            </View>
+            </LinearGradient>
 
-            {/* Modern Menu */}
-            <ScrollView
-                style={styles.scrollContainer}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}>
-                <View style={styles.menuSection}>
-                    {menuItems.map((item, index) => (
-                        <DrawerItem
-                            key={index}
-                            item={item}
-                            isActive={activeItem === index}
-                            onPress={() => {
-                                setActiveItem(index);
-                                item.onPress();
-                            }}
-                            renderIcon={renderIcon}
-                        />
-                    ))}
-                </View>
-            </ScrollView>
-
-            {/* Modern Footer */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={styles.logoutButton}
-                    onPress={logout}
-                    activeOpacity={0.8}>
-                    <View style={styles.logoutIconContainer}>
-                        <Icon
-                            name="logout"
-                            size={20}
-                            color={customColors.white}
-                        />
+            <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+                {/* Menu Items */}
+                <ScrollView
+                    style={styles.scrollContainer}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                >
+                    <View style={styles.menuSection}>
+                        {menuItems.map((item, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[
+                                    styles.menuItem,
+                                    activeItem === index &&
+                                        styles.menuItemActive,
+                                ]}
+                                onPress={() => {
+                                    setActiveItem(index);
+                                    item.onPress();
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <LinearGradient
+                                    colors={item.gradient}
+                                    style={styles.menuIconContainer}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    {renderIcon(item.iconLibrary, item.icon)}
+                                </LinearGradient>
+                                <View style={styles.menuTextContainer}>
+                                    <Text style={styles.menuLabel}>
+                                        {item.label}
+                                    </Text>
+                                    <Text style={styles.menuDescription}>
+                                        {item.description}
+                                    </Text>
+                                </View>
+                                <Icon
+                                    name="chevron-right"
+                                    size={22}
+                                    color={
+                                        activeItem === index
+                                            ? customColors.primary
+                                            : customColors.grey300
+                                    }
+                                />
+                            </TouchableOpacity>
+                        ))}
                     </View>
-                    <Text style={styles.logoutText}>Sign Out</Text>
-                </TouchableOpacity>
-            </View>
+                </ScrollView>
+
+                {/* Footer with Logout */}
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={styles.logoutButton}
+                        onPress={logout}
+                        activeOpacity={0.8}
+                    >
+                        <Icon name="logout" size={20} color="#DC2626" />
+                        <Text style={styles.logoutText}>Sign Out</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.footerDivider} />
+                    <Text style={styles.footerText}>
+                        Pukal Tech | All rights reserved
+                    </Text>
+                </View>
+            </SafeAreaView>
         </View>
     );
 };
-
-const DrawerItem = ({ item, isActive, onPress, renderIcon }) => (
-    <TouchableOpacity
-        style={[styles.drawerItem, isActive && styles.activeDrawerItem]}
-        onPress={onPress}
-        activeOpacity={0.7}>
-        <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
-            {renderIcon(item.iconLibrary, item.icon, item.iconColor)}
-        </View>
-        <Text
-            style={[
-                styles.drawerItemText,
-                isActive && styles.activeDrawerItemText,
-            ]}>
-            {item.label}
-        </Text>
-        <Icon
-            name="chevron-right"
-            size={16}
-            color={isActive ? customColors.primary : customColors.grey400}
-        />
-    </TouchableOpacity>
-);
 
 export default DrawerScreen;
 
@@ -221,125 +244,119 @@ const styles = StyleSheet.create({
     drawerContainer: {
         flex: 1,
         backgroundColor: customColors.white,
-        marginBottom: spacing.md,
     },
     header: {
-        backgroundColor: customColors.primaryDark,
-        paddingTop: StatusBar.currentHeight + 30,
-        paddingBottom: spacing.lg,
+        paddingTop: StatusBar.currentHeight + responsiveSize(16),
+        paddingBottom: responsiveSize(20),
         paddingHorizontal: spacing.lg,
-        borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20,
+        borderBottomLeftRadius: borderRadius.lg,
+        borderBottomRightRadius: borderRadius.lg,
     },
     headerContent: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
     },
-    headerTextContainer: {
-        flex: 1,
-    },
     appName: {
-        ...typography.h5(),
+        ...typography.h4(),
+        textAlign: "center",
         color: customColors.white,
-        fontWeight: "800",
-        letterSpacing: 0.8,
-        marginBottom: 2,
+        fontWeight: "700",
     },
-    appSubtitle: {
-        ...typography.body2(),
-        color: customColors.white + "CC", // 80% opacity
-        fontWeight: "400",
-        letterSpacing: 0.3,
-    },
-    versionContainer: {
+    versionBadge: {
+        flexDirection: "row",
+        alignItems: "center",
         backgroundColor: "rgba(255,255,255,0.15)",
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.2)",
+        borderRadius: responsiveSize(16),
+        gap: spacing.xs,
     },
-    appVersion: {
+    versionText: {
         ...typography.caption(),
         color: customColors.white,
         fontWeight: "600",
-        letterSpacing: 0.5,
+    },
+    safeArea: {
+        flex: 1,
     },
     scrollContainer: {
         flex: 1,
     },
     scrollContent: {
-        flexGrow: 1,
-        paddingBottom: spacing.lg,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.md,
     },
     menuSection: {
-        paddingTop: spacing.lg,
+        gap: spacing.sm,
     },
-    drawerItem: {
+    menuItem: {
         flexDirection: "row",
         alignItems: "center",
+        backgroundColor: customColors.grey50,
         paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        marginHorizontal: spacing.sm,
-        marginVertical: 2,
-        borderRadius: 12,
-        backgroundColor: "transparent",
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
     },
-    activeDrawerItem: {
-        backgroundColor: customColors.primary + "08",
-        borderLeftWidth: 3,
-        borderLeftColor: customColors.primary,
+    menuItemActive: {
+        backgroundColor: customColors.primaryFaded,
+        borderWidth: 1,
+        borderColor: customColors.primaryLight,
     },
-    iconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        alignItems: "center",
+    menuIconContainer: {
+        width: responsiveSize(42),
+        height: responsiveSize(42),
+        borderRadius: borderRadius.md,
         justifyContent: "center",
-        marginRight: spacing.md,
+        alignItems: "center",
     },
-    drawerItemText: {
-        ...typography.body1(),
-        color: customColors.grey800,
-        fontWeight: "500",
+    menuTextContainer: {
         flex: 1,
-        letterSpacing: 0.2,
+        marginLeft: spacing.md,
     },
-    activeDrawerItemText: {
-        color: customColors.primary,
+    menuLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
         fontWeight: "600",
+    },
+    menuDescription: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: 2,
     },
     footer: {
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.lg,
+        paddingVertical: spacing.md,
+        paddingBottom: spacing.xl,
         borderTopWidth: 1,
-        borderTopColor: "#F0F0F0",
-        backgroundColor: customColors.white,
+        borderTopColor: customColors.grey100,
+        alignItems: "center",
     },
     logoutButton: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: customColors.primary,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        borderRadius: 12,
-        ...shadows.medium,
-    },
-    logoutIconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: "rgba(255,255,255,0.2)",
-        alignItems: "center",
         justifyContent: "center",
-        marginRight: spacing.sm,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xl,
+        borderRadius: borderRadius.round,
+        borderWidth: 1.5,
+        borderColor: "#FEE2E2",
+        backgroundColor: "#FEF2F2",
+        gap: spacing.sm,
     },
     logoutText: {
-        ...typography.body1(),
-        color: customColors.white,
+        ...typography.subtitle2(),
+        color: "#DC2626",
         fontWeight: "600",
-        flex: 1,
-        letterSpacing: 0.3,
+    },
+    footerDivider: {
+        width: responsiveSize(40),
+        height: 1,
+        backgroundColor: customColors.grey200,
+        marginVertical: spacing.md,
+    },
+    footerText: {
+        ...typography.caption(),
+        color: customColors.grey400,
     },
 });

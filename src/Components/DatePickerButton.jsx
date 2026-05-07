@@ -76,9 +76,9 @@ const DatePickerButton = ({
                                 color={
                                     disabled
                                         ? customColors.grey500
-                                        : customColors.black
+                                        : customColors.primary
                                 }
-                                size={20}
+                                size={16}
                                 style={styles.calendarIcon}
                             />
                             <Text
@@ -117,17 +117,13 @@ export default DatePickerButton;
 
 const styles = StyleSheet.create({
     container: {
-        width: "100%",
-        marginBottom: spacing.md,
+        marginBottom: spacing.xs,
     },
-    buttonWrapper: {
-        width: "100%",
-    },
+    buttonWrapper: {},
     contentContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        width: "100%",
         backgroundColor: "transparent",
     },
     dateContainer: {
@@ -137,34 +133,31 @@ const styles = StyleSheet.create({
         backgroundColor: "transparent",
     },
     title: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
+        ...typography.caption(),
+        color: customColors.grey700,
         fontWeight: "600",
-        marginBottom: spacing.sm,
-        opacity: 0.9,
-        letterSpacing: 0.5,
+        marginBottom: 4,
     },
     button: {
-        borderRadius: 12,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderWidth: 0.5,
-        borderColor: customColors.grey300,
+        borderRadius: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
         backgroundColor: customColors.white,
     },
     buttonDisabled: {
         backgroundColor: customColors.grey100,
-        borderColor: customColors.grey300,
+        borderColor: customColors.grey200,
     },
     dateText: {
-        ...typography.body1(),
-        color: customColors.black,
+        ...typography.body2(),
+        color: customColors.grey900,
         fontWeight: "500",
         backgroundColor: "transparent",
     },
     calendarIcon: {
-        marginRight: spacing.sm,
-        opacity: 0.9,
+        marginRight: 6,
         backgroundColor: "transparent",
     },
     disabledButton: {

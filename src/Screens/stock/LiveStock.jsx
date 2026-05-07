@@ -3,12 +3,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../../Components/AppHeader";
 import { useNavigation } from "@react-navigation/native";
-import { customColors, shadows, spacing, typography, customFonts } from "../../Config/helper";
+import { customColors, shadows, spacing, typography, customFonts, borderRadius, iconSizes } from "../../Config/helper";
 import { useQuery } from "@tanstack/react-query";
 import { fetchGoDownwiseStockValue, fetchProductsWithStockValue } from "../../Api/product";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Accordion from "../../Components/Accordion";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 
 const LiveStock = () => {
     const navigation = useNavigation();
@@ -112,14 +112,16 @@ const LiveStock = () => {
     const renderHeader = (item) => (
         <View style={styles.accordionHeader}>
             <View style={styles.headerLeft}>
-                <MaterialIcons name="inventory" size={24} color={customColors.primary} />
+                <View style={styles.brandIconContainer}>
+                    <FeatherIcon name="box" size={iconSizes.md} color={customColors.primary} />
+                </View>
                 <Text style={styles.brandTitle}>{item.title}</Text>
             </View>
             <View style={styles.headerRight}>
                 <View style={styles.itemCountBadge}>
                     <Text style={styles.itemCountText}>{item.data.length} Items</Text>
                 </View>
-                <MaterialIcons name="keyboard-arrow-down" size={24} color={customColors.grey500} />
+                <FeatherIcon name="chevron-down" size={iconSizes.md} color={customColors.grey500} />
             </View>
         </View>
     );
@@ -152,8 +154,8 @@ const LiveStock = () => {
                 title="Live Stock" 
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconName="refresh"
-                rightIconLibrary="MaterialIcon"
+                rightIconName="refresh-cw"
+                rightIconLibrary="Feather"
                 onRightIconPress={handleRefresh}
             />
 
@@ -189,8 +191,11 @@ const LiveStock = () => {
                     </>
                 ) : (
                     <View style={styles.emptyContainer}>
-                        <MaterialIcons name="inventory-2" size={64} color={customColors.grey300} />
+                        <View style={styles.emptyIconContainer}>
+                            <FeatherIcon name="package" size={iconSizes.xxl} color={customColors.grey400} />
+                        </View>
                         <Text style={styles.emptyText}>No data available</Text>
+                        <Text style={styles.emptySubtext}>Stock data will appear here</Text>
                     </View>
                 )}
             </View>
@@ -207,7 +212,7 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: customColors.background,
+        backgroundColor: customColors.grey50,
     },
     loaderContainer: {
         flex: 1,
@@ -217,28 +222,32 @@ const styles = StyleSheet.create({
     loaderText: {
         marginTop: spacing.sm,
         ...typography.body2(),
-        color: customColors.grey600,
+        color: customColors.grey500,
     },
     totalCountContainer: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: spacing.sm,
+        justifyContent: "center",
+        paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderRadius: 8,
+        marginHorizontal: spacing.sm,
+        marginTop: spacing.sm,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.md,
+        ...shadows.small,
     },
     totalCountText: {
-        ...typography.body1(),
+        ...typography.subtitle2(),
         textAlign: "center",
         fontFamily: customFonts.poppinsMedium,
-        color: customColors.grey800,
-        marginLeft: spacing.sm,
+        color: customColors.grey700,
     },
     accordionContainer: {
         margin: spacing.sm,
     },
     accordionItem: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         marginBottom: spacing.sm,
         ...shadows.small,
     },
@@ -253,33 +262,41 @@ const styles = StyleSheet.create({
         alignItems: "center",
         flex: 1,
     },
+    brandIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.md,
+        backgroundColor: customColors.primaryFaded,
+        justifyContent: "center",
+        alignItems: "center",
+    },
     brandTitle: {
-        ...typography.h6(),
+        ...typography.subtitle1(),
         marginLeft: spacing.sm,
-        color: customColors.black,
+        color: customColors.grey900,
+        fontWeight: "600",
     },
     headerRight: {
         flexDirection: "row",
         alignItems: "center",
     },
     itemCountBadge: {
-        backgroundColor: customColors.primaryLight + "20",
+        backgroundColor: customColors.primaryFaded,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
-        borderRadius: 12,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
         marginRight: spacing.xs,
     },
     itemCountText: {
-        ...typography.overline(),
-        color: customColors.primaryDark,
-        textTransform: "none",
-        letterSpacing: 0,
+        ...typography.caption(),
+        color: customColors.primary,
+        fontWeight: "500",
     },
     accordionContent: {
         paddingHorizontal: spacing.md,
         paddingBottom: spacing.sm,
         borderTopWidth: 1,
-        borderTopColor: customColors.border,
+        borderTopColor: customColors.grey100,
     },
     productRow: {
         flexDirection: "row",
@@ -287,7 +304,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: customColors.border,
+        borderBottomColor: customColors.grey100,
     },
     productInfo: {
         flex: 1,
@@ -304,10 +321,15 @@ const styles = StyleSheet.create({
     },
     stockInfo: {
         alignItems: "center",
-        minWidth: 50,
+        minWidth: 56,
+        backgroundColor: customColors.grey50,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.md,
     },
     stockValue: {
-        ...typography.h6(),
+        ...typography.subtitle1(),
+        fontWeight: "700",
         color: customColors.primaryDark,
     },
     positiveStock: {
@@ -318,17 +340,32 @@ const styles = StyleSheet.create({
     },
     stockLabel: {
         ...typography.overline(),
-        color: customColors.grey600,
-        marginTop: -4,
+        color: customColors.grey500,
+        marginTop: spacing.xxs,
     },
     emptyContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        paddingHorizontal: spacing.xl,
+    },
+    emptyIconContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     emptyText: {
-        marginTop: spacing.md,
-        ...typography.body1(),
+        ...typography.subtitle1(),
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    emptySubtext: {
+        ...typography.body2(),
         color: customColors.grey500,
+        marginTop: spacing.xs,
     },
 });

@@ -7,7 +7,7 @@ import {
     TouchableOpacity,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { customColors, typography } from "../../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius, iconSizes } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripDetails = ({ route, navigation }) => {
@@ -94,7 +94,7 @@ const TripDetails = ({ route, navigation }) => {
             <View style={styles.detailsRow}>
                 <Icon
                     name="location-on"
-                    size={16}
+                    size={iconSizes.sm}
                     color={customColors.primary}
                 />
                 <Text style={styles.locationText}>
@@ -105,7 +105,7 @@ const TripDetails = ({ route, navigation }) => {
             <View style={styles.detailsRow}>
                 <Icon
                     name="access-time"
-                    size={16}
+                    size={iconSizes.sm}
                     color={customColors.primary}
                 />
                 <Text style={styles.locationText}>
@@ -190,8 +190,8 @@ const TripDetails = ({ route, navigation }) => {
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <Icon
-                            name="arrow-back"
-                            size={24}
+                            name="arrow-back-ios"
+                            size={iconSizes.md}
                             color={customColors.white}
                         />
                     </TouchableOpacity>
@@ -284,7 +284,7 @@ const TripDetails = ({ route, navigation }) => {
                         <View style={styles.deliveryPersonInfo}>
                             <Icon
                                 name="person"
-                                size={20}
+                                size={iconSizes.md}
                                 color={customColors.primary}
                             />
                             <Text style={styles.deliveryPersonText}>
@@ -321,22 +321,20 @@ const styles = StyleSheet.create({
     headerContainer: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 16,
+        padding: spacing.md,
     },
     headerText: {
-        ...typography.h4(),
+        ...typography.h5(),
         color: customColors.white,
-        marginLeft: 8,
+        marginLeft: spacing.sm,
     },
     content: {
         flex: 1,
         backgroundColor: customColors.white,
-        // borderTopLeftRadius: 16,
-        // borderTopRightRadius: 16,
         overflow: "hidden",
     },
     tripInfoContainer: {
-        padding: 16,
+        padding: spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
         flexDirection: "row",
@@ -350,29 +348,29 @@ const styles = StyleSheet.create({
     deliveryPersonText: {
         ...typography.body1(),
         color: customColors.primary,
-        marginLeft: 8,
+        marginLeft: spacing.sm,
     },
     tripDate: {
         ...typography.body2(),
-        color: customColors.grey,
+        color: customColors.grey600,
     },
     listContainer: {
-        padding: 16,
+        padding: spacing.md,
     },
     retailerCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         borderColor: customColors.grey300,
         borderWidth: 1,
-        padding: 16,
-        marginBottom: 16,
-        ...customColors.shadow,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        ...shadows.small,
     },
     retailerHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: spacing.sm,
     },
     retailerName: {
         ...typography.h6(),
@@ -381,55 +379,55 @@ const styles = StyleSheet.create({
     },
     retailerId: {
         ...typography.caption(),
-        color: customColors.grey,
+        color: customColors.grey600,
     },
     detailsRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: spacing.sm,
     },
     locationText: {
         ...typography.body2(),
-        color: customColors.grey,
-        marginLeft: 8,
+        color: customColors.grey600,
+        marginLeft: spacing.sm,
     },
     statsRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         borderTopWidth: 1,
         borderTopColor: customColors.grey200,
-        paddingTop: 12,
+        paddingTop: spacing.sm,
     },
     stat: {
         alignItems: "center",
     },
     statLabel: {
         ...typography.caption(),
-        color: customColors.grey,
+        color: customColors.grey600,
     },
     statValue: {
         ...typography.body2(),
-        color: customColors.grey,
+        color: customColors.grey600,
         fontWeight: "600",
-        marginTop: 4,
+        marginTop: spacing.xxs,
     },
     summaryContainer: {
         flexDirection: "row",
-        padding: 16,
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        gap: 12,
+        padding: spacing.md,
+        backgroundColor: customColors.white,
+        gap: spacing.sm,
     },
     summaryCard: {
         flex: 1,
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
         alignItems: "center",
         justifyContent: "center",
     },
     summaryTitle: {
         ...typography.caption(),
         color: customColors.white,
-        marginBottom: 4,
+        marginBottom: spacing.xxs,
     },
     summaryAmount: {
         ...typography.subtitle2(),
@@ -439,7 +437,7 @@ const styles = StyleSheet.create({
     summaryCount: {
         ...typography.caption(),
         color: customColors.white,
-        marginTop: 4,
+        marginTop: spacing.xxs,
     },
     selectedCard: {
         borderWidth: 2,
@@ -449,8 +447,8 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         backgroundColor: customColors.grey100,
     },
     filterText: {
@@ -459,7 +457,7 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     clearFilter: {
-        padding: 8,
+        padding: spacing.sm,
     },
     clearFilterText: {
         ...typography.caption(),
@@ -467,21 +465,21 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     productsContainer: {
-        marginVertical: 10,
+        marginVertical: spacing.sm,
         borderTopWidth: 1,
-        borderTopColor: "#eee",
-        paddingTop: 10,
+        borderTopColor: customColors.grey200,
+        paddingTop: spacing.sm,
     },
     productItem: {
-        marginBottom: 8,
-        padding: 8,
-        backgroundColor: "#f8f8f8",
-        borderRadius: 6,
+        marginBottom: spacing.sm,
+        padding: spacing.sm,
+        backgroundColor: customColors.grey100,
+        borderRadius: borderRadius.sm,
     },
     productName: {
         ...typography.body2(),
         color: customColors.primary,
-        marginBottom: 4,
+        marginBottom: spacing.xxs,
     },
     productDetails: {
         flexDirection: "row",
@@ -490,7 +488,7 @@ const styles = StyleSheet.create({
     },
     productDetail: {
         ...typography.caption(),
-        color: customColors.grey,
+        color: customColors.grey600,
     },
 });
 

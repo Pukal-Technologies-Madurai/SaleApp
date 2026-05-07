@@ -110,33 +110,26 @@ export const fetchGoDownwiseStockValue = async (goDownId) => {
     return data.data;
 };
 
-export const fetchGroupedProducts = async company => {
-    // console.log("fetchGroupedProducts", `${API.groupedProducts()}${company}`);
-    const res = await fetch(`${API.groupedProducts()}${company}`);
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
-export const fetchProductPack = async company => {
-    const res = await fetch(`${API.productPacks()}${company}`);
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
-export const fetchRetailerClosingStock = async Retailer_Id => {
-    const res = await fetch(`${API.productClosingStock()}${Retailer_Id}`);
-    const data = await res.json();
-
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
 export const fetchClosingStock = async ({ id, day }) => {
     const url = `${API.closingStockReport()}${id}&reqDate=${day}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
+export const fetchGoDownStackInHand = async ({ from, to }) => {
+    const url = `${API.godownWiseStackInHand()}Fromdate=${from}&Todate=${to}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
+export const fetchGoDownExpenseReport = async ({ from, to, productId, goDownId }) => {
+    const url = `${API.godownExpenseReport()}fromDate=${from}&toDate=${to}&Product_Id=${productId}&Godown_Id=${goDownId}`;
     const res = await fetch(url);
     const data = await res.json();
 

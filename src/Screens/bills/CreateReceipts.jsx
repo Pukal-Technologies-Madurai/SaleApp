@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import {
@@ -18,12 +19,14 @@ import {
     spacing,
     typography,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import {
     fetchDefaultAccountMaster,
     createReceipt,
     fetchCustomerWhoHasBills,
-    fetchRetailerBasedPendingSalesInvoiceReceipt,
+    fetchRetailerAccountPendingReference,
 } from "../../Api/receipt";
 import DatePickerButton from "../../Components/DatePickerButton";
 import { API } from "../../Config/Endpoint";
@@ -108,25 +111,25 @@ const CreateReceipts = () => {
         isError: isErrorBills,
     } = useQuery({
         queryKey: [
-            "retailerBasedPendingSalesInvoiceReceipt",
-            selectedRetailer?.Retailer_id,
+            "retailerAccountPendingReference",
+            selectedRetailer?.value,
         ],
         queryFn: () =>
-            fetchRetailerBasedPendingSalesInvoiceReceipt({
-                retailerId: selectedRetailer?.Retailer_id,
+            fetchRetailerAccountPendingReference({
+                accountID: selectedRetailer?.value,
             }),
-        enabled: !!selectedRetailer?.Retailer_id, // Only run when we have a Retailer_id
+        enabled: !!selectedRetailer?.value, // Only run when we have a valid accountID
         select: data => {
             if (!data || !Array.isArray(data)) return [];
             // Filter bills that have pending amounts
             return data
-                .filter(bill => bill.Total_Invoice_value > bill.Paid_Amount)
+                .filter(bill => bill.totalValue > bill.againstAmount)
                 .map((bill, index) => ({
                     ...bill,
-                    // Create a unique identifier using invoice number and index
-                    uniqueId: `${bill.Do_Inv_No}_${index}`,
-                    // Keep original Do_Id but add a backup identifier
-                    originalDoId: bill.Do_Id,
+                    // Create a unique identifier using voucher number and index
+                    uniqueId: `${bill.voucherNumber}_${index}`,
+                    // Keep original voucherId but add a backup identifier
+                    originalVoucherId: bill.voucherId,
                 }));
         },
     });
@@ -193,7 +196,7 @@ const CreateReceipts = () => {
             }
             const bill = pendingBills.find(b => b.uniqueId === billId);
             const pendingAmount = bill
-                ? bill.Total_Invoice_value - bill.Paid_Amount
+                ? bill.totalValue - bill.againstAmount
                 : 0;
             return total + pendingAmount;
         }, 0);
@@ -276,7 +279,7 @@ const CreateReceipts = () => {
             const bill = pendingBills.find(b => b.uniqueId === billId);
             if (bill) {
                 const pendingAmount =
-                    bill.Total_Invoice_value - bill.Paid_Amount;
+                    bill.totalValue - bill.againstAmount;
                 initialAmounts[billId] = pendingAmount.toString();
             }
         });
@@ -351,12 +354,12 @@ const CreateReceipts = () => {
                     const receiptAmount = receiptAmounts[billId]
                         ? parseFloat(receiptAmounts[billId])
                         : bill
-                            ? bill.Total_Invoice_value - bill.Paid_Amount
+                            ? bill.totalValue - bill.againstAmount
                             : 0;
 
                     return {
-                        bill_id: bill?.originalDoId || bill?.Do_Id || billId, // Use original Do_Id for API
-                        bill_name: bill?.Do_Inv_No || billId,
+                        bill_id: bill?.originalVoucherId || bill?.voucherId || billId, // Use original voucherId for API
+                        bill_name: bill?.voucherNumber || billId,
                         bill_amount: receiptAmount,
                         Credit_Amo: receiptAmount,
                     };
@@ -372,7 +375,16 @@ const CreateReceipts = () => {
                 result.message || "Receipt created successfully!",
             );
             setShowReceiptView(false);
-            navigation.navigate("HomeScreen");
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
             // Reset form
             setSelectedBills([]);
             setReceiptAmounts({});
@@ -385,52 +397,48 @@ const CreateReceipts = () => {
 
     const renderBillCard = bill => {
         const isSelected = selectedBills.includes(bill.uniqueId);
+        const pendingAmount = bill.totalValue - bill.againstAmount;
 
         return (
             <TouchableOpacity
                 key={bill.uniqueId}
                 style={[styles.billCard, isSelected && styles.selectedBillCard]}
                 onPress={() => handleBillSelection(bill.uniqueId)}
-                activeOpacity={0.7}>
+                activeOpacity={0.7}
+            >
                 <View style={styles.billHeader}>
-                    <View style={styles.billHeaderLeft}>
-                        <MaterialIcons
-                            name={
-                                isSelected
-                                    ? "check-box"
-                                    : "check-box-outline-blank"
-                            }
-                            size={20}
-                            color={
-                                isSelected
-                                    ? customColors.primary
-                                    : customColors.grey600
-                            }
-                        />
-                        <View style={styles.billHeaderInfo}>
-                            <Text style={styles.billNumber}>
-                                Invoice #{bill.Do_Inv_No}
-                            </Text>
+                    <View style={styles.billCheckbox}>
+                        <View style={[
+                            styles.checkboxContainer,
+                            isSelected && styles.checkboxSelected
+                        ]}>
+                            {isSelected && (
+                                <FeatherIcon name="check" size={iconSizes.sm} color={customColors.white} />
+                            )}
+                        </View>
+                    </View>
+                    <View style={styles.billHeaderInfo}>
+                        <Text style={styles.billNumber}>
+                            Invoice #{bill.voucherNumber}
+                        </Text>
+                        <View style={styles.billMetaRow}>
+                            <FeatherIcon name="calendar" size={iconSizes.xs} color={customColors.grey500} />
                             <Text style={styles.billDate}>
-                                {new Date(bill.Do_Date).toLocaleDateString(
-                                    "en-GB",
-                                )}
+                                {new Date(bill.eventDate).toLocaleDateString("en-GB")}
                             </Text>
+                        </View>
+                        <View style={styles.billTotalRow}>
+                            <FontAwesomeIcon name="inr" size={iconSizes.xs} color={customColors.grey600} />
                             <Text style={styles.billTotalAmount}>
-                                Total: ₹{bill.Total_Invoice_value.toFixed(2)}
+                                {bill.totalValue.toFixed(2)}
                             </Text>
                         </View>
                     </View>
-                    <View style={styles.billHeaderRight}>
-                        <View style={styles.pendingAmountContainer}>
-                            <Text style={styles.pendingLabel}>PENDING</Text>
-                            <Text style={styles.pendingAmount}>
-                                ₹
-                                {(
-                                    bill.Total_Invoice_value - bill.Paid_Amount
-                                ).toFixed(2)}
-                            </Text>
-                        </View>
+                    <View style={styles.pendingBadge}>
+                        <Text style={styles.pendingLabel}>PENDING</Text>
+                        <Text style={styles.pendingAmount}>
+                            ₹{pendingAmount.toFixed(2)}
+                        </Text>
                     </View>
                 </View>
             </TouchableOpacity>
@@ -490,31 +498,28 @@ const CreateReceipts = () => {
                         <TouchableOpacity
                             style={styles.selectAllButton}
                             onPress={handleSelectAll}
-                            activeOpacity={0.7}>
-                            <MaterialIcons
-                                name={
-                                    selectAll
-                                        ? "check-box"
-                                        : "check-box-outline-blank"
-                                }
-                                size={24}
-                                color={
-                                    selectAll
-                                        ? customColors.primary
-                                        : customColors.grey600
-                                }
-                            />
+                            activeOpacity={0.7}
+                        >
+                            <View style={[
+                                styles.selectAllCheckbox,
+                                selectAll && styles.selectAllCheckboxActive
+                            ]}>
+                                {selectAll && (
+                                    <FeatherIcon name="check" size={iconSizes.sm} color={customColors.white} />
+                                )}
+                            </View>
                             <Text style={styles.selectAllText}>
-                                {selectAll ? "Deselect All" : "Select All"} (
-                                {pendingBills.length})
+                                {selectAll ? "Deselect All" : "Select All"} ({pendingBills.length})
                             </Text>
                         </TouchableOpacity>
 
                         {selectedBills.length > 0 && (
                             <View style={styles.selectedSummary}>
-                                <Text style={styles.selectedCount}>
-                                    {selectedBills.length} selected
-                                </Text>
+                                <View style={styles.selectedCountBadge}>
+                                    <Text style={styles.selectedCount}>
+                                        {selectedBills.length} selected
+                                    </Text>
+                                </View>
                                 <Text style={styles.selectedAmount}>
                                     ₹{getTotalSelectedAmount().toFixed(2)}
                                 </Text>
@@ -524,7 +529,8 @@ const CreateReceipts = () => {
 
                     <ScrollView
                         style={styles.billsContainer}
-                        showsVerticalScrollIndicator={false}>
+                        showsVerticalScrollIndicator={false}
+                    >
                         {pendingBills.map(bill => renderBillCard(bill))}
                         <View style={styles.bottomSpacer} />
                     </ScrollView>
@@ -533,8 +539,10 @@ const CreateReceipts = () => {
                         <View style={styles.actionContainer}>
                             <TouchableOpacity
                                 style={styles.createReceiptButton}
-                                activeOpacity={0.8}
-                                onPress={handleCreateReceipt}>
+                                activeOpacity={0.7}
+                                onPress={handleCreateReceipt}
+                            >
+                                <FeatherIcon name="file-plus" size={iconSizes.md} color={customColors.white} />
                                 <Text style={styles.createReceiptButtonText}>
                                     Create Receipt
                                 </Text>
@@ -548,11 +556,9 @@ const CreateReceipts = () => {
                 pendingBills.length === 0 &&
                 !isLoadingBills && (
                     <View style={styles.emptyState}>
-                        <MaterialIcons
-                            name="receipt-long"
-                            size={64}
-                            color={customColors.grey400}
-                        />
+                        <View style={styles.emptyIconContainer}>
+                            <FeatherIcon name="file-text" size={iconSizes.xxl} color={customColors.grey300} />
+                        </View>
                         <Text style={styles.emptyStateText}>
                             No pending bills found
                         </Text>
@@ -575,9 +581,7 @@ const CreateReceipts = () => {
             <View style={styles.receiptDateContainer}>
                 <DatePickerButton
                     label="Receipt Date"
-                    date={
-                        selectedDate instanceof Date ? selectedDate : new Date()
-                    }
+                    date={selectedDate instanceof Date ? selectedDate : new Date()}
                     onDateChange={handleDateChange}
                     containerStyle={styles.receiptDatePicker}
                 />
@@ -585,50 +589,55 @@ const CreateReceipts = () => {
 
             <ScrollView
                 style={styles.receiptContent}
-                showsVerticalScrollIndicator={false}>
+                showsVerticalScrollIndicator={false}
+            >
                 {selectedBills.map(billId => {
                     const bill = pendingBills.find(b => b.uniqueId === billId);
                     if (!bill) return null;
 
+                    const pendingAmount = bill.totalValue - bill.againstAmount;
+
                     return (
                         <View key={billId} style={styles.receiptBillCard}>
                             <View style={styles.receiptBillHeader}>
-                                <View>
+                                <View style={styles.receiptBillIconWrap}>
+                                    <FeatherIcon name="file-text" size={iconSizes.md} color={customColors.primary} />
+                                </View>
+                                <View style={styles.receiptBillInfo}>
                                     <Text style={styles.receiptBillNumber}>
-                                        Invoice #{bill.Do_Inv_No}
+                                        Invoice #{bill.voucherNumber}
                                     </Text>
-                                    <Text style={styles.receiptBillDate}>
-                                        {new Date(
-                                            bill.Do_Date,
-                                        ).toLocaleDateString("en-GB")}
-                                    </Text>
-                                    <Text style={styles.receiptBillPending}>
-                                        Pending: ₹
-                                        {(
-                                            bill.Total_Invoice_value -
-                                            bill.Paid_Amount
-                                        ).toFixed(2)}
+                                    <View style={styles.receiptBillMeta}>
+                                        <FeatherIcon name="calendar" size={iconSizes.xs} color={customColors.grey500} />
+                                        <Text style={styles.receiptBillDate}>
+                                            {new Date(bill.eventDate).toLocaleDateString("en-GB")}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.receiptPendingBadge}>
+                                    <Text style={styles.receiptPendingLabel}>Pending</Text>
+                                    <Text style={styles.receiptPendingAmount}>
+                                        ₹{pendingAmount.toFixed(2)}
                                     </Text>
                                 </View>
                             </View>
 
                             <View style={styles.receiptAmountContainer}>
                                 <Text style={styles.receiptAmountLabel}>
-                                    Receipt Amount:
+                                    Receipt Amount
                                 </Text>
-                                <TextInput
-                                    style={styles.receiptAmountInput}
-                                    value={receiptAmounts[billId] || ""}
-                                    onChangeText={amount =>
-                                        handleReceiptAmountChange(
-                                            billId,
-                                            amount,
-                                        )
-                                    }
-                                    placeholder="Enter amount"
-                                    keyboardType="numeric"
-                                    selectTextOnFocus={true}
-                                />
+                                <View style={styles.receiptInputWrapper}>
+                                    <FontAwesomeIcon name="inr" size={iconSizes.sm} color={customColors.grey500} />
+                                    <TextInput
+                                        style={styles.receiptAmountInput}
+                                        value={receiptAmounts[billId] || ""}
+                                        onChangeText={amount => handleReceiptAmountChange(billId, amount)}
+                                        placeholder="0.00"
+                                        placeholderTextColor={customColors.grey400}
+                                        keyboardType="numeric"
+                                        selectTextOnFocus={true}
+                                    />
+                                </View>
                             </View>
                         </View>
                     );
@@ -639,14 +648,22 @@ const CreateReceipts = () => {
             <View style={styles.receiptFooter}>
                 <TouchableOpacity
                     style={styles.receiptCancelButton}
-                    onPress={handleViewClose}>
-                    <Text style={styles.receiptCancelText}>Go Back</Text>
+                    onPress={handleViewClose}
+                    activeOpacity={0.7}
+                >
+                    <FeatherIcon name="arrow-left" size={iconSizes.md} color={customColors.grey700} />
+                    <Text style={styles.receiptCancelText}>Back</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={styles.receiptSubmitButton}
-                    onPress={handleViewSubmit}>
-                    <Text style={styles.receiptSubmitText}>Create Receipt</Text>
+                    onPress={handleViewSubmit}
+                    activeOpacity={0.7}
+                >
+                    <View style={styles.receiptSubmitContent}>
+                        <FeatherIcon name="check-circle" size={iconSizes.md} color={customColors.white} />
+                        <Text style={styles.receiptSubmitText}>Create Receipt</Text>
+                    </View>
                     <Text style={styles.receiptSubmitAmount}>
                         ₹{getTotalSelectedAmount().toFixed(2)}
                     </Text>
@@ -684,26 +701,40 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.grey50,
     },
     content: {
         flex: 1,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.grey50,
         padding: spacing.md,
     },
+    // Dropdown Styles
     dropdownContainer: {
-        marginBottom: 0, // Remove bottom margin since it's in rowContainer
-        minHeight: 56, // Ensure consistent height
+        marginBottom: spacing.sm,
+        minHeight: 56,
     },
     rowContainer: {
         flexDirection: "row",
-        alignItems: "stretch", // Changed from "center" to "stretch" for equal height
+        alignItems: "stretch",
         marginBottom: spacing.md,
         gap: spacing.md,
     },
     rowItem: {
         flex: 1,
     },
+    dropdownItem: {
+        borderBottomWidth: 1,
+        borderBottomColor: customColors.grey100,
+    },
+    dropdownItemContent: {
+        padding: spacing.md,
+        backgroundColor: customColors.white,
+    },
+    dropdownItemText: {
+        ...typography.body2(),
+        color: customColors.grey900,
+    },
+    // Bills Header
     billsHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -716,146 +747,181 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: spacing.sm,
     },
+    selectAllCheckbox: {
+        width: 24,
+        height: 24,
+        borderRadius: borderRadius.sm,
+        borderWidth: 2,
+        borderColor: customColors.grey400,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    selectAllCheckboxActive: {
+        backgroundColor: customColors.primary,
+        borderColor: customColors.primary,
+    },
     selectAllText: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
+        ...typography.body2(),
+        color: customColors.grey800,
         fontWeight: "600",
     },
     selectedSummary: {
         alignItems: "flex-end",
+        gap: spacing.xxs,
+    },
+    selectedCountBadge: {
+        backgroundColor: customColors.primaryFaded,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
     },
     selectedCount: {
         ...typography.caption(),
-        color: customColors.grey700,
+        color: customColors.primary,
+        fontWeight: "600",
     },
     selectedAmount: {
-        ...typography.subtitle2(),
+        ...typography.body1(),
         color: customColors.primary,
         fontWeight: "700",
     },
+    // Bills Container
     billsContainer: {
         flex: 1,
-        marginHorizontal: -spacing.xs,
     },
+    // Bill Card
     billCard: {
         backgroundColor: customColors.white,
-        marginHorizontal: spacing.xs,
         marginBottom: spacing.sm,
-        borderRadius: 8,
-        padding: spacing.sm,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
-        ...shadows.small,
+        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        // ...shadows.small,
     },
     selectedBillCard: {
-        borderColor: customColors.primary,
         borderWidth: 2,
-        backgroundColor: customColors.primaryLight,
+        borderColor: customColors.primary,
+        backgroundColor: customColors.primaryFaded,
     },
     billHeader: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "flex-start",
-        marginBottom: spacing.sm,
     },
-    billHeaderLeft: {
-        flexDirection: "row",
+    billCheckbox: {
+        marginRight: spacing.sm,
+        paddingTop: spacing.xxs,
+    },
+    checkboxContainer: {
+        width: 22,
+        height: 22,
+        borderRadius: borderRadius.sm,
+        borderWidth: 2,
+        borderColor: customColors.grey400,
+        justifyContent: "center",
         alignItems: "center",
-        gap: spacing.sm,
-        flex: 1,
+    },
+    checkboxSelected: {
+        backgroundColor: customColors.primary,
+        borderColor: customColors.primary,
     },
     billHeaderInfo: {
         flex: 1,
     },
     billNumber: {
-        ...typography.subtitle2(),
+        ...typography.body1(),
         color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: 2,
+    },
+    billMetaRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xxs,
+        marginTop: spacing.xxs,
     },
     billDate: {
-        ...typography.caption(),
-        color: customColors.grey700,
+        ...typography.subtitle1(),
+        color: customColors.grey500,
+    },
+    billTotalRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xxs,
+        marginTop: spacing.xs,
     },
     billTotalAmount: {
-        ...typography.subtitle2(),
+        ...typography.body2(),
         color: customColors.grey700,
-        fontWeight: "900",
-        marginTop: 2,
+        fontWeight: "600",
     },
-    billHeaderRight: {
-        alignItems: "flex-end",
-    },
-    pendingAmountContainer: {
+    // Pending Badge
+    pendingBadge: {
         backgroundColor: customColors.error,
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
-        borderRadius: 6,
+        borderRadius: borderRadius.lg,
         alignItems: "center",
-        minWidth: 80,
-        elevation: 2,
-        shadowColor: customColors.error,
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        minWidth: 85,
     },
     pendingLabel: {
-        ...typography.caption(),
+        ...typography.overline(),
         color: customColors.white,
         fontWeight: "700",
+        fontSize: 9,
         letterSpacing: 0.5,
     },
     pendingAmount: {
-        ...typography.subtitle2(),
+        ...typography.body2(),
         color: customColors.white,
         fontWeight: "700",
-        marginTop: 1,
     },
-    billAmount: {
-        ...typography.h5(),
-        color: customColors.primary,
-        fontWeight: "700",
-    },
+    // Action Container
     actionContainer: {
-        padding: spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
-        backgroundColor: customColors.white,
+        paddingVertical: spacing.sm,
+        backgroundColor: customColors.grey50,
     },
     createReceiptButton: {
+        flexDirection: "row",
         backgroundColor: customColors.primary,
-        borderRadius: 8,
-        padding: spacing.sm,
+        borderRadius: borderRadius.round,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
         alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.sm,
         ...shadows.small,
     },
     createReceiptButtonText: {
-        ...typography.subtitle2(),
+        ...typography.body1(),
         color: customColors.white,
         fontWeight: "600",
     },
+    // Empty State
     emptyState: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: spacing.xl,
+        paddingVertical: spacing.xxl,
+    },
+    emptyIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     emptyStateText: {
-        ...typography.h3(),
+        ...typography.h6(),
         color: customColors.grey700,
         fontWeight: "600",
-        marginTop: spacing.md,
         marginBottom: spacing.xs,
     },
     emptyStateSubtext: {
         ...typography.body2(),
-        color: customColors.grey600,
+        color: customColors.grey500,
         textAlign: "center",
-        marginHorizontal: spacing.xl,
     },
+    // Loading State
     loadingState: {
         flex: 1,
         justifyContent: "center",
@@ -864,7 +930,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         ...typography.body1(),
-        color: customColors.grey700,
+        color: customColors.grey600,
     },
     bottomSpacer: {
         height: spacing.xl,
@@ -880,106 +946,136 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     receiptBillCard: {
-        backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.xl,
+        marginHorizontal: spacing.xxs,
         padding: spacing.md,
         marginBottom: spacing.sm,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
+        ...shadows.small,
     },
     receiptBillHeader: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "flex-start",
-        marginBottom: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    receiptBillIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.lg,
+        backgroundColor: customColors.primaryFaded,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    receiptBillInfo: {
+        flex: 1,
+        marginLeft: spacing.sm,
     },
     receiptBillNumber: {
-        ...typography.subtitle1(),
+        ...typography.body1(),
         color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: 2,
+    },
+    receiptBillMeta: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xxs,
+        marginTop: spacing.xxs,
     },
     receiptBillDate: {
+        ...typography.subtitle1(),
+        color: customColors.grey500,
+    },
+    receiptPendingBadge: {
+        alignItems: "flex-end",
+    },
+    receiptPendingLabel: {
         ...typography.caption(),
-        color: customColors.grey700,
+        color: customColors.grey500,
     },
-    receiptBillPending: {
-        ...typography.subtitle2(),
-        color: customColors.primary,
-        fontWeight: "600",
+    receiptPendingAmount: {
+        ...typography.body1(),
+        color: customColors.warning,
+        fontWeight: "700",
     },
+    // Receipt Amount Input
     receiptAmountContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey100,
     },
     receiptAmountLabel: {
         ...typography.body2(),
-        color: customColors.grey800,
+        color: customColors.grey700,
         fontWeight: "500",
-        flex: 1,
+    },
+    receiptInputWrapper: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        borderRadius: borderRadius.lg,
+        paddingHorizontal: spacing.sm,
+        gap: spacing.xs,
     },
     receiptAmountInput: {
         ...typography.body1(),
-        backgroundColor: customColors.white,
-        borderWidth: 1,
-        borderColor: customColors.grey300,
-        borderRadius: 6,
-        padding: spacing.sm,
+        color: customColors.grey900,
         textAlign: "right",
         minWidth: 100,
-        color: customColors.grey900,
+        paddingVertical: spacing.sm,
+        fontWeight: "600",
     },
+    // Receipt Footer
     receiptFooter: {
         flexDirection: "row",
-        padding: spacing.md,
+        paddingVertical: spacing.md,
         gap: spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.grey50,
     },
     receiptCancelButton: {
         flex: 1,
-        backgroundColor: customColors.grey100,
-        borderRadius: 8,
-        padding: spacing.sm,
+        flexDirection: "row",
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.round,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        ...shadows.small,
     },
     receiptCancelText: {
-        ...typography.subtitle2(),
+        ...typography.body2(),
         color: customColors.grey700,
         fontWeight: "600",
     },
     receiptSubmitButton: {
         flex: 2,
         backgroundColor: customColors.primary,
-        borderRadius: 8,
-        padding: spacing.sm,
+        borderRadius: borderRadius.round,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         alignItems: "center",
+        ...shadows.small,
+    },
+    receiptSubmitContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
     },
     receiptSubmitText: {
-        ...typography.subtitle2(),
+        ...typography.body2(),
         color: customColors.white,
         fontWeight: "600",
-        marginBottom: 2,
     },
     receiptSubmitAmount: {
-        ...typography.subtitle1(),
+        ...typography.h6(),
         color: customColors.white,
         fontWeight: "700",
-    },
-
-    dropdownItem: {
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    dropdownItemContent: {
-        padding: spacing.sm,
-        backgroundColor: customColors.white,
-    },
-    dropdownItemText: {
-        ...typography.body2(),
-        color: customColors.grey900,
-        lineHeight: 20,
+        marginTop: spacing.xxs,
     },
 });

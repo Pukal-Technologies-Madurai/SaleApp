@@ -11,6 +11,8 @@ import {
     typography,
     spacing,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 
 const AttendanceInfo = () => {
@@ -85,23 +87,24 @@ const AttendanceInfo = () => {
         <View style={styles.container}>
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                    <View style={styles.headerContent}>
-                        <Text
-                            style={styles.cardTitle}
-                            maxFontSizeMultiplier={1.2}>
+                    <View style={styles.headerLeft}>
+                        <Text style={styles.cardTitle} maxFontSizeMultiplier={1.2}>
                             Today's Attendance
                         </Text>
-                        <Text style={styles.statusText}>
-                            {activeStatus ? "Active" : "Not Started"}
-                        </Text>
+                        <View style={[styles.statusBadge, activeStatus && styles.statusBadgeActive]}>
+                            <View style={[styles.statusDot, activeStatus && styles.statusDotActive]} />
+                            <Text style={styles.statusText}>
+                                {activeStatus ? "Active" : "Not Started"}
+                            </Text>
+                        </View>
                     </View>
                     <TouchableOpacity
                         style={styles.reportButton}
                         onPress={() => navigation.navigate("AttendanceReport")}>
                         <FeatherIcon
                             name="arrow-up-right"
-                            color={customColors.white}
-                            size={20}
+                            color={customColors.primary}
+                            size={iconSizes.sm}
                         />
                     </TouchableOpacity>
                 </View>
@@ -110,9 +113,7 @@ const AttendanceInfo = () => {
                     <TouchableOpacity
                         style={styles.startButton}
                         onPress={() => navigation.navigate("Attendance")}>
-                        <Text
-                            style={styles.buttonText}
-                            maxFontSizeMultiplier={1.2}>
+                        <Text style={styles.buttonText} maxFontSizeMultiplier={1.2}>
                             Start Day
                         </Text>
                     </TouchableOpacity>
@@ -120,42 +121,13 @@ const AttendanceInfo = () => {
                     <View style={styles.cardContent}>
                         <View style={styles.infoRow}>
                             <View style={styles.infoItem}>
-                                <IconFont
-                                    name="date"
-                                    color={customColors.white}
-                                    size={20}
-                                />
-                                <View style={styles.infoTextContainer}>
-                                    <Text
-                                        style={styles.infoLabel}
-                                        maxFontSizeMultiplier={1.2}>
-                                        Date
-                                    </Text>
-                                    <Text
-                                        style={styles.infoValue}
-                                        maxFontSizeMultiplier={1.2}>
-                                        {date}
-                                    </Text>
-                                </View>
+                                <IconFont name="date" color={customColors.primary} size={iconSizes.sm} />
+                                <Text style={styles.infoValue} maxFontSizeMultiplier={1.2}>{date}</Text>
                             </View>
+                            <View style={styles.divider} />
                             <View style={styles.infoItem}>
-                                <Icon
-                                    name="time-outline"
-                                    color={customColors.white}
-                                    size={20}
-                                />
-                                <View style={styles.infoTextContainer}>
-                                    <Text
-                                        style={styles.infoLabel}
-                                        maxFontSizeMultiplier={1.2}>
-                                        Time In
-                                    </Text>
-                                    <Text
-                                        style={styles.infoValue}
-                                        maxFontSizeMultiplier={1.2}>
-                                        {time}
-                                    </Text>
-                                </View>
+                                <Icon name="time-outline" color={customColors.primary} size={iconSizes.sm} />
+                                <Text style={styles.infoValue} maxFontSizeMultiplier={1.2}>{time}</Text>
                             </View>
                         </View>
 
@@ -165,9 +137,7 @@ const AttendanceInfo = () => {
                                 navigation.navigate("EndDay");
                                 setActiveStatus(0);
                             }}>
-                            <Text
-                                style={styles.buttonText}
-                                maxFontSizeMultiplier={1.2}>
+                            <Text style={styles.endButtonText} maxFontSizeMultiplier={1.2}>
                                 End Day
                             </Text>
                         </TouchableOpacity>
@@ -182,84 +152,120 @@ export default AttendanceInfo;
 
 const styles = StyleSheet.create({
     container: {
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
     },
     card: {
-        backgroundColor: customColors.primary,
-        borderRadius: 12,
-        ...shadows.medium,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.lg,
+        ...shadows.small,
+        overflow: "hidden",
     },
     cardHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: "rgba(255, 255, 255, 0.1)",
+        padding: spacing.sm,
+        paddingHorizontal: spacing.md,
     },
-    headerContent: {
+    headerLeft: {
         flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
     },
     cardTitle: {
-        ...typography.h5(),
-        color: customColors.white,
-        marginBottom: spacing.xs,
+        ...typography.body1(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.grey100,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
+        gap: spacing.xs,
+    },
+    statusBadgeActive: {
+        backgroundColor: "#DCFCE7",
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: customColors.grey400,
+    },
+    statusDotActive: {
+        backgroundColor: "#22C55E",
     },
     statusText: {
         ...typography.caption(),
-        color: customColors.white,
-        opacity: 0.8,
+        color: customColors.grey600,
+        fontWeight: "500",
     },
     reportButton: {
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        padding: spacing.sm,
-        borderRadius: 8,
+        width: 32,
+        height: 32,
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.md,
+        justifyContent: "center",
+        alignItems: "center",
     },
     cardContent: {
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingBottom: spacing.sm,
     },
     infoRow: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: spacing.md,
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.md,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        marginBottom: spacing.sm,
     },
     infoItem: {
+        flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        flex: 1,
+        justifyContent: "center",
+        gap: spacing.xs,
     },
-    infoTextContainer: {
-        marginLeft: spacing.sm,
-    },
-    infoLabel: {
-        ...typography.caption(),
-        color: customColors.white,
-        opacity: 0.8,
+    divider: {
+        width: 1,
+        height: 20,
+        backgroundColor: customColors.grey200,
     },
     infoValue: {
-        ...typography.subtitle1(),
-        color: customColors.white,
+        ...typography.body2(),
+        color: customColors.grey800,
+        fontWeight: "500",
     },
     startButton: {
-        backgroundColor: customColors.primaryDark,
+        backgroundColor: customColors.primary,
+        marginHorizontal: spacing.md,
+        marginBottom: spacing.sm,
         paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.lg,
-        borderRadius: 25,
-        alignSelf: "center",
-        marginVertical: spacing.md,
-        ...shadows.small,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
     },
     endButton: {
-        backgroundColor: customColors.error,
-        paddingVertical: spacing.sm,
+        backgroundColor: "#FEE2E2",
+        paddingVertical: spacing.xs,
         paddingHorizontal: spacing.lg,
-        borderRadius: 25,
+        borderRadius: borderRadius.md,
         alignSelf: "center",
-        ...shadows.small,
     },
     buttonText: {
-        ...typography.button(),
+        ...typography.body2(),
         color: customColors.white,
-        textAlign: "center",
+        fontWeight: "600",
+    },
+    endButtonText: {
+        ...typography.body2(),
+        color: customColors.error,
+        fontWeight: "600",
     },
 });

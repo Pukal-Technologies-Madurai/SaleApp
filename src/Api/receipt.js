@@ -1,20 +1,5 @@
 import { API } from "../Config/Endpoint";
 
-export const fetchAccountsMaster = async () => {
-    const url = API.accountsMaster();
-
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
-
-    const data = await response.json();
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
 export const fetchCustomerWhoHasBills = async () => {
     try {
         const url = API.customerWhoHasBills();
@@ -49,21 +34,6 @@ export const fetchDefaultAccountMaster = async () => {
     return data.data;
 };
 
-export const fetchDebitLiveSale = async () => {
-    const url = API.defaultDebitLiveSales();
-
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
-
-    const data = await response.json();
-    if (!data.success) throw new Error(data.message);
-    return data.data;
-};
-
 export const fetchCreditLiveSale = async () => {
     const url = API.defaultCreditAccountMaster();
 
@@ -79,11 +49,12 @@ export const fetchCreditLiveSale = async () => {
     return data.data;
 };
 
-export const fetchRetailerBasedPendingSalesInvoiceReceipt = async ({
-    retailerId,
+export const fetchRetailerAccountPendingReference = async ({
+    accountID,
 }) => {
     try {
-        const url = `${API.retailerBasedPendingSalesInvoiceReceipt()}${retailerId}`;
+        const url = `${API.retailerAccountPendingReference()}${accountID}`;
+        // console.log(url);
 
         const response = await fetch(url);
         const data = await response.json();
@@ -161,6 +132,8 @@ export const fetchUserInvolvedReceipts = async (
     }
 };
 
+// Not used APIs
+
 export const createLiveSales = async resBody => {
     try {
         const url = API.salesLive();
@@ -186,4 +159,19 @@ export const createLiveSales = async resBody => {
         console.error("Error creating live sales:", err);
         throw err;
     }
+};
+
+export const fetchDebitLiveSale = async () => {
+    const url = API.defaultDebitLiveSales();
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
 };

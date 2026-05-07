@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import {
@@ -15,6 +16,8 @@ import {
     shadows,
     spacing,
     typography,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import { API } from "../../Config/Endpoint";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -133,7 +136,16 @@ const RoutePath = () => {
 
             if (data.success) {
                 Alert.alert("Success", "Route has been added successfully!");
-                navigation.navigate("HomeScreen");
+                navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
                 setSelectedRoute(null);
             } else {
                 throw new Error(data.message || "Failed to add route");
@@ -338,14 +350,11 @@ const RoutePath = () => {
                                                         updateRoute(routeData)
                                                     }
                                                     disabled={isSubmitting}>
-                                                    <Text
-                                                        style={
-                                                            styles.activateButtonText
-                                                        }>
-                                                        {isSubmitting
-                                                            ? "..."
-                                                            : "✓"}
-                                                    </Text>
+                                                    <FeatherIcon
+                                                        name="check"
+                                                        size={iconSizes.sm}
+                                                        color={customColors.white}
+                                                    />
                                                 </TouchableOpacity>
                                             )}
 
@@ -355,12 +364,11 @@ const RoutePath = () => {
                                                     deleteRoute(routeData)
                                                 }
                                                 disabled={isSubmitting}>
-                                                <Text
-                                                    style={
-                                                        styles.deleteButtonText
-                                                    }>
-                                                    ×
-                                                </Text>
+                                                <FeatherIcon
+                                                    name="trash-2"
+                                                    size={iconSizes.sm}
+                                                    color={customColors.white}
+                                                />
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -384,21 +392,19 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.grey50,
     },
     filterSection: {
         padding: spacing.md,
-        backgroundColor: customColors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+        backgroundColor: customColors.grey50,
     },
     existingRoutesContainer: {
         marginTop: spacing.lg,
     },
     sectionTitle: {
-        ...typography.h3(),
-        color: customColors.grey900,
-        marginBottom: spacing.md,
+        ...typography.subtitle1(),
+        color: customColors.grey700,
+        marginBottom: spacing.sm,
         fontWeight: "600",
     },
     existingRouteItem: {
@@ -406,9 +412,9 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         paddingVertical: spacing.md,
-        paddingHorizontal: spacing.sm,
-        backgroundColor: customColors.grey50,
-        borderRadius: 8,
+        paddingHorizontal: spacing.md,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.lg,
         marginBottom: spacing.sm,
         ...shadows.small,
     },
@@ -416,28 +422,26 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     routeLabel: {
-        ...typography.body1(),
+        ...typography.subtitle2(),
         color: customColors.grey900,
-        fontWeight: "500",
+        fontWeight: "600",
     },
     routeIdContainer: {
-        width: 60,
-        height: 24,
         paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 4,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
         marginTop: spacing.xs,
+        alignSelf: "flex-start",
     },
     activeRoute: {
-        backgroundColor: customColors.success + "20",
+        backgroundColor: customColors.successFaded,
     },
     inactiveRoute: {
-        backgroundColor: customColors.grey300 + "80",
+        backgroundColor: customColors.grey200,
     },
     routeId: {
-        textAlign: "center",
-        ...typography.body2(),
-        fontWeight: "500",
+        ...typography.caption(),
+        fontWeight: "600",
     },
     activeText: {
         color: customColors.success,
@@ -452,69 +456,49 @@ const styles = StyleSheet.create({
     },
     activateButton: {
         backgroundColor: customColors.success,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 4,
-        minWidth: 28,
-        height: 28,
+        width: 32,
+        height: 32,
+        borderRadius: borderRadius.md,
         justifyContent: "center",
         alignItems: "center",
-    },
-    activateButtonText: {
-        color: customColors.white,
-        ...typography.subtitle1(),
-        fontWeight: "bold",
-        textAlign: "center",
     },
     deleteButton: {
-        width: 28,
-        height: 28,
-        paddingHorizontal: spacing.xs,
-        paddingVertical: spacing.xs,
+        width: 32,
+        height: 32,
         backgroundColor: customColors.error,
-        borderRadius: 4,
+        borderRadius: borderRadius.md,
         justifyContent: "center",
         alignItems: "center",
     },
-    deleteButtonText: {
-        color: customColors.white,
-        ...typography.body1(),
-        fontWeight: "bold",
-        textAlign: "center",
-    },
     newRouteSection: {
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
+        backgroundColor: customColors.white,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        ...shadows.small,
     },
     dropdownContainer: {
         marginBottom: spacing.md,
     },
     dropdownLabel: {
-        ...typography.label(),
+        ...typography.body2(),
         marginBottom: spacing.xs,
-        color: customColors.grey900,
+        color: customColors.grey700,
+        fontWeight: "500",
     },
     selectedRouteText: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.primary,
         marginTop: spacing.sm,
         fontWeight: "600",
-    },
-    existingRouteText: {
-        ...typography.caption(),
-        color: customColors.grey600,
-        marginTop: spacing.xs,
-        fontStyle: "italic",
     },
     submitButton: {
         backgroundColor: customColors.primary,
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
-        borderRadius: 8,
-        margin: spacing.lg,
+        borderRadius: borderRadius.lg,
+        marginTop: spacing.md,
         alignItems: "center",
-        ...shadows.medium,
+        ...shadows.small,
     },
     submitButtonDisabled: {
         backgroundColor: customColors.grey400,
@@ -529,20 +513,18 @@ const styles = StyleSheet.create({
         height: 48,
         backgroundColor: customColors.white,
         borderWidth: 1,
-        borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderColor: customColors.grey200,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.sm,
-        ...shadows.small,
     },
     searchContainer: {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
         borderWidth: 1,
-        borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderColor: customColors.grey200,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.sm,
-        ...shadows.small,
     },
     searchIcon: {
         marginRight: spacing.sm,

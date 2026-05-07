@@ -15,8 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import FontAwesome from "react-native-vector-icons/FontAwesome";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import { API } from "../../Config/Endpoint";
 import { fetchUsers } from "../../Api/employee";
 import { fetchDefaultAccountMaster } from "../../Api/receipt";
@@ -25,6 +24,8 @@ import {
     shadows,
     spacing,
     typography,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
@@ -473,9 +474,9 @@ const DeliveryUpdate = () => {
                     style={styles.updateButton}
                     onPress={() => openUpdateScreen(item)}
                 >
-                    <FontAwesome
-                        name="edit"
-                        size={20}
+                    <FeatherIcon
+                        name="edit-2"
+                        size={iconSizes.md}
                         color={customColors.pending}
                     />
                 </TouchableOpacity>
@@ -483,15 +484,15 @@ const DeliveryUpdate = () => {
                     item.Delivery_Status !== 6 &&
                     item.Delivery_Status !== 8 && (
                         <TouchableOpacity
-                            style={styles.cancelButton}
+                            style={styles.cancelButtonIcon}
                             onPress={() => {
                                 setSelectedDelivery(item);
                                 setShowCancelModal(true);
                             }}
                         >
-                            <FontAwesome
-                                name="times"
-                                size={20}
+                            <FeatherIcon
+                                name="x"
+                                size={iconSizes.md}
                                 color={customColors.error}
                             />
                         </TouchableOpacity>
@@ -579,9 +580,9 @@ const DeliveryUpdate = () => {
                         style={styles.backButton}
                         onPress={() => setShowProductModal(false)}
                     >
-                        <MaterialIcon
-                            name="arrow-back"
-                            size={24}
+                        <FeatherIcon
+                            name="arrow-left"
+                            size={iconSizes.lg}
                             color={customColors.white}
                         />
                     </TouchableOpacity>
@@ -593,9 +594,9 @@ const DeliveryUpdate = () => {
                             style={styles.resetButton}
                             onPress={handleResetProducts}
                         >
-                            <MaterialIcon
-                                name="refresh"
-                                size={24}
+                            <FeatherIcon
+                                name="refresh-cw"
+                                size={iconSizes.lg}
                                 color={customColors.white}
                             />
                         </TouchableOpacity>
@@ -640,9 +641,9 @@ const DeliveryUpdate = () => {
                                         }
                                     }}
                                 >
-                                    <MaterialIcon
-                                        name="remove"
-                                        size={20}
+                                    <FeatherIcon
+                                        name="minus"
+                                        size={iconSizes.md}
                                         color={customColors.white}
                                     />
                                 </TouchableOpacity>
@@ -665,9 +666,9 @@ const DeliveryUpdate = () => {
                                         )
                                     }
                                 >
-                                    <MaterialIcon
-                                        name="add"
-                                        size={20}
+                                    <FeatherIcon
+                                        name="plus"
+                                        size={iconSizes.md}
                                         color={customColors.white}
                                     />
                                 </TouchableOpacity>
@@ -675,9 +676,9 @@ const DeliveryUpdate = () => {
                                     style={styles.removeItemButton}
                                     onPress={() => handleRemoveProduct(index)}
                                 >
-                                    <MaterialIcon
-                                        name="delete"
-                                        size={20}
+                                    <FeatherIcon
+                                        name="trash-2"
+                                        size={iconSizes.md}
                                         color={customColors.white}
                                     />
                                 </TouchableOpacity>
@@ -1245,9 +1246,9 @@ const DeliveryUpdate = () => {
                     style={styles.backButton}
                     onPress={() => setShowUpdateScreen(false)}
                 >
-                    <MaterialIcon
-                        name="arrow-back"
-                        size={24}
+                    <FeatherIcon
+                        name="arrow-left"
+                        size={iconSizes.lg}
                         color={customColors.white}
                     />
                 </TouchableOpacity>
@@ -1321,9 +1322,9 @@ const DeliveryUpdate = () => {
                                                 style={styles.resetAllButton}
                                                 onPress={handleResetProducts}
                                             >
-                                                <MaterialIcon
-                                                    name="refresh"
-                                                    size={16}
+                                                <FeatherIcon
+                                                    name="refresh-cw"
+                                                    size={iconSizes.sm}
                                                     color={customColors.white}
                                                 />
                                                 <Text style={styles.resetButtonText}>Reset</Text>
@@ -1333,9 +1334,9 @@ const DeliveryUpdate = () => {
                                             style={styles.manageProductsButton}
                                             onPress={() => setShowProductModal(true)}
                                         >
-                                            <MaterialIcon
-                                                name="edit"
-                                                size={16}
+                                            <FeatherIcon
+                                                name="edit-2"
+                                                size={iconSizes.sm}
                                                 color={customColors.white}
                                             />
                                             <Text style={styles.manageProductsButtonText}>
@@ -1506,8 +1507,8 @@ const DeliveryUpdate = () => {
                 title="Delivery Update"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="FeatherIcon"
+                rightIconName="filter"
                 onRightPress={() => setModalVisible(true)}
             />
 
@@ -1558,8 +1559,16 @@ const DeliveryUpdate = () => {
                         />
                     ) : (
                         <View style={styles.noDataContainer}>
+                            <FeatherIcon
+                                name="truck"
+                                size={iconSizes.xxl}
+                                color={customColors.grey300}
+                            />
+                            <Text style={styles.noDataTitle}>
+                                No Deliveries Found
+                            </Text>
                             <Text style={styles.noDataText}>
-                                No delivery data available
+                                No delivery data available for the selected date range
                             </Text>
                         </View>
                     )}
@@ -1598,25 +1607,26 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     searchInput: {
-        width: "65%",
-        height: 50,
+        flex: 1,
+        height: 48,
         borderColor: customColors.grey300,
         borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        marginVertical: 10,
-        marginHorizontal: spacing.lg,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        marginVertical: spacing.sm,
+        marginHorizontal: spacing.md,
         backgroundColor: customColors.white,
         ...typography.body1(),
     },
     searchInputLabel: {
         ...typography.body2(),
         color: customColors.grey600,
+        marginRight: spacing.md,
     },
     deliveryItem: {
         flexDirection: "row",
         backgroundColor: customColors.white,
-        borderRadius: 8,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         marginHorizontal: spacing.xs,
         marginBottom: spacing.sm,
@@ -1670,26 +1680,32 @@ const styles = StyleSheet.create({
         alignItems: "center",
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
     },
-    cancelButton: {
+    cancelButtonIcon: {
         justifyContent: "center",
         alignItems: "center",
         width: 40,
         height: 40,
-        borderRadius: 20,
-        backgroundColor: customColors.error + "20",
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.errorFaded,
     },
     noDataContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
         padding: spacing.xl,
+        gap: spacing.md,
+    },
+    noDataTitle: {
+        ...typography.h6(),
+        color: customColors.grey800,
+        fontWeight: "600",
     },
     noDataText: {
-        ...typography.body1(),
-        color: customColors.grey700,
+        ...typography.body2(),
+        color: customColors.grey500,
         textAlign: "center",
     },
     updateScreen: {
@@ -1724,7 +1740,7 @@ const styles = StyleSheet.create({
     },
     updateCard: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.md,
         ...shadows.medium,
     },
@@ -1777,26 +1793,26 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.warning,
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
-        borderRadius: 6,
+        borderRadius: borderRadius.sm,
         gap: spacing.xs,
     },
     resetButtonText: {
-        color: customColors.white,
         ...typography.caption(),
+        color: customColors.white,
         fontWeight: "600",
     },
     manageProductsButton: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: customColors.secondary,
+        backgroundColor: customColors.primaryDark,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         gap: spacing.xs,
     },
     manageProductsButtonText: {
-        color: customColors.white,
         ...typography.body2(),
+        color: customColors.white,
         fontWeight: "600",
     },
     paymentModeSection: {
@@ -1819,7 +1835,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginHorizontal: spacing.xs,
     },
     selectedPaymentOption: {
@@ -1844,7 +1860,7 @@ const styles = StyleSheet.create({
         height: 48,
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.md,
         ...typography.body1(),
         marginVertical: spacing.sm,
@@ -1860,7 +1876,7 @@ const styles = StyleSheet.create({
     },
     updateActionButton: {
         padding: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         alignItems: "center",
         marginBottom: spacing.sm,
     },
@@ -1870,10 +1886,13 @@ const styles = StyleSheet.create({
     deliveredPaidButton: {
         backgroundColor: customColors.success,
     },
+    cancelButton: {
+        backgroundColor: customColors.error,
+    },
     buttonText: {
-        color: customColors.white,
         fontWeight: "600",
         ...typography.body1(),
+        color: customColors.white,
     },
     // Product Modal Styles
     productModalContainer: {
@@ -1899,7 +1918,7 @@ const styles = StyleSheet.create({
     },
     productItem: {
         backgroundColor: customColors.white,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         padding: spacing.md,
         marginBottom: spacing.sm,
         ...shadows.small,
@@ -1928,19 +1947,19 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: borderRadius.round,
         justifyContent: "center",
         alignItems: "center",
     },
     quantityInput: {
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.md,
         marginHorizontal: spacing.md,
         minWidth: 80,
         textAlign: "center",
-        height: 60,
+        height: 48,
         ...typography.body1(),
     },
     removeItemButton: {
@@ -1951,7 +1970,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         marginLeft: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginVertical: spacing.sm,
         gap: spacing.xs,
     },
@@ -1964,7 +1983,7 @@ const styles = StyleSheet.create({
     totalSection: {
         backgroundColor: customColors.grey50,
         padding: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginVertical: spacing.md,
         alignItems: "center",
     },
@@ -1983,7 +2002,7 @@ const styles = StyleSheet.create({
     updateProductsButton: {
         backgroundColor: customColors.primary,
         padding: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         alignItems: "center",
         marginTop: spacing.md,
     },
@@ -1997,7 +2016,7 @@ const styles = StyleSheet.create({
     },
     cancelModalContent: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.lg,
         width: "100%",
         maxWidth: 400,
@@ -2018,7 +2037,7 @@ const styles = StyleSheet.create({
     cancelReasonInput: {
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         padding: spacing.md,
         minHeight: 80,
         ...typography.body1(),
@@ -2032,7 +2051,7 @@ const styles = StyleSheet.create({
     cancelModalButton: {
         flex: 1,
         padding: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         alignItems: "center",
     },
     cancelModalButtonSecondary: {
@@ -2068,7 +2087,7 @@ const styles = StyleSheet.create({
     reasonButton: {
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderRadius: 20,
+        borderRadius: borderRadius.round,
         borderWidth: 1,
         borderColor: customColors.grey300,
         backgroundColor: customColors.white,

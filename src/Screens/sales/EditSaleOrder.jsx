@@ -18,7 +18,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../../Components/AppHeader";
 import EnhancedDropdown from "../../Components/EnhancedDropdown";
 import { API } from "../../Config/Endpoint";
-import { fetchCostCenter, fetchProducts } from "../../Api/product";
+import { fetchCostCenter, fetchGoDownwiseStockValue, fetchProducts } from "../../Api/product";
 import { fetchRetailersName } from "../../Api/retailers";
 import { customColors, typography } from "../../Config/helper";
 
@@ -160,6 +160,21 @@ const EditSaleOrder = ({ route }) => {
                 brandData: brands,
                 productGroupData: allProductGroups,
             };
+        },
+    });
+
+    // Fetch godown stock — builds { Product_Id → Bal_Qty } map (same as InvoiceDetail)
+    const { data: goDownStockValueData = {} } = useQuery({
+        queryKey: ["goDownStockValue", goDownId],
+        queryFn: () => fetchGoDownwiseStockValue(goDownId),
+        enabled: !!goDownId,
+        staleTime: 0,
+        select: data => {
+            const map = {};
+            data.forEach(stockItem => {
+                map[stockItem.Product_Id] = stockItem.Bal_Qty;
+            });
+            return map;
         },
     });
 
@@ -410,20 +425,15 @@ const EditSaleOrder = ({ route }) => {
             setFilteredProducts(
                 productQueryData.productData.filter(product => {
                     const matchesBrand = product.Brand_Name === selectedBrand;
-                    const matchesGroup =
-                        product.Pro_Group === selectedProductGroup;
+                    const matchesGroup = product.Pro_Group === selectedProductGroup;
                     const notAlreadyAdded = !existingProductIds.includes(
                         product.Product_Id.toString(),
                     );
+                    // Only show products that exist in godown stock AND have Bal_Qty > 0
+                    const balQty = goDownStockValueData[product.Product_Id] ?? null;
+                    const hasStock = balQty !== null && balQty > 0;
 
-                    // const isActive = product.IsActive === 1; // Only show active products
-
-                    return (
-                        matchesBrand &&
-                        matchesGroup &&
-                        notAlreadyAdded
-                        // && (isSMTraders ? isActive : true)
-                    );
+                    return matchesBrand && matchesGroup && notAlreadyAdded && hasStock;
                 }),
             );
         } else {
@@ -435,6 +445,7 @@ const EditSaleOrder = ({ route }) => {
         productQueryData?.productData,
         showAddProducts,
         editableProducts,
+        goDownStockValueData,
     ]);
 
     // Reset states when closing add products section
@@ -489,7 +500,16 @@ const EditSaleOrder = ({ route }) => {
             if (data.success) {
                 ToastAndroid.show(data.message, ToastAndroid.LONG);
                 setModalVisible(false);
-                navigation.navigate("HomeScreen");
+                navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
             } else {
                 Alert.alert("Error", data.message);
             }
@@ -597,11 +617,7 @@ const EditSaleOrder = ({ route }) => {
                                                 style={styles.quantityInput}
                                                 value={product.Bill_Qty}
                                                 onChangeText={text =>
-                                                    handleProductUpdate(
-                                                        index,
-                                                        "Bill_Qty",
-                                                        text,
-                                                    )
+                                                    handleProductUpdate(index, "Bill_Qty", text)
                                                 }
                                                 keyboardType="numeric"
                                                 placeholder="0"
@@ -614,11 +630,7 @@ const EditSaleOrder = ({ route }) => {
                                                 style={styles.rateInput}
                                                 value={product.Item_Rate}
                                                 onChangeText={text =>
-                                                    handleProductUpdate(
-                                                        index,
-                                                        "Item_Rate",
-                                                        text,
-                                                    )
+                                                    handleProductUpdate(index, "Item_Rate", text)
                                                 }
                                                 keyboardType="decimal-pad"
                                                 placeholder="0.00"
@@ -626,14 +638,11 @@ const EditSaleOrder = ({ route }) => {
                                         </View>
 
                                         <View style={styles.amountContainer}>
-                                            <Text style={styles.inputLabel}>
-                                                Amount
-                                            </Text>
+                                            <Text style={styles.inputLabel}>Amount</Text>
                                             <Text style={styles.amountText}>
                                                 ₹
                                                 {(
-                                                    (parseFloat(product.Bill_Qty) ||
-                                                        0) *
+                                                    (parseFloat(product.Bill_Qty) || 0) *
                                                     (parseFloat(product.Item_Rate) || 0)
                                                 ).toFixed(2)}
                                             </Text>
@@ -738,74 +747,84 @@ const EditSaleOrder = ({ route }) => {
                                                     q.Item_Id ===
                                                     product.Product_Id.toString(),
                                             );
+                                        const balQty = goDownStockValueData[product.Product_Id] ?? null;
+                                        const isLowStock = balQty !== null && balQty > 0 && balQty < 5;
 
                                         return (
                                             <View
                                                 key={index}
                                                 style={styles.productRow}>
-                                                <View
-                                                    style={styles.productInfo}>
+                                                <View style={styles.productInfo}>
                                                     <Text
-                                                        style={
-                                                            styles.productName
-                                                        }
+                                                        style={styles.productName}
                                                         numberOfLines={2}>
                                                         {product.Product_Name}
                                                     </Text>
-                                                    <Text
-                                                        style={
-                                                            styles.productDetails
-                                                        }>
-                                                        {product.Units} •{" "}₹
-                                                        {product.Item_Rate}
-                                                    </Text>
+                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                                                        {balQty !== null && (
+                                                            <View
+                                                                style={[
+                                                                    styles.stockBadge,
+                                                                    {
+                                                                        backgroundColor: isLowStock
+                                                                            ? customColors.warning + "20"
+                                                                            : customColors.success + "20",
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                <Text
+                                                                    style={[
+                                                                        styles.stockBadgeText,
+                                                                        {
+                                                                            color: isLowStock
+                                                                                ? customColors.warning
+                                                                                : customColors.success,
+                                                                        },
+                                                                    ]}
+                                                                >
+                                                                    Bal: {balQty}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                        <Text style={styles.productDetails}>
+                                                            {product.Units} • ₹{product.Item_Rate}
+                                                        </Text>
+                                                    </View>
                                                 </View>
 
                                                 <View style={styles.inputGroup}>
-                                                    <View
-                                                        style={
-                                                            styles.inputContainer
-                                                        }>
-                                                        <Text
-                                                            style={
-                                                                styles.inputLabel
-                                                            }>
+                                                    <View style={styles.inputContainer}>
+                                                        <Text style={styles.inputLabel}>
                                                             Qty
                                                         </Text>
                                                         <TextInput
-                                                            style={
-                                                                styles.quantityInput
-                                                            }
-                                                            value={
-                                                                existingQuantity?.Bill_Qty ||
-                                                                ""
-                                                            }
-                                                            onChangeText={text =>
+                                                            style={styles.quantityInput}
+                                                            value={existingQuantity?.Bill_Qty || ""}
+                                                            onChangeText={text => {
+                                                                if (balQty !== null && (parseFloat(text) || 0) > balQty) {
+                                                                    ToastAndroid.show(
+                                                                        `Only ${balQty} in stock`,
+                                                                        ToastAndroid.SHORT,
+                                                                    );
+                                                                    return;
+                                                                }
                                                                 handleNewProductQuantityChange(
                                                                     product.Product_Id.toString(),
                                                                     "Bill_Qty",
                                                                     text,
-                                                                )
-                                                            }
+                                                                );
+                                                            }}
                                                             keyboardType="numeric"
                                                             placeholder="0"
                                                         />
                                                     </View>
 
-                                                    <View
-                                                        style={
-                                                            styles.inputContainer
-                                                        }>
-                                                        <Text
-                                                            style={
-                                                                styles.inputLabel
-                                                            }>
+                                                    <View style={styles.inputContainer}>
+                                                        <Text style={styles.inputLabel}>
                                                             Rate
                                                         </Text>
                                                         <TextInput
-                                                            style={
-                                                                styles.rateInput
-                                                            }
+                                                            style={styles.rateInput}
                                                             value={
                                                                 existingQuantity?.Item_Rate ||
                                                                 product.Item_Rate.toString()
@@ -1074,6 +1093,16 @@ const styles = StyleSheet.create({
         padding: 8,
         justifyContent: "center",
         alignItems: "center",
+    },
+    stockBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        alignSelf: "flex-start",
+    },
+    stockBadgeText: {
+        fontSize: 10,
+        fontWeight: "700",
     },
     addProductsSection: {
         marginTop: 24,

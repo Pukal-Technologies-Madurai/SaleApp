@@ -1,4 +1,15 @@
-import { ActivityIndicator, Alert, BackHandler, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+    ActivityIndicator,
+    Alert,
+    BackHandler,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -15,19 +26,24 @@ import { API } from "../../Config/Endpoint";
 import { createSaleOrder } from "../../Api/sales";
 import { useOrderStore } from "../../stores/orderStore";
 import { customColors, spacing, typography } from "../../Config/helper";
-import { fetchCostCenter, fetchPosAllProducts, fetchPosOrderBranch, fetchPosProductStockValue } from "../../Api/product";
+import {
+    fetchCostCenter,
+    fetchPosAllProducts,
+    fetchPosOrderBranch,
+    fetchPosProductStockValue,
+} from "../../Api/product";
 
 const SMTSale = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
 
-    const orderItems = useOrderStore((s) => s.orderItems);
-    const getTotalItems = useOrderStore((s) => s.getTotalItems);
-    const getTotalAmount = useOrderStore((s) => s.getTotalAmount);
-    const selectedBrokerId = useOrderStore((s) => s.selectedBrokerId);
-    const setSelectedBrokerId = useOrderStore((s) => s.setSelectedBrokerId);
-    const selectedTransportId = useOrderStore((s) => s.selectedTransportId);
-    const setSelectedTransportId = useOrderStore((s) => s.setSelectedTransportId);
+    const orderItems = useOrderStore(s => s.orderItems);
+    const getTotalItems = useOrderStore(s => s.getTotalItems);
+    const getTotalAmount = useOrderStore(s => s.getTotalAmount);
+    const selectedBrokerId = useOrderStore(s => s.selectedBrokerId);
+    const setSelectedBrokerId = useOrderStore(s => s.setSelectedBrokerId);
+    const selectedTransportId = useOrderStore(s => s.selectedTransportId);
+    const setSelectedTransportId = useOrderStore(s => s.setSelectedTransportId);
     const removeItem = useOrderStore(state => state.removeItem);
     const resetAll = useOrderStore(state => state.resetAll);
     const clearStore = useOrderStore(state => state.clear);
@@ -65,37 +81,47 @@ const SMTSale = ({ route }) => {
     }, [searchQuery]);
 
     // Search helper functions
-    const normalizeSearchText = useCallback((str) => {
+    const normalizeSearchText = useCallback(str => {
         return String(str)
             .toLowerCase()
-            .replace(/[^\u0B80-\u0BFF\w\s]/g, '') // Remove all special characters except Tamil characters, alphanumeric, and spaces
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .replace(/[^\u0B80-\u0BFF\w\s]/g, "") // Remove all special characters except Tamil characters, alphanumeric, and spaces
+            .replace(/\s+/g, " ") // Replace multiple spaces with single space
             .trim();
     }, []);
 
-    const fuzzyMatch = useCallback((text, search) => {
-        const normalizedText = normalizeSearchText(text);
-        const normalizedSearch = normalizeSearchText(search);
+    const fuzzyMatch = useCallback(
+        (text, search) => {
+            const normalizedText = normalizeSearchText(text);
+            const normalizedSearch = normalizeSearchText(search);
 
-        // Direct substring match
-        if (normalizedText.includes(normalizedSearch)) return true;
+            // Direct substring match
+            if (normalizedText.includes(normalizedSearch)) return true;
 
-        // Split search terms and check if all terms exist in text
-        const searchTerms = normalizedSearch.split(' ').filter(term => term.length > 0);
-        if (searchTerms.length > 1) {
-            // For multi-word searches, check if all terms are found in the text
-            return searchTerms.every(term => normalizedText.includes(term));
-        }
-
-        // Single word fuzzy matching - check if all characters of search exist in text (in order)
-        let searchIndex = 0;
-        for (let i = 0; i < normalizedText.length && searchIndex < normalizedSearch.length; i++) {
-            if (normalizedText[i] === normalizedSearch[searchIndex]) {
-                searchIndex++;
+            // Split search terms and check if all terms exist in text
+            const searchTerms = normalizedSearch
+                .split(" ")
+                .filter(term => term.length > 0);
+            if (searchTerms.length > 1) {
+                // For multi-word searches, check if all terms are found in the text
+                return searchTerms.every(term => normalizedText.includes(term));
             }
-        }
-        return searchIndex === normalizedSearch.length;
-    }, [normalizeSearchText]);
+
+            // Single word fuzzy matching - check if all characters of search exist in text (in order)
+            let searchIndex = 0;
+            for (
+                let i = 0;
+                i < normalizedText.length &&
+                searchIndex < normalizedSearch.length;
+                i++
+            ) {
+                if (normalizedText[i] === normalizedSearch[searchIndex]) {
+                    searchIndex++;
+                }
+            }
+            return searchIndex === normalizedSearch.length;
+        },
+        [normalizeSearchText],
+    );
 
     const handleBackPress = useCallback(() => {
         const totalItems = getTotalItems();
@@ -108,7 +134,7 @@ const SMTSale = ({ route }) => {
                     {
                         text: "Keep Items",
                         // onPress: () => navigation.goBack(),
-                        style: "cancel"
+                        style: "cancel",
                     },
                     {
                         text: "Cancel",
@@ -116,14 +142,14 @@ const SMTSale = ({ route }) => {
                             resetAll();
                             navigation.goBack();
                         },
-                        style: "destructive"
+                        style: "destructive",
                     },
                     // {
                     //     text: "Stay Here",
                     //     style: "default"
                     // }
                 ],
-                { cancelable: true }
+                { cancelable: true },
             );
             return true; // Prevent default back action
         } else {
@@ -134,9 +160,12 @@ const SMTSale = ({ route }) => {
     // Handle hardware back button on Android
     useFocusEffect(
         useCallback(() => {
-            const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+            const backHandler = BackHandler.addEventListener(
+                "hardwareBackPress",
+                handleBackPress,
+            );
             return () => backHandler.remove();
-        }, [handleBackPress])
+        }, [handleBackPress]),
     );
 
     // Custom header back button handler
@@ -149,9 +178,10 @@ const SMTSale = ({ route }) => {
         queryFn: () => fetchPosAllProducts(),
         staleTime: 5 * 60 * 1000, // 5 minutes
         refetchOnWindowFocus: false,
-        select: (rows) => {
-            return rows.filter((r) => r.IsActive === 1)
-                .map((r) => ({
+        select: rows => {
+            return rows
+                .filter(r => r.IsActive === 1)
+                .map(r => ({
                     // Keep original field names for compatibility
                     Product_Id: r.Product_Id,
                     Product_Name: r.Product_Name,
@@ -166,23 +196,27 @@ const SMTSale = ({ route }) => {
                     Pos_Brand_Id: r.Pos_Brand_Id,
                     IsActive: r.IsActive,
                     UOM_Id: r.UOM_Id,
-                }))
-        }
+                }));
+        },
     });
 
-    const { data: productBalanceQty = [], isLoading: isProductBalanceQtyLoading } = useQuery({
+    const {
+        data: productBalanceQty = [],
+        isLoading: isProductBalanceQtyLoading,
+    } = useQuery({
         queryKey: ["testProducts"],
         queryFn: () => fetchPosProductStockValue(),
         staleTime: 5 * 60 * 1000, // 5 minutes
         refetchOnWindowFocus: false,
-        select: (rows) => {
-            return rows.filter((r) => r.Is_Active === 1)
-                .map((r) => ({
+        select: rows => {
+            return rows
+                .filter(r => r.Is_Active === 1)
+                .map(r => ({
                     Product_Id: r.Product_Id,
                     Product_Name: r.Product_Name,
                     CL_Qty: r.Bal_Qty,
-                }))
-        }
+                }));
+        },
     });
 
     const { data: productBranch = [] } = useQuery({
@@ -191,12 +225,18 @@ const SMTSale = ({ route }) => {
     });
 
     const filteredProducts = useMemo(() => {
-        if (isProductLoading || isProductBalanceQtyLoading || !productData.length) return [];
+        if (
+            isProductLoading ||
+            isProductBalanceQtyLoading ||
+            !productData.length
+        )
+            return [];
 
         // First, merge productData with productBalanceQty based on Product_Id
         const mergedProducts = productData.map(product => {
             const balanceData = productBalanceQty.find(
-                balance => String(balance.Product_Id) === String(product.Product_Id)
+                balance =>
+                    String(balance.Product_Id) === String(product.Product_Id),
             );
 
             return {
@@ -209,7 +249,7 @@ const SMTSale = ({ route }) => {
 
         if (selectedBrandId) {
             filtered = filtered.filter(
-                (product) => product.Pos_Brand_Id === selectedBrandId
+                product => product.Pos_Brand_Id === selectedBrandId,
             );
         }
 
@@ -222,7 +262,7 @@ const SMTSale = ({ route }) => {
                 ].filter(Boolean); // Remove empty/null values
 
                 return searchableFields.some(field =>
-                    fuzzyMatch(field, debouncedSearch)
+                    fuzzyMatch(field, debouncedSearch),
                 );
             });
         }
@@ -231,9 +271,11 @@ const SMTSale = ({ route }) => {
             const packWeight = parseFloat(product?.PackGet || 0);
             const itemRate = parseFloat(product.Item_Rate || 0);
 
-            const ratePerKg = packWeight ? (itemRate / packWeight).toFixed(2) : 0;
+            const ratePerKg = packWeight
+                ? (itemRate / packWeight).toFixed(2)
+                : 0;
             // const bagsPerTon = packWeight ? (1000 / packWeight).toFixed(2) : 0;
-            const bagsPerTon = packWeight ? (product.CL_Qty / packWeight) : 0;
+            const bagsPerTon = packWeight ? product.CL_Qty / packWeight : 0;
 
             return {
                 ...product,
@@ -241,15 +283,24 @@ const SMTSale = ({ route }) => {
                 BagsPerTon: Number(bagsPerTon),
             };
         });
-    }, [productData, productBalanceQty, selectedBrandId, debouncedSearch, isProductLoading, isProductBalanceQtyLoading, fuzzyMatch]);
+    }, [
+        productData,
+        productBalanceQty,
+        selectedBrandId,
+        debouncedSearch,
+        isProductLoading,
+        isProductBalanceQtyLoading,
+        fuzzyMatch,
+    ]);
 
-    const { data: rawCostCenters = [], isLoading: isCostCenterLoading } = useQuery({
-        queryKey: ["costCenters"],
-        queryFn: fetchCostCenter,
-        enabled: showFilter,
-        staleTime: 10 * 60 * 1000, // 10 minutes
-        cacheTime: 15 * 60 * 1000, // 15 minutes
-    });
+    const { data: rawCostCenters = [], isLoading: isCostCenterLoading } =
+        useQuery({
+            queryKey: ["costCenters"],
+            queryFn: fetchCostCenter,
+            enabled: showFilter,
+            staleTime: 10 * 60 * 1000, // 10 minutes
+            cacheTime: 15 * 60 * 1000, // 15 minutes
+        });
 
     const { brokersData, transportData } = useMemo(() => {
         const Broker_User_Type = 3;
@@ -296,7 +347,9 @@ const SMTSale = ({ route }) => {
             Product_Array: Object.values(orderItems)
                 .filter(item => item.qty > 0 && item.rate > 0)
                 .map(item => {
-                    const product = productData.find(p => p.Product_Id === item.Product_Id);
+                    const product = productData.find(
+                        p => p.Product_Id === item.Product_Id,
+                    );
                     const packWeight = parseFloat(product?.PackGet || 0);
                     const totalWeight = item.qty * packWeight;
                     const totalAmount = totalWeight * item.rate;
@@ -313,43 +366,61 @@ const SMTSale = ({ route }) => {
                 const list = [];
 
                 if (selectedBrokerId && brokersData.length > 0) {
-                    const selectedBroker = brokersData.find(broker =>
-                        String(broker.Cost_Center_Id) === String(selectedBrokerId)
+                    const selectedBroker = brokersData.find(
+                        broker =>
+                            String(broker.Cost_Center_Id) ===
+                            String(selectedBrokerId),
                     );
 
                     if (selectedBroker) {
                         list.push({
                             Id: "",
                             So_Id: "",
-                            Involved_Emp_Id: parseInt(selectedBroker.Cost_Center_Id),
+                            Involved_Emp_Id: parseInt(
+                                selectedBroker.Cost_Center_Id,
+                            ),
                             EmpName: selectedBroker.Cost_Center_Name || "",
                             Cost_Center_Type_Id: selectedBroker.User_Type || 3,
-                            EmpType: selectedBroker.UserTypeGet || "Broker"
+                            EmpType: selectedBroker.UserTypeGet || "Broker",
                         });
                     }
                 }
 
                 if (selectedTransportId && transportData.length > 0) {
-                    const selectedTransport = transportData.find(transport =>
-                        String(transport.Cost_Center_Id) === String(selectedTransportId)
+                    const selectedTransport = transportData.find(
+                        transport =>
+                            String(transport.Cost_Center_Id) ===
+                            String(selectedTransportId),
                     );
 
                     if (selectedTransport) {
                         list.push({
                             Id: "",
                             So_Id: "",
-                            Involved_Emp_Id: parseInt(selectedTransport.Cost_Center_Id),
+                            Involved_Emp_Id: parseInt(
+                                selectedTransport.Cost_Center_Id,
+                            ),
                             EmpName: selectedTransport.Cost_Center_Name || "",
-                            Cost_Center_Type_Id: selectedTransport.User_Type || 2,
-                            EmpType: selectedTransport.UserTypeGet || "Transport"
+                            Cost_Center_Type_Id:
+                                selectedTransport.User_Type || 2,
+                            EmpType:
+                                selectedTransport.UserTypeGet || "Transport",
                         });
                     }
                 }
 
                 return list;
-            })()
+            })(),
         };
-    }, [orderData, orderItems, selectedBrokerId, selectedTransportId, brokersData, transportData, productData]);
+    }, [
+        orderData,
+        orderItems,
+        selectedBrokerId,
+        selectedTransportId,
+        brokersData,
+        transportData,
+        productData,
+    ]);
 
     const downloadItemPDF = async item => {
         try {
@@ -387,13 +458,10 @@ const SMTSale = ({ route }) => {
         }
     };
 
-    const generateItemPDF = async (orderDataFromResponse) => {
+    const generateItemPDF = async orderDataFromResponse => {
         try {
-            const {
-                generalInfo,
-                productDetails,
-                staffInvolved,
-            } = orderDataFromResponse;
+            const { generalInfo, productDetails, staffInvolved } =
+                orderDataFromResponse;
 
             const response = await fetch(
                 `${API.retailerInfo()}${generalInfo.Retailer_Id}`,
@@ -617,31 +685,51 @@ const SMTSale = ({ route }) => {
                     <!-- Date and Taken on separate lines -->
                     <div class="date-taken-section">
                         <div class="date-line">
-                            <strong>DATE:</strong> ${generalInfo?.Created_on && `${new
-                    Date(generalInfo.Created_on).toLocaleDateString("en-GB")} / ${new
-                        Date(generalInfo.Created_on).toLocaleTimeString("en-IN", {
-                            hour: "2-digit",
-                            minute: "2-digit", hour12: true
-                        })}`}
+                            <strong>DATE:</strong> ${
+                                generalInfo?.Created_on &&
+                                `${new Date(
+                                    generalInfo.Created_on,
+                                ).toLocaleDateString("en-GB")} / ${new Date(
+                                    generalInfo.Created_on,
+                                ).toLocaleTimeString("en-IN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                })}`
+                            }
                         </div>
                         <div class="taken-line">
-                            <strong>TAKEN:</strong> ${generalInfo?.Sales_Person_Name ||
-                generalInfo?.Created_BY_Name || "—"}
+                            <strong>TAKEN:</strong> ${
+                                generalInfo?.Sales_Person_Name ||
+                                generalInfo?.Created_BY_Name ||
+                                "—"
+                            }
                         </div>
                     </div>
 
                     <!-- Info Section -->
                     <div class="info-section">
                         <div class="party-name">
-                            ${currentRetailerInfo?.retailerTamilName ||
-                currentRetailerInfo?.Retailer_Name || generalInfo?.Retailer_Name || "—"}
+                            ${
+                                currentRetailerInfo?.retailerTamilName ||
+                                currentRetailerInfo?.Retailer_Name ||
+                                generalInfo?.Retailer_Name ||
+                                "—"
+                            }
                         </div>
 
                         <div class="info-double-row">
                             <div class="info-item">
-                                ${[currentRetailerInfo?.Party_Mailing_Address ||
-                    currentRetailerInfo?.Reatailer_Address].filter(Boolean).join(', ') ||
-                currentRetailerInfo?.StateGet || "—"}
+                                ${
+                                    [
+                                        currentRetailerInfo?.Party_Mailing_Address ||
+                                            currentRetailerInfo?.Reatailer_Address,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(", ") ||
+                                    currentRetailerInfo?.StateGet ||
+                                    "—"
+                                }
                             </div>
                             <div class="info-item">
                                 ${currentRetailerInfo?.Mobile_No || "—"}
@@ -669,11 +757,23 @@ const SMTSale = ({ route }) => {
                         </tr>
                         </thead>
                         <tbody>
-                        ${products.length ? products.map((p) => {
-                    const packWeight =
-                        parseFloat(p?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
-                    const totalKg = parseFloat(p.Bill_Qty) || 0; const bags = packWeight >
-                        0 ? (totalKg / packWeight) : 0; return `
+                        ${
+                            products.length
+                                ? products
+                                      .map(p => {
+                                          const packWeight =
+                                              parseFloat(
+                                                  p?.Product_Name?.match(
+                                                      /(\d+(?:\.\d+)?)\s*KG/i,
+                                                  )?.[1],
+                                              ) || 0;
+                                          const totalKg =
+                                              parseFloat(p.Bill_Qty) || 0;
+                                          const bags =
+                                              packWeight > 0
+                                                  ? totalKg / packWeight
+                                                  : 0;
+                                          return `
                         <tr class="data-row">
                             <td class="rate-cell">
                             <span class="rate-value">₹${rupee(p?.Item_Rate ?? 0)}</span>
@@ -682,20 +782,23 @@ const SMTSale = ({ route }) => {
                             <td class="bags-cell">${bags > 0 ? bags : "0"}</td>
                         </tr>
                         `;
-                }).join("") : ""}
+                                      })
+                                      .join("")
+                                : ""
+                        }
                         </tbody>
                     </table>
                     <!-- Total Summary -->
                     <div class="total-summary">
                         <div><strong>₹${rupee(
-                    products.reduce(
-                        (sum, p) =>
-                            sum +
-                            (parseFloat(p.Bill_Qty) || 0) *
-                            (parseFloat(p.Item_Rate) || 0),
-                        0,
-                    ),
-                )}</strong></div>
+                            products.reduce(
+                                (sum, p) =>
+                                    sum +
+                                    (parseFloat(p.Bill_Qty) || 0) *
+                                        (parseFloat(p.Item_Rate) || 0),
+                                0,
+                            ),
+                        )}</strong></div>
                         <div><strong>${totalWeight.toFixed(2)} KGS</strong></div>
                         <div><strong>${numberOfBags}</strong></div>
                     </div>
@@ -749,7 +852,20 @@ const SMTSale = ({ route }) => {
                                 } finally {
                                     resetAll(); // Clear the order store
                                     setShowOrderSummary(false);
-                                    navigation.replace("HomeScreen");
+                                    navigation.reset({
+                                        index: 0,
+                                        routes: [
+                                            {
+                                                name: "HomeScreen",
+                                                state: {
+                                                    index: 0,
+                                                    routes: [
+                                                        { name: "HomeScreen" },
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    });
                                 }
                             },
                             style: "default",
@@ -759,11 +875,24 @@ const SMTSale = ({ route }) => {
                             onPress: () => {
                                 resetAll(); // Clear the order store
                                 setShowOrderSummary(false);
-                                navigation.replace("HomeScreen");
+                                navigation.reset({
+                                    index: 0,
+                                    routes: [
+                                        {
+                                            name: "HomeScreen",
+                                            state: {
+                                                index: 0,
+                                                routes: [
+                                                    { name: "HomeScreen" },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                });
                             },
                             style: "cancel",
-                        }
-                    ]
+                        },
+                    ],
                 );
             } else {
                 Alert.alert("Success", data.message, [
@@ -773,8 +902,8 @@ const SMTSale = ({ route }) => {
                             clearStore();
                             setShowOrderSummary(false);
                             navigation.goBack();
-                        }
-                    }
+                        },
+                    },
                 ]);
             }
         },
@@ -792,12 +921,16 @@ const SMTSale = ({ route }) => {
         if (completeOrderData.Product_Array.length === 0) {
             Alert.alert(
                 "Error",
-                "Please add at least one product to the order"
+                "Please add at least one product to the order",
             );
             return;
         }
 
-        if (!completeOrderData.Product_Array.every(product => product.Item_Rate > 0)) {
+        if (
+            !completeOrderData.Product_Array.every(
+                product => product.Item_Rate > 0,
+            )
+        ) {
             Alert.alert("Error", "Please enter valid prices for all products");
             return;
         }
@@ -816,49 +949,63 @@ const SMTSale = ({ route }) => {
         return Object.values(orderItems).filter(item => item.qty > 0);
     }, [orderItems]);
 
-    const renderProductItem = useCallback(({ item }) => (
-        <ProductItem product={item} />
-    ), []);
+    const renderProductItem = useCallback(
+        ({ item }) => <ProductItem product={item} />,
+        [],
+    );
 
-    const renderSummaryItem = useCallback(({ item }) => {
-        const product = productData.find(p => p.Product_Id === item.Product_Id);
-        if (!product) return null;
+    const renderSummaryItem = useCallback(
+        ({ item }) => {
+            const product = productData.find(
+                p => p.Product_Id === item.Product_Id,
+            );
+            if (!product) return null;
 
-        const packWeight = parseFloat(product.PackGet || 0);
-        const totalWeight = item.qty * packWeight;
-        const totalAmount = totalWeight * item.rate;
+            const packWeight = parseFloat(product.PackGet || 0);
+            const totalWeight = item.qty * packWeight;
+            const totalAmount = totalWeight * item.rate;
 
-        return (
-            <View style={styles.summaryItem}>
-                <View style={styles.summaryItemHeader}>
-                    <Text style={styles.summaryItemName} numberOfLines={2}>
-                        {product.Short_Name || product.Product_Name}
-                    </Text>
-                    <TouchableOpacity
-                        style={styles.editButton}
-                        onPress={() => removeItem(item.Product_Id)}
-                    >
-                        <FeatherIcon name="delete" size={16} color={customColors.error} />
-                    </TouchableOpacity>
+            return (
+                <View style={styles.summaryItem}>
+                    <View style={styles.summaryItemHeader}>
+                        <Text style={styles.summaryItemName} numberOfLines={2}>
+                            {product.Short_Name || product.Product_Name}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.editButton}
+                            onPress={() => removeItem(item.Product_Id)}
+                        >
+                            <FeatherIcon
+                                name="delete"
+                                size={16}
+                                color={customColors.error}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.summaryItemDetails}>
+                        <Text style={styles.summaryItemText}>
+                            Qty: {item.qty} {product.Units} (
+                            {totalWeight.toFixed(2)} kg)
+                        </Text>
+                        <Text style={styles.summaryItemText}>
+                            Rate: ₹{item.rate.toFixed(2)}/{product.Units}
+                        </Text>
+                        <Text style={styles.summaryItemTotal}>
+                            Total: ₹{totalAmount.toFixed(2)}
+                        </Text>
+                    </View>
                 </View>
+            );
+        },
+        [productData, setShowOrderSummary],
+    );
 
-                <View style={styles.summaryItemDetails}>
-                    <Text style={styles.summaryItemText}>
-                        Qty: {item.qty} {product.Units} ({totalWeight.toFixed(2)} kg)
-                    </Text>
-                    <Text style={styles.summaryItemText}>
-                        Rate: ₹{item.rate.toFixed(2)}/{product.Units}
-                    </Text>
-                    <Text style={styles.summaryItemTotal}>
-                        Total: ₹{totalAmount.toFixed(2)}
-                    </Text>
-                </View>
-            </View>
-        );
-    }, [productData, setShowOrderSummary]);
-
-    const keyExtractor = useCallback((item) => item.Product_Id.toString(), []);
-    const summaryKeyExtractor = useCallback((item) => item.Product_Id.toString(), []);
+    const keyExtractor = useCallback(item => item.Product_Id.toString(), []);
+    const summaryKeyExtractor = useCallback(
+        item => item.Product_Id.toString(),
+        [],
+    );
 
     const totalItems = getTotalItems();
     const totalAmount = getTotalAmount(productData);
@@ -886,33 +1033,56 @@ const SMTSale = ({ route }) => {
                                 valueField="POS_Brand_Id"
                                 placeholder="Select Brand (All)"
                                 value={selectedBrandId}
-                                onChange={item => setSelectedBrandId(item?.POS_Brand_Id)}
+                                onChange={item =>
+                                    setSelectedBrandId(item?.POS_Brand_Id)
+                                }
                                 searchPlaceholder="Search brands..."
                             />
                         </View>
 
-                        <TouchableOpacity style={[
-                            styles.filterToggleButton,
-                            showFilter && styles.filterToggleButtonActive,
-                            showFilter && isCostCenterLoading && styles.filterToggleButtonLoading
-                        ]}
-                            onPress={() => { setShowFilter(!showFilter) }}
+                        <TouchableOpacity
+                            style={[
+                                styles.filterToggleButton,
+                                showFilter && styles.filterToggleButtonActive,
+                                showFilter &&
+                                    isCostCenterLoading &&
+                                    styles.filterToggleButtonLoading,
+                            ]}
+                            onPress={() => {
+                                setShowFilter(!showFilter);
+                            }}
                             activeOpacity={0.7}
-                            disabled={showFilter && isCostCenterLoading}>
+                            disabled={showFilter && isCostCenterLoading}
+                        >
                             {showFilter && isCostCenterLoading ? (
                                 <ActivityIndicator
                                     size={20}
-                                    color={showFilter ? customColors.white : customColors.primary}
+                                    color={
+                                        showFilter
+                                            ? customColors.white
+                                            : customColors.primary
+                                    }
                                 />
                             ) : (
                                 <FeatherIcon
                                     name="sliders"
                                     size={20}
-                                    color={showFilter ? customColors.white : customColors.primary}
+                                    color={
+                                        showFilter
+                                            ? customColors.white
+                                            : customColors.primary
+                                    }
                                 />
                             )}
-                            <Text style={[styles.filterToggleText, showFilter && styles.filterToggleTextActive]}>
-                                {showFilter && isCostCenterLoading ? "Loading..." : "Filters"}
+                            <Text
+                                style={[
+                                    styles.filterToggleText,
+                                    showFilter && styles.filterToggleTextActive,
+                                ]}
+                            >
+                                {showFilter && isCostCenterLoading
+                                    ? "Loading..."
+                                    : "Filters"}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -922,8 +1092,13 @@ const SMTSale = ({ route }) => {
                             <View style={styles.filterDivider} />
                             {isCostCenterLoading ? (
                                 <View style={styles.filtersLoadingContainer}>
-                                    <ActivityIndicator size="small" color={customColors.primary} />
-                                    <Text style={styles.filtersLoadingText}>Loading filter options...</Text>
+                                    <ActivityIndicator
+                                        size="small"
+                                        color={customColors.primary}
+                                    />
+                                    <Text style={styles.filtersLoadingText}>
+                                        Loading filter options...
+                                    </Text>
                                 </View>
                             ) : (
                                 <View style={styles.additionalFiltersRow}>
@@ -934,7 +1109,11 @@ const SMTSale = ({ route }) => {
                                             valueField="Cost_Center_Id"
                                             placeholder="Select Broker"
                                             value={selectedBrokerId}
-                                            onChange={item => setSelectedBrokerId(item?.Cost_Center_Id)}
+                                            onChange={item =>
+                                                setSelectedBrokerId(
+                                                    item?.Cost_Center_Id,
+                                                )
+                                            }
                                             searchPlaceholder="Search brokers..."
                                         />
                                     </View>
@@ -946,7 +1125,11 @@ const SMTSale = ({ route }) => {
                                             valueField="Cost_Center_Id"
                                             placeholder="Select Transport"
                                             value={selectedTransportId}
-                                            onChange={item => setSelectedTransportId(item?.Cost_Center_Id)}
+                                            onChange={item =>
+                                                setSelectedTransportId(
+                                                    item?.Cost_Center_Id,
+                                                )
+                                            }
                                             searchPlaceholder="Search transport..."
                                         />
                                     </View>
@@ -976,7 +1159,12 @@ const SMTSale = ({ route }) => {
                             <TouchableOpacity
                                 onPress={() => setSearchQuery("")}
                                 style={styles.clearSearchButton}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                hitSlop={{
+                                    top: 10,
+                                    bottom: 10,
+                                    left: 10,
+                                    right: 10,
+                                }}
                             >
                                 <FeatherIcon
                                     name="x"
@@ -992,8 +1180,7 @@ const SMTSale = ({ route }) => {
                             <Text style={styles.searchResultText}>
                                 {filteredProducts.length === 0
                                     ? `No results for "${debouncedSearch}"`
-                                    : `${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''} found for "${debouncedSearch}"`
-                                }
+                                    : `${filteredProducts.length} product${filteredProducts.length !== 1 ? "s" : ""} found for "${debouncedSearch}"`}
                             </Text>
                             {searchQuery !== debouncedSearch && (
                                 <ActivityIndicator
@@ -1009,8 +1196,13 @@ const SMTSale = ({ route }) => {
                 <View style={styles.productsContainer}>
                     {isProductLoading || isProductBalanceQtyLoading ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={customColors.primary} />
-                            <Text style={styles.loadingText}>Loading products...</Text>
+                            <ActivityIndicator
+                                size="large"
+                                color={customColors.primary}
+                            />
+                            <Text style={styles.loadingText}>
+                                Loading products...
+                            </Text>
                         </View>
                     ) : (
                         <>
@@ -1026,18 +1218,28 @@ const SMTSale = ({ route }) => {
                                                 "Clear Cart",
                                                 "Are you sure you want to remove all items from cart?",
                                                 [
-                                                    { text: "Cancel", style: "cancel" },
+                                                    {
+                                                        text: "Cancel",
+                                                        style: "cancel",
+                                                    },
                                                     {
                                                         text: "Clear",
                                                         style: "destructive",
-                                                        onPress: () => resetAll()
-                                                    }
-                                                ]
+                                                        onPress: () =>
+                                                            resetAll(),
+                                                    },
+                                                ],
                                             );
                                         }}
                                     >
-                                        <FeatherIcon name="trash-2" size={16} color={customColors.error} />
-                                        <Text style={styles.clearCartText}>Clear Cart</Text>
+                                        <FeatherIcon
+                                            name="trash-2"
+                                            size={16}
+                                            color={customColors.error}
+                                        />
+                                        <Text style={styles.clearCartText}>
+                                            Clear Cart
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
@@ -1070,8 +1272,12 @@ const SMTSale = ({ route }) => {
                     <SafeAreaView style={styles.modalContainer}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Order Summary</Text>
-                            <TouchableOpacity style={styles.closeButton}
-                                onPress={() => setShowOrderSummary(!showOrderSummary)}>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() =>
+                                    setShowOrderSummary(!showOrderSummary)
+                                }
+                            >
                                 <Text style={styles.closeButtonText}>✕</Text>
                             </TouchableOpacity>
                         </View>
@@ -1083,49 +1289,103 @@ const SMTSale = ({ route }) => {
                                     renderItem={renderSummaryItem}
                                     keyExtractor={summaryKeyExtractor}
                                     style={styles.summaryList}
-                                    contentContainerStyle={styles.summaryListContent}
+                                    contentContainerStyle={
+                                        styles.summaryListContent
+                                    }
                                     showsVerticalScrollIndicator={false}
                                 />
 
                                 <View style={styles.summaryFooter}>
                                     <View style={styles.totalRow}>
-                                        <Text style={styles.totalLabel}>Total Items:</Text>
-                                        <Text style={styles.totalValue}>{totalItems}</Text>
+                                        <Text style={styles.totalLabel}>
+                                            Total Items:
+                                        </Text>
+                                        <Text style={styles.totalValue}>
+                                            {totalItems}
+                                        </Text>
                                     </View>
                                     <View style={styles.totalRow}>
-                                        <Text style={styles.totalLabel}>Total Amount:</Text>
-                                        <Text style={styles.totalAmount}>₹{totalAmount.toFixed(2)}</Text>
+                                        <Text style={styles.totalLabel}>
+                                            Total Amount:
+                                        </Text>
+                                        <Text style={styles.totalAmount}>
+                                            ₹{totalAmount.toFixed(2)}
+                                        </Text>
                                     </View>
 
                                     <View style={styles.buttonsRow}>
                                         <TouchableOpacity
-                                            style={[styles.proceedButton, { backgroundColor: customColors.error }]}
+                                            style={[
+                                                styles.proceedButton,
+                                                {
+                                                    backgroundColor:
+                                                        customColors.error,
+                                                },
+                                            ]}
                                             onPress={() => {
                                                 resetAll();
                                                 setShowOrderSummary(false);
-                                                Alert.alert("Cart Cleared", "All items have been removed");
+                                                Alert.alert(
+                                                    "Cart Cleared",
+                                                    "All items have been removed",
+                                                );
                                             }}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={styles.proceedButtonText}>Clear Cart</Text>
-                                            <FeatherIcon name="trash-2" size={20} color={customColors.white} />
+                                            <Text
+                                                style={styles.proceedButtonText}
+                                            >
+                                                Clear Cart
+                                            </Text>
+                                            <FeatherIcon
+                                                name="trash-2"
+                                                size={20}
+                                                color={customColors.white}
+                                            />
                                         </TouchableOpacity>
 
                                         <TouchableOpacity
-                                            style={[styles.proceedButton, isSubmitting && styles.proceedButtonDisabled]}
+                                            style={[
+                                                styles.proceedButton,
+                                                isSubmitting &&
+                                                    styles.proceedButtonDisabled,
+                                            ]}
                                             onPress={handleSubmitOrder}
                                             activeOpacity={0.8}
                                             disabled={isSubmitting}
                                         >
                                             {isSubmitting ? (
                                                 <>
-                                                    <ActivityIndicator color={customColors.white} size="small" />
-                                                    <Text style={styles.proceedButtonText}>Submitting...</Text>
+                                                    <ActivityIndicator
+                                                        color={
+                                                            customColors.white
+                                                        }
+                                                        size="small"
+                                                    />
+                                                    <Text
+                                                        style={
+                                                            styles.proceedButtonText
+                                                        }
+                                                    >
+                                                        Submitting...
+                                                    </Text>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Text style={styles.proceedButtonText}>Submit Order</Text>
-                                                    <FeatherIcon name="check" size={20} color={customColors.white} />
+                                                    <Text
+                                                        style={
+                                                            styles.proceedButtonText
+                                                        }
+                                                    >
+                                                        Submit Order
+                                                    </Text>
+                                                    <FeatherIcon
+                                                        name="check"
+                                                        size={20}
+                                                        color={
+                                                            customColors.white
+                                                        }
+                                                    />
                                                 </>
                                             )}
                                         </TouchableOpacity>
@@ -1134,19 +1394,27 @@ const SMTSale = ({ route }) => {
                             </>
                         ) : (
                             <View style={styles.emptyState}>
-                                <FeatherIcon name="shopping-cart" size={64} color={customColors.grey400} />
-                                <Text style={styles.emptyStateText}>No items in cart</Text>
-                                <Text style={styles.emptyStateSubtext}>Add products to see your order summary</Text>
+                                <FeatherIcon
+                                    name="shopping-cart"
+                                    size={64}
+                                    color={customColors.grey400}
+                                />
+                                <Text style={styles.emptyStateText}>
+                                    No items in cart
+                                </Text>
+                                <Text style={styles.emptyStateSubtext}>
+                                    Add products to see your order summary
+                                </Text>
                             </View>
                         )}
                     </SafeAreaView>
                 </Modal>
             </View>
         </SafeAreaView>
-    )
-}
+    );
+};
 
-export default SMTSale
+export default SMTSale;
 
 const styles = StyleSheet.create({
     container: {
@@ -1296,7 +1564,7 @@ const styles = StyleSheet.create({
     productsHeaderText: {
         ...typography.subtitle1(),
         fontWeight: "600",
-        color: customColors.grey800
+        color: customColors.grey800,
     },
     clearCartButton: {
         flexDirection: "row",
@@ -1310,7 +1578,7 @@ const styles = StyleSheet.create({
     clearCartText: {
         ...typography.caption(),
         color: customColors.error,
-        fontWeight: '600',
+        fontWeight: "600",
     },
     flatListContent: {
         paddingVertical: spacing.md,
@@ -1405,37 +1673,37 @@ const styles = StyleSheet.create({
     buttonsRow: {
         flexDirection: "row",
         justifyContent: "space-between",
-        gap: spacing.md
+        gap: spacing.md,
     },
     totalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: spacing.sm,
     },
     totalLabel: {
         ...typography.body1(),
         color: customColors.dark,
-        fontWeight: '500',
+        fontWeight: "500",
     },
     totalValue: {
         ...typography.h6(),
         color: customColors.primary,
-        fontWeight: '600',
+        fontWeight: "600",
     },
     totalAmount: {
         ...typography.h5(),
         color: customColors.success,
-        fontWeight: '700',
+        fontWeight: "700",
     },
     proceedButton: {
         backgroundColor: customColors.primary,
         borderRadius: 12,
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         marginTop: spacing.md,
         gap: spacing.sm,
     },
@@ -1446,24 +1714,24 @@ const styles = StyleSheet.create({
     proceedButtonText: {
         ...typography.h6(),
         color: customColors.white,
-        fontWeight: '600',
+        fontWeight: "600",
     },
     emptyState: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
         paddingHorizontal: spacing.xl,
     },
     emptyStateText: {
         ...typography.h5(),
         color: customColors.dark,
-        fontWeight: '600',
+        fontWeight: "600",
         marginTop: spacing.lg,
         marginBottom: spacing.sm,
     },
     emptyStateSubtext: {
         ...typography.body2(),
         color: customColors.grey600,
-        textAlign: 'center',
+        textAlign: "center",
     },
-})
+});

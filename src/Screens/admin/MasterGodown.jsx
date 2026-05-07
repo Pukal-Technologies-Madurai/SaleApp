@@ -9,8 +9,9 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchGodown } from "../../Api/retailers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const MasterGodown = () => {
+const MasterGodown = ({ route }) => {
     const navigation = useNavigation();
+    const fromSales = route?.params?.fromSales ?? false;
     const [selectedGodown, setSelectedGodown] = React.useState(null);
     const [storedGodownId, setStoredGodownId] = React.useState(null);
 
@@ -143,7 +144,22 @@ const MasterGodown = () => {
                                                     await AsyncStorage.setItem("activeGodown", selectedGodown.id.toString());
                                                     setStoredGodownId(selectedGodown.id.toString());
                                                     ToastAndroid.show(selectedGodown.name + " set as active godown", ToastAndroid.LONG);
-                                                    navigation.navigate("HomeScreen");
+                                                    if (fromSales) {
+                                                        // Navigate back so Sales.jsx receives focus and
+                                                        // re-reads the newly set godown via useFocusEffect
+                                                        navigation.goBack();
+                                                    } else {
+                                                        navigation.reset({
+                                                            index: 0,
+                                                            routes: [{
+                                                                name: "HomeScreen",
+                                                                state: {
+                                                                    index: 0,
+                                                                    routes: [{ name: "HomeScreen" }]
+                                                                }
+                                                            }],
+                                                        });
+                                                    }
                                                 } catch (error) {
                                                     console.error("Error saving godown:", error);
                                                     Alert.alert("Error", "Failed to save godown selection.");

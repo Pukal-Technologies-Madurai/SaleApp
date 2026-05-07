@@ -1,8 +1,8 @@
 import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { customColors, shadows } from "../Config/helper";
-import DrawerScreen from "./DrawerScreen";
 import AppStack from "./AppStack";
+import DrawerScreen from "./DrawerScreen";
 
 const Drawer = createDrawerNavigator();
 

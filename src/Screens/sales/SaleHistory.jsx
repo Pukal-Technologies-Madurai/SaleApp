@@ -4,14 +4,14 @@ import {
     Text,
     View,
     TouchableOpacity,
-    Animated,
+    LayoutAnimation,
 } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import IconMaterial from "react-native-vector-icons/MaterialIcons";
-import IconFeather from "react-native-vector-icons/Feather";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { fetchSaleInvoices } from "../../Api/sales";
@@ -20,29 +20,31 @@ import {
     shadows,
     typography,
     spacing,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import { toYMD } from "../../Config/functions";
 
 /* ─── Status helpers ─────────────────────────────────────── */
 
 const PAYMENT_MODE = {
-    1: { label: "Cash", icon: "payments" },
-    2: { label: "G-Pay", icon: "qr-code" },
+    1: { label: "Cash", icon: "inr" },
+    2: { label: "G-Pay", icon: "smartphone" },
     3: { label: "Credit", icon: "credit-card" },
 };
 
 const PAYMENT_STATUS = {
-    0: { label: "Pending", color: "#FF9800", bg: "#FF980015" },
-    1: { label: "Pending", color: "#FF9800", bg: "#FF980015" },
-    3: { label: "Completed", color: "#4CAF50", bg: "#4CAF5015" },
+    0: { label: "Pending", color: customColors.warning, bg: customColors.warningFaded },
+    1: { label: "Pending", color: customColors.warning, bg: customColors.warningFaded },
+    3: { label: "Completed", color: customColors.success, bg: customColors.successFaded },
 };
 
 const DELIVERY_STATUS = {
-    0: { label: "Cancelled", color: "#F44336" },
-    1: { label: "New", color: "#2196F3" },
-    5: { label: "Pending", color: "#FF9800" },
-    6: { label: "Returned", color: "#9C27B0" },
-    7: { label: "Delivered", color: "#4CAF50" },
+    0: { label: "Cancelled", color: customColors.error },
+    1: { label: "New", color: customColors.info },
+    5: { label: "Pending", color: customColors.warning },
+    6: { label: "Returned", color: customColors.accent2 },
+    7: { label: "Delivered", color: customColors.success },
 };
 
 const StatusBadge = ({ label, color, bg }) => (
@@ -51,31 +53,18 @@ const StatusBadge = ({ label, color, bg }) => (
     </View>
 );
 
-const InfoChip = ({ icon, label, value }) => (
-    <View style={styles.infoChip}>
-        <IconMaterial name={icon} size={14} color={customColors.grey500} />
-        <Text style={styles.infoChipLabel}>{label}: </Text>
-        <Text style={styles.infoChipValue}>{value}</Text>
-    </View>
-);
-
 /* ─── Expandable Invoice Card ─────────────────────────────── */
 const InvoiceCard = ({ sale }) => {
     const [expanded, setExpanded] = useState(false);
-    const anim = useRef(new Animated.Value(0)).current;
 
     const toggle = () => {
-        Animated.timing(anim, {
-            toValue: expanded ? 0 : 1,
-            duration: 220,
-            useNativeDriver: false,
-        }).start();
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setExpanded(v => !v);
     };
 
-    const paymentModeInfo = PAYMENT_MODE[sale.Payment_Mode] || { label: "—", icon: "payments" };
-    const paymentStatusInfo = PAYMENT_STATUS[sale.Payment_Status] || { label: "—", color: "#9E9E9E", bg: "#9E9E9E15" };
-    const deliveryInfo = DELIVERY_STATUS[sale.Delivery_Status] || { label: "—", color: "#9E9E9E" };
+    const paymentModeInfo = PAYMENT_MODE[sale.Payment_Mode] || { label: "—", icon: "inr" };
+    const paymentStatusInfo = PAYMENT_STATUS[sale.Payment_Status] || { label: "—", color: customColors.grey500, bg: customColors.grey100 };
+    const deliveryInfo = DELIVERY_STATUS[sale.Delivery_Status] || { label: "—", color: customColors.grey500 };
 
     const formattedDate = sale.Do_Date
         ? new Date(sale.Do_Date).toLocaleDateString("en-IN", {
@@ -94,7 +83,7 @@ const InvoiceCard = ({ sale }) => {
                 activeOpacity={0.8}>
                 <View style={styles.headerLeft}>
                     <View style={styles.invoiceIconWrap}>
-                        <IconMaterial name="receipt-long" size={22} color={customColors.primary} />
+                        <FeatherIcon name="file-text" size={iconSizes.lg} color={customColors.primary} />
                     </View>
                     <View>
                         <Text style={styles.invoiceNo}>{sale.Do_Inv_No || `#${sale.Do_No}`}</Text>
@@ -103,9 +92,9 @@ const InvoiceCard = ({ sale }) => {
                 </View>
                 <View style={styles.headerRight}>
                     <Text style={styles.totalValue}>₹{sale.Total_Invoice_value?.toFixed(2)}</Text>
-                    <IconFeather
+                    <FeatherIcon
                         name={expanded ? "chevron-up" : "chevron-down"}
-                        size={18}
+                        size={iconSizes.md}
                         color={customColors.grey500}
                     />
                 </View>
@@ -120,7 +109,7 @@ const InvoiceCard = ({ sale }) => {
                 </View>
                 <StatusBadge {...paymentStatusInfo} />
                 <View style={styles.paymentModeChip}>
-                    <IconMaterial name={paymentModeInfo.icon} size={12} color={customColors.grey600} />
+                    <FontAwesomeIcon name={paymentModeInfo.icon} size={iconSizes.xs} color={customColors.grey600} />
                     <Text style={styles.paymentModeText}>{paymentModeInfo.label}</Text>
                 </View>
             </View>
@@ -213,30 +202,30 @@ const SaleHistory = ({ route }) => {
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-            <View style={styles.mainContainer}>
-                <AppHeader
-                    title={item.Retailer_Name}
-                    navigation={navigation}
-                    showRightIcon={true}
-                    rightIconLibrary="MaterialIcon"
-                    rightIconName="filter-list"
-                    onRightPress={() => setModalVisible(true)}
-                />
+            <AppHeader
+                title={item.Retailer_Name}
+                navigation={navigation}
+                showRightIcon={true}
+                rightIconLibrary="FeatherIcon"
+                rightIconName="filter"
+                onRightPress={() => setModalVisible(true)}
+            />
 
-                <FilterModal
-                    visible={modalVisible}
-                    fromDate={selectedFromDate}
-                    toDate={selectedToDate}
-                    onFromDateChange={handleFromDateChange}
-                    onToDateChange={handleToDateChange}
-                    onApply={() => setModalVisible(false)}
-                    onClose={() => setModalVisible(false)}
-                    showToDate={true}
-                    title="Select Date Range"
-                    fromLabel="From Date"
-                    toLabel="To Date"
-                />
+            <FilterModal
+                visible={modalVisible}
+                fromDate={selectedFromDate}
+                toDate={selectedToDate}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onApply={() => setModalVisible(false)}
+                onClose={() => setModalVisible(false)}
+                showToDate={true}
+                title="Select Date Range"
+                fromLabel="From Date"
+                toLabel="To Date"
+            />
 
+            <View style={styles.contentContainer}>
                 {/* ── Summary Bar ── */}
                 {totalInvoices > 0 && (
                     <View style={styles.summaryBar}>
@@ -261,14 +250,18 @@ const SaleHistory = ({ route }) => {
                     showsVerticalScrollIndicator={false}>
                     {isLoading ? (
                         <View style={styles.emptyState}>
-                            <IconMaterial name="hourglass-empty" size={48} color={customColors.grey300} />
+                            <View style={styles.emptyIconContainer}>
+                                <FeatherIcon name="loader" size={iconSizes.xxl} color={customColors.grey300} />
+                            </View>
                             <Text style={styles.emptyText}>Loading...</Text>
                         </View>
                     ) : salesData.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <IconMaterial name="receipt-long" size={56} color={customColors.grey200} />
-                            <Text style={styles.emptyText}>No invoices found</Text>
-                            <Text style={styles.emptySubText}>Try adjusting the date range</Text>
+                            <View style={styles.emptyIconContainer}>
+                                <FeatherIcon name="file-text" size={iconSizes.xxl} color={customColors.grey300} />
+                            </View>
+                            <Text style={styles.emptyTitle}>No Invoices Found</Text>
+                            <Text style={styles.emptyText}>Try adjusting the date range</Text>
                         </View>
                     ) : (
                         salesData.map((sale, idx) => (
@@ -289,9 +282,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: customColors.primaryDark,
     },
-    mainContainer: {
+    contentContainer: {
         flex: 1,
-        backgroundColor: "#F5F6FA",
+        backgroundColor: customColors.grey50,
     },
 
     /* Summary bar */
@@ -300,7 +293,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         marginHorizontal: spacing.md,
         marginTop: spacing.md,
-        borderRadius: 14,
+        borderRadius: borderRadius.xl,
         paddingVertical: spacing.md,
         ...shadows.small,
         marginBottom: spacing.sm,
@@ -310,14 +303,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     summaryNum: {
-        ...typography.subtitle1(),
+        ...typography.h6(),
         fontWeight: "700",
         color: customColors.primary,
     },
     summaryLbl: {
         ...typography.caption(),
         color: customColors.grey500,
-        marginTop: 2,
+        marginTop: spacing.xxs,
     },
     summaryDivider: {
         width: 1,
@@ -340,23 +333,32 @@ const styles = StyleSheet.create({
     /* Empty state */
     emptyState: {
         alignItems: "center",
-        paddingVertical: spacing.xl * 2,
+        paddingVertical: spacing.xxl,
+    },
+    emptyIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
+    },
+    emptyTitle: {
+        ...typography.h6(),
+        color: customColors.grey700,
+        fontWeight: "600",
+        marginBottom: spacing.xs,
     },
     emptyText: {
-        ...typography.h6(),
-        color: customColors.grey400,
-        marginTop: spacing.md,
-    },
-    emptySubText: {
         ...typography.body2(),
-        color: customColors.grey400,
-        marginTop: spacing.xs,
+        color: customColors.grey500,
     },
 
     /* Card */
     card: {
         backgroundColor: customColors.white,
-        borderRadius: 16,
+        borderRadius: borderRadius.xl,
         marginBottom: spacing.md,
         ...shadows.small,
         overflow: "hidden",
@@ -374,29 +376,29 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     invoiceIconWrap: {
-        width: 42,
-        height: 42,
-        borderRadius: 12,
-        backgroundColor: customColors.primary + "12",
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.lg,
+        backgroundColor: customColors.primaryFaded,
         justifyContent: "center",
         alignItems: "center",
     },
     invoiceNo: {
-        ...typography.subtitle1(),
+        ...typography.body1(),
         fontWeight: "700",
         color: customColors.grey900,
     },
     invoiceDate: {
         ...typography.caption(),
         color: customColors.grey500,
-        marginTop: 2,
+        marginTop: spacing.xxs,
     },
     headerRight: {
         alignItems: "flex-end",
-        gap: 4,
+        gap: spacing.xs,
     },
     totalValue: {
-        ...typography.subtitle1(),
+        ...typography.body1(),
         fontWeight: "700",
         color: customColors.primary,
     },
@@ -411,8 +413,8 @@ const styles = StyleSheet.create({
     },
     badge: {
         paddingHorizontal: spacing.sm,
-        paddingVertical: 3,
-        borderRadius: 20,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
     },
     badgeText: {
         ...typography.caption(),
@@ -421,10 +423,10 @@ const styles = StyleSheet.create({
     paymentModeChip: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 4,
+        gap: spacing.xs,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 3,
-        borderRadius: 20,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
     },
     paymentModeText: {
@@ -433,25 +435,10 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
-    infoChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 3,
-    },
-    infoChipLabel: {
-        ...typography.caption(),
-        color: customColors.grey500,
-    },
-    infoChipValue: {
-        ...typography.caption(),
-        color: customColors.grey800,
-        fontWeight: "600",
-    },
-
     /* Expanded section */
     expandedSection: {
         padding: spacing.md,
-        backgroundColor: "#F8F9FC",
+        backgroundColor: customColors.grey50,
     },
     sectionLabel: {
         ...typography.caption(),
@@ -479,13 +466,13 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
     },
     sNoCircle: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: customColors.primary + "20",
+        width: 24,
+        height: 24,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.primaryFaded,
         justifyContent: "center",
         alignItems: "center",
-        marginTop: 2,
+        marginTop: spacing.xxs,
     },
     sNoText: {
         ...typography.caption(),
@@ -497,24 +484,24 @@ const styles = StyleSheet.create({
         ...typography.body2(),
         color: customColors.grey900,
         fontWeight: "600",
-        marginBottom: 4,
+        marginBottom: spacing.xs,
     },
     productMeta: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 4,
+        gap: spacing.xs,
     },
     metaTag: {
         ...typography.caption(),
         color: customColors.grey500,
         backgroundColor: customColors.grey100,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.sm,
     },
     productRight: {
         alignItems: "flex-end",
-        gap: 2,
+        gap: spacing.xxs,
     },
     productQty: {
         ...typography.caption(),
@@ -526,7 +513,7 @@ const styles = StyleSheet.create({
         color: customColors.grey600,
     },
     productTotal: {
-        ...typography.subtitle2(),
+        ...typography.body2(),
         fontWeight: "700",
         color: customColors.grey900,
     },

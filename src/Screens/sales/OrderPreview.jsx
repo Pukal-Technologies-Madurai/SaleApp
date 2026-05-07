@@ -3,24 +3,26 @@ import {
     Text,
     TouchableOpacity,
     View,
-    ScrollView,
     Alert,
     TextInput,
+    LayoutAnimation
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import RNHTMLtoPDF from "react-native-html-to-pdf";
+import { generatePDF } from "react-native-html-to-pdf";
+import RNFS from "react-native-fs";
 import Share from "react-native-share";
-import Accordion from "../../Components/Accordion";
+import { FlashList } from "@shopify/flash-list";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 import { API } from "../../Config/Endpoint";
 import {
     customColors,
+    customFonts,
     shadows,
     spacing,
     typography,
@@ -39,13 +41,19 @@ const OrderPreview = () => {
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
 
+    // Modal dates for free selection in filter modal
+    const [modalFromDate, setModalFromDate] = useState(new Date());
+    const [modalToDate, setModalToDate] = useState(new Date());
+
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const [modalVisible, setModalVisible] = useState(false);
 
     const [selectedBrand, setSelectedBrand] = useState("All");
-    const [brandList, setBrandList] = useState([]);
+
+    // State for inline accordion expansion
+    const [expandedId, setExpandedId] = useState(null);
 
     useEffect(() => {
         (async () => {
@@ -63,11 +71,29 @@ const OrderPreview = () => {
                 console.log(err);
             }
         })();
+    }, []);
+
+    // Open modal and initialize modal dates
+    const handleOpenModal = useCallback(() => {
+        setModalFromDate(selectedFromDate);
+        setModalToDate(selectedToDate);
+        setModalVisible(true);
     }, [selectedFromDate, selectedToDate]);
 
-    const handleCloseModal = () => {
+    const handleCloseModal = useCallback(() => {
         setModalVisible(false);
-    };
+    }, []);
+
+    // Apply filter with validation
+    const handleApplyFilter = useCallback(() => {
+        if (modalFromDate > modalToDate) {
+            Alert.alert("Invalid Date Range", "From date cannot be after To date");
+            return;
+        }
+        setSelectedFromDate(modalFromDate);
+        setSelectedToDate(modalToDate);
+        setModalVisible(false);
+    }, [modalFromDate, modalToDate]);
 
     const { data: logData = [], isLoading, refetch } = useQuery({
         queryKey: ["saleOrders", selectedFromDate, selectedToDate, companyId, uID],
@@ -81,34 +107,80 @@ const OrderPreview = () => {
         enabled: !!selectedFromDate && !!selectedToDate && !!companyId && !!uID,
     });
 
-    useEffect(() => {
-        if (logData.length > 0) {
-            const brands = new Set();
-            logData.forEach(order => {
-                order.Products_List.forEach(p => {
-                    if (p.BrandGet) {
-                        brands.add(p.BrandGet.trim());
-                    }
-                });
+    // Memoize brand list extraction
+    const brandList = useMemo(() => {
+        if (logData.length === 0) return ["All"];
+        const brands = new Set();
+        logData.forEach(order => {
+            order.Products_List?.forEach(p => {
+                if (p.BrandGet) brands.add(p.BrandGet.trim());
             });
-
-            setBrandList(["All", ...Array.from(brands)]);
-        }
+        });
+        return ["All", ...Array.from(brands)];
     }, [logData]);
 
-    const handleFromDateChange = date => {
-        if (date) {
-            const newFromDate = date > selectedToDate ? selectedToDate : date;
-            setSelectedFromDate(newFromDate);
-        }
-    };
+    // Memoize filtered data by brand
+    const filteredLogData = useMemo(() => {
+        if (selectedBrand === "All") return logData;
 
-    const handleToDateChange = date => {
-        if (date) {
-            const newToDate = date < selectedFromDate ? selectedFromDate : date;
-            setSelectedToDate(newToDate);
-        }
-    };
+        return logData.map(order => {
+            const filteredProducts = order.Products_List?.filter(
+                product => product.BrandGet?.trim() === selectedBrand
+            ) || [];
+
+            if (filteredProducts.length > 0) {
+                const brandTotal = filteredProducts.reduce(
+                    (sum, product) => sum + (product.Amount || product.Final_Amo || 0),
+                    0
+                );
+                return {
+                    ...order,
+                    Products_List: filteredProducts,
+                    Total_Invoice_value: brandTotal,
+                    Original_Total: order.Total_Invoice_value
+                };
+            }
+            return null;
+        }).filter(Boolean);
+    }, [logData, selectedBrand]);
+
+    // Memoize search-filtered data
+    const filteredOrderData = useMemo(() => {
+        if (!searchQuery) return filteredLogData;
+        const query = searchQuery.toLowerCase();
+        return filteredLogData.filter(order =>
+            order.Retailer_Name?.toLowerCase().includes(query)
+        );
+    }, [filteredLogData, searchQuery]);
+
+    // Memoize stats
+    const { filteredTotalSales, filteredTotalAmount } = useMemo(() => {
+        const totalSales = filteredLogData.length;
+        const totalAmount = filteredLogData.reduce((sum, order) => {
+            if (selectedBrand === "All") {
+                return sum + (order.Total_Invoice_value || 0);
+            }
+            return sum + order.Products_List.reduce(
+                (productSum, product) => productSum + (product.Amount || product.Final_Amo || 0),
+                0
+            );
+        }, 0);
+        return { filteredTotalSales: totalSales, filteredTotalAmount: totalAmount };
+    }, [filteredLogData, selectedBrand]);
+
+    // Toggle accordion with animation
+    const toggleAccordion = useCallback((id) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpandedId(prev => prev === id ? null : id);
+    }, []);
+
+    const handleFromDateChange = useCallback(date => {
+        if (date) setModalFromDate(date);
+    }, []);
+
+    const handleToDateChange = useCallback(date => {
+        if (date) setModalToDate(date);
+    }, []);
 
     function numberToWords(num) {
         const under20 = [
@@ -176,108 +248,111 @@ const OrderPreview = () => {
         return num;
     }
 
-    const renderHeader = item => {
-        return (
-            <View style={styles.accordionHeader}>
-                <View style={styles.headerLeft}>
-                    <Text style={styles.retailerName} numberOfLines={2}>
-                        {item.Retailer_Name}
-                    </Text>
-                    <Text style={styles.orderDate}>
-                        {item.So_Date
-                            ? new Date(item.So_Date).toLocaleDateString("en-GB")
-                            : "N/A"}
-                    </Text>
-                </View>
-                <View style={styles.headerRight}>
-                    <Text style={styles.orderAmount}>
-                        ₹{item.Total_Invoice_value}
-                    </Text>
-                    <Text style={styles.orderCount}>
-                        {item.Products_List.length} items
-                    </Text>
-                </View>
-            </View>
-        );
-    };
+    // Current date for edit button visibility
+    const currentDate = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-    const renderContent = item => {
-        const currentDate = new Date().toISOString().split("T")[0];
+    // Render item for FlashList with inline accordion
+    const renderItem = useCallback(({ item }) => {
+        const isExpanded = expandedId === item.So_Id;
         const orderDate = new Date(item.So_Date).toISOString().split("T")[0];
 
         return (
-            <View style={styles.content}>
-                <View style={styles.orderInfo}>
-                    <Text style={styles.orderNumber}>Order #{item.So_Id}</Text>
-                </View>
-
-                <View style={styles.productsContainer}>
-                    {item.Products_List.map((product, index) => {
-                        // Extract PackGet from each product's name
-                        const packWeight = parseFloat(product?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
-                        const totalKg = parseFloat(product.Bill_Qty) || 0;
-                        const bags = packWeight > 0 ? (totalKg / packWeight) : totalKg; // Fallback to totalKg if no pack weight found
-
-                        return (
-                            <View key={index} style={styles.productItem}>
-                                <View style={styles.productInfo}>
-                                    <Text
-                                        style={styles.productName}
-                                        numberOfLines={3}>
-                                        {product.Product_Name}
-                                    </Text>
-                                    <Text style={styles.productDetails}>
-                                        {packWeight > 0 ? (
-                                            <>Bags: {bags.toFixed(1)} ({packWeight}kg each) • Rate: ₹{product.Item_Rate}/kg</>
-                                        ) : (
-                                            <>Qty: {totalKg} • Rate: ₹{product.Item_Rate}</>
-                                        )}
-                                    </Text>
-                                </View>
-                                <Text style={styles.productAmount}>
-                                    ₹{product.Amount}
-                                </Text>
-                            </View>
-                        );
-                    })}
-                </View>
-
-                <View style={styles.footer}>
-                    <View style={styles.totalSection}>
-                        <Text style={styles.totalLabel}>Total Amount</Text>
-                        <Text style={styles.totalValue}>
-                            ₹{item.Total_Invoice_value}
+            <View style={styles.accordionContainer}>
+                {/* Header - always visible */}
+                <TouchableOpacity
+                    style={styles.accordionHeader}
+                    onPress={() => toggleAccordion(item.So_Id)}
+                    activeOpacity={0.7}
+                >
+                    <View style={styles.headerLeft}>
+                        <Text style={styles.retailerName} numberOfLines={2}>
+                            {item.Retailer_Name}
+                        </Text>
+                        <Text style={styles.orderDate}>
+                            {item.So_Date
+                                ? new Date(item.So_Date).toLocaleDateString("en-GB")
+                                : "N/A"}
                         </Text>
                     </View>
-
-                    <View style={styles.actionButtons}>
-                        {currentDate === orderDate && (
-                            <TouchableOpacity
-                                style={[styles.actionButton, styles.editButton]}
-                                onPress={() => editOption(item)}>
-                                <FeatherIcon
-                                    name="edit-2"
-                                    size={14}
-                                    color={customColors.white}
-                                />
-                                <Text style={styles.buttonText}>Edit</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                            style={[styles.actionButton, styles.shareButton]}
-                            onPress={() => downloadItemPDF(item)}>
-                            <FeatherIcon
-                                name="share"
-                                size={14}
-                                color={customColors.white}
-                            />
-                            <Text style={styles.buttonText}>Share</Text>
-                        </TouchableOpacity>
+                    <View style={styles.headerRight}>
+                        <Text style={styles.orderAmount}>
+                            ₹{item.Total_Invoice_value}
+                        </Text>
+                        <Text style={styles.orderCount}>
+                            {item.Products_List?.length || 0} items
+                        </Text>
                     </View>
-                </View>
+                </TouchableOpacity>
+
+                {/* Content - only visible when expanded */}
+                {isExpanded && (
+                    <View style={styles.content}>
+                        <View style={styles.orderInfo}>
+                            <Text style={styles.orderNumber}>Order #{item.So_Id}</Text>
+                        </View>
+
+                        <View style={styles.productsContainer}>
+                            {item.Products_List?.map((product, index) => {
+                                const packWeight = parseFloat(product?.Product_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
+                                const totalKg = parseFloat(product.Bill_Qty) || 0;
+                                const bags = packWeight > 0 ? (totalKg / packWeight) : totalKg;
+
+                                return (
+                                    <View key={index} style={styles.productItem}>
+                                        <View style={styles.productInfo}>
+                                            <Text style={styles.productName} numberOfLines={3}>
+                                                {product.Product_Name}
+                                            </Text>
+                                            <Text style={styles.productDetails}>
+                                                {packWeight > 0 ? (
+                                                    `Bags: ${bags.toFixed(1)} (${packWeight}kg each) • Rate: ₹${product.Item_Rate}/kg`
+                                                ) : (
+                                                    `Qty: ${totalKg} • Rate: ₹${product.Item_Rate}`
+                                                )}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.productAmount}>
+                                            ₹{product.Amount}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+
+                        <View style={styles.footer}>
+                            <View style={styles.totalSection}>
+                                <Text style={styles.totalLabel}>Total Amount</Text>
+                                <Text style={styles.totalValue}>
+                                    ₹{item.Total_Invoice_value}
+                                </Text>
+                            </View>
+
+                            <View style={styles.actionButtons}>
+                                {currentDate === orderDate && (
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, styles.editButton]}
+                                        onPress={() => editOption(item)}
+                                    >
+                                        <FeatherIcon name="edit-2" size={14} color={customColors.white} />
+                                        <Text style={styles.buttonText}>Edit</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.shareButton]}
+                                    onPress={() => downloadItemPDF(item)}
+                                >
+                                    <FeatherIcon name="share" size={14} color={customColors.white} />
+                                    <Text style={styles.buttonText}>Share</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                )}
             </View>
         );
-    };
+    }, [expandedId, toggleAccordion, currentDate]);
+
+    const keyExtractor = useCallback((item) => item.So_Id?.toString(), []);
 
     const generateItemPDF = async (item) => {
         try {
@@ -899,14 +974,16 @@ const OrderPreview = () => {
             const options = {
                 html: finalHTML,
                 fileName: `receipt-${(item?.Retailer_Name || item?.So_Inv_No || Date.now()).toString().replace(/[^\w-]+/g, "_")}`,
-                directory: "Documents",
+                // No 'directory' → file goes to cacheDir, which is covered by
+                // react-native-share's FileProvider (cache-path "/").
+                // getExternalFilesDir/Documents is NOT in the FileProvider paths XML.
                 width: 226,  // 80mm = 226 pixels at 72 DPI
                 height: estimatedHeight,
                 padding: 0,
                 base64: false,
             };
 
-            const pdf = await RNHTMLtoPDF.convert(options);
+            const pdf = await generatePDF(options);
             return pdf.filePath;
 
         } catch (err) {
@@ -918,33 +995,52 @@ const OrderPreview = () => {
     const downloadItemPDF = async item => {
         try {
             const pdfPath = await generateItemPDF(item, "80mm");
-            if (pdfPath) {
-                try {
-                    await Share.open({
-                        url: `file://${pdfPath}`,
-                        title: "Sale Order",
-                        message: "Here is your order preview in PDF format",
+            // console.log("[PDF] Generated path:", pdfPath);
 
-                        showAppsToView: true,
-                        subject: "Sale Order Receipt",
-                        // Optional: Add print-specific filename
-                        filename: `receipt-${item?.So_Inv_No || item?.So_Id || Date.now()}.pdf`,
-                    });
-                } catch (shareError) {
-                    // Silently handle user cancellation
-                    if (shareError.message && shareError.message.includes("User did not share")) {
-                        return; // User cancelled, do nothing
-                    }
-                    throw shareError; // Re-throw other errors
-                }
-            } else {
+            if (!pdfPath) {
                 Alert.alert("Error", "Failed to generate PDF. Please try again.");
+                return;
+            }
+
+            const exists = await RNFS.exists(pdfPath);
+            // console.log("[PDF] File exists:", exists);
+
+            if (!exists) {
+                Alert.alert("Error", "PDF file not found. Please try again.");
+                return;
+            }
+
+            // File is in cacheDir which is covered by react-native-share's
+            // FileProvider (cache-path "/"). It will be converted to a
+            // content:// URI automatically — no getScheme() crash.
+            const fileUrl = `file://${pdfPath}`;
+
+            try {
+                await Share.open({
+                    url: fileUrl,
+                    type: "application/pdf",
+                    title: "Sale Order",
+                    message: "Here is your order preview in PDF format",
+                    showAppsToView: true,
+                    subject: "Sale Order Receipt",
+                    filename: `receipt-${item?.So_Inv_No || item?.So_Id || Date.now()}.pdf`,
+                });
+            } catch (shareError) {
+                if (
+                    shareError.message &&
+                    shareError.message.includes("User did not share")
+                ) {
+                    return;
+                }
+                throw shareError;
             }
         } catch (error) {
-            console.error("Error:", error);
+            console.error("[PDF] Share error:", error);
             Alert.alert("Error", "Something went wrong. Please try again.");
         }
     };
+
+
 
     const editOption = item => {
         const isSMTraders = companyName === "SM TRADERS";
@@ -960,70 +1056,13 @@ const OrderPreview = () => {
         });
     };
 
-    // const filteredLogData = logData.filter(order =>
-    //     selectedBrand === "All"
-    //         ? true
-    //         : order.Products_List.some(
-    //               p => p.BrandGet?.trim() === selectedBrand,
-    //           ),
-    // );
-
-    const getFilteredDataByBrand = () => {
-        if (selectedBrand === "All") {
-            return logData;
-        }
-
-        // Filter orders and products by selected brand
-        return logData.map(order => {
-            const filteredProducts = order.Products_List.filter(
-                product => product.BrandGet?.trim() === selectedBrand
-            );
-
-            if (filteredProducts.length > 0) {
-                // Calculate new total for filtered products only
-                const brandTotal = filteredProducts.reduce(
-                    (sum, product) => sum + (product.Amount || product.Final_Amo || 0),
-                    0
-                );
-
-                return {
-                    ...order,
-                    Products_List: filteredProducts,
-                    Total_Invoice_value: brandTotal, // Override with brand-specific total
-                    Original_Total: order.Total_Invoice_value // Keep original for reference
-                };
-            }
-            return null;
-        }).filter(order => order !== null); // Remove orders with no matching brand products
-    };
-
-    const filteredLogData = getFilteredDataByBrand();
-    const filteredTotalSales = filteredLogData.length;
-
-    const filteredTotalAmount = filteredLogData.reduce((sum, order) => {
-        if (selectedBrand === "All") {
-            return sum + (order.Total_Invoice_value || 0);
-        } else {
-            // For specific brand, sum only the brand products
-            const brandAmount = order.Products_List.reduce(
-                (productSum, product) => productSum + (product.Amount || product.Final_Amo || 0),
-                0
-            );
-            return sum + brandAmount;
-        }
-    }, 0);
-
-    const filteredOrderData = filteredLogData.filter(order =>
-        order.Retailer_Name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const handleSalesReportPress = () => {
+    const handleSalesReportPress = useCallback(() => {
         navigation.navigate("SalesReport", {
             logData,
             selectedDate: selectedFromDate,
             isNotAdmin: true,
         });
-    };
+    }, [navigation, logData, selectedFromDate]);
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -1033,16 +1072,16 @@ const OrderPreview = () => {
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
                 rightIconName="filter-list"
-                onRightPress={() => setModalVisible(true)}
+                onRightPress={handleOpenModal}
             />
 
             <FilterModal
                 visible={modalVisible}
-                fromDate={selectedFromDate}
-                toDate={selectedToDate}
+                fromDate={modalFromDate}
+                toDate={modalToDate}
                 onFromDateChange={handleFromDateChange}
                 onToDateChange={handleToDateChange}
-                onApply={() => setModalVisible(false)}
+                onApply={handleApplyFilter}
                 onClose={handleCloseModal}
                 showToDate={true}
                 title="Select Date Range"
@@ -1053,41 +1092,47 @@ const OrderPreview = () => {
             <View style={styles.contentContainer}>
                 <View style={styles.countContainer}>
                     <View style={styles.searchHeader}>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={{
-                                flex: 1,
-                                paddingHorizontal: spacing.md,
-                                marginVertical: spacing.sm,
-                            }}>
-                            {brandList.map((brand, index) => (
-                                <TouchableOpacity
-                                    key={index}
-                                    style={{
-                                        paddingVertical: spacing.xs,
-                                        paddingHorizontal: spacing.md,
-                                        marginRight: spacing.sm,
-                                        borderRadius: 20,
-                                        backgroundColor:
-                                            selectedBrand === brand
-                                                ? customColors.primary
-                                                : customColors.grey200,
-                                    }}
-                                    onPress={() => setSelectedBrand(brand)}>
-                                    <Text
+                        <View style={{ flex: 1 }}>
+                            <FlashList
+                                horizontal
+                                data={brandList}
+                                keyExtractor={(item, index) => index.toString()}
+                                showsHorizontalScrollIndicator={false}
+                                estimatedItemSize={80}
+                                contentContainerStyle={{
+                                    paddingHorizontal: spacing.md,
+                                    paddingVertical: spacing.sm,
+                                }}
+                                renderItem={({ item: brand }) => (
+                                    <TouchableOpacity
                                         style={{
-                                            color:
+                                            paddingVertical: spacing.xs,
+                                            paddingHorizontal: spacing.md,
+                                            marginRight: spacing.sm,
+                                            borderRadius: 20,
+                                            backgroundColor:
                                                 selectedBrand === brand
-                                                    ? customColors.white
-                                                    : customColors.grey900,
-                                            ...typography.caption(),
-                                        }}>
-                                        {brand}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
+                                                    ? customColors.primary
+                                                    : customColors.grey200,
+                                        }}
+                                        onPress={() => setSelectedBrand(brand)}>
+                                        <Text
+                                            style={{
+                                                color:
+                                                    selectedBrand === brand
+                                                        ? customColors.white
+                                                        : customColors.grey900,
+                                                fontFamily: customFonts.poppinsRegular,
+                                                fontWeight: "600",
+                                                textTransform: "capitalize",
+
+                                            }}>
+                                            {brand}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
                         <TouchableOpacity
                             style={styles.searchIcon}
                             onPress={() => {
@@ -1150,13 +1195,18 @@ const OrderPreview = () => {
                     </View>
                 </View>
 
-                <ScrollView style={styles.accordationScrollContainer}>
-                    <Accordion
-                        data={filteredOrderData}
-                        renderHeader={renderHeader}
-                        renderContent={renderContent}
-                    />
-                </ScrollView>
+                <FlashList
+                    data={filteredOrderData}
+                    renderItem={renderItem}
+                    keyExtractor={keyExtractor}
+                    estimatedItemSize={100}
+                    contentContainerStyle={styles.listContainer}
+                    showsVerticalScrollIndicator={false}
+                    extraData={expandedId}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                />
             </View>
         </SafeAreaView>
     );
@@ -1267,9 +1317,16 @@ const styles = StyleSheet.create({
         textAlign: "center",
         color: customColors.grey900,
     },
-    accordationScrollContainer: {
-        marginTop: spacing.sm,
+    listContainer: {
         paddingHorizontal: spacing.sm,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.xl,
+    },
+    accordionContainer: {
+        marginBottom: spacing.sm,
+        borderRadius: 8,
+        overflow: "hidden",
+        // ...shadows.small,
     },
     accordionHeader: {
         flexDirection: "row",
@@ -1278,8 +1335,6 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        borderRadius: 8,
-        marginBottom: 2,
     },
     headerLeft: {
         flex: 1,

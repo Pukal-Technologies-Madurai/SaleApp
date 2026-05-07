@@ -539,69 +539,122 @@ const InvoiceDetail = ({ route }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {products.map((product, index) => (
-                        <View key={index} style={styles.productItem}>
-                            <View style={styles.productHeader}>
-                                <Text
-                                    style={styles.productName}
-                                    numberOfLines={2}>
-                                    {product.Product_Name}
-                                </Text>
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        removeProduct(product.Product_Id)
-                                    }
-                                    style={styles.removeBtn}>
-                                    <MaterialIcons
-                                        name="close"
-                                        size={18}
-                                        color={customColors.error}
-                                    />
-                                </TouchableOpacity>
-                            </View>
+                    {products.map((product, index) => {
+                        // Look up current godown balance for this product
+                        const balQty = goDownStockValueData[product.Product_Id] ?? null;
+                        const isOutOfStock = balQty !== null && balQty === 0;
+                        const isLowStock = balQty !== null && balQty > 0 && balQty < 5;
 
-                            <View style={styles.productFields}>
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.fieldLabel}>Qty:</Text>
-                                    <TextInput
-                                        style={styles.fieldInput}
-                                        value={String(product.Bill_Qty)}
-                                        onChangeText={val =>
-                                            updateQuantity(
-                                                product.Product_Id,
-                                                val
-                                            )
-                                        }
-                                        keyboardType="decimal-pad"
-                                    />
-                                </View>
-
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.fieldLabel}>Rate:</Text>
-                                    <TextInput
-                                        style={styles.fieldInput}
-                                        value={String(product.Item_Rate)}
-                                        onChangeText={val =>
-                                            updateRate(product.Product_Id, val)
-                                        }
-                                        keyboardType="decimal-pad"
-                                    />
-                                </View>
-
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.fieldLabel}>
-                                        Amount:
+                        return (
+                            <View
+                                key={index}
+                                style={[
+                                    styles.productItem,
+                                    isOutOfStock && { borderLeftWidth: 3, borderLeftColor: customColors.error },
+                                ]}
+                            >
+                                <View style={styles.productHeader}>
+                                    <Text style={styles.productName} numberOfLines={2}>
+                                        {product.Product_Name}
                                     </Text>
-                                    <Text style={styles.amountText}>
-                                        ₹
-                                        {(
-                                            product.Bill_Qty * product.Item_Rate
-                                        ).toFixed(2)}
-                                    </Text>
+                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                        {/* Stock badge */}
+                                        {balQty !== null && (
+                                            <View
+                                                style={[
+                                                    styles.stockBadge,
+                                                    {
+                                                        backgroundColor:
+                                                            isOutOfStock
+                                                                ? customColors.error + "20"
+                                                                : isLowStock
+                                                                ? customColors.warning + "20"
+                                                                : customColors.success + "20",
+                                                    },
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.stockBadgeText,
+                                                        {
+                                                            color:
+                                                                isOutOfStock
+                                                                    ? customColors.error
+                                                                    : isLowStock
+                                                                    ? customColors.warning
+                                                                    : customColors.success,
+                                                        },
+                                                    ]}
+                                                >
+                                                    {isOutOfStock ? "Out of Stock" : `Bal: ${balQty}`}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <TouchableOpacity
+                                            onPress={() => removeProduct(product.Product_Id)}
+                                            style={styles.removeBtn}
+                                        >
+                                            <MaterialIcons
+                                                name="close"
+                                                size={18}
+                                                color={customColors.error}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <View style={styles.productFields}>
+                                    <View style={styles.fieldGroup}>
+                                        <Text style={styles.fieldLabel}>Qty:</Text>
+                                        <TextInput
+                                            style={[
+                                                styles.fieldInput,
+                                                balQty !== null &&
+                                                    parseFloat(product.Bill_Qty) > balQty && {
+                                                        borderColor: customColors.error,
+                                                        borderWidth: 1,
+                                                    },
+                                            ]}
+                                            value={String(product.Bill_Qty)}
+                                            onChangeText={val => {
+                                                const qty = parseFloat(val) || 0;
+                                                if (balQty !== null && qty > balQty) {
+                                                    ToastAndroid.show(
+                                                        `Only ${balQty} in stock`,
+                                                        ToastAndroid.SHORT
+                                                    );
+                                                }
+                                                updateQuantity(product.Product_Id, val);
+                                            }}
+                                            keyboardType="decimal-pad"
+                                        />
+                                    </View>
+
+                                    <View style={styles.fieldGroup}>
+                                        <Text style={styles.fieldLabel}>Rate:</Text>
+                                        <TextInput
+                                            style={styles.fieldInput}
+                                            value={String(product.Item_Rate)}
+                                            onChangeText={val =>
+                                                updateRate(product.Product_Id, val)
+                                            }
+                                            keyboardType="decimal-pad"
+                                        />
+                                    </View>
+
+                                    <View style={styles.fieldGroup}>
+                                        <Text style={styles.fieldLabel}>Amount:</Text>
+                                        <Text style={styles.amountText}>
+                                            ₹
+                                            {(
+                                                product.Bill_Qty * product.Item_Rate
+                                            ).toFixed(2)}
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-                    ))}
+                        );
+                    })}
                 </View>
 
                 {/* Narration */}
@@ -721,66 +774,94 @@ const InvoiceDetail = ({ route }) => {
                                     String(item.Product_Id)
                                 }
                                 style={styles.productList}
-                                renderItem={({ item }) => (
-                                    <View style={styles.addProductItem}>
-                                        <View style={styles.addProductInfo}>
-                                            <Text
-                                                style={styles.addProductName}
-                                                numberOfLines={2}>
-                                                {item.Product_Name}
-                                            </Text>
-                                            <Text style={styles.addProductStock}>
-                                                Stock: {item.CL_Qty} | Rate: ₹
-                                                {item.Item_Rate}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.addProductInputs}>
-                                            <TextInput
-                                                style={styles.addProductQtyInput}
-                                                placeholder="Qty"
-                                                keyboardType="decimal-pad"
-                                                value={
-                                                    tempQuantities[
-                                                        item.Product_Id
-                                                    ] || ""
-                                                }
-                                                onChangeText={val => {
-                                                    const qty =
-                                                        parseFloat(val) || 0;
-                                                    if (qty > item.CL_Qty) {
-                                                        Alert.alert(
-                                                            "Insufficient Stock",
-                                                            `Only ${item.CL_Qty} available`
-                                                        );
-                                                        return;
+                                renderItem={({ item }) => {
+                                    const balQty = item.CL_Qty ?? 0;
+                                    const isLow = balQty > 0 && balQty < 5;
+                                    return (
+                                        <View style={styles.addProductItem}>
+                                            <View style={styles.addProductInfo}>
+                                                <Text
+                                                    style={styles.addProductName}
+                                                    numberOfLines={2}>
+                                                    {item.Product_Name}
+                                                </Text>
+                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                                                    <View
+                                                        style={[
+                                                            styles.stockBadge,
+                                                            {
+                                                                backgroundColor: isLow
+                                                                    ? customColors.warning + "20"
+                                                                    : customColors.success + "20",
+                                                            },
+                                                        ]}
+                                                    >
+                                                        <Text
+                                                            style={[
+                                                                styles.stockBadgeText,
+                                                                {
+                                                                    color: isLow
+                                                                        ? customColors.warning
+                                                                        : customColors.success,
+                                                                },
+                                                            ]}
+                                                        >
+                                                            Bal: {balQty}
+                                                        </Text>
+                                                    </View>
+                                                    <Text style={styles.addProductStock}>
+                                                        Rate: ₹{item.Item_Rate}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.addProductInputs}>
+                                                <TextInput
+                                                    style={styles.addProductQtyInput}
+                                                    placeholder="Qty"
+                                                    keyboardType="decimal-pad"
+                                                    value={
+                                                        tempQuantities[
+                                                            item.Product_Id
+                                                        ] || ""
                                                     }
-                                                    setTempQuantities(
-                                                        prev => ({
+                                                    onChangeText={val => {
+                                                        const qty =
+                                                            parseFloat(val) || 0;
+                                                        if (qty > balQty) {
+                                                            ToastAndroid.show(
+                                                                `Only ${balQty} in stock`,
+                                                                ToastAndroid.SHORT
+                                                            );
+                                                            return;
+                                                        }
+                                                        setTempQuantities(
+                                                            prev => ({
+                                                                ...prev,
+                                                                [item.Product_Id]:
+                                                                    val,
+                                                            })
+                                                        );
+                                                    }}
+                                                />
+                                                <TextInput
+                                                    style={styles.addProductRateInput}
+                                                    placeholder="Rate"
+                                                    keyboardType="decimal-pad"
+                                                    value={String(
+                                                        tempRates[item.Product_Id] ||
+                                                            item.Item_Rate
+                                                    )}
+                                                    onChangeText={val =>
+                                                        setTempRates(prev => ({
                                                             ...prev,
-                                                            [item.Product_Id]:
-                                                                val,
-                                                        })
-                                                    );
-                                                }}
-                                            />
-                                            <TextInput
-                                                style={styles.addProductRateInput}
-                                                placeholder="Rate"
-                                                keyboardType="decimal-pad"
-                                                value={String(
-                                                    tempRates[item.Product_Id] ||
-                                                        item.Item_Rate
-                                                )}
-                                                onChangeText={val =>
-                                                    setTempRates(prev => ({
-                                                        ...prev,
-                                                        [item.Product_Id]: val,
-                                                    }))
-                                                }
-                                            />
+                                                            [item.Product_Id]: val,
+                                                        }))
+                                                    }
+                                                />
+                                            </View>
                                         </View>
-                                    </View>
-                                )}
+                                    );
+                                }}
                             />
                         ) : selectedGroup ? (
                             <View style={styles.emptyState}>
@@ -964,6 +1045,15 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: spacing.sm,
         marginBottom: spacing.sm,
+    },
+    stockBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    stockBadgeText: {
+        fontSize: 10,
+        fontWeight: "700",
     },
     productHeader: {
         flexDirection: "row",

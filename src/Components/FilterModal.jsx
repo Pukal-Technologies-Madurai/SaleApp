@@ -1,5 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View, Modal } from "react-native";
 import React from "react";
+import LinearGradient from "react-native-linear-gradient";
+import MaterialIcon from "react-native-vector-icons/MaterialIcons";
 import DatePickerButton from "./DatePickerButton";
 import EnhancedDropdown from "./EnhancedDropdown";
 import { customColors, typography, spacing, shadows } from "../Config/helper";
@@ -30,34 +32,50 @@ const FilterModal = ({
     paymentOptionLabel = "Select Payment Option",
 }) => {
     return (
-        <Modal visible={visible} transparent animationType="slide">
+        <Modal visible={visible} transparent animationType="fade">
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>{title}</Text>
-                    </View>
+                    {/* Header with gradient */}
+                    <LinearGradient
+                        colors={[customColors.primary, customColors.primaryDark]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.modalHeader}>
+                        <View style={styles.headerContent}>
+                            <MaterialIcon name="filter-list" size={22} color={customColors.white} />
+                            <Text style={styles.modalTitle}>{title}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.closeIconButton}
+                            onPress={onClose}
+                            activeOpacity={0.7}>
+                            <MaterialIcon name="close" size={20} color={customColors.white} />
+                        </TouchableOpacity>
+                    </LinearGradient>
 
                     <View style={styles.modalBody}>
                         {/* Date Pickers */}
-                        <View style={styles.datePickerContainer}>
-                            <Text style={styles.dateLabel}>{fromLabel}</Text>
-                            <DatePickerButton
-                                title=""
-                                date={fromDate}
-                                onDateChange={onFromDateChange}
-                            />
-                        </View>
-
-                        {showToDate && (
-                            <View style={styles.datePickerContainer}>
-                                <Text style={styles.dateLabel}>{toLabel}</Text>
+                        <View style={styles.dateRow}>
+                            <View style={[styles.datePickerContainer, !showToDate && { flex: 1 }]}>
+                                <Text style={styles.dateLabel}>{fromLabel}</Text>
                                 <DatePickerButton
                                     title=""
-                                    date={toDate}
-                                    onDateChange={onToDateChange}
+                                    date={fromDate}
+                                    onDateChange={onFromDateChange}
                                 />
                             </View>
-                        )}
+
+                            {showToDate && (
+                                <View style={styles.datePickerContainer}>
+                                    <Text style={styles.dateLabel}>{toLabel}</Text>
+                                    <DatePickerButton
+                                        title=""
+                                        date={toDate}
+                                        onDateChange={onToDateChange}
+                                    />
+                                </View>
+                            )}
+                        </View>
 
                         {/* Sales Person Dropdown */}
                         {showSalesPerson && (
@@ -99,16 +117,22 @@ const FilterModal = ({
                             style={styles.cancelButton}
                             onPress={onClose}
                             activeOpacity={0.7}>
+                            <MaterialIcon name="close" size={16} color={customColors.grey600} />
                             <Text style={styles.cancelButtonText}>Cancel</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.applyButton}
                             onPress={onApply}
-                            activeOpacity={0.7}>
-                            <Text style={styles.applyButtonText}>
-                                Apply Filter
-                            </Text>
+                            activeOpacity={0.8}>
+                            <LinearGradient
+                                colors={[customColors.primary, customColors.primaryDark]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.applyGradient}>
+                                <MaterialIcon name="check" size={16} color={customColors.white} />
+                                <Text style={styles.applyButtonText}>Apply</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -125,59 +149,79 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(0, 0, 0, 0.5)",
         justifyContent: "center",
         alignItems: "center",
-        padding: spacing.lg,
+        padding: spacing.md,
     },
     modalContainer: {
         backgroundColor: customColors.white,
         borderRadius: 16,
         width: "100%",
-        maxWidth: 400,
+        maxWidth: 380,
+        overflow: "hidden",
         ...shadows.large,
     },
     modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+    },
+    headerContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
     },
     modalTitle: {
-        ...typography.h3(),
-        color: customColors.grey900,
+        ...typography.h5(),
+        color: customColors.white,
         fontWeight: "600",
-        // textAlign: "center",
+    },
+    closeIconButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: "rgba(255,255,255,0.15)",
+        justifyContent: "center",
+        alignItems: "center",
     },
     modalBody: {
         padding: spacing.lg,
-        gap: spacing.lg,
+        gap: spacing.md,
+    },
+    dateRow: {
+        flexDirection: "row",
+        gap: spacing.md,
     },
     datePickerContainer: {
-        gap: spacing.sm,
+        flex: 1,
+        gap: 6,
     },
     dropdownContainer: {
-        gap: spacing.sm,
+        gap: 6,
     },
     dateLabel: {
-        ...typography.subtitle2(),
+        ...typography.caption(),
         color: customColors.grey700,
-        fontWeight: "500",
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     modalFooter: {
         flexDirection: "row",
         paddingHorizontal: spacing.lg,
         paddingBottom: spacing.lg,
-        paddingTop: spacing.md,
+        paddingTop: spacing.sm,
         gap: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
     },
     cancelButton: {
         flex: 1,
-        backgroundColor: customColors.grey100,
-        paddingVertical: spacing.md,
-        borderRadius: 8,
+        flexDirection: "row",
         alignItems: "center",
-        ...shadows.small,
+        justifyContent: "center",
+        backgroundColor: customColors.grey100,
+        paddingVertical: 12,
+        borderRadius: 10,
+        gap: spacing.xs,
     },
     cancelButtonText: {
         ...typography.button(),
@@ -186,11 +230,15 @@ const styles = StyleSheet.create({
     },
     applyButton: {
         flex: 1,
-        backgroundColor: customColors.primary,
-        paddingVertical: spacing.md,
-        borderRadius: 8,
+        borderRadius: 10,
+        overflow: "hidden",
+    },
+    applyGradient: {
+        flexDirection: "row",
         alignItems: "center",
-        ...shadows.small,
+        justifyContent: "center",
+        paddingVertical: 12,
+        gap: spacing.xs,
     },
     applyButtonText: {
         ...typography.button(),

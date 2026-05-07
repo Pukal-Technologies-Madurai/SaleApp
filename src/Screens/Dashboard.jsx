@@ -12,6 +12,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import LinearGradient from "react-native-linear-gradient";
 import AntDesignIcons from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -148,11 +149,13 @@ const Dashboard = () => {
         },
 
         fetchInvoiceData: async (from, to, branchId) => {
-            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}`;
+            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}&VoucherType=0`;
             // console.log("Fetching invoice data with URL:", url);
             const response = await fetch(url);
             const data = await response.json();
-            return data.success ? data.data : [];
+            if (!data.success) return [];
+            const filteredData = data.data.filter(invoice => invoice.Voucher_Type === "0" || invoice.Voucher_Type === "13");
+            return filteredData;
         },
 
         fetchReceiptData: async (from, to, branchId) => {
@@ -284,6 +287,7 @@ const Dashboard = () => {
                     //     ? `${item.Created_BY_Name} (PoS)`
                     //     : item.Sales_Person_Name;
                     const salesPerson = item.Created_BY_Name;
+                    const salesPersonId = item.Created_by;
                     const isCancelled = item.Cancel_status === "0";
                     
                     if (entry[salesPerson]) {
@@ -296,6 +300,7 @@ const Dashboard = () => {
                         }
                     } else {
                         entry[salesPerson] = {
+                            salesPersonId: salesPersonId,
                             count: 1,
                             totalValue: item.Total_Invoice_value,
                             cancelledCount: isCancelled ? 1 : 0,
@@ -306,14 +311,6 @@ const Dashboard = () => {
                 }, {});
 
                 // console.log("Processed sale count by salesperson:", saleCount);
-
-                // Calculate totals
-                const totalOrderAmount = finalSaleData.reduce(
-                    (sum, order) => sum + order.Total_Invoice_value,
-                    0,
-                );
-
-                // console.log("Total Order Amount:", totalOrderAmount);
 
                 const totalInvoiceAmount = finalInvoiceData.reduce(
                     (sum, invoice) => sum + invoice.Total_Invoice_value,
@@ -348,7 +345,6 @@ const Dashboard = () => {
                     creditNoteData: finalCreditNoteData,
                     totalCreditNoteAmount,
                     saleCount,
-                    totalOrderAmount,
                     totalInvoiceAmount,
                     totalProductsSold,
                 };
@@ -457,7 +453,7 @@ const Dashboard = () => {
         return () => subscription.remove();
     }, []);
 
-    // Memoized stats data
+    // Memoized stats data with 3D gradient colors
     const statsData = useMemo(
         () => [
             {
@@ -465,8 +461,8 @@ const Dashboard = () => {
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Attendance",
                 value: `${totalSalesPersons} (${totalVisits})`,
-                color: "#10B981",
-                backgroundColor: "#ECFDF5",
+                gradientColors: ["#34D399", "#10B981", "#059669"],
+                shadowColor: "#10B981",
                 onPress: () => {
                     navigation.navigate("VisitLogHistory", {
                         selectedDate: selectedDate,
@@ -482,23 +478,12 @@ const Dashboard = () => {
                     month: "2-digit",
                 })} Sales`}`,
                 value: allDashboardData.saleData?.length || 0,
-                color: "#3B82F6",
-                backgroundColor: "#DBEAFE",
+                gradientColors: ["#60A5FA", "#3B82F6", "#2563EB"],
+                shadowColor: "#3B82F6",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Sales",
                         userCount: allDashboardData.saleCount,
-                    }),
-            },
-            {
-                icon: "currency-rupee",
-                iconLibrary: "MaterialIcons",
-                label: "Order Summary",
-                value: `₹${(allDashboardData.totalOrderAmount || 0).toLocaleString("en-IN")}`,
-                color: "#EF4444",
-                backgroundColor: "#FEF2F2",
-                onPress: () =>
-                    navigation.navigate("SalesAdmin", {
                         selectedDate: selectedDate,
                         selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     }),
@@ -508,8 +493,8 @@ const Dashboard = () => {
                 iconLibrary: "MaterialIcons",
                 label: "Invoice Summary",
                 value: `₹${(allDashboardData.totalInvoiceAmount || 0).toLocaleString("en-IN")}`,
-                color: "#DC2626",
-                backgroundColor: "#FEE2E2",
+                gradientColors: ["#FB923C", "#F97316", "#EA580C"],
+                shadowColor: "#F97316",
                 onPress: () =>
                     navigation.navigate("SaleInvoiceList", {
                         selectedDate: selectedDate,
@@ -521,9 +506,9 @@ const Dashboard = () => {
                 icon: "receipt",
                 iconLibrary: "MaterialIcons",
                 label: "Receipts",
-                value: `₹${(allDashboardData.newReceiptData || 0).toLocaleString("en-IN")} `,
-                color: "#059669",
-                backgroundColor: "#D1FAE5",
+                value: `₹${(allDashboardData.newReceiptData || 0).toLocaleString("en-IN")}`,
+                gradientColors: ["#4ADE80", "#22C55E", "#16A34A"],
+                shadowColor: "#22C55E",
                 onPress: () =>
                     navigation.navigate("ReceiptAdmin", {
                         selectedDate: selectedDate,
@@ -536,16 +521,14 @@ const Dashboard = () => {
                 label: `${selectedDate === new Date().toISOString().split("T")[0] ? "Ongoing Delivery" : `${new Date(selectedDate).toLocaleDateString("en-GB", {
                     day: "2-digit",
                     month: "2-digit",
-                })} Delivery`
-                    } `,
+                })} Delivery`}`,
                 value: `${allDashboardData.deliveryData?.filter(
                     item =>
                         item.DeliveryStatusName === "Delivered" ||
                         item.DeliveryStatusName === "Pending" || item.DeliveryStatusName === "Return",
-                ).length || 0
-                    }/${allDashboardData.deliveryData?.length || 0}`,
-                color: "#DC2626",
-                backgroundColor: "#FEE2E2",
+                ).length || 0}/${allDashboardData.deliveryData?.length || 0}`,
+                gradientColors: ["#A78BFA", "#8B5CF6", "#7C3AED"],
+                shadowColor: "#8B5CF6",
                 onPress: () =>
                     navigation.navigate("DeliveryReport", {
                         selectedDate: selectedDate,
@@ -557,8 +540,8 @@ const Dashboard = () => {
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Trips",
                 value: allDashboardData.tripSheetData?.length || 0,
-                color: "#F59E0B",
-                backgroundColor: "#FEF3C7",
+                gradientColors: ["#FBBF24", "#F59E0B", "#D97706"],
+                shadowColor: "#F59E0B",
                 onPress: () =>
                     navigation.navigate("TripReport", {
                         selectedDate: selectedDate,
@@ -570,37 +553,47 @@ const Dashboard = () => {
                 iconLibrary: "MaterialIcons",
                 label: "Credit Notes",
                 value: `₹${(allDashboardData.totalCreditNoteAmount || 0).toLocaleString("en-IN")}`,
-                color: "#ec7648ff",
-                backgroundColor: "#ffeedf",
+                gradientColors: ["#FB7185", "#F43F5E", "#E11D48"],
+                shadowColor: "#F43F5E",
                 onPress: () => navigation.navigate("DeliveryReturn", {
                     selectedDate: selectedDate,
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                 }),
             },
             {
+                icon: "inventory-2",
+                iconLibrary: "MaterialIcons",
+                label: "Stock In Hand",
+                value: "Godown",
+                gradientColors: ["#818CF8", "#6366F1", "#4F46E5"],
+                shadowColor: "#6366F1",
+                onPress: () => navigation.navigate("StockInHand"),
+            },
+            {
                 icon: "pending-actions",
                 iconLibrary: "MaterialIcons",
-                label: "Delivery Pending",
-                value: "Total",
-                color: "#EC4899",
-                backgroundColor: "#FDF2F8",
+                label: "Pending",
+                value: "Monthly",
+                gradientColors: ["#F472B6", "#EC4899", "#DB2777"],
+                shadowColor: "#EC4899",
                 onPress: () => navigation.navigate("PendingDeliveryAdmin", {
                     selectedDate: selectedDate,
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                 }),
             },
-            {
-                icon: "pending-actions",
-                iconLibrary: "MaterialIcons",
-                label: "Sales Pending",
-                value: "Total",
-                color: "#6366F1",
-                backgroundColor: "#EEF2FF",
-                onPress: () => navigation.navigate("PendingSaleAdmin", {
-                    selectedDate: selectedDate,
-                    selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
-                }),
-            },
+            // {
+            //     icon: "currency-rupee",
+            //     iconLibrary: "MaterialIcons",
+            //     label: "Order Summary",
+            //     value: "Total",
+            //     gradientColors: ["#F87171", "#EF4444", "#DC2626"],
+            //     shadowColor: "#EF4444",
+            //     onPress: () =>
+            //         navigation.navigate("SalesAdmin", {
+            //             selectedDate: selectedDate,
+            //             selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+            //         }),
+            // },
             // {
             //     icon: "warehouse",
             //     iconLibrary: "MaterialCommunityIcons",
@@ -623,20 +616,37 @@ const Dashboard = () => {
         [allDashboardData, navigation],
     );
 
-    // Memoized icon renderer
-    const renderIcon = useCallback((iconLibrary, iconName, color) => {
-        const iconProps = { name: iconName, size: 24, color };
-
+    // Memoized 3D icon renderer with gradient background
+    const render3DIcon = useCallback((iconLibrary, iconName, gradientColors, shadowColor) => {
+        const iconProps = { name: iconName, size: 18, color: "#FFFFFF" };
+        
+        let IconComponent;
         switch (iconLibrary) {
             case "MaterialIcons":
-                return <MaterialIcons {...iconProps} />;
+                IconComponent = <MaterialIcons {...iconProps} />;
+                break;
             case "MaterialCommunityIcons":
-                return <MaterialCommunityIcons {...iconProps} />;
+                IconComponent = <MaterialCommunityIcons {...iconProps} />;
+                break;
             case "AntDesign":
-                return <AntDesignIcons {...iconProps} />;
+                IconComponent = <AntDesignIcons {...iconProps} />;
+                break;
             default:
-                return <MaterialIcons {...iconProps} />;
+                IconComponent = <MaterialIcons {...iconProps} />;
         }
+
+        return (
+            <View style={[styles.icon3DWrapper, { shadowColor }]}>
+                <LinearGradient
+                    colors={gradientColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.icon3DGradient}>
+                    {IconComponent}
+                </LinearGradient>
+                <View style={[styles.icon3DBottomLayer, { backgroundColor: gradientColors[2] }]} />
+            </View>
+        );
     }, []);
 
     if (isLoading) {
@@ -749,23 +759,18 @@ const Dashboard = () => {
                         {statsData.map((stat, index) => (
                             <TouchableOpacity
                                 key={index}
-                                style={styles.statCard}
+                                style={[
+                                    styles.statCard,
+                                    { shadowColor: stat.shadowColor },
+                                ]}
                                 onPress={stat.onPress}
-                                activeOpacity={0.7}>
-                                <View
-                                    style={[
-                                        styles.iconContainer,
-                                        {
-                                            backgroundColor:
-                                                stat.backgroundColor,
-                                        },
-                                    ]}>
-                                    {renderIcon(
-                                        stat.iconLibrary,
-                                        stat.icon,
-                                        stat.color,
-                                    )}
-                                </View>
+                                activeOpacity={0.85}>
+                                {render3DIcon(
+                                    stat.iconLibrary,
+                                    stat.icon,
+                                    stat.gradientColors,
+                                    stat.shadowColor,
+                                )}
                                 <View style={styles.statContent}>
                                     <Text
                                         style={styles.statValue}
@@ -906,49 +911,78 @@ const styles = StyleSheet.create({
         flexWrap: "wrap",
         justifyContent: "space-between",
         alignItems: "stretch",
-        padding: spacing.sm,
+        paddingHorizontal: spacing.xs,
+        paddingBottom: spacing.xl,
+        gap: spacing.sm,
     },
     statCard: {
-        width: "46.5%",
+        width: "47%",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: customColors.white,
-        borderRadius: 20,
-        padding: spacing.sm,
-        ...shadows.medium,
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 4,
         borderWidth: 1,
-        borderColor: customColors.grey100,
-        minHeight: 95,
-        marginBottom: spacing.md,
+        borderColor: "rgba(0,0,0,0.04)",
+        minHeight: 100,
+        marginBottom: 8,
     },
-    iconContainer: {
-        width: 44,
+    // 3D Icon Styles
+    icon3DWrapper: {
+        position: "relative",
+        width: 40,
         height: 44,
+        marginBottom: 4,
+    },
+    icon3DGradient: {
+        width: 40,
+        height: 40,
         borderRadius: 12,
         justifyContent: "center",
         alignItems: "center",
-        margin: spacing.xs,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        zIndex: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 5,
+    },
+    icon3DBottomLayer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        position: "absolute",
+        top: 3,
+        left: 0,
+        zIndex: 1,
+        opacity: 0.5,
     },
     statContent: {
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        marginTop: spacing.sm,
+        marginTop: 4,
     },
     statValue: {
-        ...typography.h6(),
+        ...typography.subtitle1(),
         color: customColors.grey900,
-        fontWeight: "800",
-        marginBottom: spacing.xs,
+        fontWeight: "700",
+        marginBottom: 2,
         textAlign: "center",
-        lineHeight: 20,
     },
     statLabel: {
-        ...typography.body2(),
-        fontWeight: "600",
-        color: customColors.grey600,
-        lineHeight: 16,
+        ...typography.caption(),
+        fontWeight: "500",
+        color: customColors.grey500,
         textAlign: "center",
         paddingHorizontal: spacing.xs,
     },

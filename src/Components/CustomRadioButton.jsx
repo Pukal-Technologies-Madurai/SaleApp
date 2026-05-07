@@ -1,35 +1,79 @@
-import { StyleSheet, Text, Dimensions, TouchableOpacity, View } from "react-native";
-import React from "react";
-import { customColors, typography, spacing, shadows, componentStyles } from "../Config/helper";
+import {
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    Animated,
+} from "react-native";
+import React, { useEffect, useRef } from "react";
+import FeatherIcon from "react-native-vector-icons/Feather";
+import {
+    customColors,
+    typography,
+    spacing,
+    shadows,
+    borderRadius,
+    iconSizes,
+} from "../Config/helper";
 
-const { width } = Dimensions.get("window");
+const CustomRadioButton = ({ label, selected, onSelect, style, icon }) => {
+    const scaleAnim = useRef(new Animated.Value(1)).current;
 
-const CustomRadioButton = ({ label, selected, onSelect, style }) => {
+    useEffect(() => {
+        Animated.spring(scaleAnim, {
+            toValue: selected ? 1 : 0.98,
+            friction: 8,
+            tension: 100,
+            useNativeDriver: true,
+        }).start();
+    }, [selected]);
+
     return (
-        <TouchableOpacity
+        <Animated.View
             style={[
-                styles.radioButtonContainer,
-                selected && styles.selectedContainer,
-                style,
-            ]}
-            onPress={onSelect}
-            activeOpacity={0.7}
-        >
-            <View
+                { transform: [{ scale: scaleAnim }] },
+                { flex: 1 },
+            ]}>
+            <TouchableOpacity
                 style={[
-                    styles.radioButton,
-                    selected && styles.selectedRadioButton,
+                    styles.radioButtonContainer,
+                    selected && styles.selectedContainer,
+                    style,
                 ]}
-            />
-            <Text
-                style={[
-                    styles.radioButtonText,
-                    selected && styles.selectedText,
-                ]}
-            >
-                {label}
-            </Text>
-        </TouchableOpacity>
+                onPress={onSelect}
+                activeOpacity={0.8}>
+                <View
+                    style={[
+                        styles.radioOuter,
+                        selected && styles.radioOuterSelected,
+                    ]}>
+                    {selected && (
+                        <View style={styles.radioInner} />
+                    )}
+                </View>
+                <View style={styles.labelContainer}>
+                    {icon && (
+                        <FeatherIcon
+                            name={icon}
+                            size={iconSizes.sm}
+                            color={
+                                selected
+                                    ? customColors.primary
+                                    : customColors.grey500
+                            }
+                            style={styles.icon}
+                        />
+                    )}
+                    <Text
+                        style={[
+                            styles.radioButtonText,
+                            selected && styles.selectedText,
+                        ]}>
+                        {label}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        </Animated.View>
     );
 };
 
@@ -37,46 +81,56 @@ export default CustomRadioButton;
 
 const styles = StyleSheet.create({
     radioButtonContainer: {
-        width: width * 0.42,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: customColors.background,
-        paddingVertical: spacing.sm,
+        backgroundColor: customColors.white,
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.md,
-        borderRadius: spacing.lg,
-        margin: spacing.sm,
-        ...shadows.small,
-        borderWidth: 1,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1.5,
         borderColor: customColors.grey200,
+        // ...shadows.small,
     },
     selectedContainer: {
-        backgroundColor: customColors.primaryLight,
+        backgroundColor: customColors.primary + "08",
         borderColor: customColors.primary,
-        ...shadows.medium,
+        // ...shadows.medium,
     },
-    radioButton: {
-        width: 18,
-        height: 18,
-        borderRadius: 9,
+    radioOuter: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
         borderWidth: 2,
-        borderColor: customColors.primary,
+        borderColor: customColors.grey400,
         marginRight: spacing.sm,
-        backgroundColor: customColors.background,
         alignItems: "center",
         justifyContent: "center",
     },
-    selectedRadioButton: {
-        backgroundColor: customColors.primary,
+    radioOuterSelected: {
         borderColor: customColors.primary,
+    },
+    radioInner: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: customColors.primary,
+    },
+    labelContainer: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    icon: {
+        marginRight: spacing.xs,
     },
     radioButtonText: {
         ...typography.body2(),
-        color: customColors.text,
+        color: customColors.grey700,
         fontWeight: "500",
     },
     selectedText: {
-        ...typography.body1(),
+        ...typography.body2(),
         color: customColors.primary,
-        fontWeight: "700",
+        fontWeight: "600",
     },
 });

@@ -21,12 +21,14 @@ import {
     typography,
     spacing,
     shadows,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const RetailerItem = ({ item, onPress, userVisitLog }) => {
     const isVisited = userVisitLog.some(log =>
-        log.VisitedShopId.toString() === item.Retailer_Id.toString()
+        String(log.VisitedShopId ?? '') === String(item.Retailer_Id ?? '')
     );
 
     return (
@@ -50,7 +52,7 @@ const RetailerItem = ({ item, onPress, userVisitLog }) => {
                     <View style={styles.chevronContainer}>
                         <Ionicons
                             name="chevron-forward"
-                            size={18}
+                            size={iconSizes.sm}
                             color={customColors.grey500}
                         />
                     </View>
@@ -114,7 +116,7 @@ const Customers = () => {
 
     const keyExtractor = useCallback(item => {
         const isVisited = userVisitLog.some(log =>
-            log.VisitedShopId.toString() === item.Retailer_Id.toString()
+            String(log.VisitedShopId ?? '') === String(item.Retailer_Id ?? '')
         );
         return `${item.Retailer_Id}-${isVisited ? 'visited' : 'unvisited'}`;
     }, [userVisitLog]);
@@ -468,7 +470,7 @@ const Customers = () => {
                         <View style={styles.searchContainer}>
                             <Icon
                                 name="search"
-                                size={20}
+                                size={iconSizes.md}
                                 color={customColors.grey}
                                 style={styles.searchIcon}
                             />
@@ -490,7 +492,7 @@ const Customers = () => {
                                     style={styles.clearButton}>
                                     <Icon
                                         name="close"
-                                        size={20}
+                                        size={iconSizes.md}
                                         color={customColors.grey}
                                     />
                                 </TouchableOpacity>
@@ -517,7 +519,7 @@ const Customers = () => {
                                 ]}>
                                 <Icon
                                     name="visibility"
-                                    size={20}
+                                    size={iconSizes.md}
                                     color={
                                         showAllRetailers
                                             ? customColors.white
@@ -530,7 +532,7 @@ const Customers = () => {
                         }} style={styles.toggleButton}>
                             <Icon
                                 name="filter-list"
-                                size={20}
+                                size={iconSizes.md}
                                 color={customColors.grey600}
                             />
                         </TouchableOpacity>}
@@ -586,7 +588,7 @@ const styles = StyleSheet.create({
     routeInfoContainer: {
         backgroundColor: customColors.primary + "10",
         padding: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginBottom: spacing.md,
         borderLeftWidth: 4,
         borderLeftColor: customColors.primary,
@@ -624,7 +626,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.sm,
         ...shadows.small,
     },
@@ -640,7 +642,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderWidth: 1,
         borderColor: customColors.grey300,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.sm,
         ...shadows.small,
     },
@@ -658,7 +660,7 @@ const styles = StyleSheet.create({
     },
     toggleButton: {
         padding: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         backgroundColor: customColors.grey200,
         ...shadows.small,
     },
@@ -672,13 +674,13 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     blurContainer: {
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         marginBottom: spacing.md,
         overflow: 'hidden',
     },
     retailerCard: {
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         ...shadows.small,
         marginVertical: spacing.xs,
         borderLeftWidth: 5,

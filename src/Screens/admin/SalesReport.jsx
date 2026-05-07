@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
     StyleSheet,
     Text,
     View,
-    ScrollView,
+    FlatList,
     TouchableOpacity,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Icon from "react-native-vector-icons/FontAwesome";
+import LinearGradient from "react-native-linear-gradient";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import {
     customColors,
     typography,
@@ -28,25 +29,20 @@ const SalesReport = ({ navigation, route }) => {
 
     const [visitLogLength, setVisitLogLength] = useState(0);
     const [selectedBrand, setSelectedBrand] = useState("All");
-    const [brandOptions, setBrandOptions] = useState([]);
+    const brandListRef = useRef(null);
 
     // ── Brand helper: use BrandGet if present, else first word of Item_Name / Product_Name
-    const getBrand = p =>
+    const getBrand = useCallback((p) =>
         p.BrandGet?.trim() ||
         (p.Item_Name || p.Product_Name || "").trim().split(" ")[0] ||
-        "Other";
+        "Other", []);
 
-    console.log(
-        "Product Summary:",
-        logData.map(item => item.Products_List),
-    );
-
-    const calculateProductSummary = () => {
+    // Memoized product summary calculation
+    const productSummary = useMemo(() => {
         const productMap = {};
 
         logData.forEach(order => {
             order.Products_List.forEach(product => {
-                // Credit notes use Item_Name; sale orders use Product_Name
                 const productName = (product.Item_Name || product.Product_Name || "").trim();
 
                 if (productMap[productName]) {
@@ -63,9 +59,7 @@ const SalesReport = ({ navigation, route }) => {
         });
 
         return Object.values(productMap);
-    };
-
-    const productSummary = calculateProductSummary();
+    }, [logData]);
 
     useEffect(() => {
         if (selectedDate) {
@@ -73,15 +67,16 @@ const SalesReport = ({ navigation, route }) => {
         }
     }, [selectedDate]);
 
-    useEffect(() => {
+    // Memoized brand options
+    const brandOptions = useMemo(() => {
         if (logData && logData.length > 0) {
             const allBrands = logData.flatMap(order =>
                 order.Products_List.map(p => getBrand(p)),
             );
-            const uniqueBrands = ["All", ...new Set(allBrands.filter(Boolean))];
-            setBrandOptions(uniqueBrands);
+            return ["All", ...new Set(allBrands.filter(Boolean))];
         }
-    }, [logData]);
+        return ["All"];
+    }, [logData, getBrand]);
 
     const fetchVisitLog = async () => {
         try {
@@ -144,7 +139,7 @@ const SalesReport = ({ navigation, route }) => {
     const fromDate = selectedDateObj.toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "short",
-        year: "numeric",
+        // year: "numeric",
     });
 
     const fromTime = selectedDateObj.toLocaleString("en-IN", {
@@ -154,26 +149,162 @@ const SalesReport = ({ navigation, route }) => {
         hour12: true,
     });
 
-    const filteredSummary = productSummary.filter(item =>
-        selectedBrand === "All"
-            ? true
-            : logData.some(order =>
-                order.Products_List.some(
-                    p =>
-                        p.Product_Name?.trim() === item.productName.trim() &&
-                        getBrand(p) === selectedBrand,
+    // Memoized filtered summary
+    const filteredSummary = useMemo(() => 
+        productSummary.filter(item =>
+            selectedBrand === "All"
+                ? true
+                : logData.some(order =>
+                    order.Products_List.some(
+                        p =>
+                            (p.Product_Name || p.Item_Name)?.trim() === item.productName.trim() &&
+                            getBrand(p) === selectedBrand,
+                    ),
                 ),
-            ),
-    );
+        ),
+    [productSummary, selectedBrand, logData, getBrand]);
 
-    const filteredQuantity = filteredSummary.reduce(
-        (sum, item) => sum + item.totalQty,
-        0,
-    );
-    const filteredAmount = filteredSummary.reduce(
-        (sum, item) => sum + parseFloat(item.totalAmount),
-        0,
-    );
+    const filteredQuantity = useMemo(() => 
+        filteredSummary.reduce((sum, item) => sum + item.totalQty, 0),
+    [filteredSummary]);
+
+    const filteredAmount = useMemo(() => 
+        filteredSummary.reduce((sum, item) => sum + parseFloat(item.totalAmount), 0),
+    [filteredSummary]);
+
+    // Handle brand selection with auto-scroll
+    const handleBrandSelect = useCallback((brand, index) => {
+        setSelectedBrand(brand);
+        // Scroll to the selected brand chip
+        if (brandListRef.current && index >= 0) {
+            brandListRef.current.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.5, // Center the item
+            });
+        }
+    }, []);
+
+    // FlatList key extractor
+    const keyExtractor = useCallback((item, index) => 
+        `${item.productName}-${index}`, []);
+
+    // Render product item
+    const renderProductItem = useCallback(({ item, index }) => (
+        <View style={[styles.tableRow, index % 2 === 0 ? styles.evenRow : styles.oddRow]}>
+            <Text style={[styles.tableCell, styles.productCell]} numberOfLines={3}>
+                {item.productName}
+            </Text>
+            <View style={styles.qtyContainer}>
+                <Text style={styles.qtyValue}>{item.totalQty}</Text>
+            </View>
+            <Text style={[styles.tableCell, styles.amountCell]}>
+                ₹{parseFloat(item.totalAmount).toFixed(0)}
+            </Text>
+        </View>
+    ), []);
+
+    // List header component
+    const ListHeader = useCallback(() => (
+        <>
+            {/* Stats Card */}
+            <View style={styles.statsCard}>
+                <LinearGradient
+                    colors={[customColors.primary, customColors.primaryDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.statsGradient}>
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <MaterialIcons name="event" size={18} color="rgba(255,255,255,0.8)" />
+                            {/* <Text style={styles.statLabel}>Date</Text> */}
+                            <Text style={styles.statValue}>{fromDate}</Text>
+                            <Text style={styles.statTime}>{fromTime}</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <MaterialCommunityIcons name="cart-outline" size={18} color="rgba(255,255,255,0.8)" />
+                            <Text style={styles.statLabel}>Orders</Text>
+                            <Text style={styles.statValue}>{logData.length}</Text>
+                        </View>
+                        {isNotAdmin && (
+                            <>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statItem}>
+                                    <MaterialCommunityIcons name="store-outline" size={18} color="rgba(255,255,255,0.8)" />
+                                    <Text style={styles.statLabel}>Visits</Text>
+                                    <Text style={styles.statValue}>{visitLogLength}</Text>
+                                </View>
+                            </>
+                        )}
+                    </View>
+                </LinearGradient>
+            </View>
+
+            {/* Brand Filter Chips */}
+            <FlatList
+                ref={brandListRef}
+                horizontal
+                data={brandOptions}
+                keyExtractor={(item, idx) => `brand-${idx}`}
+                showsHorizontalScrollIndicator={false}
+                style={styles.brandScroll}
+                contentContainerStyle={styles.brandContainer}
+                onScrollToIndexFailed={(info) => {
+                    // Handle scroll failure gracefully
+                    setTimeout(() => {
+                        if (brandListRef.current) {
+                            brandListRef.current.scrollToIndex({
+                                index: info.index,
+                                animated: true,
+                                viewPosition: 0.5,
+                            });
+                        }
+                    }, 100);
+                }}
+                renderItem={({ item: brand, index }) => (
+                    <TouchableOpacity
+                        style={[
+                            styles.brandChip,
+                            selectedBrand === brand && styles.brandChipActive,
+                        ]}
+                        onPress={() => handleBrandSelect(brand, index)}>
+                        <Text style={[
+                            styles.brandChipText,
+                            selectedBrand === brand && styles.brandChipTextActive,
+                        ]}>
+                            {brand}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+            />
+
+            {/* Summary Header */}
+            <View style={styles.summaryHeader}>
+                <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Products</Text>
+                    <Text style={styles.summaryValue}>{filteredSummary.length}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Quantity</Text>
+                    <Text style={styles.summaryValue}>{filteredQuantity}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Amount</Text>
+                    <Text style={[styles.summaryValue, { color: customColors.success }]}>
+                        ₹{filteredAmount.toFixed(0)}
+                    </Text>
+                </View>
+            </View>
+
+            {/* Table Header */}
+            <View style={styles.tableHeader}>
+                <Text style={[styles.headerText, styles.productCell]}>Product</Text>
+                <Text style={[styles.headerText, styles.qtyHeader]}>Qty</Text>
+                <Text style={[styles.headerText, styles.amountCell]}>Total</Text>
+            </View>
+        </>
+    ), [fromDate, fromTime, logData.length, visitLogLength, isNotAdmin, brandOptions, selectedBrand, filteredSummary.length, filteredQuantity, filteredAmount, handleBrandSelect]);
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -183,203 +314,20 @@ const SalesReport = ({ navigation, route }) => {
                 showBackButton={true}
             />
 
-            <ScrollView style={styles.contentContainer}>
-                <View style={styles.statsContainer}>
-                    <View style={styles.statRow}>
-                        <Icon
-                            name="calendar"
-                            size={20}
-                            color={customColors.primary}
-                        />
-                        <Text style={styles.statValue}>
-                            {fromDate} • {fromTime}
-                        </Text>
-                    </View>
-
-                    {isNotAdmin === true ? (
-                        <View>
-                            <View style={styles.statRow}>
-                                <MaterialCommunityIcons
-                                    name="bike"
-                                    size={24}
-                                    color={customColors.success}
-                                />
-                                <Text style={styles.statValue}>
-                                    Shops Visited:{" "}
-                                    <Text
-                                        style={{
-                                            color: customColors.success,
-                                            fontWeight: "bold",
-                                        }}>
-                                        {visitLogLength}
-                                        <Text
-                                            style={[
-                                                styles.statValue,
-                                                { color: customColors.grey800 },
-                                            ]}>
-                                            {" "}
-                                            | Sales:
-                                            <Text
-                                                style={{
-                                                    color: customColors.error,
-                                                    fontWeight: "bold",
-                                                }}>
-                                                {" "}
-                                                {logData.length}
-                                            </Text>
-                                        </Text>
-                                    </Text>
-                                </Text>
-                            </View>
-                        </View>
-                    ) : (
-                        <Text style={styles.checkOrderText}>
-                            Orders: {logData.length}
-                        </Text>
-                    )}
-                </View>
-
-                <ScrollView
-                    horizontal
-                    style={{
-                        paddingHorizontal: spacing.md,
-                        marginVertical: spacing.sm,
-                    }}>
-                    {brandOptions.map((brand, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            style={{
-                                paddingVertical: spacing.xs,
-                                paddingHorizontal: spacing.md,
-                                marginRight: spacing.sm,
-                                borderRadius: 20,
-                                backgroundColor:
-                                    selectedBrand === brand
-                                        ? customColors.primary
-                                        : customColors.grey200,
-                            }}
-                            onPress={() => setSelectedBrand(brand)}>
-                            <Text
-                                style={{
-                                    color:
-                                        selectedBrand === brand
-                                            ? customColors.white
-                                            : customColors.grey800,
-                                    ...typography.caption(),
-                                }}>
-                                {brand}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-
-                <View style={styles.tableContainer}>
-                    <View style={styles.tableHeader}>
-                        <View style={styles.headerRow}>
-                            <View style={styles.productHeaderCell}>
-                                <Text style={styles.headerText}>Product</Text>
-                            </View>
-                            <View style={styles.quantityHeaderCell}>
-                                <Text style={styles.headerText}>Quantity</Text>
-                            </View>
-                            <View style={styles.amountHeaderCell}>
-                                <Text style={styles.headerText}>Total</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.summaryRow}>
-                            <View style={styles.productHeaderCell}>
-                                <Text style={styles.summaryText}>
-                                    {filteredSummary.length} Products
-                                </Text>
-                            </View>
-                            <View style={styles.quantityHeaderCell}>
-                                <Text style={styles.summaryText}>
-                                    {filteredQuantity}
-                                </Text>
-                            </View>
-                            <View style={styles.amountHeaderCell}>
-                                <Text style={styles.summaryText}>
-                                    ₹{filteredAmount.toFixed(2)}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {productSummary
-                        .filter(item =>
-                            selectedBrand === "All"
-                                ? true
-                                : logData.some(order =>
-                                    order.Products_List.some(
-                                        p =>
-                                            p.Product_Name.trim() ===
-                                            item.productName.trim() &&
-                                            getBrand(p) ===
-                                            selectedBrand,
-                                    ),
-                                ),
-                        )
-                        .map((item, index) => (
-                            <View
-                                key={index}
-                                style={[
-                                    styles.tableRow,
-                                    index % 2 === 0
-                                        ? styles.evenRow
-                                        : styles.oddRow,
-                                ]}>
-                                <Text
-                                    style={[
-                                        styles.tableCell,
-                                        styles.productCell,
-                                    ]}
-                                    numberOfLines={3}>
-                                    {item.productName}
-                                </Text>
-                                <Text
-                                    style={[
-                                        styles.tableCell,
-                                        styles.quantityCell,
-                                    ]}>
-                                    {item.totalQty}
-                                </Text>
-                                <Text
-                                    style={[
-                                        styles.tableCell,
-                                        styles.amountCell,
-                                    ]}>
-                                    ₹{parseFloat(item.totalAmount).toFixed(2)}
-                                </Text>
-                            </View>
-                        ))}
-
-                    {/* {productSummary.map((item, index) => (
-                        <View
-                            key={index}
-                            style={[
-                                styles.tableRow,
-                                index % 2 === 0
-                                    ? styles.evenRow
-                                    : styles.oddRow,
-                            ]}>
-                            <Text
-                                style={[styles.tableCell, styles.productCell]}
-                                numberOfLines={2}>
-                                {item.productName}
-                            </Text>
-                            <Text
-                                style={[styles.tableCell, styles.quantityCell]}>
-                                {item.totalQty}
-                            </Text>
-                            <Text style={[styles.tableCell, styles.amountCell]}>
-                                ₹{parseFloat(item.totalAmount).toFixed(2)}
-                            </Text>
-                        </View>
-                    ))} */}
-                </View>
-                <View style={styles.bottomSpacer} />
-            </ScrollView>
+            <View style={styles.contentContainer}>
+                <FlatList
+                    data={filteredSummary}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderProductItem}
+                    ListHeaderComponent={ListHeader}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    initialNumToRender={15}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={true}
+                />
+            </View>
         </SafeAreaView>
     );
 };
@@ -391,95 +339,127 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        padding: spacing.sm,
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.grey50,
     },
-    statsContainer: {
+    listContent: {
+        paddingHorizontal: spacing.sm,
+        paddingBottom: spacing.xxl,
+    },
+    // Stats Card
+    statsCard: {
+        marginTop: spacing.sm,
         marginBottom: spacing.sm,
-        backgroundColor: customColors.white,
         borderRadius: 12,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
-        ...shadows.small,
+        overflow: "hidden",
+        ...shadows.medium,
     },
-    statRow: {
+    statsGradient: {
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+    },
+    statsRow: {
         flexDirection: "row",
+        justifyContent: "space-around",
         alignItems: "center",
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
+    },
+    statItem: {
+        alignItems: "center",
+        flex: 1,
+    },
+    statDivider: {
+        width: 1,
+        height: 40,
+        backgroundColor: "rgba(255,255,255,0.2)",
+    },
+    statLabel: {
+        ...typography.caption(),
+        color: "rgba(255,255,255,0.7)",
+        marginTop: 4,
+        marginBottom: 2,
     },
     statValue: {
-        ...typography.subtitle2(),
-        color: customColors.grey900,
-        fontWeight: "600",
-        paddingHorizontal: spacing.md,
-    },
-    tableContainer: {
-        backgroundColor: customColors.white,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: customColors.grey200,
-        overflow: "hidden",
-        ...shadows.small,
-    },
-    tableHeader: {
-        backgroundColor: customColors.primary,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-    },
-    tableRow: {
-        flexDirection: "row",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: customColors.grey200,
-    },
-    headerRow: {
-        flexDirection: "row",
-        marginBottom: spacing.xs,
-    },
-    summaryRow: {
-        flexDirection: "row",
-        borderTopWidth: 1,
-        borderTopColor: "rgba(255, 255, 255, 0.2)",
-        paddingTop: spacing.xs,
-    },
-    headerText: {
-        ...typography.subtitle2(),
+        ...typography.subtitle1(),
         color: customColors.white,
         fontWeight: "700",
     },
-    summaryText: {
-        ...typography.subtitle2(),
+    statTime: {
+        ...typography.caption(),
+        color: "rgba(255,255,255,0.8)",
+        marginTop: 2,
+    },
+    // Brand Filter
+    brandScroll: {
+        marginBottom: spacing.sm,
+    },
+    brandContainer: {
+        paddingHorizontal: spacing.xs,
+    },
+    brandChip: {
+        paddingVertical: 6,
+        paddingHorizontal: 14,
+        marginRight: spacing.xs,
+        borderRadius: 16,
+        backgroundColor: customColors.white,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    brandChipActive: {
+        backgroundColor: customColors.primary,
+        borderColor: customColors.primary,
+    },
+    brandChipText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "500",
+    },
+    brandChipTextActive: {
         color: customColors.white,
-        opacity: 0.9,
     },
-    productHeaderCell: {
-        flex: 2,
+    // Summary Header
+    summaryHeader: {
+        flexDirection: "row",
+        backgroundColor: customColors.white,
+        borderRadius: 10,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.sm,
+        ...shadows.small,
     },
-    quantityHeaderCell: {
+    summaryItem: {
         flex: 1,
         alignItems: "center",
     },
-    amountHeaderCell: {
-        flex: 1,
-        alignItems: "flex-end",
+    summaryLabel: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginBottom: 2,
     },
-    tableCell: {
-        ...typography.body2(),
+    summaryValue: {
+        ...typography.subtitle2(),
         color: customColors.grey900,
+        fontWeight: "700",
     },
-    productCell: {
-        flex: 2,
+    // Table
+    tableHeader: {
+        flexDirection: "row",
+        backgroundColor: customColors.grey800,
+        paddingVertical: 10,
+        paddingHorizontal: spacing.sm,
+        borderTopLeftRadius: 10,
+        borderTopRightRadius: 10,
     },
-    quantityCell: {
-        flex: 1,
-        textAlign: "center",
+    headerText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "600",
+        textTransform: "uppercase",
     },
-    amountCell: {
-        flex: 1,
-        textAlign: "right",
+    tableRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 10,
+        paddingHorizontal: spacing.sm,
+        backgroundColor: customColors.white,
     },
     evenRow: {
         backgroundColor: customColors.white,
@@ -487,21 +467,37 @@ const styles = StyleSheet.create({
     oddRow: {
         backgroundColor: customColors.grey50,
     },
-    checkOrderRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        marginRight: spacing.sm,
-        marginTop: spacing.sm,
-    },
-    checkOrderText: {
+    tableCell: {
         ...typography.body2(),
-        color: customColors.grey700,
-        marginLeft: spacing.md,
-        fontWeight: "600",
+        color: customColors.grey900,
     },
-    bottomSpacer: {
-        height: spacing.xxl * 2,
+    productCell: {
+        flex: 2.5,
+        paddingRight: spacing.xs,
+    },
+    qtyHeader: {
+        flex: 0.8,
+        textAlign: "center",
+    },
+    qtyContainer: {
+        flex: 0.8,
+        alignItems: "center",
+    },
+    qtyValue: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "600",
+        backgroundColor: customColors.primary + "15",
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        overflow: "hidden",
+    },
+    amountCell: {
+        flex: 1,
+        textAlign: "right",
+        fontWeight: "600",
+        color: customColors.grey800,
     },
 });
 

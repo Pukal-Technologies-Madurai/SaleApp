@@ -11,7 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { API } from "../../Config/Endpoint";
-import { customColors, typography } from "../../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius, iconSizes } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
 import FilterModal from "../../Components/FilterModal";
 
@@ -179,7 +179,7 @@ const TripReport = ({ route }) => {
                         <View style={styles.deliveryPersonContainer}>
                             <Icon
                                 name="person"
-                                size={16}
+                                size={iconSizes.sm}
                                 color={customColors.primary}
                             />
                             <Text style={styles.deliveryPersonText}>
@@ -328,7 +328,7 @@ const TripReport = ({ route }) => {
                         <View style={styles.totalSection}>
                             <Icon
                                 name="account-balance-wallet"
-                                size={20}
+                                size={iconSizes.md}
                                 color={customColors.success}
                             />
                             <Text style={styles.totalAmount}>
@@ -404,20 +404,20 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
     },
     listContainer: {
-        padding: 16,
+        padding: spacing.md,
     },
     tripCard: {
-        backgroundColor: customColors.grey200,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        ...customColors.shadow,
+        backgroundColor: customColors.grey100,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        // ...shadows.small,
     },
     tripHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: spacing.sm,
     },
     tripTitle: {
         ...typography.h6(),
@@ -426,45 +426,45 @@ const styles = StyleSheet.create({
     },
     tripDate: {
         ...typography.body2(),
-        color: customColors.grey,
+        color: customColors.grey600,
     },
     deliveryPersonContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 12,
-        paddingBottom: 12,
+        marginBottom: spacing.sm,
+        paddingBottom: spacing.sm,
         borderBottomWidth: 1,
         borderBottomColor: customColors.grey200,
     },
     deliveryPersonText: {
         ...typography.body2(),
         color: customColors.primary,
-        marginLeft: 8,
+        marginLeft: spacing.sm,
     },
     statsContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 12,
+        marginBottom: spacing.sm,
     },
     statBox: {
         flex: 1,
-        marginHorizontal: 4,
+        marginHorizontal: spacing.xxs,
     },
     statTitle: {
         ...typography.caption(),
-        color: customColors.grey,
-        marginBottom: 4,
+        color: customColors.grey600,
+        marginBottom: spacing.xxs,
     },
     statDetails: {
         flexDirection: "row",
         alignItems: "center",
-        marginVertical: 2,
+        marginVertical: spacing.xxs,
     },
     statValue: {
         ...typography.body2(),
-        color: customColors.grey,
+        color: customColors.grey600,
         fontWeight: "700",
-        marginRight: 4,
+        marginRight: spacing.xxs,
     },
     statLabel: {
         ...typography.caption(),
@@ -475,12 +475,12 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
         borderTopWidth: 1,
         borderTopColor: customColors.grey200,
-        paddingTop: 12,
+        paddingTop: spacing.sm,
     },
     totalAmount: {
         ...typography.h6(),
         color: customColors.success,
-        marginLeft: 4,
+        marginLeft: spacing.xxs,
     },
 });
 

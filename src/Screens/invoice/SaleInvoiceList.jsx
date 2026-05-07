@@ -9,14 +9,14 @@ import {
     RefreshControl,
     Alert,
 } from "react-native";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import RNHTMLtoPDF from "react-native-html-to-pdf";
+import { generatePDF } from "react-native-html-to-pdf";
+import RNFS from "react-native-fs";
 import Share from "react-native-share";
 import Accordion from "../../Components/Accordion";
 import AppHeader from "../../Components/AppHeader";
@@ -25,10 +25,14 @@ import { API } from "../../Config/Endpoint";
 import { fetchSaleInvoices } from "../../Api/sales";
 import {
     customColors,
+    customFonts,
     shadows,
     spacing,
     typography,
+    borderRadius,
+    iconSizes,
 } from "../../Config/helper";
+import { FlashList } from "@shopify/flash-list";
 
 const SaleInvoiceList = () => {
     const navigation = useNavigation();
@@ -58,7 +62,7 @@ const SaleInvoiceList = () => {
         value: "all",
     });
 
-    // Payment filter state: 'all' | 'paid' | 'unpaid'
+    // Payment filter state: 'all' | 'cash' | 'gpay' | 'credit'
     const [paymentFilter, setPaymentFilter] = useState('all');
 
     useEffect(() => {
@@ -128,10 +132,10 @@ const SaleInvoiceList = () => {
                 const isCreatedByAdmin = invoice.Created_BY_Name?.toLowerCase() === "admin";
                 const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
                 const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
-                
+
                 let displayName;
                 let key;
-                
+
                 // If both Sales_Person_Name and Delivery_Person_Name are "unknown", use Created_BY_Name
                 if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
                     displayName = `${invoice.Created_BY_Name} - Live`;
@@ -145,7 +149,7 @@ const SaleInvoiceList = () => {
                     displayName = `${invoice.Created_BY_Name} - Live`;
                     key = invoice.Created_by;
                 }
-                    
+
                 if (key && displayName) {
                     salesPersonMap.set(key, displayName);
                 }
@@ -176,8 +180,8 @@ const SaleInvoiceList = () => {
     const salesPersonFilteredData = useMemo(() => {
         // First, filter out admin credit bill invoices
         const filteredData = saleInvoiceData.filter(invoice => {
-            const isAdminCreditBill = 
-                invoice.Created_BY_Name?.toLowerCase() === "admin" && 
+            const isAdminCreditBill =
+                invoice.Created_BY_Name?.toLowerCase() === "admin" &&
                 invoice.VoucherTypeGet === "ONLINE_Credit Bill";
             return !isAdminCreditBill;
         });
@@ -188,7 +192,7 @@ const SaleInvoiceList = () => {
         return filteredData.filter(invoice => {
             const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
             const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
-            
+
             // If both are "unknown", match against Created_by
             if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
                 return invoice.Created_by === selectedSalesPerson?.value;
@@ -264,17 +268,22 @@ const SaleInvoiceList = () => {
 
     const filteredByBrand = getFilteredDataByBrand();
 
-    // Filter by payment status
+    // Filter by payment mode
     const filteredByPayment = useMemo(() => {
         if (paymentFilter === 'all') return filteredByBrand;
-        if (paymentFilter === 'paid') {
+        if (paymentFilter === 'cash') {
             return filteredByBrand.filter(
-                item => item.Payment_Status === 2 || item.Payment_Status === 3
+                item => item.Payment_Mode === 1 && (item.Payment_Status === 2 || item.Payment_Status === 3)
             );
         }
-        // unpaid
+        if (paymentFilter === 'gpay') {
+            return filteredByBrand.filter(
+                item => item.Payment_Mode === 2 && (item.Payment_Status === 2 || item.Payment_Status === 3)
+            );
+        }
+        // credit/unpaid
         return filteredByBrand.filter(
-            item => item.Payment_Status !== 2 && item.Payment_Status !== 3
+            item => item.Payment_Mode === 3 || (item.Payment_Status !== 2 && item.Payment_Status !== 3)
         );
     }, [filteredByBrand, paymentFilter]);
 
@@ -289,6 +298,7 @@ const SaleInvoiceList = () => {
     }, [filteredByPayment, searchQuery]);
 
     const totalInvoices = filteredInvoiceData.length;
+
     const totalAmount = useMemo(() => {
         return filteredInvoiceData.reduce(
             (sum, item) => sum + (parseFloat(item.Total_Invoice_value) || 0),
@@ -308,6 +318,17 @@ const SaleInvoiceList = () => {
             item => item.Cancel_status === 0 || item.Cancel_status === "0"
         ).length;
 
+        // Payment mode counts from brand filtered data (before payment filter)
+        const cashCount = filteredByBrand.filter(
+            item => item.Payment_Mode === 1 && (item.Payment_Status === 2 || item.Payment_Status === 3)
+        ).length;
+        const gpayCount = filteredByBrand.filter(
+            item => item.Payment_Mode === 2 && (item.Payment_Status === 2 || item.Payment_Status === 3)
+        ).length;
+        const creditCount = filteredByBrand.filter(
+            item => item.Payment_Mode === 3 || (item.Payment_Status !== 2 && item.Payment_Status !== 3)
+        ).length;
+
         return {
             deliveryCompleted,
             deliveryPending: filteredInvoiceData.length - deliveryCompleted,
@@ -315,8 +336,11 @@ const SaleInvoiceList = () => {
             paymentPending: filteredInvoiceData.length - paymentCompleted,
             cancelReturn,
             cancelReturnPending: filteredInvoiceData.length - cancelReturn,
+            cashCount,
+            gpayCount,
+            creditCount,
         };
-    }, [filteredInvoiceData]);
+    }, [filteredInvoiceData, filteredByBrand]);
 
     // Number to words helper
     function numberToWords(num) {
@@ -408,12 +432,12 @@ const SaleInvoiceList = () => {
             const dt = iso =>
                 iso
                     ? new Date(iso).toLocaleString("en-IN", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                      })
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    })
                     : "—";
 
             const products = Array.isArray(item?.Products_List)
@@ -489,16 +513,15 @@ const SaleInvoiceList = () => {
                 <body>
                     <div class="center">
                         <div class="header-title">${summarizeBranch}</div>
-                        ${
-                            currentRetailerInfo?.Branch_Address_1 ||
-                            currentRetailerInfo?.Branch_Address_2 ||
-                            currentRetailerInfo?.City
-                                ? `
+                        ${currentRetailerInfo?.Branch_Address_1 ||
+                    currentRetailerInfo?.Branch_Address_2 ||
+                    currentRetailerInfo?.City
+                    ? `
                         <div class="tiny mt-1">
                             ${[currentRetailerInfo?.Branch_Address_1, currentRetailerInfo?.Branch_Address_2, currentRetailerInfo?.City, currentRetailerInfo?.Pincode].filter(Boolean).join(", ")}
                         </div>`
-                                : ""
-                        } 
+                    : ""
+                } 
                         ${currentRetailerInfo?.GST_No ? `<div class="tiny">GSTIN: <span class="bold">${currentRetailerInfo.GST_No}</span></div>` : ""}
                     </div>
 
@@ -542,31 +565,30 @@ const SaleInvoiceList = () => {
                         </thead>
                         <tbody>
                             ${products
-                                .map(
-                                    p => `
+                    .map(
+                        p => `
                             <tr>
                                 <td>${p?.Product_Name || ""}</td>
                                 <td class="qty">${safeNum(p?.Bill_Qty ?? p?.Total_Qty, 0)}</td>
                                 <td class="rate">${rupee(p?.Item_Rate ?? 0)}</td>
                                 <td class="amt">₹${rupee(p?.Amount ?? p?.Final_Amo ?? 0)}</td>
                             </tr>`,
-                                )
-                                .join("")}
+                    )
+                    .join("")}
 
                             <tr class="totals">
                                 <td colspan="3" class="bold" style="text-align: right">Subtotal</td>
                                 <td class="amt bold">₹${rupee(subtotal)}</td>
                             </tr>
 
-                            ${
-                                roundOff
-                                    ? `
+                            ${roundOff
+                    ? `
                             <tr>
                                 <td colspan="3" style="text-align: right">Round Off</td>
                                 <td class="amt">₹${rupee(roundOff)}</td>
                             </tr>`
-                                    : ""
-                            }
+                    : ""
+                }
 
                             <tr>
                                 <td colspan="3" class="net" style="text-align: right">Net Amount</td>
@@ -601,14 +623,16 @@ const SaleInvoiceList = () => {
             const options = {
                 html: htmlContent,
                 fileName: `invoice-${(item?.Retailer_Name || item?.Do_Inv_No || Date.now()).toString().replace(/[^\w-]+/g, "_")}`,
-                directory: "Documents",
+                // No 'directory' → file goes to cacheDir, which IS covered by
+                // react-native-share's FileProvider (cache-path "/").
+                // 'Documents' maps to getExternalFilesDir which is NOT in the FileProvider paths.
                 width: 226,
                 height: estimatedHeight,
                 padding: 0,
                 base64: false,
             };
 
-            const pdf = await RNHTMLtoPDF.convert(options);
+            const pdf = await generatePDF(options);
             return pdf.filePath;
         } catch (err) {
             console.error("Error generating PDF:", err);
@@ -619,33 +643,43 @@ const SaleInvoiceList = () => {
     const downloadItemPDF = async item => {
         try {
             const pdfPath = await generateItemPDF(item);
-            if (pdfPath) {
-                try {
-                    await Share.open({
-                        url: `file://${pdfPath}`,
-                        title: "Sale Invoice",
-                        message: "Here is your invoice in PDF format",
-                        showAppsToView: true,
-                        subject: "Sale Invoice Receipt",
-                        filename: `invoice-${item?.Do_Inv_No || item?.Do_Id || Date.now()}.pdf`,
-                    });
-                } catch (shareError) {
-                    if (
-                        shareError.message &&
-                        shareError.message.includes("User did not share")
-                    ) {
-                        return;
-                    }
-                    throw shareError;
+
+            if (!pdfPath) {
+                Alert.alert("Error", "Failed to generate PDF. Please try again.");
+                return;
+            }
+
+            const exists = await RNFS.exists(pdfPath);
+            // console.log("[PDF] File exists:", exists);
+
+            if (!exists) {
+                Alert.alert("Error", "PDF file not found. Please try again.");
+                return;
+            }
+
+            const fileUrl = `file://${pdfPath}`;
+
+            try {
+                await Share.open({
+                    url: fileUrl,
+                    type: "application/pdf",
+                    title: "Sale Invoice",
+                    message: "Here is your invoice in PDF format",
+                    showAppsToView: true,
+                    subject: "Sale Invoice Receipt",
+                    filename: `invoice-${item?.Do_Inv_No || item?.Do_Id || Date.now()}.pdf`,
+                });
+            } catch (shareError) {
+                if (
+                    shareError.message &&
+                    shareError.message.includes("User did not share")
+                ) {
+                    return;
                 }
-            } else {
-                Alert.alert(
-                    "Error",
-                    "Failed to generate PDF. Please try again.",
-                );
+                throw shareError;
             }
         } catch (error) {
-            console.error("Error:", error);
+            console.error("[PDF] Share error:", error);
             Alert.alert("Error", "Something went wrong. Please try again.");
         }
     };
@@ -720,15 +754,16 @@ const SaleInvoiceList = () => {
         setModalVisible(false);
     };
 
-    const handleSalesReportPress = () => {
+    const handleSalesReportPress = useCallback(() => {
         navigation.navigate("SalesReport", {
             logData: salesPersonFilteredData,
             selectedDate: selectedFromDate,
             isNotAdmin: true,
         });
-    };
+    }, [navigation, salesPersonFilteredData, selectedFromDate]);
 
-    const renderHeader = item => {
+    // Memoized renderHeader using useCallback
+    const renderHeader = useCallback((item) => {
         const deliveryStatus = getDeliveryStatusInfo(item.Delivery_Status);
         const paymentStatus = getPaymentStatusInfo(item.Payment_Status);
         const isCancelled =
@@ -744,11 +779,11 @@ const SaleInvoiceList = () => {
                     <Text style={styles.invoiceDate}>
                         {item.Do_Date
                             ? new Date(item.Do_Date).toLocaleDateString(
-                                  "en-GB",
-                              ) +
-                              (isCancelled
-                                  ? " - (Cancelled)"
-                                  : isDelivered
+                                "en-GB",
+                            ) +
+                            (isCancelled
+                                ? " - (Cancelled)"
+                                : isDelivered
                                     ? " - (Delivered)"
                                     : "")
                             : "N/A"}
@@ -764,9 +799,10 @@ const SaleInvoiceList = () => {
                 </View>
             </View>
         );
-    };
+    }, []);
 
-    const renderContent = item => {
+    // Memoized renderContent using useCallback
+    const renderContent = useCallback((item) => {
         const deliveryStatus = getDeliveryStatusInfo(item.Delivery_Status);
         const paymentStatus = getPaymentStatusInfo(item.Payment_Status);
         const paymentModeLabel = getPaymentModeLabel(item.Payment_Mode);
@@ -784,13 +820,13 @@ const SaleInvoiceList = () => {
                                 },
                             ]}
                         >
-                            <MaterialIcon
+                            <FeatherIcon
                                 name={
                                     item.Payment_Status === 1
-                                        ? "pending-actions"
+                                        ? "clock"
                                         : "check-circle"
                                 }
-                                size={14}
+                                size={iconSizes.sm}
                                 color={paymentStatus.color}
                                 style={{ marginRight: 4 }}
                             />
@@ -809,9 +845,9 @@ const SaleInvoiceList = () => {
                                 { backgroundColor: paymentStatus.color + "20" },
                             ]}
                         >
-                            <MaterialIcon
-                                name="payment"
-                                size={14}
+                            <FeatherIcon
+                                name="credit-card"
+                                size={iconSizes.sm}
                                 color={paymentStatus.color}
                                 style={{ marginRight: 4 }}
                             />
@@ -897,7 +933,7 @@ const SaleInvoiceList = () => {
                             >
                                 <FeatherIcon
                                     name="edit"
-                                    size={14}
+                                    size={iconSizes.sm}
                                     color={customColors.white}
                                 />
                                 <Text style={styles.buttonText}>Edit</Text>
@@ -911,7 +947,7 @@ const SaleInvoiceList = () => {
                             >
                                 <FeatherIcon
                                     name="share"
-                                    size={14}
+                                    size={iconSizes.sm}
                                     color={customColors.white}
                                 />
                                 <Text style={styles.buttonText}>Share</Text>
@@ -921,7 +957,18 @@ const SaleInvoiceList = () => {
                 </View>
             </View>
         );
-    };
+    }, [isAdmin, navigation, downloadItemPDF]);
+
+    // Key extractor for FlatList
+    const keyExtractor = useCallback((item, index) =>
+        item.Do_Id?.toString() || `invoice-${index}`, []);
+
+    // Get item layout for better performance (estimated height)
+    const getItemLayout = useCallback((data, index) => ({
+        length: 80, // estimated item height
+        offset: 80 * index,
+        index,
+    }), []);
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -929,8 +976,8 @@ const SaleInvoiceList = () => {
                 title="Invoice Summary"
                 navigation={navigation}
                 showRightIcon={true}
-                rightIconLibrary="MaterialIcon"
-                rightIconName="filter-list"
+                rightIconLibrary="FeatherIcon"
+                rightIconName="filter"
                 onRightPress={handleOpenModal}
             />
 
@@ -972,7 +1019,7 @@ const SaleInvoiceList = () => {
                                         paddingVertical: spacing.xs,
                                         paddingHorizontal: spacing.md,
                                         marginRight: spacing.sm,
-                                        borderRadius: 20,
+                                        borderRadius: borderRadius.xl,
                                         backgroundColor:
                                             selectedBrand === brand
                                                 ? customColors.primary
@@ -986,7 +1033,9 @@ const SaleInvoiceList = () => {
                                                 selectedBrand === brand
                                                     ? customColors.white
                                                     : customColors.grey900,
-                                            ...typography.caption(),
+                                            fontFamily: customFonts.poppinsRegular,
+                                            fontWeight: "600",
+                                            textTransform: "capitalize",
                                         }}
                                     >
                                         {brand}
@@ -1001,9 +1050,9 @@ const SaleInvoiceList = () => {
                                 setShowSearch(!showSearch);
                             }}
                         >
-                            <MaterialIcon
-                                name={showSearch ? "close" : "search"}
-                                size={24}
+                            <FeatherIcon
+                                name={showSearch ? "x" : "search"}
+                                size={iconSizes.lg}
                                 color={customColors.grey900}
                             />
                         </TouchableOpacity>
@@ -1029,7 +1078,7 @@ const SaleInvoiceList = () => {
                         >
                             <FeatherIcon
                                 name="arrow-up-right"
-                                size={14}
+                                size={iconSizes.sm}
                                 color={customColors.grey600}
                             />
                         </TouchableOpacity>
@@ -1085,9 +1134,11 @@ const SaleInvoiceList = () => {
                                     ]}
                                     onPress={() => {
                                         if (paymentFilter === 'all') {
-                                            setPaymentFilter('paid');
-                                        } else if (paymentFilter === 'paid') {
-                                            setPaymentFilter('unpaid');
+                                            setPaymentFilter('cash');
+                                        } else if (paymentFilter === 'cash') {
+                                            setPaymentFilter('gpay');
+                                        } else if (paymentFilter === 'gpay') {
+                                            setPaymentFilter('credit');
                                         } else {
                                             setPaymentFilter('all');
                                         }
@@ -1098,21 +1149,26 @@ const SaleInvoiceList = () => {
                                         styles.statLabel,
                                         paymentFilter !== 'all' && styles.activeFilterLabel,
                                     ]}>
-                                        {paymentFilter === 'all' ? 'Paid' : paymentFilter === 'paid' ? 'Paid Only' : 'Unpaid Only'}
+                                        {paymentFilter === 'all' ? 'Payment'
+                                            : paymentFilter === 'cash' ? 'Cash'
+                                                : paymentFilter === 'gpay' ? 'G-Pay'
+                                                    : 'Credit'}
                                     </Text>
                                     <Text
                                         style={[
                                             styles.statValue,
-                                            { color: paymentFilter === 'unpaid' ? customColors.warning : customColors.success },
+                                            { color: paymentFilter === 'credit' ? customColors.warning : customColors.success },
                                         ]}
                                     >
-                                        {paymentFilter === 'all' 
-                                            ? statusCounts.paymentCompleted 
-                                            : paymentFilter === 'paid' 
-                                                ? statusCounts.paymentCompleted 
-                                                : statusCounts.paymentPending}
+                                        {paymentFilter === 'all'
+                                            ? statusCounts.paymentCompleted
+                                            : paymentFilter === 'cash'
+                                                ? statusCounts.cashCount
+                                                : paymentFilter === 'gpay'
+                                                    ? statusCounts.gpayCount
+                                                    : statusCounts.creditCount}
                                         <Text style={styles.statSubValue}>
-                                            /{totalInvoices}
+                                            /{filteredByBrand.length}
                                         </Text>
                                     </Text>
                                 </TouchableOpacity>
@@ -1133,43 +1189,58 @@ const SaleInvoiceList = () => {
                     </View>
                 </View>
 
-                <ScrollView
-                    style={styles.accordionScrollContainer}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefetching}
-                            onRefresh={refetch}
-                            colors={[customColors.primary]}
-                        />
-                    }
-                >
-                    {(isLoading || isFetching) ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={customColors.primary} />
-                            <Text style={styles.loadingText}>Loading invoices...</Text>
-                        </View>
-                    ) : filteredInvoiceData.length > 0 ? (
-                        <Accordion
-                            data={filteredInvoiceData}
-                            renderHeader={renderHeader}
-                            renderContent={renderContent}
-                        />
-                    ) : (
-                        <View style={styles.emptyContainer}>
-                            <MaterialIcon
-                                name="receipt-long"
-                                size={64}
+                {(isLoading || isFetching) ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={customColors.primary} />
+                        <Text style={styles.loadingText}>Loading invoices...</Text>
+                    </View>
+                ) : filteredInvoiceData.length > 0 ? (
+                    <FlashList
+                        data={filteredInvoiceData}
+                        keyExtractor={keyExtractor}
+                        renderItem={({ item, index }) => (
+                            <Accordion
+                                data={[item]}
+                                renderHeader={renderHeader}
+                                renderContent={renderContent}
+                                customStyles={{
+                                    container: { marginVertical: 0, marginHorizontal: 0 },
+                                    itemContainer: { marginBottom: spacing.xs },
+                                }}
+                            />
+                        )}
+                        style={styles.accordionScrollContainer}
+                        contentContainerStyle={{ paddingBottom: spacing.xl }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefetching}
+                                onRefresh={refetch}
+                                colors={[customColors.primary]}
+                            />
+                        }
+                        initialNumToRender={10}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                        removeClippedSubviews={true}
+                        showsVerticalScrollIndicator={false}
+                    />
+                ) : (
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIconContainer}>
+                            <FeatherIcon
+                                name="file-text"
+                                size={iconSizes.xxl}
                                 color={customColors.grey300}
                             />
-                            <Text style={styles.emptyText}>
-                                No invoices found
-                            </Text>
-                            <Text style={styles.emptySubtext}>
-                                Try adjusting the date range or search query
-                            </Text>
                         </View>
-                    )}
-                </ScrollView>
+                        <Text style={styles.emptyText}>
+                            No invoices found
+                        </Text>
+                        <Text style={styles.emptySubtext}>
+                            Try adjusting the date range or search query
+                        </Text>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -1198,14 +1269,14 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         padding: spacing.xs,
-        borderRadius: 50,
+        borderRadius: borderRadius.round,
         backgroundColor: customColors.grey100,
         ...shadows.small,
     },
     searchContainer: {
         marginTop: spacing.xs,
         marginBottom: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         overflow: "hidden",
         backgroundColor: customColors.white,
         ...shadows.medium,
@@ -1217,7 +1288,7 @@ const styles = StyleSheet.create({
     },
     statsContainer: {
         backgroundColor: customColors.white,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         padding: spacing.lg,
         marginHorizontal: spacing.xs,
         position: "relative",
@@ -1229,7 +1300,7 @@ const styles = StyleSheet.create({
         right: spacing.sm,
         width: 24,
         height: 24,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
         backgroundColor: customColors.grey50,
         justifyContent: "center",
         alignItems: "center",
@@ -1249,7 +1320,7 @@ const styles = StyleSheet.create({
     tappableStat: {
         paddingVertical: spacing.xs,
         paddingHorizontal: spacing.sm,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
     },
     activeFilter: {
         backgroundColor: customColors.primary + '15',
@@ -1288,7 +1359,7 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
         marginBottom: 2,
     },
     headerLeft: {
@@ -1322,7 +1393,7 @@ const styles = StyleSheet.create({
     },
     content: {
         backgroundColor: customColors.white,
-        borderRadius: 6,
+        borderRadius: borderRadius.sm,
         marginHorizontal: 2,
         marginBottom: spacing.xs,
         overflow: "hidden",
@@ -1353,7 +1424,7 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         paddingHorizontal: spacing.sm,
         paddingVertical: 2,
-        borderRadius: 12,
+        borderRadius: borderRadius.lg,
     },
     statusText: {
         ...typography.caption(),
@@ -1435,7 +1506,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 6,
         paddingHorizontal: spacing.sm,
-        borderRadius: 6,
+        borderRadius: borderRadius.sm,
         gap: 4,
     },
     viewButton: {
@@ -1454,6 +1525,15 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         paddingVertical: spacing.xxl,
+    },
+    emptyIconContainer: {
+        width: 96,
+        height: 96,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     emptyText: {
         ...typography.subtitle1(),
