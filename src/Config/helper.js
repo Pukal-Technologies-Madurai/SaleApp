@@ -515,6 +515,16 @@ export const shadows = {
         shadowRadius: 0,
         elevation: 0,
     },
+    xs: {
+        shadowColor: customColors.black,
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
     small: {
         shadowColor: customColors.black,
         shadowOffset: {

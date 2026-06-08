@@ -192,6 +192,12 @@ const Dashboard = () => {
             const data = await response.json();
             return data.success ? data.data : [];
         },
+        fetchExpenseData: async (from, to) => {
+            const url = `${API.getExpenseList()}${from}&Todate=${to}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.success ? data.data : [];
+        },
     };
 
     // Consolidated data fetching with React Query
@@ -236,6 +242,7 @@ const Dashboard = () => {
                     tripSheetData,
                     receiptData,
                     deliveryReturnData,
+                    expenseData,
                 ] = await Promise.allSettled([
                     apiService.fetchVisitersLog(selectedDate, "", branchIdParam),
                     apiService.fetchSaleOrder(
@@ -260,6 +267,7 @@ const Dashboard = () => {
                     apiService.fetchTripSheet(selectedDate, selectedDate, branchIdParam),
                     apiService.fetchReceiptData(selectedDate, selectedDate, branchIdParam),
                     apiService.fetchCreditNoteList(selectedDate),
+                    apiService.fetchExpenseData(selectedDate, selectedDate),
                 ]);
 
                 // Extract data from settled promises
@@ -278,6 +286,12 @@ const Dashboard = () => {
                 const finalCreditNoteData = extractData(deliveryReturnData);
                 const totalCreditNoteAmount = finalCreditNoteData.reduce(
                     (sum, cn) => sum + parseFloat(cn.Total_Invoice_value || 0),
+                    0,
+                );
+                const finalExpenseData = extractData(expenseData);
+                const totalExpenseAmount = finalExpenseData.reduce(
+                    (sum, expense) =>
+                        sum + parseFloat(expense?.credit_amount || 0),
                     0,
                 );
 
@@ -309,6 +323,11 @@ const Dashboard = () => {
                     }
                     return entry;
                 }, {});
+
+                const totalSaleOrderAmount = finalSaleData.reduce(
+                    (sum, item) => sum + item.Total_Invoice_value,
+                    0
+                );
 
                 // console.log("Processed sale count by salesperson:", saleCount);
 
@@ -344,9 +363,12 @@ const Dashboard = () => {
                     newReceiptData: finalReceiptData,
                     creditNoteData: finalCreditNoteData,
                     totalCreditNoteAmount,
+                    totalSaleOrderAmount,
                     saleCount,
                     totalInvoiceAmount,
                     totalProductsSold,
+                    expenseData: finalExpenseData,
+                    totalExpenseAmount,
                 };
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -477,7 +499,7 @@ const Dashboard = () => {
                     day: "2-digit",
                     month: "2-digit",
                 })} Sales`}`,
-                value: allDashboardData.saleData?.length || 0,
+                value: `${allDashboardData.saleData?.length || 0} | ₹${((allDashboardData.totalSaleOrderAmount / 1000).toFixed(1) || 0).toLocaleString("en-IN")}k`,
                 gradientColors: ["#60A5FA", "#3B82F6", "#2563EB"],
                 shadowColor: "#3B82F6",
                 onPress: () =>
@@ -540,8 +562,8 @@ const Dashboard = () => {
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Trips",
                 value: allDashboardData.tripSheetData?.length || 0,
-                gradientColors: ["#FBBF24", "#F59E0B", "#D97706"],
-                shadowColor: "#F59E0B",
+                gradientColors: ["#24fbe2", "#22c5c2", "#16a3a3"],
+                shadowColor: "#22c5c2",
                 onPress: () =>
                     navigation.navigate("TripReport", {
                         selectedDate: selectedDate,
@@ -559,6 +581,20 @@ const Dashboard = () => {
                     selectedDate: selectedDate,
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                 }),
+            },
+            {
+                icon: "account-balance-wallet",
+                iconLibrary: "MaterialIcons",
+                label: "Expenses",
+                value: `₹${(allDashboardData.totalExpenseAmount || 0).toLocaleString("en-IN")}`,
+                gradientColors: ["#ed963a", "#f59e0b", "#d97706"],
+                shadowColor: "#f59e0b",
+                onPress: () =>
+                    navigation.navigate("ExpenseList", {
+                        selectedDate: selectedDate,
+                        selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                        isAdmin: true,
+                    }),
             },
             {
                 icon: "inventory-2",
@@ -582,24 +618,11 @@ const Dashboard = () => {
                 }),
             },
             // {
-            //     icon: "currency-rupee",
-            //     iconLibrary: "MaterialIcons",
-            //     label: "Order Summary",
-            //     value: "Total",
-            //     gradientColors: ["#F87171", "#EF4444", "#DC2626"],
-            //     shadowColor: "#EF4444",
-            //     onPress: () =>
-            //         navigation.navigate("SalesAdmin", {
-            //             selectedDate: selectedDate,
-            //             selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
-            //         }),
-            // },
-            // {
             //     icon: "warehouse",
             //     iconLibrary: "MaterialCommunityIcons",
             //     label: "Stock",
             //     value: "Retailer's ",
-            //     color: "#7C3AED",
+            //     color: "#F87171",
             //     backgroundColor: "#EDE9FE",
             //     onPress: () => navigation.navigate("RetailerStock"),
             // },

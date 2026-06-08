@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DefaultStaticFeatureFlags } from "react-native-worklets/lib/typescript/featureFlags/types";
 
 let baseURL = "https://erpsmt.in/"; // Live api
 // let baseURL = "https://apiweb.erpsmt.in/"; // Test live api
@@ -52,6 +53,7 @@ export const API = {
     MyLastAttendance: () => `${baseURL}api/empAttendance/attendance?UserId=`,
 
     retailers: () => `${baseURL}api/masters/retailers?Company_Id=`,
+    putRetailer: () => `${baseURL}api/masters/retailers`,
     retailerName: () => `${baseURL}api/masters/retailers/dropDown`,
     retailerLocation: () => `${baseURL}api/masters/retailers/location`,
     retailerInfo: () => `${baseURL}api/masters/retailers/info?Retailer_Id=`,
@@ -99,6 +101,7 @@ export const API = {
     customerWhoHasBills: () => `${baseURL}api/receipt/getCustomerWhoHasBills`,
 
     createReceipt: () => `${baseURL}api/receipt/receiptMaster`,
+    makePayment: () => `${baseURL}api/payment/paymentMaster`,
     userInvoltedReceipts: () =>
         `${baseURL}api/receipt/receiptMaster?createdBy=`,
     getReceipt: () => `${baseURL}api/receipt/receiptMaster?Fromdate=`,
@@ -108,6 +111,9 @@ export const API = {
         `${baseURL}api/journal/accountPendingReference?Acc_Id=`,
     defaultAccountMaster: () =>
         `${baseURL}api/masters/defaultAccountMaster?AC_Reason=MOBILE_CASH`,
+    DefaultSalesPersonExpenses: () =>
+        `${baseURL}api/masters/defaultAccountMaster?AC_Reason=SALES_PERSON_EXPENCES`,
+    getExpenseList: () => `${baseURL}api/payment/paymentMaster?Fromdate=`,
     defaultCreditAccountMaster: () => `${baseURL}api/masters/accountMaster`,
     setRoutePath: () => `${baseURL}api/masters/setRoutes`,
 

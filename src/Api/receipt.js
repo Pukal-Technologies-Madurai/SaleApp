@@ -34,6 +34,36 @@ export const fetchDefaultAccountMaster = async () => {
     return data.data;
 };
 
+export const fetchDefaultSalesPersonExpenses = async () => {
+    const url = API.DefaultSalesPersonExpenses();
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
+export const fetchExpenses = async (fromDate, toDate, userID) => {
+    const url = `${API.getExpenseList()}${fromDate}&Todate=${toDate}&createdBy=${userID}`;
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
 export const fetchCreditLiveSale = async () => {
     const url = API.defaultCreditAccountMaster();
 

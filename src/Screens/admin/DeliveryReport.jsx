@@ -105,7 +105,7 @@ const DeliveryTable = ({ deliveryData }) => {
                     <Text style={[
                         styles.statsLabel,
                         selectedFilter === "delivered" && styles.statsLabelActive
-                    ]}>Delivered</Text>
+                    ]}>Done</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={[

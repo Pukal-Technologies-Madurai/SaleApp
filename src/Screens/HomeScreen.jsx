@@ -141,13 +141,13 @@ const HomeScreen = () => {
             gradientStart: "#F97316",
             gradientEnd: "#FB923C",
         },
-        // {
-        //     title: "Delivery Return",
-        //     image: assetImages.deliveryCancel,
-        //     navigate: "PendingDeliveryIndividual",
-        //     gradientStart: "#EC4899",
-        //     gradientEnd: "#F472B6",
-        // }
+        {
+            title: "Expense",
+            image: assetImages.expenses,
+            navigate: "ExpenseList",
+            gradientStart: "#EC4899",
+            gradientEnd: "#F472B6",
+        }
     ];
 
     if (error) {

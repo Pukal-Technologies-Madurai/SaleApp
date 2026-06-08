@@ -195,6 +195,12 @@ const LoginPortal = () => {
             if (data.UserType) await AsyncStorage.setItem("userType", data.UserType);
             if (data.UserTypeId) await AsyncStorage.setItem("userTypeId", String(data.UserTypeId));
             if (data.Company_Name) await AsyncStorage.setItem("companyName", data.Company_Name);
+            if (data.Acc_Id) await AsyncStorage.setItem("Acc_Id", String(data.Acc_Id));
+            if (data.Account_name) await AsyncStorage.setItem("Account_name", data.Account_name);
+            if (data.costCenterId) await AsyncStorage.setItem("costCenterId", String(data.costCenterId));
+            if (data.costCenterName) await AsyncStorage.setItem("costCenterName", data.costCenterName);
+            if (data.costCategoryId) await AsyncStorage.setItem("costCategoryId", String(data.costCategoryId));
+            if (data.costCategoryName) await AsyncStorage.setItem("costCategoryName", data.costCategoryName);
         } catch (err) {
             console.error("Error storing data: ", err);
         }

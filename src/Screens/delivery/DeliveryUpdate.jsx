@@ -82,11 +82,24 @@ const DeliveryUpdate = () => {
         fetchDeliveryData();
     }, [selectedFromDate, selectedToDate]);
 
+    const isValidDate = value => value instanceof Date && !isNaN(value.getTime());
+
+    const normalizeDateOnly = value =>
+        new Date(value.getFullYear(), value.getMonth(), value.getDate());
+
+    const formatDateForApi = value => {
+        const date = normalizeDateOnly(value);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
+
     const fetchDeliveryData = async () => {
         try {
             const userId = await AsyncStorage.getItem("UserId");
-            const fromDate = selectedFromDate.toISOString().split("T")[0];
-            const toDate = selectedToDate.toISOString().split("T")[0];
+            const fromDate = formatDateForApi(selectedFromDate);
+            const toDate = formatDateForApi(selectedToDate);
             const companyId = await AsyncStorage.getItem("Company_Id");
             const branchId = await AsyncStorage.getItem("branchId");
             const activeGodown = await AsyncStorage.getItem("activeGodown");
@@ -132,16 +145,30 @@ const DeliveryUpdate = () => {
     }, [deliveryData, searchQuery]);
 
     const handleFromDateChange = date => {
-        if (date) {
-            const newFromDate = date > selectedToDate ? selectedToDate : date;
-            setSelectedFromDate(newFromDate);
+        if (!isValidDate(date)) return;
+
+        const newFromDate = normalizeDateOnly(date);
+        const currentToDate = normalizeDateOnly(selectedToDate);
+
+        setSelectedFromDate(newFromDate);
+
+        // Keep a valid range: if from goes beyond to, move to along with from.
+        if (newFromDate > currentToDate) {
+            setSelectedToDate(newFromDate);
         }
     };
 
     const handleToDateChange = date => {
-        if (date) {
-            const newToDate = date < selectedFromDate ? selectedFromDate : date;
-            setSelectedToDate(newToDate);
+        if (!isValidDate(date)) return;
+
+        const newToDate = normalizeDateOnly(date);
+        const currentFromDate = normalizeDateOnly(selectedFromDate);
+
+        setSelectedToDate(newToDate);
+
+        // Keep a valid range: if to goes before from, move from along with to.
+        if (newToDate < currentFromDate) {
+            setSelectedFromDate(newToDate);
         }
     };
 
@@ -322,6 +349,11 @@ const DeliveryUpdate = () => {
             }
             // ─────────────────────────────────────────────────────────────────
 
+            const costCenterId = await AsyncStorage.getItem("costCenterId");
+            const costCenterName = await AsyncStorage.getItem("costCenterName");
+            const costCategoryId = await AsyncStorage.getItem("costCategoryId");
+            const costCategoryName = await AsyncStorage.getItem("costCategoryName");      
+
             const transformedProducts =
                 selectedDelivery.Products_List?.map(product => ({
                     DO_St_Id: product.DO_St_Id,
@@ -355,6 +387,14 @@ const DeliveryUpdate = () => {
                     Final_Amo: product.Final_Amo,
                     Created_on: product.Created_on,
                     Batch_Name: product.Batch_Name || null,
+                    Staff_Involved_List: [
+                        {
+                            Involved_Emp_Id: costCenterId,
+                            EmpName: costCenterName,
+                            Cost_Center_Type_Id: costCategoryId,
+                            EmpType: costCategoryName,
+                        }
+                    ],
                 })) || [];
 
             const updatePayload = {
@@ -368,13 +408,13 @@ const DeliveryUpdate = () => {
                 Product_Array: transformedProducts,
                 Delivery_Status: 6, // Cancelled status
                 Payment_Status: 0, // Reset payment status
-                Cancel_status: 0, // 0 - Cancelled  // 1 - Pending
+                Cancel_status: 1, // 0 - Cancelled  // 1 - Pending
                 Delivery_Time: new Date().toISOString(),
                 Delivery_Location: "CANCELLED",
                 Delivery_Latitude: location.latitude?.toString() || "0",
                 Delivery_Longitude: location.longitude?.toString() || "0",
                 Payment_Mode: null,
-                Payment_Ref_No: `CANCELLED-${cancelReason}`,
+                Payment_Ref_No: `CANCELLED-${cancelReason} - Credit Note Created`,
                 Altered_by: parseInt(userId),
                 Altered_on: new Date().toISOString(),
                 // Created_by: parseInt(userId),
@@ -419,7 +459,9 @@ const DeliveryUpdate = () => {
         <View style={styles.deliveryItem}>
             <View style={styles.deliveryDetails}>
                 <Text style={styles.amountText}>{item.Retailer_Name}</Text>
-                <Text style={styles.invoiceNumber}>{item.Do_Inv_No}</Text>
+                <Text style={item.Narration === "Cash Bill" ? [styles.invoiceNumber, { color: customColors.accent2 }] : styles.invoiceNumber}>
+                    {item.Do_Inv_No} <Text style={{ ...typography.caption(), color: customColors.accent2, fontWeight: "bold" }}>{item.Narration === "Cash Bill" && "(Cash)"}</Text>
+                </Text>
                 <Text style={styles.dateText}>
                     {formatDate(item.SalesDate)}
                 </Text>
@@ -716,9 +758,9 @@ const DeliveryUpdate = () => {
         >
             <View style={styles.cancelModalOverlay}>
                 <View style={styles.cancelModalContent}>
-                    <Text style={styles.cancelModalTitle}>Cancel Delivery</Text>
+                    <Text style={styles.cancelModalTitle}>Return Invoice</Text>
                     <Text style={styles.cancelModalSubtitle}>
-                        Select a reason or enter a custom reason for cancellation
+                        Select a reason or enter a custom reason for return
                     </Text>
 
                     {/* Predefined Reason Buttons */}
@@ -752,13 +794,13 @@ const DeliveryUpdate = () => {
 
                     {/* Custom Reason Input - Show when "Other" is selected or for additional details */}
                     <Text style={styles.customReasonLabel}>
-                        {selectedCancelReason === "Other" ? "Enter custom reason:" : "Additional details (optional):"}
+                        {selectedCancelReason === "Other" ? "Enter return reason:" : "Additional details (optional):"}
                     </Text>
                     <TextInput
                         style={styles.cancelReasonInput}
                         placeholder={
                             selectedCancelReason === "Other"
-                                ? "Enter reason for cancellation..."
+                                ? "Enter reason for return..."
                                 : "Add more details if needed..."
                         }
                         value={selectedCancelReason === "Other" ? cancelReason :
@@ -788,7 +830,7 @@ const DeliveryUpdate = () => {
                             }}
                         >
                             <Text style={styles.cancelModalButtonTextSecondary}>
-                                Keep Delivery
+                                Keep Invoice
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -801,7 +843,7 @@ const DeliveryUpdate = () => {
                             disabled={loading || !cancelReason.trim()}
                         >
                             <Text style={styles.cancelModalButtonTextPrimary}>
-                                {loading ? "Cancelling..." : "Cancel Delivery"}
+                                {loading ? "Returning..." : "Return Invoice"}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -968,6 +1010,36 @@ const DeliveryUpdate = () => {
         }
     };
 
+    const getCreditNoteAdjustmentProducts = (originalProducts = [], currentProducts = []) => {
+        const adjustedProducts = [];
+
+        originalProducts.forEach(original => {
+            const current = currentProducts.find(p => p.Item_Id === original.Item_Id);
+
+            const originalQty = parseFloat(original.Bill_Qty) || 0;
+            const currentQty = current ? (parseFloat(current.Bill_Qty) || 0) : 0;
+            const reducedQty = originalQty - currentQty;
+
+            if (reducedQty > 0) {
+                const ratio = originalQty > 0 ? reducedQty / originalQty : 0;
+
+                adjustedProducts.push({
+                    ...original,
+                    Bill_Qty: reducedQty,
+                    Total_Qty: reducedQty,
+                    Amount: (parseFloat(original.Amount) || 0) * ratio,
+                    Final_Amo: (parseFloat(original.Final_Amo) || 0) * ratio,
+                    Taxable_Amount: (parseFloat(original.Taxable_Amount) || 0) * ratio,
+                    Cgst_Amo: (parseFloat(original.Cgst_Amo) || 0) * ratio,
+                    Sgst_Amo: (parseFloat(original.Sgst_Amo) || 0) * ratio,
+                    Igst_Amo: (parseFloat(original.Igst_Amo) || 0) * ratio,
+                });
+            }
+        });
+
+        return adjustedProducts;
+    };
+
     const handleUpdateDelivery = async (isDelivered, isPaid) => {
         if (!selectedDelivery) return;
         setLoading(true);
@@ -976,13 +1048,15 @@ const DeliveryUpdate = () => {
             const visitEntrySuccess = await handleSubmitforVisitLog();
             if (!visitEntrySuccess) return;
 
-            // ── Credit Note: post removed items ──────────────────────────────
+            // ── Credit Note: post reduced/removed quantity items ─────────────
             if (hasProductChanges && selectedDelivery.Products_List?.length > 0) {
-                const removedProducts = selectedDelivery.Products_List.filter(
-                    original => !updatedProducts.some(u => u.Item_Id === original.Item_Id)
+                const creditNoteAdjustmentProducts = getCreditNoteAdjustmentProducts(
+                    selectedDelivery.Products_List,
+                    updatedProducts,
                 );
-                if (removedProducts.length > 0) {
-                    await postCreditNote(removedProducts);
+
+                if (creditNoteAdjustmentProducts.length > 0) {
+                    await postCreditNote(creditNoteAdjustmentProducts);
                 }
             }
             // ─────────────────────────────────────────────────────────────────
@@ -1485,7 +1559,7 @@ const DeliveryUpdate = () => {
                                             disabled={loading}
                                         >
                                             <Text style={styles.buttonText}>
-                                                Cancel Delivery
+                                                Return Invoice
                                             </Text>
                                         </TouchableOpacity>
                                     )}

@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const TripDetails = ({ route, navigation }) => {
     const { tripNo, tripDate, retailers, deliveryPerson } = route.params;
-    console.log(deliveryPerson);
+    // console.log(deliveryPerson);
 
     // Add state for filtering
     const [filterType, setFilterType] = useState(null); // null means show all
@@ -190,7 +190,7 @@ const TripDetails = ({ route, navigation }) => {
                 <View style={styles.headerContainer}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <Icon
-                            name="arrow-back-ios"
+                            name="arrow-back"
                             size={iconSizes.md}
                             color={customColors.white}
                         />

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-nati
 import React from "react";
 import { FlashList } from "@shopify/flash-list";
 import { useNavigation } from "@react-navigation/native";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialIcons";
@@ -14,7 +14,7 @@ import { customColors, shadows, typography, spacing, borderRadius, iconSizes } f
 import { attendanceHistory, fetchSalespersonRoute } from "../../Api/employee";
 
 const VisitLogHistory = ({ route }) => {
-    const { selectedDate, selectedBranch } = route.params || {};
+    const { selectedDate } = route.params || {};
     const navigation = useNavigation();
 
     const [userType, setUserType] = React.useState(null);
@@ -35,7 +35,7 @@ const VisitLogHistory = ({ route }) => {
 
     const finalUid = "";
 
-    const { data: attendanceData = [], isAttendanceLoading, isAttendanceError } = useQuery({
+    const { data: attendanceData = [] } = useQuery({
         queryKey: [
             "attendance",
             selectedFromDate,
@@ -54,7 +54,7 @@ const VisitLogHistory = ({ route }) => {
             !!selectedFromDate && !!selectedFromDate && !!userType,
     });
 
-    const { data: visitLogData = [], isVisitLogLoading, isVisitLogError } = useQuery({
+    const { data: visitLogData = [] } = useQuery({
         queryKey: ["visitLogData", selectedFromDate, finalUid],
         queryFn: () => visitEntryLog({
             toDate: selectedFromDate,
@@ -89,131 +89,204 @@ const VisitLogHistory = ({ route }) => {
         }
     });
 
-    const statExistRetailers = visitLogData.filter(item => item.IsExistingRetailer === 1).length;
-    const statNewRetailers = visitLogData.filter(item => item.IsExistingRetailer === 0).length;
+    const statExistRetailers = React.useMemo(
+        () => visitLogData.filter(item => item.IsExistingRetailer === 1).length,
+        [visitLogData],
+    );
+    const statNewRetailers = React.useMemo(
+        () => visitLogData.filter(item => item.IsExistingRetailer === 0).length,
+        [visitLogData],
+    );
 
-    // Create salesperson summary with visit counts
-    // Get all unique person IDs from both attendance and visit data
-    const allPersonIds = new Set([
-        ...attendanceData.map(person => person.UserId),
-        ...visitLogData.map(visit => visit.EntryBy)
-    ]);
+    const attendanceByPerson = React.useMemo(() => {
+        const result = {};
+        attendanceData.forEach(person => {
+            result[person.UserId] = person;
+        });
+        return result;
+    }, [attendanceData]);
 
-    const totalSalesPersons = allPersonIds.size;
-    const uniqueSalesPersonIds = [...new Set(visitLogData.map(v => v.EntryBy))];
+    const visitStatsByPerson = React.useMemo(() => {
+        const result = {};
 
-    // Make separate API calls for each salesperson
-    const salesPersonRouteQueries = useQueries({
-        queries: uniqueSalesPersonIds.map(personId => ({
-            queryKey: ["salesPersonRoute", selectedFromDate, personId],
-            queryFn: () => fetchSalespersonRoute(selectedFromDate, [personId]),
-            enabled: !!selectedFromDate && !!personId,
-            select: data => {
-                return {
-                    personId,
-                    routes: Array.isArray(data) ? data.map(item => item.Route_Id) : []
+        visitLogData.forEach(visit => {
+            if (!result[visit.EntryBy]) {
+                result[visit.EntryBy] = {
+                    visits: [],
+                    existingVisits: 0,
+                    newVisits: 0,
+                    totalVisits: 0,
                 };
             }
-        }))
-    });
 
-    // Combine all route data
-    const salesPersonRoute = salesPersonRouteQueries
-        .filter(query => query.data)
-        .reduce((acc, query) => {
-            acc[query.data.personId] = query.data.routes;
-            return acc;
-        }, {});
+            result[visit.EntryBy].visits.push(visit);
+            result[visit.EntryBy].totalVisits += 1;
+
+            if (visit.IsExistingRetailer === 1) {
+                result[visit.EntryBy].existingVisits += 1;
+            } else {
+                result[visit.EntryBy].newVisits += 1;
+            }
+        });
+
+        return result;
+    }, [visitLogData]);
+
+    const allPersonIds = React.useMemo(() => {
+        const uniqueIds = new Set([
+            ...attendanceData.map(person => person.UserId),
+            ...visitLogData.map(visit => visit.EntryBy),
+        ]);
+        return Array.from(uniqueIds);
+    }, [attendanceData, visitLogData]);
+
+    const totalSalesPersons = allPersonIds.length;
+
+    const { data: routeAssignmentData = [] } = useQuery({
+        queryKey: ["salesPersonRouteBatch", selectedFromDate, allPersonIds.join(",")],
+        queryFn: async () => {
+            if (!selectedFromDate || allPersonIds.length === 0) return [];
+
+            const routesByPerson = await Promise.all(
+                allPersonIds.map(async personId => {
+                    try {
+                        const personRoutes = await fetchSalespersonRoute(selectedFromDate, personId);
+                        return Array.isArray(personRoutes) ? personRoutes : [];
+                    } catch {
+                        return [];
+                    }
+                }),
+            );
+
+            return routesByPerson.flat();
+        },
+        enabled: !!selectedFromDate && allPersonIds.length > 0,
+        staleTime: 5 * 60 * 1000,
+    });
 
     const { data: masterRouteData = [] } = useQuery({
         queryKey: ["masterRouteData"],
         queryFn: fetchRoutes,
+        staleTime: 30 * 60 * 1000,
     });
 
-    // Function to get route name from route ID
-    const getRouteNameById = (routeId) => {
-        const route = masterRouteData.find(r => r.Route_Id === routeId);
-        return route?.Route_Name || "Unknown Route";
+    const routeNameById = React.useMemo(() => {
+        const result = {};
+        masterRouteData.forEach(routeItem => {
+            result[routeItem.Route_Id] = routeItem.Route_Name;
+        });
+        return result;
+    }, [masterRouteData]);
+
+    const routeSummaryByPerson = React.useMemo(() => {
+        const result = {};
+
+        routeAssignmentData.forEach(item => {
+            const personId = item.User_Id;
+
+            if (!result[personId]) {
+                result[personId] = {
+                    activeRoutes: {},
+                    inactiveRoutes: {},
+                };
+            }
+
+            const routeName = routeNameById[item.Route_Id] || "Unknown Route";
+            const retailerCount = Number(item.total_retailer_count) || 0;
+            const routeBucket = item.IsActive === 1
+                ? result[personId].activeRoutes
+                : result[personId].inactiveRoutes;
+
+            routeBucket[item.Route_Id] = {
+                routeId: item.Route_Id,
+                routeName,
+                shopCount: retailerCount,
+            };
+        });
+
+        const normalizedResult = {};
+        Object.keys(result).forEach(personId => {
+            normalizedResult[personId] = {
+                activeRoutes: Object.values(result[personId].activeRoutes),
+                inactiveRoutes: Object.values(result[personId].inactiveRoutes),
+            };
+        });
+
+        return normalizedResult;
+    }, [routeAssignmentData, routeNameById]);
+
+    const formatTime = dateString => {
+        if (!dateString) return null;
+        return new Date(dateString).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
     };
 
-    // Function to get route names for a person
-    const getPersonRouteNames = (personId) => {
-        const personRoutes = salesPersonRoute[personId] || [];
-        return personRoutes.map(routeId => getRouteNameById(routeId)).filter(Boolean);
-    };
+    const salespersonSummary = React.useMemo(() => allPersonIds.map(personId => {
+        const attendancePerson = attendanceByPerson[personId];
+        const personVisitStats = visitStatsByPerson[personId] || {
+            visits: [],
+            existingVisits: 0,
+            newVisits: 0,
+            totalVisits: 0,
+        };
+        const personRoute = routeSummaryByPerson[personId] || {
+            activeRoutes: [],
+            inactiveRoutes: [],
+        };
 
-    const salespersonSummary = Array.from(allPersonIds).map(personId => {
-        // Find person in attendance data first
-        const attendancePerson = attendanceData.find(person => person.UserId === personId);
+        const activeRoutes = personRoute.activeRoutes;
+        const inactiveRoutes = personRoute.inactiveRoutes;
+        const hasAnyRoute = activeRoutes.length > 0 || inactiveRoutes.length > 0;
 
-        // If not in attendance, create person object from visit data
         let person;
         if (attendancePerson) {
             person = attendancePerson;
         } else {
-            // Get person info from visit log data
-            const sampleVisit = visitLogData.find(visit => visit.EntryBy === personId);
-            if (!sampleVisit) return null; // Skip if no visit found
+            const sampleVisit = personVisitStats.visits[0];
+            if (!sampleVisit) return null;
 
             person = {
                 UserId: personId,
                 User_Name: sampleVisit.EntryByGet,
                 Start_Date: null,
                 End_Date: null,
-                // Add other fields as needed
             };
         }
 
-        const personVisits = visitLogData.filter(visit => visit.EntryBy === personId);
-        const existingVisits = personVisits.filter(visit => visit.IsExistingRetailer === 1).length;
-        const newVisits = personVisits.filter(visit => visit.IsExistingRetailer === 0).length;
-        const totalVisits = existingVisits + newVisits;
-
-        // Get route names for this person
-        const personRouteNames = getPersonRouteNames(personId);
-        const routeDisplay = personRouteNames.length > 0 ? personRouteNames.join(", ") : "No Route Set";
-
-        // Determine status based on attendance data
-        let status = routeDisplay;
-        let statusColor = personRouteNames.length > 0 ? "#4CAF50" : "#FF6B35"; // Green if has route, Orange if not
+        let status = hasAnyRoute ? "Route Assigned" : "No Route";
+        let statusColor = hasAnyRoute ? "#4CAF50" : "#FF6B35";
 
         if (attendancePerson) {
-            const currentTime = new Date();
-            const startTime = new Date(attendancePerson.Start_Date);
-            const endTime = attendancePerson.End_Date ? new Date(attendancePerson.End_Date) : null;
+            const startTime = formatTime(attendancePerson.Start_Date);
+            const endTime = formatTime(attendancePerson.End_Date);
 
-            if (startTime && !endTime) {
-                status = `${startTime.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                })}`;
-                statusColor = "#4CAF50"; // Green
-            } else if (startTime && endTime) {
-                status = `${startTime.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                })}`;
-                statusColor = "#2196F3"; // Blue
+            if (startTime && endTime) {
+                status = `${startTime} - ${endTime}`;
+                statusColor = "#2196F3";
+            } else if (startTime) {
+                status = startTime;
+                statusColor = "#4CAF50";
             }
         } else {
-            // For delivery persons without attendance data
             status = "No Attendance";
-            statusColor = "#9C27B0"; // Purple
+            statusColor = "#9C27B0";
         }
 
         return {
             ...person,
-            totalVisits,
-            existingVisits,
-            newVisits,
+            totalVisits: personVisitStats.totalVisits,
+            existingVisits: personVisitStats.existingVisits,
+            newVisits: personVisitStats.newVisits,
             status,
             statusColor,
-            routeNames: personRouteNames,
-            routeDisplay
+            activeRoutes,
+            inactiveRoutes,
+            personVisits: personVisitStats.visits,
         };
-    }).filter(Boolean); // Remove null entries
+    }).filter(Boolean), [allPersonIds, attendanceByPerson, routeSummaryByPerson, visitStatsByPerson]);
 
     const handleFromDateChange = date => {
         if (date) {
@@ -240,16 +313,24 @@ const VisitLogHistory = ({ route }) => {
 
     const renderStatCard = (title, value, icon, iconColor) => (
         <View style={styles.statCard}>
-            <Icon name={icon} size={iconSizes.lg} color={iconColor} style={styles.statIcon} />
+            <View style={styles.statIconWrap}>
+                <Icon name={icon} size={iconSizes.md} color={iconColor} style={styles.statIcon} />
+            </View>
             <Text style={styles.statValue}>{value}</Text>
-            <Text style={styles.statTitle}>{title}</Text>
+            <Text style={styles.statTitle} numberOfLines={2}>{title}</Text>
         </View>
     );
 
     const renderSalespersonCard = ({ item }) => {
         const isExpanded = expandedCards.has(item.UserId);
-        const initials = item.User_Name ? item.User_Name.substring(0, 1).toUpperCase() : "U";
-        const personVisits = visitLogData.filter(visit => visit.EntryBy === item.UserId);
+        const hasActiveRoute = item.activeRoutes.length > 0;
+        const activeRouteInfo = item.activeRoutes
+            .map(route => `${route.routeName} - ${route.shopCount} shops`)
+            .join(", ");
+        const hasSecondaryRoute = item.inactiveRoutes.length > 0;
+        const secondaryRouteInfo = item.inactiveRoutes
+            .map(route => `${route.routeName} - ${route.shopCount} shops`)
+            .join(", ");
 
         return (
             <View style={styles.salespersonCardContainer}>
@@ -258,18 +339,26 @@ const VisitLogHistory = ({ route }) => {
                     onPress={() => toggleCardExpansion(item.UserId)}
                 >
                     <View style={styles.cardLeft}>
-                        <View style={styles.salespersonInfo}>
-                            <Text style={styles.salespersonName}>{item.User_Name}</Text>
-                            <Text style={[styles.salespersonStatus, { color: item.statusColor }]}>
-                                {item.status}
-                            </Text>
-                        </View>
+                        <Text style={styles.salespersonName} numberOfLines={1}>{item.User_Name}</Text>
+                        <Text style={[styles.salespersonStatus, { color: item.statusColor }]} numberOfLines={1}>
+                            {item.status}
+                        </Text>
 
-                        {item.routeNames.map((routeName, index) => (
-                            <View key={index} style={styles.routeTag}>
-                                <Text style={styles.routeTagText}>{routeName}</Text>
+                        {hasActiveRoute && (
+                            <View style={styles.routeStatusRow}>
+                                <Text style={[styles.routeMetaText, { color: customColors.success }]} numberOfLines={1}>
+                                    {activeRouteInfo}
+                                </Text>
                             </View>
-                        ))}
+                        )}
+
+                        {hasSecondaryRoute && (
+                            <View style={styles.routeStatusRow}>
+                                <Text style={[styles.routeMetaText, { color: customColors.warning }]} numberOfLines={1}>
+                                    {secondaryRouteInfo}
+                                </Text>
+                            </View>
+                        )}
 
                     </View>
                     <View style={styles.cardRight}>
@@ -292,25 +381,16 @@ const VisitLogHistory = ({ route }) => {
     };
 
     const renderSummaryCard = (person) => {
-        const attendancePerson = attendanceData.find(att => att.UserId === person.UserId);
+        const attendancePerson = attendanceByPerson[person.UserId] || null;
+        const personVisits = person.personVisits || [];
         
         // Calculate times and distance
-        const startTime = attendancePerson?.Start_Date ? 
-            new Date(attendancePerson.Start_Date).toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            }) : "Not Started";
+        const startTime = formatTime(attendancePerson?.Start_Date) || "Not Started";
             
-        const endTime = attendancePerson?.End_Date ? 
-            new Date(attendancePerson.End_Date).toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            }) : "Present";
+        const endTime = formatTime(attendancePerson?.End_Date) || "Present";
             
         const distance = attendancePerson?.Start_KM && attendancePerson?.End_KM ?
-            (attendancePerson.End_KM - attendancePerson.Start_KM) : 0;
+            (Number(attendancePerson.End_KM) - Number(attendancePerson.Start_KM)) : 0;
 
         return (
             <View style={styles.summaryCard}>
@@ -361,8 +441,12 @@ const VisitLogHistory = ({ route }) => {
                     onPress={() => navigation.navigate("VisitLogDetail", { 
                         person: person,
                         selectedDate: selectedFromDate,
-                        visitData: visitLogData.filter(visit => visit.EntryBy === person.UserId),
-                        attendanceData: attendanceData.find(att => att.UserId === person.UserId)
+                        visitData: personVisits,
+                        attendanceData: attendancePerson,
+                        routeData: {
+                            activeRoutes: person.activeRoutes,
+                            inactiveRoutes: person.inactiveRoutes,
+                        },
                     })}
                     activeOpacity={0.8}
                 >
@@ -400,13 +484,13 @@ const VisitLogHistory = ({ route }) => {
             <View style={styles.contentContainer}>
                 {/* Statistics Cards */}
                 <View style={styles.statsContainer}>
-                    {renderStatCard("Sales Persons", totalSalesPersons, "people", customColors.warning)}
+                    {renderStatCard("Staffs", totalSalesPersons, "people", customColors.warning)}
                     {renderStatCard("Existing Shops", statExistRetailers, "store", customColors.primaryDark)}
                     {renderStatCard("New Shops", statNewRetailers, "add-business", customColors.success)}
                 </View>
 
                 {/* Section Header */}
-                <Text style={styles.sectionTitle}>Sales Team Activity - {visitLogData.length}</Text>
+                <Text style={styles.sectionTitle}>Team Activity - {visitLogData.length}</Text>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
                     {/* Salesperson List */}
@@ -438,43 +522,60 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         backgroundColor: customColors.white,
+        overflow: "hidden",
     },
     statsContainer: {
         flexDirection: "row",
-        justifyContent: "space-around",
-        marginHorizontal: spacing.sm,
-        marginVertical: spacing.xs,
+        justifyContent: "space-between",
+        marginHorizontal: spacing.md,
+        marginTop: spacing.sm,
+        marginBottom: spacing.sm,
     },
     statCard: {
-        backgroundColor: customColors.grey100,
+        backgroundColor: customColors.white,
         borderRadius: borderRadius.lg,
-        padding: spacing.sm,
+        paddingHorizontal: spacing.xxs,
+        paddingVertical: spacing.xs,
         alignItems: "center",
         flex: 1,
-        marginHorizontal: spacing.sm,
-        marginVertical: spacing.xs,
-        ...shadows.medium,
+        marginHorizontal: spacing.xxs,
+        minHeight: 108,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        ...shadows.small,
+    },
+    statIconWrap: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: "center",
+        justifyContent: "center",
+        // backgroundColor: customColors.grey100,
     },
     statIcon: {
-        marginBottom: spacing.xxs,
+        marginBottom: 0,
     },
     statValue: {
         ...typography.h4(),
         fontWeight: "bold",
         color: customColors.grey900,
+        marginTop: spacing.xxs,
     },
     statTitle: {
-        ...typography.body2(),
+        ...typography.caption(),
         color: customColors.grey600,
         textAlign: "center",
-        fontWeight: "500",
+        fontWeight: "600",
+        lineHeight: 18,
+        marginTop: 2,
     },
     sectionTitle: {
         ...typography.h5(),
         fontWeight: "bold",
         color: customColors.grey900,
-        marginHorizontal: spacing.sm,
+        marginHorizontal: spacing.md,
         marginBottom: spacing.sm,
+        marginTop: spacing.xs,
     },
     salespersonSection: {
         paddingHorizontal: spacing.md,
@@ -493,11 +594,12 @@ const styles = StyleSheet.create({
         ...shadows.small,
         borderLeftWidth: 4,
         borderLeftColor: customColors.primaryLight,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
     cardLeft: {
-        flexDirection: "row",
-        alignItems: "center",
         flex: 1,
+        marginRight: spacing.md,
     },
     salespersonInfo: {
         flex: 1,
@@ -511,18 +613,26 @@ const styles = StyleSheet.create({
     salespersonStatus: {
         ...typography.body2(),
         fontWeight: "500",
+        marginTop: spacing.xxs,
     },
-    routeTag: {
-        backgroundColor: customColors.warning,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xxs,
-        borderRadius: borderRadius.lg,
-        marginRight: spacing.md,
-    },
-    routeTagText: {
-        color: customColors.black,
+    routeMetaText: {
         ...typography.caption(),
+        color: customColors.primaryDark,
+        marginTop: spacing.xxs,
         fontWeight: "600",
+        flex: 1,
+    },
+    routeMetaEmptyText: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginTop: spacing.xxs,
+        fontWeight: "500",
+        flex: 1,
+    },
+    routeStatusRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: spacing.xxs,
     },
     cardRight: {
         flexDirection: "row",

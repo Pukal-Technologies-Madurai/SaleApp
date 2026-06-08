@@ -61,6 +61,7 @@ const EditCustomer = ({ route }) => {
         Gstno: item.Gstno || "",
         Created_By: item.Created_By || "",
         Company_Id: item.Company_Id || "",
+        Del_Flag: item.Del_Flag || 0,
     });
 
     const [showCamera, setShowCamera] = useState(false);

@@ -22,6 +22,8 @@ import AttendanceReport from "../Screens/attendance/AttendanceReport";
 import EndDay from "../Screens/attendance/EndDay";
 
 import CreateReceipts from "../Screens/bills/CreateReceipts";
+import Expense from "../Screens/bills/Expense";
+import ExpenseList from "../Screens/bills/ExpenseList";
 import ReceiptInfo from "../Screens/bills/ReceiptInfo";
 
 import ClosingStock from "../Screens/closing/ClosingStock";
@@ -110,6 +112,8 @@ const AppStack = () => {
             <Stack.Screen name="EndDay" component={EndDay} />
 
             <Stack.Screen name="CreateReceipts" component={CreateReceipts} />
+            <Stack.Screen name="Expense" component={Expense} />
+            <Stack.Screen name="ExpenseList" component={ExpenseList} />
             <Stack.Screen name="ReceiptInfo" component={ReceiptInfo} />
 
             <Stack.Screen name="ClosingStock" component={ClosingStock} />

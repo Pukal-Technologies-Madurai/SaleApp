@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Alert, TouchableOpacity } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,7 +27,6 @@ const RoutePath = () => {
     const queryClient = useQueryClient();
     const [companyId, setCompanyId] = useState(null);
     const [userId, setUserId] = useState(null);
-    const [filteredRetailers, setFilteredRetailers] = useState([]);
     const [routes, setRoutes] = useState([]);
 
     const [selectedRoute, setSelectedRoute] = useState(null);
@@ -61,8 +60,6 @@ const RoutePath = () => {
 
     useEffect(() => {
         if (retailers.length) {
-            setFilteredRetailers(retailers);
-
             const uniqueRoutes = [...new Set(retailers.map(r => r.Route_Id))]
                 .map(routeId => ({
                     label:
@@ -84,29 +81,90 @@ const RoutePath = () => {
             if (existingRouteData.length === 1) {
                 const existingRoute = existingRouteData[0];
                 if (existingRoute && existingRoute.Route_Id) {
-                    setSelectedRoute(existingRoute.Route_Id);
-                    filterRetailers(existingRoute.Route_Id);
+                    setSelectedRoute(Number(existingRoute.Route_Id));
                 }
             }
         }
     }, [existingRouteData, routes]);
 
-    // Filter retailers when route is selected
-    const filterRetailers = routeId => {
-        if (routeId) {
-            const filtered = retailers.filter(
-                item => item.Route_Id === routeId,
-            );
-            setFilteredRetailers(filtered);
-        } else {
-            setFilteredRetailers(retailers);
-        }
-    };
+    const routeStatsById = useMemo(() => {
+        const stats = {};
+
+        retailers.forEach(retailer => {
+            const routeId = retailer.Route_Id;
+            if (!routeId && routeId !== 0) return;
+
+            if (!stats[routeId]) {
+                stats[routeId] = {
+                    routeName: retailer.RouteGet || `Route ${routeId}`,
+                    shopsCount: 0,
+                };
+            }
+
+            stats[routeId].shopsCount += 1;
+
+            if (!stats[routeId].routeName && retailer.RouteGet) {
+                stats[routeId].routeName = retailer.RouteGet;
+            }
+        });
+
+        return stats;
+    }, [retailers]);
+
+    const existingRouteCards = useMemo(() => {
+        return [...existingRouteData]
+            .sort((a, b) => b.IsActive - a.IsActive)
+            .map(routeData => {
+                const routeStat = routeStatsById[routeData.Route_Id];
+                const fallbackRoute = routes.find(r => r.value === routeData.Route_Id);
+                const routeName =
+                    routeStat?.routeName ||
+                    fallbackRoute?.label ||
+                    `Route ${routeData.Route_Id}`;
+
+                return {
+                    ...routeData,
+                    routeName,
+                    shopsCount: routeStat?.shopsCount || 0,
+                };
+            });
+    }, [existingRouteData, routeStatsById, routes]);
+
+    const selectedRouteStat = useMemo(() => {
+        if (!selectedRoute) return null;
+        return routeStatsById[selectedRoute] || null;
+    }, [selectedRoute, routeStatsById]);
+
+    const normalizedSelectedRoute = useMemo(() => {
+        if (selectedRoute === null || selectedRoute === undefined) return null;
+        const value = Number(selectedRoute);
+        return Number.isNaN(value) ? null : value;
+    }, [selectedRoute]);
+
+    const isValidSelectedRoute = useMemo(() => {
+        if (normalizedSelectedRoute === null) return false;
+        return routes.some(route => Number(route.value) === normalizedSelectedRoute);
+    }, [normalizedSelectedRoute, routes]);
+
+    const hasDuplicateRoute = useMemo(() => {
+        if (normalizedSelectedRoute === null) return false;
+        return existingRouteData.some(
+            routeData => Number(routeData.Route_Id) === normalizedSelectedRoute,
+        );
+    }, [existingRouteData, normalizedSelectedRoute]);
 
     // POST operation - Add new route
     const switchRoute = async () => {
-        if (!selectedRoute) {
+        if (!isValidSelectedRoute || normalizedSelectedRoute === null) {
             Alert.alert("Error", "Please select a route first");
+            return;
+        }
+
+        if (hasDuplicateRoute) {
+            Alert.alert(
+                "Route Already Added",
+                "This route is already added for today. You can activate it from Current Routes.",
+            );
             return;
         }
 
@@ -114,7 +172,7 @@ const RoutePath = () => {
         try {
             const requestBody = {
                 User_Id: parseInt(userId),
-                Route_Id: selectedRoute,
+                Route_Id: normalizedSelectedRoute,
                 date: currentDate,
             };
 
@@ -259,6 +317,11 @@ const RoutePath = () => {
             <View style={styles.contentContainer}>
                 <View style={styles.filterSection}>
                     <View style={styles.newRouteSection}>
+                        <Text style={styles.newRouteTitle}>Add Route For Today</Text>
+                        <Text style={styles.newRouteSubTitle}>
+                            Choose a route and mark it for your current working session.
+                        </Text>
+
                         <View style={styles.dropdownContainer}>
                             <Text style={styles.dropdownLabel}>Route</Text>
                             <EnhancedDropdown
@@ -268,29 +331,38 @@ const RoutePath = () => {
                                 placeholder="Select Route"
                                 value={selectedRoute}
                                 onChange={item => {
-                                    setSelectedRoute(item.value);
-                                    filterRetailers(item.value);
+                                    setSelectedRoute(Number(item.value));
                                 }}
                             />
                         </View>
 
-                        {selectedRoute && (
-                            <Text style={styles.selectedRouteText}>
-                                Selected Route:{" "}
-                                {
-                                    routes.find(r => r.value === selectedRoute)
-                                        ?.label
-                                }
+                        {isValidSelectedRoute && selectedRoute && (
+                            <View style={styles.selectedRouteInfoCard}>
+                                <Text style={styles.selectedRouteTitle}>Selected Route</Text>
+                                <Text style={styles.selectedRouteText}>
+                                    {selectedRouteStat?.routeName ||
+                                        routes.find(r => r.value === selectedRoute)
+                                            ?.label}
+                                </Text>
+                                <Text style={styles.selectedRouteCountText}>
+                                    {selectedRouteStat?.shopsCount || 0} shops in this route
+                                </Text>
+                            </View>
+                        )}
+
+                        {hasDuplicateRoute && (
+                            <Text style={styles.duplicateWarningText}>
+                                This route is already added for today. Use Current Routes to activate it.
                             </Text>
                         )}
 
                         <TouchableOpacity
                             style={[
                                 styles.submitButton,
-                                isSubmitting && styles.submitButtonDisabled,
+                                (isSubmitting || !isValidSelectedRoute || hasDuplicateRoute) && styles.submitButtonDisabled,
                             ]}
                             onPress={switchRoute}
-                            disabled={isSubmitting || !selectedRoute}>
+                            disabled={isSubmitting || !isValidSelectedRoute || hasDuplicateRoute}>
                             <Text style={styles.submitButtonText}>
                                 {isSubmitting
                                     ? "Adding Route..."
@@ -300,24 +372,27 @@ const RoutePath = () => {
                     </View>
 
                     {/* Existing Routes List */}
-                    {existingRouteData.length > 0 && (
+                    {existingRouteCards.length > 0 && (
                         <View style={styles.existingRoutesContainer}>
                             <Text style={styles.sectionTitle}>
                                 Current Routes
                             </Text>
-                            {existingRouteData.map((routeData, index) => {
-                                const routeInfo = routes.find(
-                                    r => r.value === routeData.Route_Id,
-                                );
-
+                            {existingRouteCards.map(routeData => {
                                 return (
                                     <View
                                         key={routeData.Id}
-                                        style={styles.existingRouteItem}>
+                                        style={[
+                                            styles.existingRouteItem,
+                                            routeData.IsActive === 1
+                                                ? styles.existingRouteItemActive
+                                                : styles.existingRouteItemInactive,
+                                        ]}>
                                         <View style={styles.routeInfo}>
                                             <Text style={styles.routeLabel}>
-                                                {routeInfo?.label ||
-                                                    `Route ${routeData.Route_Id}`}
+                                                {routeData.routeName}
+                                            </Text>
+                                            <Text style={styles.routeCountLabel}>
+                                                {routeData.shopsCount} shops
                                             </Text>
                                             <View
                                                 style={[
@@ -392,11 +467,14 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         width: "100%",
-        backgroundColor: customColors.grey50,
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
+        overflow: "hidden",
     },
     filterSection: {
         padding: spacing.md,
-        backgroundColor: customColors.grey50,
+        backgroundColor: customColors.white,
     },
     existingRoutesContainer: {
         marginTop: spacing.lg,
@@ -407,6 +485,14 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
         fontWeight: "600",
     },
+    existingRouteItemActive: {
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.success,
+    },
+    existingRouteItemInactive: {
+        borderLeftWidth: 4,
+        borderLeftColor: customColors.grey300,
+    },
     existingRouteItem: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -416,6 +502,8 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.white,
         borderRadius: borderRadius.lg,
         marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
         ...shadows.small,
     },
     routeInfo: {
@@ -425,6 +513,12 @@ const styles = StyleSheet.create({
         ...typography.subtitle2(),
         color: customColors.grey900,
         fontWeight: "600",
+    },
+    routeCountLabel: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginTop: 2,
+        fontWeight: "500",
     },
     routeIdContainer: {
         paddingHorizontal: spacing.sm,
@@ -471,13 +565,26 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     newRouteSection: {
-        backgroundColor: customColors.white,
+        backgroundColor: customColors.grey50,
         padding: spacing.md,
         borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
         ...shadows.small,
     },
-    dropdownContainer: {
+    newRouteTitle: {
+        ...typography.subtitle1(),
+        color: customColors.grey900,
+        fontWeight: "700",
+    },
+    newRouteSubTitle: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        marginTop: spacing.xxs,
         marginBottom: spacing.md,
+    },
+    dropdownContainer: {
+        marginBottom: spacing.sm,
     },
     dropdownLabel: {
         ...typography.body2(),
@@ -486,8 +593,33 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     selectedRouteText: {
-        ...typography.body2(),
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        marginTop: 2,
+        fontWeight: "600",
+    },
+    selectedRouteTitle: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        fontWeight: "600",
+    },
+    selectedRouteCountText: {
+        ...typography.caption(),
         color: customColors.primary,
+        marginTop: 2,
+        fontWeight: "600",
+    },
+    selectedRouteInfoCard: {
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        padding: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    duplicateWarningText: {
+        ...typography.caption(),
+        color: customColors.error,
         marginTop: spacing.sm,
         fontWeight: "600",
     },

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, memo } from "react";
 import {
     View,
     Text,
@@ -26,19 +26,17 @@ import {
 } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const RetailerItem = ({ item, onPress, userVisitLog }) => {
-    const isVisited = userVisitLog.some(log =>
-        String(log.VisitedShopId ?? '') === String(item.Retailer_Id ?? '')
-    );
+const RetailerItem = memo(({ item, onPress, isVisited }) => {
 
     return (
         <TouchableOpacity
             onPress={onPress}
             style={isVisited
-                ? [styles.retailerCard, { borderLeftColor: customColors.success }]
+                ? [styles.retailerCard, styles.visitedRetailerCard]
                 : styles.retailerCard
             }
             activeOpacity={0.7}>
+            {isVisited && <View style={styles.visitedOverlay} pointerEvents="none" />}
             <View style={styles.cardContent}>
                 <View style={styles.retailerHeader}>
                     <View style={styles.retailerInfo}>
@@ -62,13 +60,13 @@ const RetailerItem = ({ item, onPress, userVisitLog }) => {
                     <View style={styles.detailRow}>
                         <View style={styles.detailItem}>
                             <Text style={styles.detailLabel}>Route:</Text>
-                            <Text style={styles.detailValue} numberOfLines={1}>
-                                {item.RouteGet || "No Route"}
+                            <Text style={[styles.detailValue, {color: item.Order_By ? customColors.success : customColors.grey500}]} numberOfLines={1}>
+                                {item.RouteGet || "No Route"} - {item.Order_By ? `${item.Order_By}` : "Nil"}
                             </Text>
                         </View>
                         <View style={styles.detailItem}>
                             <Text style={styles.detailLabel}>Area:</Text>
-                            <Text style={styles.detailValue} numberOfLines={1}>
+                            <Text style={[styles.detailValue, {color: item.AreaGet ? customColors.success : customColors.grey500}]} numberOfLines={1}>
                                 {item.AreaGet || "No Area"}
                             </Text>
                         </View>
@@ -85,41 +83,20 @@ const RetailerItem = ({ item, onPress, userVisitLog }) => {
             </View>
         </TouchableOpacity>
     );
-};
+});
 
 const Customers = () => {
     const navigation = useNavigation();
 
     const [userId, setUserId] = useState(null);
     const [companyId, setCompanyId] = useState(null);
-    const [filteredRetailers, setFilteredRetailers] = useState([]);
-    const [routes, setRoutes] = useState([]);
-    const [areas, setAreas] = useState([]);
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const debounceRef = React.useRef(null);
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [showAllRetailers, setShowAllRetailers] = useState(false);
-
-    const renderItem = useCallback(
-        ({ item }) => (
-            <RetailerItem
-                item={item}
-                onPress={() => navigation.push("CustomersDetails", { item })}
-                userVisitLog={userVisitLog}
-            />
-        ),
-        [navigation, userVisitLog],
-    );
-
-    const keyExtractor = useCallback(item => {
-        const isVisited = userVisitLog.some(log =>
-            String(log.VisitedShopId ?? '') === String(item.Retailer_Id ?? '')
-        );
-        return `${item.Retailer_Id}-${isVisited ? 'visited' : 'unvisited'}`;
-    }, [userVisitLog]);
 
     useEffect(() => {
         AsyncStorage.getItem("Company_Id").then(id => {
@@ -136,29 +113,23 @@ const Customers = () => {
         queryKey: ["retailers", companyId],
         queryFn: () => fetchRetailers(companyId),
         enabled: !!companyId, // prevent fetch until companyId is ready
+        select: (rows) => rows.filter(isDelFlag => isDelFlag.Del_Flag === 0),
     });
 
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = useMemo(() => new Date().toISOString().split("T")[0], []);
 
     const { data: userVisitLog = [], isLoading: isLoadingUserVisitLog } = useQuery({
         queryKey: ["userVisitLog", currentDate, userId],
         queryFn: () => visitEntryLog({ toDate: currentDate, uId: userId }),
         enabled: !!userId,
         select: (rows) => {
-            return rows.filter((r) => r.IsExistingRetailer === 1)
-                .map((r) => ({
-                    VisitedShopId: r.Retailer_Id
-                }));
+            return rows
+                .filter(r => r.IsExistingRetailer === 1 && r.Retailer_Id)
+                .map(r => String(r.Retailer_Id));
         }
     });
 
-    React.useEffect(() => {
-        // Force re-filter when visit log data becomes available
-        // This ensures border colors are applied correctly on initial render
-        if (userVisitLog.length > 0 && retailers.length > 0) {
-            filterRetailers(selectedRoute, selectedArea, searchQuery);
-        }
-    }, [userVisitLog]);
+    const visitedRetailerIds = useMemo(() => new Set(userVisitLog), [userVisitLog]);
 
     const { data: existingRouteData = [] } = useQuery({
         queryKey: ["routePath", currentDate, userId],
@@ -166,220 +137,173 @@ const Customers = () => {
         enabled: !!userId,
     });
 
-    useEffect(() => {
-        if (retailers.length) {
-            setFilteredRetailers(retailers);
+    const routeOptions = useMemo(() => {
+        const routeMap = new Map();
+        retailers.forEach(retailer => {
+            if (!routeMap.has(retailer.Route_Id)) {
+                routeMap.set(retailer.Route_Id, retailer.RouteGet || "");
+            }
+        });
 
-            const uniqueRoutes = [...new Set(retailers.map(r => r.Route_Id))]
-                .map(routeId => ({
-                    label:
-                        retailers.find(r => r.Route_Id === routeId)?.RouteGet ||
-                        "",
-                    value: routeId,
-                }))
-                .filter(r => r.label);
-
-            setRoutes(uniqueRoutes);
-        }
+        return [...routeMap.entries()]
+            .map(([value, label]) => ({ value, label }))
+            .filter(route => route.label);
     }, [retailers]);
 
+    const activeRouteId = useMemo(() => {
+        const activeRoute = existingRouteData.find(route => route.IsActive === 1);
+        if (activeRoute?.Route_Id) return activeRoute.Route_Id;
+        return existingRouteData[0]?.Route_Id || null;
+    }, [existingRouteData]);
+
     // Create filtered routes based on existingRouteData
-    const getAvailableRoutes = () => {
+    const getAvailableRoutes = useCallback(() => {
         if (existingRouteData.length > 0 && !showAllRetailers) {
-            // Show only routes from existingRouteData
-            const existingRouteIds = existingRouteData.map(
-                route => route.Route_Id,
-            );
-            const filteredRoutes = routes.filter(route =>
-                existingRouteIds.includes(route.value),
+            const routeRankMap = new Map();
+            existingRouteData.forEach(route => {
+                routeRankMap.set(route.Route_Id, route.IsActive || 0);
+            });
+
+            const filteredRoutes = routeOptions.filter(route =>
+                routeRankMap.has(route.value),
             );
 
             // Sort routes based on IsActive status (active routes first)
             return filteredRoutes.sort((a, b) => {
-                const routeDataA = existingRouteData.find(
-                    r => r.Route_Id === a.value,
-                );
-                const routeDataB = existingRouteData.find(
-                    r => r.Route_Id === b.value,
-                );
-
-                const isActiveA = routeDataA ? routeDataA.IsActive : 0;
-                const isActiveB = routeDataB ? routeDataB.IsActive : 0;
-
-                // Sort by IsActive (1 first, then 0)
-                return isActiveB - isActiveA;
+                return (routeRankMap.get(b.value) || 0) - (routeRankMap.get(a.value) || 0);
             });
         }
-        // Show all routes when showAllRetailers is true or no existing data
-        return routes;
-    };
+        return routeOptions;
+    }, [existingRouteData, routeOptions, showAllRetailers]);
 
     // Auto-select route based on existingRouteData
     useEffect(() => {
-        if (
-            existingRouteData.length > 0 &&
-            routes.length > 0 &&
-            !showAllRetailers
-        ) {
-            // Find the active route first (IsActive === 1)
-            const activeRoute = existingRouteData.find(
-                route => route.IsActive === 1,
-            );
-
-            if (activeRoute && activeRoute.Route_Id) {
-                setSelectedRoute(activeRoute.Route_Id);
-            } else {
-                // If no active route, select the first route in existingRouteData
-                const firstRoute = existingRouteData[0];
-                if (firstRoute && firstRoute.Route_Id) {
-                    setSelectedRoute(firstRoute.Route_Id);
-                }
-            }
-        } else if (existingRouteData.length === 0 || showAllRetailers) {
-            // If no existing route data or showAllRetailers is true, reset selection
-            setSelectedRoute(null);
-            setSelectedArea(null);
-            if (showAllRetailers) {
-                setFilteredRetailers(retailers);
-            }
+        if (showAllRetailers) return;
+        if (!selectedRoute && activeRouteId) {
+            setSelectedRoute(activeRouteId);
         }
-    }, [existingRouteData, routes, showAllRetailers]);
+    }, [activeRouteId, selectedRoute, showAllRetailers]);
 
     // Update areas when route is selected
+    const areas = useMemo(() => {
+        if (!selectedRoute || showAllRetailers) return [];
+
+        const areaMap = new Map();
+        retailers.forEach(retailer => {
+            if (retailer.Route_Id === selectedRoute && !areaMap.has(retailer.Area_Id)) {
+                areaMap.set(retailer.Area_Id, retailer.AreaGet || "");
+            }
+        });
+
+        return [...areaMap.entries()]
+            .map(([value, label]) => ({ value, label }))
+            .filter(area => area.label);
+    }, [retailers, selectedRoute, showAllRetailers]);
+
     useEffect(() => {
-        if (selectedRoute && !showAllRetailers) {
-            const routeRetailers = retailers.filter(
-                item => item.Route_Id === selectedRoute,
-            );
-            const uniqueAreas = [...new Set(routeRetailers.map(r => r.Area_Id))]
-                .map(areaId => ({
-                    label:
-                        routeRetailers.find(a => a.Area_Id === areaId)
-                            ?.AreaGet || "",
-                    value: areaId,
-                }))
-                .filter(a => a.label);
-
-            setAreas(uniqueAreas);
-            filterRetailers(selectedRoute, selectedArea, searchQuery);
+        if (!selectedArea) return;
+        const hasSelectedArea = areas.some(area => area.value === selectedArea);
+        if (!hasSelectedArea) {
+            setSelectedArea(null);
         }
-    }, [selectedRoute, showAllRetailers]);
+    }, [areas, selectedArea]);
 
-    // Add the helper function at the top of your component or in a separate utils file
-    const removeSplChar = (str) => String(str).replace(/[^\w]/g, "").toLowerCase();
+    const removeSplChar = useCallback(
+        str => String(str).replace(/[^\w]/g, "").toLowerCase(),
+        [],
+    );
 
-    const reactSelectFilterLogic = (option, inputValue) => {
+    const reactSelectFilterLogic = useCallback((option, inputValue) => {
         const normalizedLabel = removeSplChar(option.label);
         const normalizedMobile = removeSplChar(option.mobile || "");
         const normalizedInput = removeSplChar(inputValue);
 
         return normalizedLabel.includes(normalizedInput) || normalizedMobile.includes(normalizedInput);
-    };
+    }, [removeSplChar]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 250);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleSearchInputChange = (text) => {
-        // Remove special characters from input but keep spaces for better UX
-        // const filteredText = text.replace(/[^a-zA-Z0-9]/g, "");
-
         setSearchQuery(text);
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            filterRetailers(selectedRoute, selectedArea, text);
-        }, 300);
     };
 
-    const filterRetailers = (routeId, areaId, search) => {
-        if (showAllRetailers) {
-            // When showing all retailers, only apply search filter
-            let filtered = [...retailers];
-            if (search) {
-                filtered = filtered.filter(retailer => {
-                    const option = {
-                        label: retailer.Retailer_Name,
-                        mobile: retailer.Mobile_No
-                    };
-                    return reactSelectFilterLogic(option, search);
-                });
+    const filteredRetailers = useMemo(() => {
+        let filtered = retailers;
+
+        if (!showAllRetailers) {
+            if (selectedRoute) {
+                filtered = filtered.filter(retailer => retailer.Route_Id === selectedRoute);
             }
-            setFilteredRetailers(filtered);
-            return;
+            if (selectedArea) {
+                filtered = filtered.filter(retailer => retailer.Area_Id === selectedArea);
+            }
         }
 
-        // Normal filtering logic
-        let filtered = [...retailers];
-
-        if (routeId) filtered = filtered.filter(i => i.Route_Id === routeId);
-        if (areaId) filtered = filtered.filter(i => i.Area_Id === areaId);
-        if (search)
+        if (debouncedSearch) {
             filtered = filtered.filter(retailer => {
-                // Use the custom filter logic
                 const option = {
                     label: retailer.Retailer_Name,
-                    mobile: retailer.Mobile_No
+                    mobile: retailer.Mobile_No,
                 };
-                return reactSelectFilterLogic(option, search);
+                return reactSelectFilterLogic(option, debouncedSearch);
             });
+        }
 
-        setFilteredRetailers(filtered);
-    };
-
-    const clearFilters = () => {
-        setSelectedRoute(null);
-        setSelectedArea(null);
-        setSearchQuery("");
-        setShowAllRetailers(false);
-
-        // Reset to existingRouteData behavior
+        // If route-path is set for the day, show retailers by Order_By sequence.
         if (existingRouteData.length > 0) {
-            // Find the active route first (IsActive === 1)
-            const activeRoute = existingRouteData.find(
-                route => route.IsActive === 1,
-            );
+            filtered = [...filtered].sort((a, b) => {
+                const orderA = Number.parseInt(a?.Order_By, 10);
+                const orderB = Number.parseInt(b?.Order_By, 10);
 
-            if (activeRoute && activeRoute.Route_Id) {
-                setSelectedRoute(activeRoute.Route_Id);
-            } else {
-                // If no active route, select the first route in existingRouteData
-                const firstRoute = existingRouteData[0];
-                if (firstRoute && firstRoute.Route_Id) {
-                    setSelectedRoute(firstRoute.Route_Id);
+                const normalizedA = Number.isFinite(orderA)
+                    ? orderA
+                    : Number.MAX_SAFE_INTEGER;
+                const normalizedB = Number.isFinite(orderB)
+                    ? orderB
+                    : Number.MAX_SAFE_INTEGER;
+
+                if (normalizedA !== normalizedB) {
+                    return normalizedA - normalizedB;
                 }
-            }
-        } else {
-            setFilteredRetailers(retailers);
-        }
-    };
 
-    const toggleShowAllRetailers = () => {
-        const newShowAll = !showAllRetailers;
-        setShowAllRetailers(newShowAll);
-
-        if (newShowAll) {
-            // Reset route and area selection when showing all
-            setSelectedRoute(null);
-            setSelectedArea(null);
-            setAreas([]);
-            // Apply only search filter
-            filterRetailers(null, null, searchQuery);
-        } else {
-            // When turning off "show all", reset to existing route data behavior
-            if (existingRouteData.length > 0) {
-                // Find the active route first (IsActive === 1)
-                const activeRoute = existingRouteData.find(
-                    route => route.IsActive === 1,
+                return String(a?.Retailer_Name || "").localeCompare(
+                    String(b?.Retailer_Name || ""),
                 );
-
-                if (activeRoute && activeRoute.Route_Id) {
-                    setSelectedRoute(activeRoute.Route_Id);
-                } else {
-                    // If no active route, select the first route in existingRouteData
-                    const firstRoute = existingRouteData[0];
-                    if (firstRoute && firstRoute.Route_Id) {
-                        setSelectedRoute(firstRoute.Route_Id);
-                    }
-                }
-            }
+            });
         }
-    };
+
+        return filtered;
+    }, [
+        retailers,
+        existingRouteData,
+        showAllRetailers,
+        selectedRoute,
+        selectedArea,
+        debouncedSearch,
+        reactSelectFilterLogic,
+    ]);
+
+    const renderItem = useCallback(
+        ({ item }) => (
+            <RetailerItem
+                item={item}
+                onPress={() => navigation.push("CustomersDetails", { item })}
+                isVisited={visitedRetailerIds.has(String(item.Retailer_Id))}
+            />
+        ),
+        [navigation, visitedRetailerIds],
+    );
+
+    const keyExtractor = useCallback(
+        item => String(item.Retailer_Id),
+        [],
+    );
 
     const getItemLayout = useCallback(
         (data, index) => ({
@@ -389,6 +313,49 @@ const Customers = () => {
         }),
         [],
     );
+
+    const clearFilters = () => {
+        setSearchQuery("");
+        setShowAllRetailers(false);
+        setSelectedArea(null);
+        setSelectedRoute(activeRouteId || null);
+    };
+
+    const toggleShowAllRetailers = () => {
+        setShowAllRetailers(prev => {
+            const next = !prev;
+            if (next) {
+                setSelectedRoute(null);
+                setSelectedArea(null);
+            } else {
+                setSelectedRoute(activeRouteId || null);
+                setSelectedArea(null);
+            }
+            return next;
+        });
+    };
+
+    const totalRetailersLabel = filteredRetailers.length === 0
+        ? "No Retailers Found"
+        : `${filteredRetailers.length} Retailers`;
+
+    const shouldShowClearButton = Boolean(searchQuery || selectedRoute || selectedArea);
+
+    const shouldShowShowAllButton =
+        existingRouteData && existingRouteData.length > 0 && showFilterDropdown;
+
+    const handleToggleFilterDropdown = () => {
+        setShowFilterDropdown(prev => !prev);
+    };
+
+    const handleRouteChange = item => {
+        setSelectedRoute(item.value);
+        setSelectedArea(null);
+    };
+
+    const handleAreaChange = item => {
+        setSelectedArea(item.value);
+    };
 
     if (isLoadingRetailers || isLoadingUserVisitLog) {
         return (
@@ -437,10 +404,7 @@ const Customers = () => {
                                     valueField="value"
                                     placeholder="Select Route"
                                     value={selectedRoute}
-                                    onChange={item => {
-                                        setSelectedRoute(item.value);
-                                        setSelectedArea(null);
-                                    }}
+                                    onChange={handleRouteChange}
                                     disabled={showAllRetailers}
                                 />
                             </View>
@@ -452,14 +416,7 @@ const Customers = () => {
                                     valueField="value"
                                     placeholder="Select Area"
                                     value={selectedArea}
-                                    onChange={item => {
-                                        setSelectedArea(item.value);
-                                        filterRetailers(
-                                            selectedRoute,
-                                            item.value,
-                                            searchQuery,
-                                        );
-                                    }}
+                                    onChange={handleAreaChange}
                                     disabled={showAllRetailers}
                                 />
                             </View>
@@ -486,7 +443,7 @@ const Customers = () => {
                                 keyboardType="default"
                             />
 
-                            {(searchQuery || selectedRoute || selectedArea) && (
+                            {shouldShowClearButton && (
                                 <TouchableOpacity
                                     onPress={clearFilters}
                                     style={styles.clearButton}>
@@ -503,14 +460,11 @@ const Customers = () => {
                                     ...typography.caption(),
                                     color: customColors.grey700,
                                 }}>
-                                {filteredRetailers.length === 0
-                                    ? "No Retailers Found"
-                                    : `${filteredRetailers.length} Retailers`}
+                                {totalRetailersLabel}
                             </Text>
                         </View>
 
-                        {/* Toggle button to show all retailers - moved outside */}
-                        {existingRouteData && existingRouteData.length > 0 && showFilterDropdown ? (
+                        {shouldShowShowAllButton ? (
                             <TouchableOpacity
                                 onPress={toggleShowAllRetailers}
                                 style={[
@@ -527,20 +481,21 @@ const Customers = () => {
                                     }
                                 />
                             </TouchableOpacity>
-                        ) : <TouchableOpacity onPress={() => {
-                            setShowFilterDropdown(!showFilterDropdown);
-                        }} style={styles.toggleButton}>
-                            <Icon
-                                name="filter-list"
-                                size={iconSizes.md}
-                                color={customColors.grey600}
-                            />
-                        </TouchableOpacity>}
+                        ) : (
+                            <TouchableOpacity
+                                onPress={handleToggleFilterDropdown}
+                                style={styles.toggleButton}>
+                                <Icon
+                                    name="filter-list"
+                                    size={iconSizes.md}
+                                    color={customColors.grey600}
+                                />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
                 <FlashList
-                    key={`retailers-${userVisitLog.length}`} // Force re-render when visit log changes
                     data={filteredRetailers}
                     renderItem={renderItem}
                     keyExtractor={keyExtractor}
@@ -549,6 +504,7 @@ const Customers = () => {
                     maxToRenderPerBatch={10}
                     windowSize={10}
                     initialNumToRender={8}
+                    extraData={userVisitLog}
                     style={styles.list}
                     contentContainerStyle={styles.listContent}
                 />
@@ -673,18 +629,22 @@ const styles = StyleSheet.create({
     listContent: {
         padding: spacing.md,
     },
-    blurContainer: {
-        borderRadius: borderRadius.lg,
-        marginBottom: spacing.md,
-        overflow: 'hidden',
-    },
     retailerCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         borderRadius: borderRadius.lg,
-        ...shadows.small,
+        ...shadows.xs,
         marginVertical: spacing.xs,
         borderLeftWidth: 5,
         borderLeftColor: customColors.info,
+        overflow: "hidden",
+    },
+    visitedRetailerCard: {
+        borderLeftColor: customColors.success,
+        backgroundColor: "rgba(46, 204, 113, 0.1)",
+    },
+    visitedOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        // backgroundColor: "rgba(255, 255, 255, 0.55)",
     },
     cardContent: {
         padding: spacing.md,
@@ -732,7 +692,7 @@ const styles = StyleSheet.create({
     detailValue: {
         ...typography.body2(),
         color: customColors.grey800,
-        fontWeight: "500",
+        fontWeight: "600",
     },
     addressContainer: {
         paddingTop: spacing.xs,

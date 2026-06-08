@@ -70,6 +70,7 @@ const SalesInvoice = ({ route }) => {
         TaxType: 0,
         VoucherType: 13,
         Product_Array: [],
+        Staffs_Array: [],
     });
 
     const [uID, setUID] = useState([]);
@@ -101,6 +102,8 @@ const SalesInvoice = ({ route }) => {
     });
     const [isActiveGoDown, setIsActiveGoDown] = useState(0);
     const [showOutOfStock, setShowOutOfStock] = useState(false);
+    const [editingRateItemId, setEditingRateItemId] = useState(null);
+    const [editingRateValue, setEditingRateValue] = useState("");
 
     // Add animation for refresh button
     const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -114,6 +117,10 @@ const SalesInvoice = ({ route }) => {
                 const userId = await AsyncStorage.getItem("UserId");
                 const userName = await AsyncStorage.getItem("userName");
                 const branchId = await AsyncStorage.getItem("branchId");
+                const costCenterId = await AsyncStorage.getItem("costCenterId");
+                const costCenterName = await AsyncStorage.getItem("costCenterName");
+                const costCategoryId = await AsyncStorage.getItem("costCategoryId");
+                const costCategoryName = await AsyncStorage.getItem("costCategoryName");
                 setUID(userId);
                 if (companyId && userId) {
                     let parsedBranchId = branchId;
@@ -127,14 +134,26 @@ const SalesInvoice = ({ route }) => {
                         parsedBranchId = parseInt(branchId) || 1;
                     }
 
-                    setInitialValue(prev => ({
-                        ...prev,
+                    const update = {
                         Company_Id: companyId,
                         Sales_Person_Id: userId,
                         Created_by: userId,
                         Sales_Person_Name: userName,
                         Branch_Id: parsedBranchId,
-                    }));
+                    };
+
+                    if (costCenterId && costCategoryId) {
+                        update.Staffs_Array = [
+                            {
+                                Emp_Id: parseInt(costCenterId, 10),
+                                Emp_Name: costCenterName,
+                                Emp_Type_Id: parseInt(costCategoryId, 10),
+                                Emp_Type_Name: costCategoryName,
+                            },
+                        ];
+                    }
+
+                    setInitialValue(prev => ({ ...prev, ...update }));
                 }
             } catch (err) {
                 console.log("Error fetching user data:", err);
@@ -852,6 +871,11 @@ const SalesInvoice = ({ route }) => {
         deliveryStatus === 5 && (cancelStatus = 1);
         paymentStatus === 1 && (cancelStatus = 2);
 
+        const validStaffsArray = (initialValue.Staffs_Array || []).filter(
+            staff =>
+                Number(staff?.Emp_Id) > 0 && Number(staff?.Emp_Type_Id) > 0,
+        );
+
         const invoiceBody = {
             Retailer_Id: initialValue.Retailer_Id,
             Branch_Id: initialValue.Branch_Id,
@@ -871,7 +895,7 @@ const SalesInvoice = ({ route }) => {
             })),
             Stock_Item_Ledger_Name: initialValue.Stock_Item_Ledger_Name,
             Expence_Array: [],
-            Staffs_Array: [],
+            Staffs_Array: validStaffsArray,
             Delivery_Status: deliveryStatus,
             Payment_Mode: paymentMode,
             Payment_Status: paymentStatus,
@@ -1378,11 +1402,18 @@ const SalesInvoice = ({ route }) => {
                                         const uom = uomData.find(
                                             u => u.Unit_Id === item.UOM,
                                         );
+                                        const isZeroRate = item.Item_Rate === 0;
+                                        const isEditingThisRate =
+                                            editingRateItemId === item.Item_Id;
 
                                         return (
                                             <View
                                                 key={item.Item_Id}
-                                                style={styles.summaryItem}
+                                                style={[
+                                                    styles.summaryItem,
+                                                    isZeroRate &&
+                                                        styles.summaryItemWarning,
+                                                ]}
                                             >
                                                 <View style={styles.summaryItemDetails}>
                                                     <Text
@@ -1393,15 +1424,138 @@ const SalesInvoice = ({ route }) => {
                                                     <Text style={styles.summaryItemQty}>
                                                         {item.Bill_Qty} {uom?.Units}
                                                     </Text>
-                                                    <Text
-                                                        style={styles.summaryItemRate}
-                                                    >
-                                                        ₹{item.Item_Rate} per unit
-                                                    </Text>
+
+                                                    {isEditingThisRate ? (
+                                                        <View
+                                                            style={styles.inlineRateEditor}
+                                                        >
+                                                            <Text
+                                                                style={styles.currencySymbolSmall}
+                                                            >
+                                                                ₹
+                                                            </Text>
+                                                            <TextInput
+                                                                style={styles.inlineRateInput}
+                                                                keyboardType="numeric"
+                                                                value={editingRateValue}
+                                                                onChangeText={setEditingRateValue}
+                                                                placeholder="0.00"
+                                                                placeholderTextColor={customColors.grey400}
+                                                                autoFocus
+                                                                selectTextOnFocus
+                                                            />
+                                                            <TouchableOpacity
+                                                                style={styles.inlineRateConfirmBtn}
+                                                                onPress={() => {
+                                                                    if (
+                                                                        editingRateValue !==
+                                                                            "" &&
+                                                                        parseFloat(
+                                                                            editingRateValue,
+                                                                        ) > 0
+                                                                    ) {
+                                                                        handlePriceChange(
+                                                                            item.Item_Id,
+                                                                            editingRateValue,
+                                                                        );
+                                                                    }
+                                                                    setEditingRateItemId(
+                                                                        null,
+                                                                    );
+                                                                    setEditingRateValue(
+                                                                        "",
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <FeatherIcon
+                                                                    name="check"
+                                                                    size={iconSizes.sm}
+                                                                    color={customColors.white}
+                                                                />
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity
+                                                                style={styles.inlineRateCancelBtn}
+                                                                onPress={() => {
+                                                                    setEditingRateItemId(
+                                                                        null,
+                                                                    );
+                                                                    setEditingRateValue(
+                                                                        "",
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <FeatherIcon
+                                                                    name="x"
+                                                                    size={iconSizes.sm}
+                                                                    color={customColors.grey700}
+                                                                />
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    ) : (
+                                                        <TouchableOpacity
+                                                            style={styles.summaryItemRateRow}
+                                                            onPress={() => {
+                                                                setEditingRateItemId(
+                                                                    item.Item_Id,
+                                                                );
+                                                                setEditingRateValue(
+                                                                    item.Item_Rate >
+                                                                        0
+                                                                        ? String(
+                                                                            item.Item_Rate,
+                                                                        )
+                                                                        : "",
+                                                                );
+                                                            }}
+                                                            activeOpacity={0.7}
+                                                        >
+                                                            {isZeroRate && (
+                                                                <FeatherIcon
+                                                                    name="alert-circle"
+                                                                    size={iconSizes.xs}
+                                                                    color={customColors.error}
+                                                                    style={{
+                                                                        marginRight: 3,
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            <Text
+                                                                style={[
+                                                                    styles.summaryItemRate,
+                                                                    isZeroRate && {
+                                                                        color: customColors.error,
+                                                                        fontWeight:
+                                                                            "600",
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                {isZeroRate
+                                                                    ? "Tap to set price"
+                                                                    : `₹${item.Item_Rate} per unit`}
+                                                            </Text>
+                                                            <FeatherIcon
+                                                                name="edit-2"
+                                                                size={iconSizes.xs}
+                                                                color={
+                                                                    isZeroRate
+                                                                        ? customColors.error
+                                                                        : customColors.grey500
+                                                                }
+                                                                style={{
+                                                                    marginLeft: 4,
+                                                                }}
+                                                            />
+                                                        </TouchableOpacity>
+                                                    )}
                                                 </View>
                                                 <View style={styles.summaryItemRight}>
                                                     <Text
-                                                        style={styles.summaryItemPrice}
+                                                        style={[
+                                                            styles.summaryItemPrice,
+                                                            isZeroRate && {
+                                                                color: customColors.error,
+                                                            },
+                                                        ]}
                                                     >
                                                         ₹
                                                         {(
@@ -2009,6 +2163,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: customColors.grey100,
     },
+    summaryItemWarning: {
+        borderColor: customColors.errorFaded,
+        backgroundColor: "#fff5f5",
+    },
     summaryItemDetails: {
         flex: 1,
         marginRight: spacing.sm,
@@ -2028,6 +2186,50 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey600,
         fontStyle: "italic",
+    },
+    summaryItemRateRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        flexWrap: "wrap",
+    },
+    inlineRateEditor: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        marginTop: 2,
+    },
+    currencySymbolSmall: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    inlineRateInput: {
+        flex: 1,
+        minWidth: 60,
+        height: 50,
+        borderWidth: 1,
+        borderColor: customColors.primary,
+        borderRadius: 4,
+        paddingHorizontal: spacing.xs,
+        ...typography.caption(),
+        color: customColors.grey900,
+        backgroundColor: customColors.white,
+    },
+    inlineRateConfirmBtn: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: customColors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    inlineRateCancelBtn: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: customColors.grey200,
+        justifyContent: "center",
+        alignItems: "center",
     },
     summaryItemRight: {
         alignItems: "flex-end",

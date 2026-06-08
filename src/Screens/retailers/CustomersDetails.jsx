@@ -39,6 +39,7 @@ import {
 const CustomersDetails = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
+    console.log("Customer Details Item:", item);
 
     const [userId, setUserId] = useState("");
     const [companyName, setCompanyName] = useState("");
@@ -50,6 +51,9 @@ const CustomersDetails = ({ route }) => {
     const [dailyLogModalVisible, setDailyLogModalVisible] = useState(false);
     const [narration, setNarration] = useState("");
     const [showOrderModal, setShowOrderModal] = useState(false);
+    const [orderByInput, setOrderByInput] = useState(item?.Order_By ? String(item.Order_By) : "");
+    const [currentOrderBy, setCurrentOrderBy] = useState(item?.Order_By ? String(item.Order_By) : "");
+    const [showOrderByEditor, setShowOrderByEditor] = useState(false);
 
     useEffect(() => {
         AsyncStorage.getItem("UserId").then(id => {
@@ -143,6 +147,65 @@ const CustomersDetails = ({ route }) => {
         );
     };
 
+    const updateOrderByStatus = async (updatedOrderBy) => {
+        const url = `${API.putRetailer()}`;
+
+        const payload = {
+            Company_Id: item.Company_Id,
+            Retailer_Id: item.Retailer_Id,
+            Retailer_Name: item.Retailer_Name || "",
+            Contact_Person: item.Contact_Person || "",
+            Mobile_No: item.Mobile_No || "",
+            Retailer_Channel_Id: item.Retailer_Channel_Id || 0,
+            Retailer_Class: item.Retailer_Class || "",
+            Route_Id: item.Route_Id || "",
+            Area_Id: item.Area_Id || 0,
+            Reatailer_Address: item.Reatailer_Address || "",
+            Reatailer_City: item.Reatailer_City || "",
+            PinCode: item.PinCode || "",
+            State_Id: item.State_Id || 0,
+            Branch_Id: item.Branch_Id || 0,
+            Gstno: item.Gstno || "",
+            Created_By: item.Created_By || userId || "",
+            Updated_By: userId || item.Updated_By || item.Created_By || "",
+            Latitude: item.Latitude || null,
+            Longitude: item.Longitude || null,
+            fileName: null,
+            fileType: null,
+            fileSize: null,
+            isVisitedPlace: false,
+            visitLogID: null,
+            Order_By: updatedOrderBy,
+            Del_Flag: item.Del_Flag || 0,
+            Whatsapp: item.Whatsapp || "",
+        };
+
+        const response = await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || "Failed to update Order By");
+        }
+
+        return data;
+    };
+
+    const orderByMutation = useMutation({
+        mutationFn: updateOrderByStatus,
+        onSuccess: data => {
+            const updatedValue = orderByInput.trim();
+            setCurrentOrderBy(updatedValue);
+            setShowOrderByEditor(false);
+            ToastAndroid.show(data.message || "Order By updated", ToastAndroid.LONG);
+        },
+        onError: error => {
+            ToastAndroid.show(error.message || "Order By update failed", ToastAndroid.LONG);
+        },
+    });
 
     const handleSubmitforVisitLog = async (visitNarration) => {
         let finalLatitude = location?.latitude;
@@ -245,6 +308,58 @@ const CustomersDetails = ({ route }) => {
                         <Text style={styles.createdByText}>
                             Created by <Text style={styles.createdByName}>{item.createdBy || "Unknown"}</Text>
                         </Text>
+                    </View>
+
+                    <View style={styles.orderByContainer}>
+                        <View style={styles.orderByHeaderRow}>
+                            <Text style={styles.orderByLabel}>Order By</Text>
+                            <View style={styles.orderByValueActionWrap}>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        setOrderByInput(currentOrderBy);
+                                        setShowOrderByEditor(true);
+                                    }}>
+                                    <Text style={styles.orderByValue}>{currentOrderBy || "Not Set"}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        if (showOrderByEditor) {
+                                            setShowOrderByEditor(false);
+                                            return;
+                                        }
+                                        setOrderByInput(currentOrderBy);
+                                        setShowOrderByEditor(true);
+                                    }}
+                                    style={styles.orderByEditIconBtn}>
+                                    <FeatherIcon name="edit-2" size={iconSizes.xs} color={customColors.primary} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {showOrderByEditor && (
+                            <View style={styles.orderByActionRow}>
+                                <TextInput
+                                    value={orderByInput}
+                                    onChangeText={setOrderByInput}
+                                    placeholder="Enter Order By"
+                                    keyboardType="number-pad"
+                                    style={styles.orderByInput}
+                                />
+                                <TouchableOpacity
+                                    style={[
+                                        styles.orderBySubmitBtn,
+                                        (!orderByInput.trim() || orderByMutation.isPending) && styles.disabledButton,
+                                    ]}
+                                    disabled={!orderByInput.trim() || orderByMutation.isPending}
+                                    onPress={() => orderByMutation.mutate(orderByInput.trim())}>
+                                    <Text style={styles.orderBySubmitText}>
+                                        {orderByMutation.isPending ? "Updating..." : "Submit"}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -701,6 +816,68 @@ const styles = StyleSheet.create({
     createdByName: {
         fontWeight: "600",
         color: customColors.grey700,
+    },
+    orderByContainer: {
+        marginTop: spacing.md,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: customColors.grey100,
+    },
+    orderByHeaderRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: spacing.sm,
+    },
+    orderByValueActionWrap: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    orderByLabel: {
+        ...typography.body1(),
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    orderByValue: {
+        ...typography.subtitle2(),
+        color: customColors.primary,
+        fontWeight: "700",
+    },
+    orderByEditIconBtn: {
+        width: 24,
+        height: 24,
+        borderRadius: borderRadius.round,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: customColors.primary + "15",
+    },
+    orderByActionRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    orderByInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        borderRadius: borderRadius.lg,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        ...typography.body2(),
+        color: customColors.grey900,
+        backgroundColor: customColors.grey50,
+    },
+    orderBySubmitBtn: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.lg,
+        backgroundColor: customColors.primary,
+        ...shadows.small,
+    },
+    orderBySubmitText: {
+        ...typography.button(),
+        color: customColors.white,
     },
     primaryActions: {
         flexDirection: "row",

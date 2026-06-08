@@ -173,15 +173,19 @@ const SwitchCompany = () => {
     const updateStorage = async (data) => {
         try {
             await AsyncStorage.setItem("userToken", data.Autheticate_Id);
-            await AsyncStorage.setItem("UserId", data.UserId);
+            await AsyncStorage.setItem("UserId", String(data.UserId));
             await AsyncStorage.setItem("Company_Id", String(data.Company_id));
             await AsyncStorage.setItem("userName", data.UserName);
             await AsyncStorage.setItem("Name", data.Name);
             await AsyncStorage.setItem("branchId", String(data.BranchId));
             await AsyncStorage.setItem("branchName", data.BranchName);
             await AsyncStorage.setItem("userType", data.UserType);
-            await AsyncStorage.setItem("userTypeId", data.UserTypeId);
+            await AsyncStorage.setItem("userTypeId", String(data.UserTypeId));
             await AsyncStorage.setItem("companyName", data.Company_Name);
+            await AsyncStorage.setItem("Acc_Id", String(data.Acc_Id));
+            await AsyncStorage.setItem("Account_name", data.Account_name);
+            await AsyncStorage.setItem("costCenterId", String(data.costCenterId));
+            await AsyncStorage.setItem("costCenterName", data.costCenterName);
 
             setIsSwitching(false);
             return true;

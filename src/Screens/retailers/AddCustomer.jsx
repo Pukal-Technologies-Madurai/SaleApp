@@ -56,6 +56,7 @@ const AddCustomer = () => {
         Company_Id: "",
         Retailer_Class: "A",
         Retailer_Channel_Id: "0",
+        Del_Flag: 0,
     });
 
     const [selectRoutes, setSelectRoutes] = useState(null);
