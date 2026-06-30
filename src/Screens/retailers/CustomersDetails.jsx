@@ -39,7 +39,7 @@ import {
 const CustomersDetails = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
-    console.log("Customer Details Item:", item);
+    // console.log("Customer Details Item:", item);
 
     const [userId, setUserId] = useState("");
     const [companyName, setCompanyName] = useState("");

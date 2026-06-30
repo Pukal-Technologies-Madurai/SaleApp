@@ -9,21 +9,30 @@ import {
     Alert,
     Platform,
     Animated,
+    Linking,
+    ToastAndroid,
+    Dimensions,
+    StatusBar,
 } from "react-native";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Feather from "react-native-vector-icons/Feather";
 import NetInfo from "@react-native-community/netinfo";
 import RNFS from "react-native-fs";
 import Share from "react-native-share";
+import LinearGradient from "react-native-linear-gradient";
 import AttendanceInfo from "./attendance/AttendanceInfo";
 import AppHeader from "../Components/AppHeader";
 import assetImages from "../Config/Image";
 import Dashboard from "./Dashboard";
-import { customColors, typography, spacing, shadows, borderRadius } from "../Config/helper";
+import { customColors, typography, spacing, shadows, borderRadius, responsiveSize } from "../Config/helper";
+import { appVersion } from "../Api/auth";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const HomeScreen = () => {
     const navigation = useNavigation();
@@ -31,12 +40,11 @@ const HomeScreen = () => {
     const [userTypeID, setUserTypeID] = useState("");
     const [error, setError] = useState(null);
     const [isQRVisible, setIsQRVisible] = useState(false);
+    const [isQuickActionsVisible, setIsQuickActionsVisible] = useState(false);
     const [companyName, setCompanyName] = useState("");
-    const [isFabOpen, setIsFabOpen] = useState(false);
-    const fabAnimation = useRef(new Animated.Value(0)).current;
-
-    const ADMIN_USER_TYPES = ["0", "1", "2"];
-    const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
+    const menuAnimation = useRef(new Animated.Value(0)).current;
+    const APP_VERSION = appVersion();
 
     const [isConnected, setIsConnected] = useState(null);
     const [connectionType, setConnectionType] = useState(null);
@@ -57,6 +65,106 @@ const HomeScreen = () => {
             unsubscribe();
         };
     }, []);
+
+    const ADMIN_USER_TYPES = ["0", "1", "2"];
+    const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
+
+    const menuItems = [
+        {
+            icon: "account-circle-outline",
+            label: "My Profile",
+            description: "View & edit profile",
+            screen: "ProfileScreen",
+            gradient: ["#10B981", "#059669"],
+        },
+        {
+            icon: "account-plus-outline",
+            label: "Add Retailer",
+            description: "Register new retailer",
+            screen: "AddCustomer",
+            gradient: ["#3B82F6", "#2563EB"],
+        },
+        {
+            icon: "cog-outline",
+            label: "Settings",
+            description: "App preferences",
+            screen: "Settings",
+            gradient: ["#F59E0B", "#D97706"],
+        },
+        {
+            icon: "warehouse",
+            label: "Godown",
+            description: "Manage stock",
+            screen: "GodownActivities",
+            gradient: ["#8B5CF6", "#7C3AED"],
+        },
+        {
+            icon: "cellphone-cog",
+            label: "Device Settings",
+            description: "System app settings",
+            screen: null,
+            gradient: ["#EF4444", "#DC2626"],
+            onPress: () => Linking.openSettings(),
+        },
+    ];
+
+    const toggleMenu = useCallback((open) => {
+        if (open) {
+            setIsMenuVisible(true);
+            Animated.spring(menuAnimation, {
+                toValue: 1,
+                friction: 8,
+                tension: 65,
+                useNativeDriver: true,
+            }).start();
+        } else {
+            Animated.timing(menuAnimation, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }).start(() => {
+                setIsMenuVisible(false);
+            });
+        }
+    }, [menuAnimation]);
+
+    const handleMenuNav = useCallback((item) => {
+        toggleMenu(false);
+        setTimeout(() => {
+            if (item.screen) {
+                navigation.navigate(item.screen);
+            } else if (item.onPress) {
+                item.onPress();
+            }
+        }, 250);
+    }, [navigation, toggleMenu]);
+
+    const logout = async () => {
+        toggleMenu(false);
+        try {
+            await AsyncStorage.multiRemove([
+                "Autheticate_Id",
+                "userToken",
+                "Company_Id",
+                "companyName",
+                "UserId",
+                "userName",
+                "Name",
+                "UserType",
+                "branchId",
+                "branchName",
+                "userTypeId",
+                "activeGodown",
+            ]);
+            ToastAndroid.show("Log out Successfully", ToastAndroid.LONG);
+            navigation.reset({
+                index: 0,
+                routes: [{ name: "LoginPortal" }],
+            });
+        } catch (err) {
+            console.error("Error clearing AsyncStorage: ", err);
+        }
+    };
 
     React.useEffect(() => {
         const loadUserDetails = async () => {
@@ -162,21 +270,7 @@ const HomeScreen = () => {
         setIsQRVisible(true);
     };
 
-    const toggleFab = () => {
-        const toValue = isFabOpen ? 0 : 1;
-        Animated.spring(fabAnimation, {
-            toValue,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start();
-        setIsFabOpen(!isFabOpen);
-    };
 
-    const handleFabOption = (screen) => {
-        toggleFab();
-        navigation.navigate(screen);
-    };
 
     const handleShareQR = async () => {
         try {
@@ -241,15 +335,17 @@ const HomeScreen = () => {
 
     return (
         <SafeAreaView style={styles.container} edges={["top"]}>
+            <StatusBar barStyle="light-content" backgroundColor={customColors.primaryDark} />
             <AppHeader
                 navigation={navigation}
                 showDrawer={true}
                 name={name}
-                subtitle={AsyncStorage.getItem("companyName")}
+                subtitle={companyName}
                 showRightIcon={true}
                 rightIconName="bells"
                 rightIconLibrary="AntDesign"
                 onRightPress={() => navigation.navigate("TodayLog")}
+                onMenuPress={() => toggleMenu(true)}
             />
 
             {!isConnected ? (
@@ -287,15 +383,26 @@ const HomeScreen = () => {
                                     <Text style={styles.sectionTitle}>
                                         Quick Actions
                                     </Text>
-                                    <TouchableOpacity
-                                        onPress={handleShowQR}
-                                        activeOpacity={0.7}>
-                                        <MaterialIcons
-                                            name="qr-code-scanner"
-                                            size={24}
-                                            color={customColors.primary}
-                                        />
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                                        <TouchableOpacity
+                                            onPress={() => setIsQuickActionsVisible(true)}
+                                            activeOpacity={0.7}>
+                                            <MaterialIcons
+                                                name="add-circle-outline"
+                                                size={26}
+                                                color={customColors.primary}
+                                            />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={handleShowQR}
+                                            activeOpacity={0.7}>
+                                            <MaterialIcons
+                                                name="qr-code-scanner"
+                                                size={24}
+                                                color={customColors.primary}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                                 <View style={styles.buttonsGrid}>
                                     {buttons.map((button, index) => (
@@ -394,98 +501,175 @@ const HomeScreen = () => {
                 </View>
             </Modal>
 
-            {/* Floating Action Button */}
-            {!isAdmin && (
-                <>
-                    {/* Backdrop */}
-                    {isFabOpen && (
-                        <TouchableOpacity
-                            style={styles.fabBackdrop}
-                            activeOpacity={1}
-                            onPress={toggleFab}
-                        />
-                    )}
-                    
-                    <View style={styles.fabContainer}>
-                        {/* FAB Options */}
-                        <Animated.View
-                            style={[
-                                styles.fabOption,
-                                styles.fabOption1,
-                                {
-                                    opacity: fabAnimation,
-                                    transform: [
-                                        {
-                                            scale: fabAnimation.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [0.3, 1],
-                                            }),
-                                        },
-                                    ],
-                                },
-                            ]}
-                            pointerEvents={isFabOpen ? "auto" : "none"}>
+            {/* Quick Actions Modal */}
+            <Modal
+                visible={isQuickActionsVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setIsQuickActionsVisible(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Quick Actions</Text>
                             <TouchableOpacity
-                                style={[styles.fabOptionButton, styles.fabOptionRetailer]}
-                                onPress={() => handleFabOption("AddCustomer")}
-                                activeOpacity={0.8}>
-                                <Feather name="user-plus" size={22} color={customColors.white} />
+                                style={styles.closeIconButton}
+                                onPress={() => setIsQuickActionsVisible(false)}
+                                activeOpacity={0.7}>
+                                <MaterialIcons
+                                    name="close"
+                                    size={24}
+                                    color={customColors.grey700}
+                                />
                             </TouchableOpacity>
-                            <View style={styles.fabLabelContainer}>
-                                <Text style={styles.fabOptionLabel}>Add Retailer</Text>
-                            </View>
-                        </Animated.View>
+                        </View>
 
-                        <Animated.View
-                            style={[
-                                styles.fabOption,
-                                styles.fabOption2,
-                                {
-                                    opacity: fabAnimation,
-                                    transform: [
-                                        {
-                                            scale: fabAnimation.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [0.3, 1],
-                                            }),
-                                        },
-                                    ],
-                                },
-                            ]}
-                            pointerEvents={isFabOpen ? "auto" : "none"}>
+                        <View style={styles.quickActionsContainer}>
                             <TouchableOpacity
-                                style={[styles.fabOptionButton, styles.fabOptionVisit]}
-                                onPress={() => handleFabOption("RetailerVisit")}
-                                activeOpacity={0.8}>
-                                <Feather name="map-pin" size={22} color={customColors.white} />
+                                style={styles.quickActionItem}
+                                onPress={() => {
+                                    setIsQuickActionsVisible(false);
+                                    navigation.navigate("RetailerVisit");
+                                }}
+                                activeOpacity={0.7}>
+                                <LinearGradient
+                                    colors={["#10B981", "#059669"]}
+                                    style={styles.quickActionIcon}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}>
+                                    <MaterialCommunityIcons
+                                        name="calendar-check-outline"
+                                        size={28}
+                                        color={customColors.white}
+                                    />
+                                </LinearGradient>
+                                <Text style={styles.quickActionLabel}>Daily Log</Text>
+                                <Text style={styles.quickActionDesc}>Log retailer visit</Text>
                             </TouchableOpacity>
-                            <View style={styles.fabLabelContainer}>
-                                <Text style={styles.fabOptionLabel}>Visit Entry</Text>
-                            </View>
-                        </Animated.View>
 
-                        {/* Main FAB */}
-                        <TouchableOpacity
-                            style={[styles.fab, isFabOpen && styles.fabActive]}
-                            onPress={toggleFab}
-                            activeOpacity={0.9}>
-                            <Animated.View
-                                style={{
-                                    transform: [
-                                        {
-                                            rotate: fabAnimation.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: ["0deg", "135deg"],
-                                            }),
-                                        },
-                                    ],
-                                }}>
-                                <Feather name="plus" size={28} color={customColors.white} />
-                            </Animated.View>
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.quickActionItem}
+                                onPress={() => {
+                                    setIsQuickActionsVisible(false);
+                                    navigation.navigate("AddCustomer");
+                                }}
+                                activeOpacity={0.7}>
+                                <LinearGradient
+                                    colors={["#3B82F6", "#2563EB"]}
+                                    style={styles.quickActionIcon}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}>
+                                    <MaterialCommunityIcons
+                                        name="store-plus-outline"
+                                        size={28}
+                                        color={customColors.white}
+                                    />
+                                </LinearGradient>
+                                <Text style={styles.quickActionLabel}>Add Shops</Text>
+                                <Text style={styles.quickActionDesc}>Register new retailer</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </>
-            )}
+                </View>
+            </Modal>
+
+            {/* Bottom Sheet Menu */}
+            <Modal
+                visible={isMenuVisible}
+                transparent
+                animationType="none"
+                statusBarTranslucent
+                onRequestClose={() => toggleMenu(false)}
+            >
+                <TouchableOpacity
+                    style={styles.menuBackdrop}
+                    activeOpacity={1}
+                    onPress={() => toggleMenu(false)}
+                >
+                    <Animated.View
+                        style={[
+                            styles.menuSheet,
+                            {
+                                transform: [{
+                                    translateY: menuAnimation.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [SCREEN_HEIGHT, 0],
+                                    }),
+                                }],
+                            },
+                        ]}
+                    >
+                        <TouchableOpacity activeOpacity={1}>
+                            {/* Handle bar */}
+                            <View style={styles.menuHandleBar} />
+
+                            {/* Menu Header */}
+                            <View style={styles.menuSheetHeader}>
+                                <View>
+                                    <Text style={styles.menuSheetTitle}>Menu</Text>
+                                    <Text style={styles.menuSheetVersion}>v{APP_VERSION}</Text>
+                                </View>
+                                <TouchableOpacity
+                                    style={styles.menuCloseBtn}
+                                    onPress={() => toggleMenu(false)}
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons name="close" size={20} color={customColors.grey600} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Menu Items */}
+                            <View style={styles.menuItemsContainer}>
+                                {menuItems.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={styles.menuSheetItem}
+                                        onPress={() => handleMenuNav(item)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <LinearGradient
+                                            colors={item.gradient}
+                                            style={styles.menuSheetIcon}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                        >
+                                            <MaterialCommunityIcons
+                                                name={item.icon}
+                                                size={20}
+                                                color={customColors.white}
+                                            />
+                                        </LinearGradient>
+                                        <View style={styles.menuSheetTextContainer}>
+                                            <Text style={styles.menuSheetLabel}>{item.label}</Text>
+                                            <Text style={styles.menuSheetDesc}>{item.description}</Text>
+                                        </View>
+                                        <MaterialCommunityIcons
+                                            name="chevron-right"
+                                            size={22}
+                                            color={customColors.grey300}
+                                        />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Divider */}
+                            <View style={styles.menuDivider} />
+
+                            {/* Sign Out */}
+                            <TouchableOpacity
+                                style={styles.menuSignOut}
+                                onPress={logout}
+                                activeOpacity={0.8}
+                            >
+                                <MaterialCommunityIcons name="logout" size={20} color="#DC2626" />
+                                <Text style={styles.menuSignOutText}>Sign Out</Text>
+                            </TouchableOpacity>
+
+                            <Text style={styles.menuFooterText}>Pukal Tech | All rights reserved</Text>
+                        </TouchableOpacity>
+                    </Animated.View>
+                </TouchableOpacity>
+            </Modal>
+
         </SafeAreaView>
     );
 };
@@ -652,86 +836,148 @@ const styles = StyleSheet.create({
         color: customColors.white,
         fontWeight: "600",
     },
-    // FAB styles
-    fabBackdrop: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
+    // Quick Actions Modal styles
+    quickActionsContainer: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        paddingVertical: spacing.lg,
+        gap: spacing.md,
     },
-    fabContainer: {
-        position: "absolute",
-        bottom: spacing.xl * 2.5, // move up from bottom (e.g., 32–40px above system nav)
-        right: spacing.lg + 4,
+    quickActionItem: {
+        flex: 1,
         alignItems: "center",
-        zIndex: 100,
+        backgroundColor: customColors.grey50,
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.lg,
     },
-    fab: {
+    quickActionIcon: {
         width: 60,
         height: 60,
-        borderRadius: 30,
-        backgroundColor: customColors.primary,
+        borderRadius: borderRadius.lg,
         justifyContent: "center",
         alignItems: "center",
-        shadowColor: customColors.primary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
-        elevation: 10,
+        marginBottom: spacing.sm,
     },
-    fabActive: {
-        backgroundColor: customColors.grey800,
+    quickActionLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "700",
+        textAlign: "center",
     },
-    fabOption: {
-        position: "absolute",
+    quickActionDesc: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        textAlign: "center",
+        marginTop: 2,
+    },
+    // Bottom Sheet Menu styles
+    menuBackdrop: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "flex-end",
+    },
+    menuSheet: {
+        backgroundColor: customColors.white,
+        borderTopLeftRadius: borderRadius.xl + 4,
+        borderTopRightRadius: borderRadius.xl + 4,
+        paddingBottom: spacing.xl,
+        ...shadows.large,
+    },
+    menuHandleBar: {
+        width: 40,
+        height: 4,
+        backgroundColor: customColors.grey300,
+        borderRadius: 2,
+        alignSelf: "center",
+        marginTop: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    menuSheetHeader: {
+        flexDirection: "row",
         alignItems: "center",
-        flexDirection: "row-reverse",
+        justifyContent: "space-between",
+        paddingHorizontal: spacing.lg,
+        marginBottom: spacing.md,
+    },
+    menuSheetTitle: {
+        ...typography.h5(),
+        fontWeight: "700",
+        color: customColors.grey900,
+    },
+    menuSheetVersion: {
+        ...typography.caption(),
+        color: customColors.grey400,
+        marginTop: 2,
+    },
+    menuCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.round,
+        backgroundColor: customColors.grey100,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    menuItemsContainer: {
+        paddingHorizontal: spacing.md,
+        gap: spacing.xs,
+    },
+    menuSheetItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
+    },
+    menuSheetIcon: {
+        width: responsiveSize(42),
+        height: responsiveSize(42),
+        borderRadius: borderRadius.md,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    menuSheetTextContainer: {
+        flex: 1,
+        marginLeft: spacing.md,
+    },
+    menuSheetLabel: {
+        ...typography.subtitle2(),
+        color: customColors.grey900,
+        fontWeight: "600",
+    },
+    menuSheetDesc: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginTop: 2,
+    },
+    menuDivider: {
+        height: 1,
+        backgroundColor: customColors.grey100,
+        marginHorizontal: spacing.lg,
+        marginVertical: spacing.md,
+    },
+    menuSignOut: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.md,
+        marginHorizontal: spacing.lg,
+        borderRadius: borderRadius.round,
+        borderWidth: 1.5,
+        borderColor: "#FEE2E2",
+        backgroundColor: "#FEF2F2",
         gap: spacing.sm,
     },
-    fabOption1: {
-        // Add Retailer: up and left (diagonal)
-        left: -90,
-        bottom: 110,
-    },
-    fabOption2: {
-        // Visit Entry: up and slightly left
-        left: -50,
-        bottom: 60,
-    },
-    fabOptionButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        justifyContent: "center",
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 6,
-    },
-    fabOptionRetailer: {
-        backgroundColor: "#10B981",
-    },
-    fabOptionVisit: {
-        backgroundColor: "#6366F1",
-    },
-    fabLabelContainer: {
-        backgroundColor: customColors.white,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
-        borderRadius: borderRadius.md,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    fabOptionLabel: {
-        ...typography.body2(),
-        color: customColors.grey800,
+    menuSignOutText: {
+        ...typography.subtitle2(),
+        color: "#DC2626",
         fontWeight: "600",
+    },
+    menuFooterText: {
+        ...typography.caption(),
+        color: customColors.grey400,
+        textAlign: "center",
+        marginTop: spacing.md,
     },
 });

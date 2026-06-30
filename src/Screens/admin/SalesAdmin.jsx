@@ -12,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
 import { API } from "../../Config/Endpoint";
 import {
@@ -260,35 +261,46 @@ const SalesAdmin = ({ route }) => {
         });
     }, [navigation, logData, productSummary, selectedFromDate]);
 
-    // Memoized filtered data by brand
+    // Memoized filtered data by brand, sorted by Created_on ascending
     const filteredLogData = useMemo(() => {
+        let data;
         if (selectedBrand === "All") {
-            return logData;
-        }
-
-        return logData
-            .map(order => {
-                const filteredProducts = order.Products_List.filter(
-                    product => product.BrandGet?.trim() === selectedBrand,
-                );
-
-                if (filteredProducts.length > 0) {
-                    const brandTotal = filteredProducts.reduce(
-                        (sum, product) =>
-                            sum + (product.Amount || product.Final_Amo || 0),
-                        0,
+            data = [...logData];
+        } else {
+            data = logData
+                .map(order => {
+                    const filteredProducts = order.Products_List.filter(
+                        product => product.BrandGet?.trim() === selectedBrand,
                     );
 
-                    return {
-                        ...order,
-                        Products_List: filteredProducts,
-                        Total_Invoice_value: brandTotal,
-                        Original_Total: order.Total_Invoice_value,
-                    };
-                }
-                return null;
-            })
-            .filter(order => order !== null);
+                    if (filteredProducts.length > 0) {
+                        const brandTotal = filteredProducts.reduce(
+                            (sum, product) =>
+                                sum + (product.Amount || product.Final_Amo || 0),
+                            0,
+                        );
+
+                        return {
+                            ...order,
+                            Products_List: filteredProducts,
+                            Total_Invoice_value: brandTotal,
+                            Original_Total: order.Total_Invoice_value,
+                        };
+                    }
+                    return null;
+                })
+                .filter(order => order !== null);
+        }
+
+        // Sort by Created_on ascending
+        return data.sort((a, b) => {
+            const timeA = a.Created_on ? new Date(a.Created_on).getTime() : null;
+            const timeB = b.Created_on ? new Date(b.Created_on).getTime() : null;
+            if (timeA === null && timeB === null) return 0;
+            if (timeA === null) return 1;
+            if (timeB === null) return -1;
+            return timeA - timeB;
+        });
     }, [logData, selectedBrand]);
 
     // Memoized stats
@@ -316,10 +328,24 @@ const SalesAdmin = ({ route }) => {
         setModalVisible(false);
     }, []);
 
+    // Format time from ISO string to readable format
+    const formatTime = useCallback(dateString => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return null;
+        let hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `${hours}:${minutes} ${ampm}`;
+    }, []);
+
     // Memoized FlatList item renderer
     const renderItem = useCallback(
         ({ item }) => {
             const isExpanded = expandedId === item.So_Id;
+            const createdTime = formatTime(item.Created_on);
 
             return (
                 <View
@@ -345,13 +371,27 @@ const SalesAdmin = ({ route }) => {
                                 >
                                     {item.Retailer_Name}
                                 </Text>
-                                <Text style={styles.orderDate}>
-                                    {item.So_Date
-                                        ? new Date(
-                                              item.So_Date,
-                                          ).toLocaleDateString("en-GB")
-                                        : "N/A"}
-                                </Text>
+                                <View style={styles.orderDateRow}>
+                                    <Text style={styles.orderDate}>
+                                        {item.So_Date
+                                            ? new Date(
+                                                  item.So_Date,
+                                              ).toLocaleDateString("en-GB")
+                                            : "N/A"}
+                                    </Text>
+                                    {createdTime && (
+                                        <View style={styles.createdTimeBadge}>
+                                            <Icon
+                                                name="clock-outline"
+                                                size={10}
+                                                color={customColors.white}
+                                            />
+                                            <Text style={styles.createdTimeText}>
+                                                {createdTime}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
                             </View>
                             <View style={styles.headerRight}>
                                 <Text style={styles.orderAmount}>
@@ -419,7 +459,7 @@ const SalesAdmin = ({ route }) => {
                 </View>
             );
         },
-        [expandedId, toggleExpanded],
+        [expandedId, toggleExpanded, formatTime],
     );
 
     const keyExtractor = useCallback(item => item.So_Id.toString(), []);
@@ -697,6 +737,27 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.white,
         opacity: 0.9,
+    },
+    orderDateRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    createdTimeBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 4,
+        gap: 3,
+    },
+    createdTimeText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "800",
+        textTransform: "none",
+        letterSpacing: 0.3,
     },
     headerRight: {
         alignItems: "flex-end",

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from "react-native";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
@@ -29,6 +29,7 @@ const AppHeader = ({
     rightIconName = "",
     rightIconLibrary = "MaterialIcons",
     onRightPress = () => { },
+    onMenuPress = () => { },
     showBack = true,
     showDrawer = false,
     subtitle = "",
@@ -45,12 +46,13 @@ const AppHeader = ({
 
     return (
         <View style={styles.headerContainer}>
+            <StatusBar barStyle="light-content" backgroundColor={customColors.primaryDark} />
             <View style={styles.headerContent}>
                 {/* Left Section */}
                 {showDrawer ? (
                     <TouchableOpacity
                         style={styles.iconButton}
-                        onPress={() => navigation.openDrawer()}
+                        onPress={onMenuPress}
                         activeOpacity={0.7}>
                         <View style={styles.iconWrapper}>
                             <Icon

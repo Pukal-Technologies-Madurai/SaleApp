@@ -30,6 +30,12 @@ const FilterModal = ({
     selectedPaymentOption = null,
     onPaymentOptionChange,
     paymentOptionLabel = "Select Payment Option",
+    // Delivery Person dropdown props
+    showDeliveryPerson = false,
+    deliveryPersonData = [],
+    selectedDeliveryPerson = null,
+    onDeliveryPersonChange,
+    deliveryPersonLabel = "Select Delivery Person",
 }) => {
     return (
         <Modal visible={visible} transparent animationType="fade">
@@ -107,6 +113,23 @@ const FilterModal = ({
                                     placeholder="Select Payment Option"
                                     value={selectedPaymentOption}
                                     onChange={onPaymentOptionChange}
+                                />
+                            </View>
+                        )}
+
+                        {/* Delivery Person Dropdown */}
+                        {showDeliveryPerson && (
+                            <View style={styles.dropdownContainer}>
+                                <Text style={styles.dateLabel}>
+                                    {deliveryPersonLabel}
+                                </Text>
+                                <EnhancedDropdown
+                                    data={deliveryPersonData}
+                                    labelField="label"
+                                    valueField="value"
+                                    placeholder="Select Delivery Person"
+                                    value={selectedDeliveryPerson?.value}
+                                    onChange={onDeliveryPersonChange}
                                 />
                             </View>
                         )}

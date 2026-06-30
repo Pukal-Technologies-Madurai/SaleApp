@@ -10,6 +10,8 @@ import {
     Animated,
     Dimensions,
     Keyboard,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
@@ -47,9 +49,28 @@ const EnhancedDropdown = ({
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const searchInputRef = useRef(null);
+
+    useEffect(() => {
+        const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+        const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+        const showSubscription = Keyboard.addListener(showEvent, event => {
+            setKeyboardHeight(event?.endCoordinates?.height || 0);
+        });
+
+        const hideSubscription = Keyboard.addListener(hideEvent, () => {
+            setKeyboardHeight(0);
+        });
+
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     const removeSplChar = (str) => String(str).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 
@@ -76,6 +97,7 @@ const EnhancedDropdown = ({
 
     const openModal = () => {
         setModalVisible(true);
+        setKeyboardHeight(0);
         Animated.parallel([
             Animated.spring(slideAnim, {
                 toValue: 0,
@@ -89,6 +111,10 @@ const EnhancedDropdown = ({
                 useNativeDriver: true,
             }),
         ]).start();
+
+        setTimeout(() => {
+            searchInputRef.current?.focus();
+        }, Platform.OS === "android" ? 180 : 60);
     };
 
     const closeModal = () => {
@@ -107,8 +133,14 @@ const EnhancedDropdown = ({
         ]).start(() => {
             setModalVisible(false);
             setSearchQuery("");
+            setKeyboardHeight(0);
         });
     };
+
+    const modalContentMaxHeight =
+        keyboardHeight > 0
+            ? Math.max(SCREEN_HEIGHT * 0.40, SCREEN_HEIGHT - keyboardHeight - spacing.xl)
+            : SCREEN_HEIGHT * 0.75;
 
     const handleSelect = (item) => {
         onChange(item);
@@ -226,23 +258,37 @@ const EnhancedDropdown = ({
                 animationType="none"
                 statusBarTranslucent
                 onRequestClose={closeModal}>
-                <View style={styles.modalContainer}>
-                    <Animated.View
-                        style={[
-                            styles.modalOverlay,
-                            { opacity: backdropAnim },
-                        ]}>
-                        <TouchableOpacity
-                            style={StyleSheet.absoluteFill}
-                            activeOpacity={1}
-                            onPress={closeModal}
-                        />
-                    </Animated.View>
+
+                {/* Backdrop — absolutely positioned, always full screen */}
+                <Animated.View
+                    style={[
+                        styles.modalOverlay,
+                        { opacity: backdropAnim },
+                    ]}>
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFill}
+                        activeOpacity={1}
+                        onPress={closeModal}
+                    />
+                </Animated.View>
+
+                {/* KeyboardAvoidingView handles sheet positioning natively.
+                    This is the most reliable approach for OnePlus/OxygenOS
+                    where keyboardDidShow events inside statusBarTranslucent
+                    Modals are not reliable. The native KAV layer adds
+                    paddingBottom = keyboardHeight, pushing the sheet up. */}
+                <KeyboardAvoidingView
+                    style={styles.modalContainer}
+                    behavior={Platform.OS === "ios" ? "padding" : "padding"}
+                    pointerEvents="box-none">
 
                     <Animated.View
                         style={[
                             styles.modalContent,
-                            { transform: [{ translateY: slideAnim }] },
+                            {
+                                transform: [{ translateY: slideAnim }],
+                                maxHeight: modalContentMaxHeight,
+                            },
                         ]}>
                         {/* Handle indicator */}
                         <View style={styles.handleContainer}>
@@ -313,7 +359,7 @@ const EnhancedDropdown = ({
                             renderItem={renderItem}
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={styles.listContent}
-                            keyboardShouldPersistTaps="handled"
+                            keyboardShouldPersistTaps="always"
                             ListEmptyComponent={
                                 <View style={styles.emptyContainer}>
                                     <View style={styles.emptyIconContainer}>
@@ -333,7 +379,8 @@ const EnhancedDropdown = ({
                             }
                         />
                     </Animated.View>
-                </View>
+
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );

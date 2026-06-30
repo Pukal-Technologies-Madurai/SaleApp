@@ -54,6 +54,9 @@ const DatePickerButton = ({
         };
     });
 
+    const oneWeekFromNow = new Date();
+    oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+
     return (
         <View style={[styles.container, containerStyle]}>
             {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}
@@ -105,7 +108,7 @@ const DatePickerButton = ({
                     mode={mode}
                     display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={handleDateChange}
-                    maximumDate={maxDate || new Date()}
+                    maximumDate={maxDate || oneWeekFromNow}
                     minimumDate={minDate}
                 />
             )}

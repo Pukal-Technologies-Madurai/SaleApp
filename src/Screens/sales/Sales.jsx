@@ -810,7 +810,18 @@ const Sales = ({ route }) => {
             Alert.alert("Success", data.message, [
                 {
                     text: "Okay",
-                    onPress: () => navigation.goBack(),
+                    onPress: () => {
+                        navigation.reset({
+                            index: 0,
+                            routes: [{
+                                name: "HomeScreen",
+                                state: {
+                                    index: 0,
+                                    routes: [{ name: "HomeScreen"}] 
+                                }
+                            }],
+                        });
+                    },
                 },
             ]);
         },

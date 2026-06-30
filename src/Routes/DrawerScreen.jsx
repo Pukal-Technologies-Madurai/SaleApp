@@ -1,4 +1,5 @@
 import {
+    InteractionManager,
     Linking,
     StatusBar,
     ScrollView,
@@ -183,7 +184,10 @@ const DrawerScreen = ({ navigation }) => {
                                 ]}
                                 onPress={() => {
                                     setActiveItem(index);
-                                    item.onPress();
+                                    navigation.closeDrawer();
+                                    InteractionManager.runAfterInteractions(() => {
+                                        item.onPress();
+                                    });
                                 }}
                                 activeOpacity={0.7}
                             >

@@ -6,9 +6,10 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQuery } from "@tanstack/react-query";
 import { API } from "../../Config/Endpoint";
 import { customColors, typography, spacing, shadows, borderRadius } from "../../Config/helper";
 import AppHeader from "../../Components/AppHeader";
@@ -18,40 +19,69 @@ const DeliveryTable = ({ deliveryData }) => {
     const [selectedFilter, setSelectedFilter] = useState("all");
 
     // Filter data based on selected status
-    const filteredData = deliveryData.filter(item => {
-        if (selectedFilter === "all") return true;
-        if (selectedFilter === "delivered") {
-            return item.Delivery_Status === 7;
-        }
-        if (selectedFilter === "pending") {
-            // Pending includes status 0 (NILL) and 1 (New)
-            return item.Delivery_Status === 0 || item.Delivery_Status === 1;
-        }
-        if (selectedFilter === "return") {
-            return item.Delivery_Status === 6;
-        }
-        if (selectedFilter === "cancel") {
-            return item.Cancel_status === "0" && item.Cancel_status !== 0;
-        }
-        return true;
-    });
+    const filteredData = useMemo(() => {
+        const filtered = deliveryData.filter(item => {
+            if (selectedFilter === "all") return true;
+            if (selectedFilter === "delivered") {
+                return item.Delivery_Status === 7;
+            }
+            if (selectedFilter === "pending") {
+                // Pending includes status 0 (NILL) and 1 (New)
+                return item.Delivery_Status === 0 || item.Delivery_Status === 1;
+            }
+            if (selectedFilter === "return") {
+                return item.Delivery_Status === 6;
+            }
+            if (selectedFilter === "cancel") {
+                return item.Cancel_status === "0" && item.Cancel_status !== 0;
+            }
+            return true;
+        });
+
+        // Sort by Delivery_Time ascending; null times go to the bottom
+        return filtered.sort((a, b) => {
+            const timeA = a.Delivery_Time ? new Date(a.Delivery_Time).getTime() : null;
+            const timeB = b.Delivery_Time ? new Date(b.Delivery_Time).getTime() : null;
+
+            if (timeA === null && timeB === null) return 0;
+            if (timeA === null) return 1;
+            if (timeB === null) return -1;
+            return timeA - timeB;
+        });
+    }, [deliveryData, selectedFilter]);
 
     const formatDate = dateString => {
         const date = new Date(dateString);
         return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}`;
     };
 
-    const totalDelivery = deliveryData.filter(
-        item => item.Delivery_Status === 7,
-    ).length;
+    const formatTime = dateString => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return null;
+        let hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12;
+        hours = hours ? hours : 12; // 0 should be 12
+        return `${hours}:${minutes} ${ampm}`;
+    };
 
-    const pendingDelivery = deliveryData.filter(
-        item => item.Delivery_Status === 0 || item.Delivery_Status === 1,
-    ).length;
-
-    const returnDelivery = deliveryData.filter(
-        item => item.Delivery_Status === 6,
-    ).length;
+    const { totalDelivery, pendingDelivery, returnDelivery } = useMemo(
+        () =>
+            deliveryData.reduce(
+                (acc, item) => {
+                    if (item.Delivery_Status === 7) acc.totalDelivery += 1;
+                    if (item.Delivery_Status === 0 || item.Delivery_Status === 1) {
+                        acc.pendingDelivery += 1;
+                    }
+                    if (item.Delivery_Status === 6) acc.returnDelivery += 1;
+                    return acc;
+                },
+                { totalDelivery: 0, pendingDelivery: 0, returnDelivery: 0 },
+            ),
+        [deliveryData],
+    );
 
     const getDeliveryBadgeStyle = status => {
         if (status === 6) return styles.returnBadge;
@@ -67,11 +97,18 @@ const DeliveryTable = ({ deliveryData }) => {
         return "Pending";
     };
 
+    const getStatusDisplay = item => {
+        if (item.Delivery_Status === 7 || item.Delivery_Status === 6) {
+            return formatTime(item.Delivery_Time) || "Done";
+        }
+        return getDeliveryStatus(item.Delivery_Status);
+    };
+
     return (
         <View style={styles.tableContainer}>
             {/* Statistics Cards - Pressable for filtering */}
             <View style={styles.statsContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[
                         styles.statsCard,
                         selectedFilter === "all" && styles.statsCardActive
@@ -90,7 +127,7 @@ const DeliveryTable = ({ deliveryData }) => {
                         selectedFilter === "all" && styles.statsLabelActive
                     ]}>Total</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[
                         styles.statsCard,
                         selectedFilter === "delivered" && styles.statsCardActive
@@ -107,7 +144,7 @@ const DeliveryTable = ({ deliveryData }) => {
                         selectedFilter === "delivered" && styles.statsLabelActive
                     ]}>Done</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[
                         styles.statsCard,
                         selectedFilter === "pending" && styles.statsCardActive
@@ -124,7 +161,7 @@ const DeliveryTable = ({ deliveryData }) => {
                         selectedFilter === "pending" && styles.statsLabelActive
                     ]}>Pending</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[
                         styles.statsCard,
                         selectedFilter === "return" && styles.statsCardActive
@@ -153,7 +190,7 @@ const DeliveryTable = ({ deliveryData }) => {
 
             {/* Table Body */}
             <ScrollView style={styles.tableBody} showsVerticalScrollIndicator={false}>
-                {filteredData.map((item, index) => {
+                {filteredData.map(item => {
                     let displayName = "N/A";
                     if (item.Delivery_Person_Name === "not available" && item.Delivery_Status === 7) {
                         displayName = item.Created_BY_Name;
@@ -163,6 +200,7 @@ const DeliveryTable = ({ deliveryData }) => {
 
                     return (
                         <View key={item.Do_Id} style={styles.row}>
+                            {/* Main Row */}
                             <Text style={[styles.cell, { flex: 1.2 }]}>
                                 {formatDate(
                                     item.SalesDate === null
@@ -176,12 +214,14 @@ const DeliveryTable = ({ deliveryData }) => {
                             >
                                 {item.Retailer_Name}
                             </Text>
-                            <Text
-                                style={[styles.cell, { flex: 2 }]}
-                                numberOfLines={2}
-                            >
-                                {displayName}
-                            </Text>
+                            <View style={{ flex: 2, paddingHorizontal: spacing.xs }}>
+                                <Text
+                                    style={styles.cell}
+                                    numberOfLines={2}
+                                >
+                                    {displayName}
+                                </Text>
+                            </View>
                             <View style={[styles.statusContainer, { flex: 1.3 }]}>
                                 <View
                                     style={[
@@ -195,35 +235,35 @@ const DeliveryTable = ({ deliveryData }) => {
                                         styles.statusText,
                                         item.Delivery_Status === 6 && { color: customColors.error },
                                         (item.Delivery_Status === 0 || item.Delivery_Status === 1) && { color: customColors.warning },
-                                    ]}> 
-                                        {getDeliveryStatus(
-                                            item.Delivery_Status,
-                                        )}
+                                        item.Delivery_Status === 7 &&  styles.statusDoneTimeText,
+                                        item.Delivery_Status === 6 && { color: customColors.error }
+                                    ]}>
+                                        {getStatusDisplay(item)}
                                     </Text>
                                 </View>
                             </View>
                             {/* Return Reason */}
                             {getDeliveryStatus(item.Delivery_Status) ===
                                 "Return" && (
-                                <View style={styles.returnReasonContainer}>
-                                    <Text style={styles.returnReasonLabel}>
-                                        Return Reason:
-                                    </Text>
-                                    <Text
-                                        style={styles.returnReasonText}
-                                        numberOfLines={3}
-                                    >
-                                        {item.Narration ||
-                                            item.Payment_Ref_No ||
-                                            "No reason provided"}
-                                    </Text>
-                                    {item.Sales_Person_Name && item.Sales_Person_Name !== "unknown" && (
-                                        <Text style={styles.salesPersonText}>
-                                            Sales Person: {item.Sales_Person_Name}
+                                    <View style={styles.returnReasonContainer}>
+                                        <Text style={styles.returnReasonLabel}>
+                                            Return Reason:
                                         </Text>
-                                    )}
-                                </View>
-                            )}
+                                        <Text
+                                            style={styles.returnReasonText}
+                                            numberOfLines={3}
+                                        >
+                                            {item.Narration ||
+                                                item.Payment_Ref_No ||
+                                                "No reason provided"}
+                                        </Text>
+                                        {item.Sales_Person_Name && item.Sales_Person_Name !== "unknown" && (
+                                            <Text style={styles.salesPersonText}>
+                                                Sales Person: {item.Sales_Person_Name}
+                                            </Text>
+                                        )}
+                                    </View>
+                                )}
                         </View>
                     );
                 })}
@@ -235,35 +275,27 @@ const DeliveryTable = ({ deliveryData }) => {
 const DeliveryReport = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
     const navigation = useNavigation();
-    const [deliveryData, setDeliveryData] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
 
     const [selectedDate, setSelectedDate] = useState(
-        new Date().toISOString().split("T")[0],
+        passedDate || new Date().toISOString().split("T")[0],
     );
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const today = new Date().toISOString().split("T")[0];
-                // fetchDeliveryData(today);
+    const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState({
+        label: "All",
+        value: "all",
+    });
 
-                if (passedDate) {
-                    setSelectedDate(passedDate);
-                    fetchDeliveryData(passedDate);
-                }
-            } catch (err) {
-                console.log(err);
-            }
-        })();
-    }, [passedDate]);
-
-    const fetchDeliveryData = async today => {
-        setIsLoading(true);
-        try {
-            const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}&Branch_Id=${selectedBranch}`;
-            // console.log("Fetching delivery data from URL:", url);
+    const {
+        data: rawDeliveryData = [],
+        isLoading,
+        isFetching,
+    } = useQuery({
+        queryKey: ["today-delivery", selectedDate, selectedBranch],
+        enabled: Boolean(selectedBranch && selectedDate),
+        staleTime: 30000,
+        queryFn: async () => {
+            const url = `${API.todayDelivery()}Fromdate=${selectedDate}&Todate=${selectedDate}&Branch_Id=${selectedBranch}`;
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
@@ -272,23 +304,48 @@ const DeliveryReport = ({ route }) => {
             });
 
             const data = await response.json();
-            if (data?.success) {
-                setDeliveryData(data.data || []);
-            } else {
-                setDeliveryData([]);
+            return data?.success ? data.data || [] : [];
+        },
+    });
+
+    const deliveryData = useMemo(() => {
+        if (selectedDeliveryPerson.value === "all") return rawDeliveryData;
+        return rawDeliveryData.filter(
+            item => String(item.Delivery_Person_Id) === String(selectedDeliveryPerson.value),
+        );
+    }, [rawDeliveryData, selectedDeliveryPerson.value]);
+
+    const deliveryPersonData = useMemo(() => {
+        const personMap = new Map();
+        rawDeliveryData.forEach(item => {
+            if (
+                item.Delivery_Person_Id &&
+                item.Delivery_Person_Name &&
+                item.Delivery_Person_Name !== "not available"
+            ) {
+                personMap.set(item.Delivery_Person_Id, item.Delivery_Person_Name);
             }
-            setIsLoading(false);
-        } catch (err) {
-            console.log(err);
-        }
-    };
+        });
+
+        return [
+            { label: "All", value: "all" },
+            ...Array.from(personMap, ([id, name]) => ({
+                label: name,
+                value: id,
+            })),
+        ];
+    }, [rawDeliveryData]);
 
     const handleDateChange = async date => {
         if (date) {
             const formattedDate = date.toISOString().split("T")[0];
             setSelectedDate(formattedDate);
-            await fetchDeliveryData(formattedDate);
+            setSelectedDeliveryPerson({ label: "All", value: "all" });
         }
+    };
+
+    const handleDeliveryPersonChange = item => {
+        setSelectedDeliveryPerson(item);
     };
 
     const handleCloseModal = () => {
@@ -315,10 +372,15 @@ const DeliveryReport = ({ route }) => {
                 showToDate={false}
                 title="Filter options"
                 fromLabel="From Date"
+                showDeliveryPerson={true}
+                deliveryPersonLabel="Delivery Person"
+                deliveryPersonData={deliveryPersonData}
+                selectedDeliveryPerson={selectedDeliveryPerson}
+                onDeliveryPersonChange={handleDeliveryPersonChange}
             />
 
             <View style={styles.contentContainer}>
-                {isLoading ? (
+                {isLoading || (isFetching && deliveryData.length === 0) ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={customColors.primary} />
                         <Text style={styles.loadingText}>Loading...</Text>
@@ -440,6 +502,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xxs,
         borderRadius: borderRadius.lg,
+        backgroundColor: customColors.grey200,
     },
     deliveredBadge: {
         backgroundColor: customColors.successFaded,
@@ -451,9 +514,17 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.errorFaded,
     },
     statusText: {
+        textAlign: "center",
         ...typography.caption(),
-        fontWeight: "600",
+        fontWeight: "800",
         color: customColors.success,
+    },
+    statusDoneTimeText: {
+        textAlign: "center",
+        fontWeight: "800",
+        color: customColors.success,
+        textTransform: "none",
+        letterSpacing: 0.3,
     },
     returnReasonContainer: {
         width: "100%",
@@ -462,13 +533,13 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm,
         backgroundColor: customColors.errorFaded,
         borderLeftWidth: 3,
-        borderLeftColor: customColors.warning,
+        borderLeftColor: customColors.error,
         borderRadius: borderRadius.xs,
     },
     returnReasonLabel: {
         ...typography.caption(),
         fontWeight: "700",
-        color: customColors.warning,
+        color: customColors.error,
         marginBottom: spacing.xxs,
     },
     returnReasonText: {
