@@ -42,6 +42,7 @@ import {
     borderRadius,
     iconSizes,
 } from "../../Config/helper";
+import { fetchBranchDropDown } from "../../Api/employee";
 
 const Sales = ({ route }) => {
     const navigation = useNavigation();
@@ -61,12 +62,14 @@ const Sales = ({ route }) => {
         So_Id: "",
         TaxType: 0,
         invoiceCopyCount: 1,
-        VoucherType: 0,
+        VoucherType: 11,
+        GST_Inclusive: 1,
         Product_Array: [],
     });
 
     const [uID, setUID] = useState([]);
     const [selectedBrand, setSelectedBrand] = useState(null);
+    const [userTypeID, setUserTypeID] = useState("");
 
     const [proGroupData, setProGroupData] = useState([]);
     const [selectedGroup, setSelectedGroup] = useState(null);
@@ -113,8 +116,10 @@ const Sales = ({ route }) => {
                     await AsyncStorage.getItem("costCategoryId");
                 const costCategoryName =
                     await AsyncStorage.getItem("costCategoryName");
+                const userTypeId = await AsyncStorage.getItem("userTypeId");
 
                 setUID(userId);
+                setUserTypeID(userTypeId || "");
 
                 if (companyId && userId) {
                     let parsedBranchId = branchId;
@@ -161,6 +166,39 @@ const Sales = ({ route }) => {
             }
         })();
     }, []);
+
+    const ADMIN_USER_TYPES = ["0", "1", "2"];
+    const isAdmin = ADMIN_USER_TYPES.includes(userTypeID);
+
+    const { data: branchMasterData = [], isFetched: isBranchMasterFetched } = useQuery({
+        queryKey: ["branchMasterData"],
+        queryFn: fetchBranchDropDown,
+        enabled: isAdmin,
+    });
+
+    // Formatted branch data for dropdown
+    const branchDropdownData = useMemo(() =>
+        branchMasterData.map(b => ({
+            label: b.BranchName,
+            value: b.BranchId,
+        })),
+        [branchMasterData],
+    );
+
+    const handleBranchSelect = useCallback((item) => {
+        setInitialValue(prev => ({ ...prev, Branch_Id: item.value }));
+    }, []);
+
+    const handleGSTToggle = useCallback((value) => {
+        setInitialValue(prev => ({ ...prev, GST_Inclusive: value }));
+    }, []);
+
+    // Admins see every product, including out-of-stock ones
+    useEffect(() => {
+        if (isAdmin) {
+            setShowOutOfStock(true);
+        }
+    }, [isAdmin]);
 
     // Re-check godown every time this screen comes into focus.
     // This handles the case where the user goes to MasterGodown to set a godown
@@ -512,8 +550,8 @@ const Sales = ({ route }) => {
 
     const handleQuantityChange = useCallback(
         (productId, quantity, rate, product) => {
-            // Check if product has stock before allowing quantity change
-            if (product.CL_Qty <= 0) {
+            // Admins (user types 0/1/2) can order regardless of stock
+            if (!isAdmin && product.CL_Qty <= 0) {
                 Alert.alert(
                     "Out of Stock",
                     `${product.Product_Name} is currently out of stock. Available quantity: ${product.CL_Qty}`,
@@ -524,7 +562,7 @@ const Sales = ({ route }) => {
             const newQuantity = Math.max(0, parseFloat(quantity) || 0);
 
             // Validate that ordered quantity doesn't exceed available stock
-            if (newQuantity > product.CL_Qty) {
+            if (!isAdmin && newQuantity > product.CL_Qty) {
                 Alert.alert(
                     "Insufficient Stock",
                     `Only ${product.CL_Qty} units available for ${product.Product_Name}`,
@@ -570,13 +608,13 @@ const Sales = ({ route }) => {
                 [productId]: newQuantity > 0 ? newQuantity.toString() : "",
             }));
         },
-        [selectedUOMs, isActiveGoDown],
+        [selectedUOMs, isActiveGoDown, isAdmin],
     );
 
     const handleQuantityInputChange = useCallback(
         (productId, value, rate, product) => {
-            // Check if product has stock before allowing input
-            if (product.CL_Qty <= 0 && value !== "") {
+            // Check if product has stock before allowing input (admins exempt)
+            if (!isAdmin && product.CL_Qty <= 0 && value !== "") {
                 return; // Prevent any input for out of stock items
             }
 
@@ -605,7 +643,7 @@ const Sales = ({ route }) => {
                 }
             }
         },
-        [handleQuantityChange],
+        [handleQuantityChange, isAdmin],
     );
 
     const handleUOMChange = useCallback(
@@ -810,7 +848,18 @@ const Sales = ({ route }) => {
             Alert.alert("Success", data.message, [
                 {
                     text: "Okay",
-                    onPress: () => navigation.goBack(),
+                    onPress: () => {
+                        navigation.reset({
+                            index: 0,
+                            routes: [{
+                                name: "HomeScreen",
+                                state: {
+                                    index: 0,
+                                    routes: [{ name: "HomeScreen" }]
+                                }
+                            }],
+                        });
+                    },
                 },
             ]);
         },
@@ -931,6 +980,39 @@ const Sales = ({ route }) => {
             <View style={styles.contentContainer}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     <View style={styles.filterSection}>
+                        <TouchableOpacity
+                            style={[
+                                styles.quickSearchBar,
+                                !isActiveGoDown &&
+                                styles.quickSearchBarDisabled,
+                            ]}
+                            onPress={() => setIsProductSearchVisible(true)}
+                            disabled={!isActiveGoDown}
+                            activeOpacity={0.7}
+                        >
+                            <FeatherIcon
+                                name="search"
+                                size={iconSizes.md}
+                                color={
+                                    !isActiveGoDown
+                                        ? customColors.grey400
+                                        : customColors.grey500
+                                }
+                            />
+                            <Text
+                                style={[
+                                    styles.quickSearchBarText,
+                                    !isActiveGoDown && styles.disabledText,
+                                ]}
+                            >
+                                Search product, brand or group
+                            </Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.orDividerText}>
+                            or browse by brand
+                        </Text>
+
                         <View style={styles.filterRow}>
                             <View style={styles.filterItem}>
                                 <EnhancedDropdown
@@ -989,7 +1071,7 @@ const Sales = ({ route }) => {
                                         size={iconSizes.md}
                                         color={
                                             !isActiveGoDown ||
-                                            isGodownRefetching
+                                                isGodownRefetching
                                                 ? customColors.grey400
                                                 : customColors.primary
                                         }
@@ -1041,13 +1123,13 @@ const Sales = ({ route }) => {
                                                 color={customColors.grey700}
                                             />
                                         </TouchableOpacity>
-                                        
+
                                         <TouchableOpacity
                                             style={styles.narrationButton}
                                             onPress={() => {
                                                 setPendingBillType(
                                                     initialValue.Narration ||
-                                                        "",
+                                                    "",
                                                 );
                                                 setIsNarrationModalVisible(
                                                     true,
@@ -1068,25 +1150,6 @@ const Sales = ({ route }) => {
                                                 {initialValue.Narration ||
                                                     "Bill Type"}
                                             </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.groupActionButton}
-                                            onPress={() =>
-                                                setIsProductSearchVisible(true)
-                                            }
-                                            disabled={!isActiveGoDown}
-                                            activeOpacity={0.8}
-                                        >
-                                            <FeatherIcon
-                                                name="search"
-                                                size={iconSizes.sm}
-                                                color={
-                                                    !isActiveGoDown
-                                                        ? customColors.grey400
-                                                        : customColors.primary
-                                                }
-                                            />
                                         </TouchableOpacity>
                                     </View>
                                 ) : (
@@ -1124,7 +1187,7 @@ const Sales = ({ route }) => {
                                                     keyboardType="number-pad"
                                                     value={String(
                                                         initialValue.invoiceCopyCount ||
-                                                            "",
+                                                        "",
                                                     )}
                                                     onChangeText={
                                                         handleInvoiceCopyCountChange
@@ -1181,6 +1244,68 @@ const Sales = ({ route }) => {
                         </View>
                     </View>
 
+                    {/* Admin-only: GST Tax Type & Branch Selection */}
+                    {isAdmin && (
+                        <View style={styles.adminOptionsSection}>
+                            {/* GST Inclusive / Exclusive Toggle */}
+                            <View style={styles.adminOptionRow}>
+                                <Text style={styles.adminOptionLabel}>Tax Type</Text>
+                                <View style={styles.gstToggleContainer}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.gstToggleButton,
+                                            initialValue.GST_Inclusive === 1 && styles.gstToggleButtonActive,
+                                        ]}
+                                        onPress={() => handleGSTToggle(1)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.gstToggleText,
+                                                initialValue.GST_Inclusive === 1 && styles.gstToggleTextActive,
+                                            ]}
+                                        >
+                                            Inclusive
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.gstToggleButton,
+                                            initialValue.GST_Inclusive === 0 && styles.gstToggleButtonActive,
+                                        ]}
+                                        onPress={() => handleGSTToggle(0)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.gstToggleText,
+                                                initialValue.GST_Inclusive === 0 && styles.gstToggleTextActive,
+                                            ]}
+                                        >
+                                            Exclusive
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Branch Selection Dropdown */}
+                            <View style={styles.adminOptionRow}>
+                                <Text style={styles.adminOptionLabel}>Branch</Text>
+                                <View style={styles.branchDropdownWrapper}>
+                                    <EnhancedDropdown
+                                        data={branchDropdownData}
+                                        labelField="label"
+                                        valueField="value"
+                                        placeholder="Select Branch"
+                                        value={initialValue.Branch_Id}
+                                        onChange={handleBranchSelect}
+                                        containerStyle={styles.compactDropdown}
+                                    />
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
                     {selectedBrand && selectedGroup && (
                         <View style={styles.productsContainer}>
                             <View style={styles.sectionHeader}>
@@ -1230,13 +1355,16 @@ const Sales = ({ route }) => {
 
                             {filteredProducts.map(product => {
                                 const isOutOfStock = product.CL_Qty <= 0;
+                                // Admins can still type a quantity for
+                                // out-of-stock products
+                                const isOrderBlocked = isOutOfStock && !isAdmin;
                                 return (
                                     <View
                                         key={product.Product_Id}
                                         style={[
                                             styles.productCard,
                                             isOutOfStock &&
-                                                styles.outOfStockCard,
+                                            styles.outOfStockCard,
                                         ]}
                                     >
                                         <View style={styles.productHeader}>
@@ -1266,7 +1394,7 @@ const Sales = ({ route }) => {
                                                             {
                                                                 color:
                                                                     product.CL_Qty >
-                                                                    0
+                                                                        0
                                                                         ? customColors.success
                                                                         : customColors.error,
                                                             },
@@ -1289,13 +1417,13 @@ const Sales = ({ route }) => {
                                                 <TextInput
                                                     style={[
                                                         styles.quantityInput,
-                                                        isOutOfStock &&
-                                                            styles.disabledInput,
+                                                        isOrderBlocked &&
+                                                        styles.disabledInput,
                                                     ]}
                                                     keyboardType="decimal-pad"
                                                     value={
                                                         orderQuantities[
-                                                            product.Product_Id
+                                                        product.Product_Id
                                                         ] || ""
                                                     }
                                                     onChangeText={quantity =>
@@ -1307,19 +1435,19 @@ const Sales = ({ route }) => {
                                                         )
                                                     }
                                                     placeholder={
-                                                        isOutOfStock
+                                                        isOrderBlocked
                                                             ? "N/A"
                                                             : "0.0"
                                                     }
                                                     placeholderTextColor={
-                                                        isOutOfStock
+                                                        isOrderBlocked
                                                             ? customColors.error
                                                             : customColors.grey
                                                     }
                                                     selectTextOnFocus={true}
-                                                    editable={!isOutOfStock}
+                                                    editable={!isOrderBlocked}
                                                     pointerEvents={
-                                                        isOutOfStock
+                                                        isOrderBlocked
                                                             ? "none"
                                                             : "auto"
                                                     }
@@ -1340,7 +1468,7 @@ const Sales = ({ route }) => {
                                                     placeholder="UOM"
                                                     value={
                                                         selectedUOMs[
-                                                            product.Product_Id
+                                                        product.Product_Id
                                                         ] || product.UOM_Id
                                                     }
                                                     onChange={item =>
@@ -1373,7 +1501,7 @@ const Sales = ({ route }) => {
                                                     style={[
                                                         styles.priceContainer,
                                                         isOutOfStock &&
-                                                            styles.disabledInput,
+                                                        styles.disabledInput,
                                                     ]}
                                                 >
                                                     <Text
@@ -1394,16 +1522,16 @@ const Sales = ({ route }) => {
                                                                     .Product_Id
                                                             ] !== undefined
                                                                 ? priceInputValues[
-                                                                      product
-                                                                          .Product_Id
-                                                                  ]
+                                                                product
+                                                                    .Product_Id
+                                                                ]
                                                                 : String(
-                                                                      editedPrices[
-                                                                          product
-                                                                              .Product_Id
-                                                                      ] ||
-                                                                          product.Item_Rate,
-                                                                  )
+                                                                    editedPrices[
+                                                                    product
+                                                                        .Product_Id
+                                                                    ] ||
+                                                                    product.Item_Rate,
+                                                                )
                                                         }
                                                         onChangeText={price =>
                                                             handlePriceChange(
@@ -1415,10 +1543,10 @@ const Sales = ({ route }) => {
                                                             handlePriceFocus(
                                                                 product.Product_Id,
                                                                 editedPrices[
-                                                                    product
-                                                                        .Product_Id
+                                                                product
+                                                                    .Product_Id
                                                                 ] ||
-                                                                    product.Item_Rate,
+                                                                product.Item_Rate,
                                                             )
                                                         }
                                                         onBlur={() =>
@@ -1737,7 +1865,7 @@ const Sales = ({ route }) => {
                                             style={[
                                                 styles.summaryItem,
                                                 isZeroRate &&
-                                                    styles.summaryItemWarning,
+                                                styles.summaryItemWarning,
                                             ]}
                                         >
                                             <View
@@ -1798,7 +1926,7 @@ const Sales = ({ route }) => {
                                                             onPress={() => {
                                                                 if (
                                                                     editingRateValue !==
-                                                                        "" &&
+                                                                    "" &&
                                                                     parseFloat(
                                                                         editingRateValue,
                                                                     ) > 0
@@ -1863,8 +1991,8 @@ const Sales = ({ route }) => {
                                                                 item.Item_Rate >
                                                                     0
                                                                     ? String(
-                                                                          item.Item_Rate,
-                                                                      )
+                                                                        item.Item_Rate,
+                                                                    )
                                                                     : "",
                                                             );
                                                         }}
@@ -2017,6 +2145,52 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         ...shadows.small,
     },
+    adminOptionsSection: {
+        marginBottom: spacing.md,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        gap: spacing.md,
+        ...shadows.small,
+    },
+    adminOptionRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    adminOptionLabel: {
+        ...typography.body2(),
+        color: customColors.grey800,
+        fontWeight: "600",
+        minWidth: 70,
+    },
+    gstToggleContainer: {
+        flexDirection: "row",
+        backgroundColor: customColors.grey100,
+        borderRadius: 20,
+        padding: 3,
+    },
+    gstToggleButton: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderRadius: 17,
+    },
+    gstToggleButtonActive: {
+        backgroundColor: customColors.primary,
+    },
+    gstToggleText: {
+        ...typography.body2(),
+        color: customColors.grey600,
+        fontWeight: "500",
+    },
+    gstToggleTextActive: {
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    branchDropdownWrapper: {
+        flex: 1,
+        marginLeft: spacing.md,
+    },
     filterRow: {
         flexDirection: "row",
         gap: spacing.sm,
@@ -2115,26 +2289,34 @@ const styles = StyleSheet.create({
         ...shadows.small,
         position: "relative",
     },
-    searchButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: customColors.white,
-        justifyContent: "center",
+    quickSearchBar: {
+        flexDirection: "row",
         alignItems: "center",
-        borderWidth: 1,
-        borderColor: customColors.grey300,
-        ...shadows.small,
+        gap: spacing.sm,
+        backgroundColor: customColors.grey50,
+        borderRadius: borderRadius.lg,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        borderWidth: 1.5,
+        borderColor: customColors.grey200,
+        minHeight: 52,
     },
-    groupActionButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: customColors.white,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: customColors.grey300,
+    quickSearchBarDisabled: {
+        backgroundColor: customColors.grey100,
+    },
+    disabledText: {
+        color: customColors.grey400,
+    },
+    quickSearchBarText: {
+        ...typography.body1(),
+        color: customColors.grey500,
+    },
+    orDividerText: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        textAlign: "center",
+        marginTop: spacing.sm,
+        marginBottom: spacing.xs,
     },
     narrationButton: {
         height: 36,

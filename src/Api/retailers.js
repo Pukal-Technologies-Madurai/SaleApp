@@ -140,6 +140,18 @@ export const updateRetailerLocation = async ({ userId, location, item }) => {
     return json;
 };
 
+export const setVerifiedLocation = async ({ locationId }) => {
+    const res = await fetch(API.retailerLocation(), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Id: locationId }),
+    });
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.message);
+    return json;
+};
+
 export const visitEntryLog = async ({ toDate, uId }) => {
     const url = `${API.visitedLog()}?reqDate=${toDate}&UserId=${uId}`;
     const response = await fetch(url, {

@@ -16,16 +16,11 @@ const AppDrawer = () => {
                     width: "65%",
                     ...shadows.large,
                 },
-                // drawerType: "front",
-                // overlayColor: "rgba(0, 0, 0, 0.5)",
-                // swipeEnabled: true,
-                // swipeEdgeWidth: 50,
-                // headerShown: false,
-                // drawerPosition: "left",
-                // drawerHideStatusBarOnOpen: true,
-                // sceneContainerStyle: {
-                //     backgroundColor: customColors.white,
-                // },
+                drawerType: "front",
+                overlayColor: "rgba(0, 0, 0, 0.5)",
+                swipeEnabled: true,
+                swipeEdgeWidth: 50,
+                headerShown: false,
             }}>
             <Drawer.Screen
                 name="AppStack"

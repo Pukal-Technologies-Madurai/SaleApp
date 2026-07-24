@@ -27,6 +27,9 @@ const SalesReturn = ({ route }) => {
     const [expandedBrand, setExpandedBrand] = useState(null);
     const [expandedGroup, setExpandedGroup] = useState({});
     const [returnQuantities, setReturnQuantities] = useState({});
+    // Manually entered rates keyed by Product_Id — rate varies with product
+    // expiry, and the stock API returns Item_Rate 0 for most products
+    const [returnRates, setReturnRates] = useState({});
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [selectedNarration, setSelectedNarration] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,13 +57,18 @@ const SalesReturn = ({ route }) => {
             // Pre-populate quantities from existing credit note
             // Use String() to ensure consistent key matching with Product_Id
             const quantities = {};
+            const rates = {};
             item.Products_List.forEach(product => {
                 const productId = String(product.Item_Id || product.Product_Id);
                 if (productId) {
                     quantities[productId] = String(product.Bill_Qty || product.Total_Qty || 0);
+                    if (product.Item_Rate) {
+                        rates[productId] = String(product.Item_Rate);
+                    }
                 }
             });
             setReturnQuantities(quantities);
+            setReturnRates(rates);
 
             // Pre-select narration if available
             if (item.Narration && narrationOptions.includes(item.Narration)) {
@@ -168,17 +176,38 @@ const SalesReturn = ({ route }) => {
         return parseFloat(qty) || 0;
     };
 
+    // Handle manual rate change for a product (supports floating values)
+    const handleRateChange = (productId, rate) => {
+        if (rate === '' || rate === '.' || /^\d*\.?\d*$/.test(rate)) {
+            const key = String(productId);
+            setReturnRates(prev => ({
+                ...prev,
+                [key]: rate,
+            }));
+        }
+    };
+
+    // Effective rate: manual entry wins, falls back to the API rate
+    const getNumericRate = (product) => {
+        const key = String(product.Product_Id);
+        const manual = returnRates[key];
+        if (manual !== undefined && manual !== '' && manual !== '.') {
+            return parseFloat(manual) || 0;
+        }
+        return product.Product_Rate || 0;
+    };
+
     // Calculate return value for a product
     const getReturnValue = (product) => {
         const qty = getNumericQuantity(product.Product_Id);
-        return (qty * (product.Product_Rate || 0)).toFixed(2);
+        return (qty * getNumericRate(product)).toFixed(2);
     };
 
     // Get total return value
     const getTotalReturnValue = () => {
         return productData.reduce((total, product) => {
             const qty = getNumericQuantity(product.Product_Id);
-            return total + (qty * (product.Product_Rate || 0));
+            return total + (qty * getNumericRate(product));
         }, 0).toFixed(2);
     };
 
@@ -194,6 +223,20 @@ const SalesReturn = ({ route }) => {
             Alert.alert('No Products Selected', 'Please enter return quantity for at least one product.');
             return;
         }
+
+        // Rate is entered manually (varies with product expiry) — block
+        // zero-value lines before showing the summary
+        const missingRate = returnProducts.find(
+            product => getNumericRate(product) <= 0,
+        );
+        if (missingRate) {
+            Alert.alert(
+                'Rate Required',
+                `Please enter a rate for ${missingRate.Product_Name}.`,
+            );
+            return;
+        }
+
         setShowSummaryModal(true);
     };
 
@@ -209,7 +252,7 @@ const SalesReturn = ({ route }) => {
         // Build Product_Array for API (matching DeliveryUpdate structure)
         const Product_Array = returnProducts.map((product, index) => {
             const qty = getNumericQuantity(product.Product_Id);
-            const itemRate = product.Product_Rate || 0;
+            const itemRate = getNumericRate(product);
             const amount = qty * itemRate;
             const gstP = product.Gst_P || 0;
             const cgstP = product.Cgst_P || gstP / 2;
@@ -386,7 +429,7 @@ const SalesReturn = ({ route }) => {
                 </Text>
                 <View style={styles.summaryProductDetails}>
                     <Text style={styles.summaryProductQty}>
-                        Qty: {getNumericQuantity(product.Product_Id)} × ₹{product.Product_Rate}
+                        Qty: {getNumericQuantity(product.Product_Id)} × ₹{getNumericRate(product)}
                     </Text>
                     <Text style={styles.summaryProductValue}>
                         ₹{getReturnValue(product)}
@@ -498,11 +541,22 @@ const SalesReturn = ({ route }) => {
                                                                     <Text style={styles.productName} numberOfLines={2}>
                                                                         {product.Product_Name}
                                                                     </Text>
-                                                                    <View style={styles.productDetails}>
-                                                                        <Text style={styles.productRate}>
-                                                                            ₹{product.Product_Rate || 0}
+                                                                    {getNumericQuantity(product.Product_Id) > 0 && (
+                                                                        <Text style={styles.returnValue}>
+                                                                            ₹{getReturnValue(product)}
                                                                         </Text>
-                                                                    </View>
+                                                                    )}
+                                                                </View>
+                                                                <View style={styles.quantityContainer}>
+                                                                    <Text style={styles.quantityLabel}>Rate ₹</Text>
+                                                                    <TextInput
+                                                                        style={styles.quantityInput}
+                                                                        keyboardType="decimal-pad"
+                                                                        value={returnRates[String(product.Product_Id)]?.toString() || ''}
+                                                                        onChangeText={(text) => handleRateChange(product.Product_Id, text)}
+                                                                        placeholder={String(product.Product_Rate || '0')}
+                                                                        placeholderTextColor={customColors.grey700}
+                                                                    />
                                                                 </View>
                                                                 <View style={styles.quantityContainer}>
                                                                     <Text style={styles.quantityLabel}>Qty</Text>
@@ -514,11 +568,6 @@ const SalesReturn = ({ route }) => {
                                                                         placeholder="0"
                                                                         placeholderTextColor={customColors.grey700}
                                                                     />
-                                                                    {getNumericQuantity(product.Product_Id) > 0 && (
-                                                                        <Text style={styles.returnValue}>
-                                                                            ₹{getReturnValue(product)}
-                                                                        </Text>
-                                                                    )}
                                                                 </View>
                                                             </View>
                                                         ))}

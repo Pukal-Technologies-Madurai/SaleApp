@@ -64,7 +64,7 @@ export const fetchSaleOrder = async ({
     branchId,
 }) => {
     const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Created_by=${userId}&Sales_Person_Id=${userId}&Branch_Id=${branchId}`;
-    // console.log("fetchSaleOrder url:", url);
+    console.log("fetchSaleOrder url:", url);
     const res = await fetch(url);
 
     const data = await res.json();

@@ -119,8 +119,9 @@ export const fetchClosingStock = async ({ id, day }) => {
     return data.data;
 };
 
-export const fetchGoDownStackInHand = async ({ from, to }) => {
-    const url = `${API.godownWiseStackInHand()}Fromdate=${from}&Todate=${to}`;
+export const fetchGoDownStackInHand = async ({ from, to, goDownId }) => {
+    const url = `${API.godownWiseStackInHand()}Fromdate=${from}&Todate=${to}&Godown_Id=${goDownId}`;
+    // console.log("fetchGoDownStackInHand", url);
     const res = await fetch(url);
     const data = await res.json();
 

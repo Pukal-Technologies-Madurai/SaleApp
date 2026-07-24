@@ -172,20 +172,20 @@ const SwitchCompany = () => {
 
     const updateStorage = async (data) => {
         try {
-            await AsyncStorage.setItem("userToken", data.Autheticate_Id);
-            await AsyncStorage.setItem("UserId", String(data.UserId));
-            await AsyncStorage.setItem("Company_Id", String(data.Company_id));
-            await AsyncStorage.setItem("userName", data.UserName);
-            await AsyncStorage.setItem("Name", data.Name);
-            await AsyncStorage.setItem("branchId", String(data.BranchId));
-            await AsyncStorage.setItem("branchName", data.BranchName);
-            await AsyncStorage.setItem("userType", data.UserType);
-            await AsyncStorage.setItem("userTypeId", String(data.UserTypeId));
-            await AsyncStorage.setItem("companyName", data.Company_Name);
-            await AsyncStorage.setItem("Acc_Id", String(data.Acc_Id));
-            await AsyncStorage.setItem("Account_name", data.Account_name);
-            await AsyncStorage.setItem("costCenterId", String(data.costCenterId));
-            await AsyncStorage.setItem("costCenterName", data.costCenterName);
+            if (data.Autheticate_Id) await AsyncStorage.setItem("userToken", data.Autheticate_Id);
+            if (data.UserId) await AsyncStorage.setItem("UserId", String(data.UserId));
+            if (data.Company_id) await AsyncStorage.setItem("Company_Id", String(data.Company_id));
+            if (data.UserName) await AsyncStorage.setItem("userName", data.UserName);
+            if (data.Name) await AsyncStorage.setItem("Name", data.Name);
+            if (data.BranchId) await AsyncStorage.setItem("branchId", String(data.BranchId));
+            if (data.BranchName) await AsyncStorage.setItem("branchName", data.BranchName);
+            if (data.UserType) await AsyncStorage.setItem("userType", data.UserType);
+            if (data.UserTypeId) await AsyncStorage.setItem("userTypeId", String(data.UserTypeId));
+            if (data.Company_Name) await AsyncStorage.setItem("companyName", data.Company_Name);
+            if (data.Acc_Id) await AsyncStorage.setItem("Acc_Id", String(data.Acc_Id));
+            if (data.Account_name) await AsyncStorage.setItem("Account_name", data.Account_name);
+            if (data.costCenterId) await AsyncStorage.setItem("costCenterId", String(data.costCenterId));
+            if (data.costCenterName) await AsyncStorage.setItem("costCenterName", data.costCenterName);
 
             setIsSwitching(false);
             return true;

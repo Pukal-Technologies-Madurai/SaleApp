@@ -10,6 +10,8 @@ import {
     Animated,
     Dimensions,
     Keyboard,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
@@ -89,6 +91,10 @@ const EnhancedDropdown = ({
                 useNativeDriver: true,
             }),
         ]).start();
+
+        setTimeout(() => {
+            searchInputRef.current?.focus();
+        }, Platform.OS === "android" ? 180 : 60);
     };
 
     const closeModal = () => {
@@ -226,23 +232,36 @@ const EnhancedDropdown = ({
                 animationType="none"
                 statusBarTranslucent
                 onRequestClose={closeModal}>
-                <View style={styles.modalContainer}>
-                    <Animated.View
-                        style={[
-                            styles.modalOverlay,
-                            { opacity: backdropAnim },
-                        ]}>
-                        <TouchableOpacity
-                            style={StyleSheet.absoluteFill}
-                            activeOpacity={1}
-                            onPress={closeModal}
-                        />
-                    </Animated.View>
+
+                {/* Backdrop — absolutely positioned, always full screen */}
+                <Animated.View
+                    style={[
+                        styles.modalOverlay,
+                        { opacity: backdropAnim },
+                    ]}>
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFill}
+                        activeOpacity={1}
+                        onPress={closeModal}
+                    />
+                </Animated.View>
+
+                {/* KeyboardAvoidingView handles sheet positioning natively.
+                    This is the most reliable approach for OnePlus/OxygenOS
+                    where keyboardDidShow events inside statusBarTranslucent
+                    Modals are not reliable. The native KAV layer adds
+                    paddingBottom = keyboardHeight, pushing the sheet up. */}
+                <KeyboardAvoidingView
+                    style={styles.modalContainer}
+                    behavior={Platform.OS === "ios" ? "padding" : "padding"}
+                    pointerEvents="box-none">
 
                     <Animated.View
                         style={[
                             styles.modalContent,
-                            { transform: [{ translateY: slideAnim }] },
+                            {
+                                transform: [{ translateY: slideAnim }],
+                            },
                         ]}>
                         {/* Handle indicator */}
                         <View style={styles.handleContainer}>
@@ -313,7 +332,7 @@ const EnhancedDropdown = ({
                             renderItem={renderItem}
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={styles.listContent}
-                            keyboardShouldPersistTaps="handled"
+                            keyboardShouldPersistTaps="always"
                             ListEmptyComponent={
                                 <View style={styles.emptyContainer}>
                                     <View style={styles.emptyIconContainer}>
@@ -333,7 +352,8 @@ const EnhancedDropdown = ({
                             }
                         />
                     </Animated.View>
-                </View>
+
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );

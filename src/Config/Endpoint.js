@@ -37,7 +37,10 @@ export const API = {
     getUserAuthMob: () => `${baseURL}api/authorization/userAuthmobile`,
     changePassword: () => `${baseURL}api/masters/users/changePassword`,
 
+    dashboardFrontendData: () => `${baseURL}api/mobileApi/erpVoucherTransactions?reqDate=`,
+
     getBranches: () => `${baseURL}api/masters/branch`,
+    getBranchDropDownData: () => `${baseURL}api/masters/branch/dropDown`,
     users: () => `${baseURL}api/masters/users?Company_id=`,
     costCenterData: () => `${baseURL}api/dataEntry/costCenter/`,
 
@@ -83,6 +86,7 @@ export const API = {
     deliveryDetailsPut: () => `${baseURL}api/delivery/deliveryOrder`,
     deliveryTripSheet: () =>
         `${baseURL}api/delivery/deliveryTripSheet?Fromdate=`,
+    tripSheetRetailerRouteUpdate: () => `${baseURL}api/delivery/tripRoute`,
     pendingDeliveryList: () =>
         `${baseURL}api/delivery/deliveryOrderListData?Fromdate=`,
     pendingSalesOrder: () =>

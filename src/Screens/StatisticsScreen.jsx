@@ -3,9 +3,10 @@ import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
+    FlatList,
     TouchableOpacity,
-    RefreshControl
+    RefreshControl,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
@@ -13,152 +14,302 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Feather from "react-native-vector-icons/Feather";
 import AppHeader from "../Components/AppHeader";
-import { customColors, typography } from "../Config/helper";
+import { customColors, typography, spacing, shadows } from "../Config/helper";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSaleInvoices, fetchSaleOrder } from "../Api/sales";
 
 const StatisticsScreen = ({ route, navigation }) => {
     const {
         title,
-        userCount,
+        type = "saleOrder", // "saleOrder" | "invoice"
         selectedDate,
         selectedBranch,
     } = route.params;
 
+    const isSaleOrder = type === "saleOrder";
+
     const [refreshing, setRefreshing] = useState(false);
 
-    const onRefresh = useCallback(() => {
+    const {
+        data: saleOrderData = [],
+        isLoading: isSaleOrderLoading,
+        refetch: refetchSaleOrder,
+    } = useQuery({
+        queryKey: ["saleOrders", selectedDate, selectedBranch],
+        queryFn: () =>
+            fetchSaleOrder({
+                from: selectedDate,
+                to: selectedDate,
+                branchId: selectedBranch,
+            }),
+        enabled: !!selectedDate && isSaleOrder,
+    });
+
+    const {
+        data: saleInvoiceData = [],
+        isLoading: isInvoiceLoading,
+        refetch: refetchInvoice,
+    } = useQuery({
+        queryKey: ["saleInvoices", selectedDate, selectedBranch],
+        queryFn: () =>
+            fetchSaleInvoices({
+                from: selectedDate,
+                to: selectedDate,
+                branchId: selectedBranch,
+            }),
+        enabled: !!selectedDate && !isSaleOrder,
+    });
+
+    const rawData = isSaleOrder ? saleOrderData : saleInvoiceData;
+
+    // Backend doesn't filter by Branch_Id, so filter client-side
+    const activeData = useMemo(() => {
+        if (!selectedBranch && selectedBranch !== 0) return rawData;
+        return rawData.filter(
+            (item) => String(item.Branch_Id) === String(selectedBranch)
+        );
+    }, [rawData, selectedBranch]);
+    const isLoading = isSaleOrder ? isSaleOrderLoading : isInvoiceLoading;
+
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        // Simulate async fetch, replace with your actual reload logic
-        setTimeout(() => {
+        try {
+            if (isSaleOrder) await refetchSaleOrder();
+            else await refetchInvoice();
+        } finally {
             setRefreshing(false);
-        }, 1200);
-    }, []);
-
-    // Calculate summary stats
-    const summaryStats = useMemo(() => {
-        if (!userCount || Object.keys(userCount).length === 0) {
-            return { totalSales: 0, totalAmount: 0, totalCancelled: 0, salesPersonCount: 0 };
         }
-        
-        return Object.values(userCount).reduce((acc, details) => ({
-            totalSales: acc.totalSales + details.count,
-            totalAmount: acc.totalAmount + details.totalValue,
-            totalCancelled: acc.totalCancelled + details.cancelledCount,
-            salesPersonCount: acc.salesPersonCount + 1,
-        }), { totalSales: 0, totalAmount: 0, totalCancelled: 0, salesPersonCount: 0 });
-    }, [userCount]);
+    }, [isSaleOrder, refetchSaleOrder, refetchInvoice]);
 
-    const renderSummaryCard = () => (
-        <LinearGradient
-            colors={["#3B82F6", "#2563EB", "#1D4ED8"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-                <View style={styles.summaryIconWrapper}>
-                    <MaterialCommunityIcons name="chart-areaspline" size={24} color="#FFFFFF" />
+    // Group raw records by salesperson AND sale type, so the same person's
+    // live sales (invoice created + delivered + collected on the spot,
+    // Voucher_Type 13) show as a separate card from their converted sale
+    // orders (invoiced by admin, Sales_Person_Name carries the person)
+    const groupedData = useMemo(() => {
+        const map = {};
+        for (const item of activeData) {
+            const isLiveSale = item.Voucher_Type === "13" && item.VoucherTypeGet === "LIVE_SALES_INVOICE";
+            const name = item.Sales_Person_Name === "unknown" ? item.Created_BY_Name || "Unknown" : item.Sales_Person_Name || item.Created_BY_Name || "Unknown";
+            const isCreatedByAdmin = item.Created_BY_Name?.toLowerCase() === "admin";
+            const id = (!isSaleOrder && isCreatedByAdmin)
+                ? item.Sales_Person_Name
+                : (item.Sales_Person_Id || item.Created_by);
+            const isCancelled = item.Cancel_status === "0";
+
+            const key = `${name}|${isLiveSale ? "live" : "regular"}`;
+            if (!map[key]) {
+                map[key] = {
+                    salesPersonId: id,
+                    name,
+                    count: 0,
+                    totalValue: 0,
+                    cancelledCount: 0,
+                    activeCount: 0,
+                    liveSale: isLiveSale,
+                };
+            }
+            map[key].count++;
+            map[key].totalValue += item.Total_Invoice_value || 0;
+            if (isCancelled) {
+                map[key].cancelledCount++;
+            } else {
+                map[key].activeCount++;
+            }
+        }
+        return Object.values(map).sort((a, b) => b.totalValue - a.totalValue);
+    }, [activeData]);
+
+    const summary = useMemo(() => ({
+        // A person with both live and converted invoices has two cards
+        // but counts once here
+        salesPersonCount: new Set(groupedData.map(p => p.name)).size,
+        totalOrders: groupedData.reduce((s, p) => s + p.count, 0),
+        totalAmount: groupedData.reduce((s, p) => s + p.totalValue, 0),
+    }), [groupedData]);
+
+    // ─── Summary Card ─────────────────────────────────────────────────────────
+    const renderSummaryCard = () => {
+        const gradientColors = ["#3B82F6", "#2563EB", "#1D4ED8"];
+
+        return (
+            <LinearGradient
+                colors={gradientColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.summaryCard}>
+                <View style={styles.summaryHeader}>
+                    <View style={styles.summaryIconWrapper}>
+                        <MaterialIcons
+                            name={isSaleOrder ? "bar-chart" : "receipt-long"}
+                            size={24}
+                            color="#FFFFFF"
+                        />
+                    </View>
+                    <Text style={styles.summaryTitle}>
+                        {selectedDate === new Date().toISOString().split("T")[0]
+                            ? "Today's Summary"
+                            : new Date(selectedDate).toLocaleDateString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                            })}
+                    </Text>
                 </View>
-                <Text style={styles.summaryTitle}>
-                    {selectedDate === new Date().toISOString().split("T")[0] 
-                        ? "Today's Summary" 
-                        : new Date(selectedDate).toLocaleDateString("en-IN", { 
-                            day: "2-digit", 
-                            month: "short", 
-                            year: "numeric" 
-                        })}
-                </Text>
-            </View>
-            
-            <View style={styles.summaryStatsRow}>
-                <View style={styles.summaryStatItem}>
-                    <Text style={styles.summaryStatValue}>{summaryStats.salesPersonCount}</Text>
-                    <Text style={styles.summaryStatLabel}>Salespersons</Text>
+
+                <View style={styles.summaryStatsRow}>
+                    <View style={styles.summaryStatItem}>
+                        <Text style={styles.summaryStatValue}>
+                            {summary.salesPersonCount}
+                        </Text>
+                        <Text style={styles.summaryStatLabel}>Salespersons</Text>
+                    </View>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryStatItem}>
+                        <Text style={styles.summaryStatValue}>
+                            {summary.totalOrders}
+                        </Text>
+                        <Text style={styles.summaryStatLabel}>
+                            {isSaleOrder ? "Total Orders" : "Total Invoices"}
+                        </Text>
+                    </View>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryStatItem}>
+                        <Text style={styles.summaryStatValue}>
+                            ₹{(summary.totalAmount / 1000).toFixed(1)}K
+                        </Text>
+                        <Text style={styles.summaryStatLabel}>Revenue</Text>
+                    </View>
                 </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryStatItem}>
-                    <Text style={styles.summaryStatValue}>{summaryStats.totalSales}</Text>
-                    <Text style={styles.summaryStatLabel}>Total Orders</Text>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryStatItem}>
-                    <Text style={styles.summaryStatValue}>₹{(summaryStats.totalAmount / 1000).toFixed(1)}K</Text>
-                    <Text style={styles.summaryStatLabel}>Revenue</Text>
-                </View>
-            </View>
-        </LinearGradient>
+            </LinearGradient>
+        );
+    };
+
+    const renderSectionHeader = () => (
+        <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+                {isSaleOrder ? "Sales by Person" : "Invoices by Person"}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+                {summary.salesPersonCount} active
+            </Text>
+        </View>
     );
 
-    const renderSalesPersonCard = (salesPerson, details, index) => {
-        const hasCancelled = details.cancelledCount > 0;
-        
+    const renderPersonCard = ({ item: person }) => {
+        const hasCancelled = person.cancelledCount > 0;
+
         return (
             <TouchableOpacity
-                key={salesPerson}
-                style={styles.salesPersonCard}
+                style={styles.personCard}
                 activeOpacity={0.7}
-                onPress={() => {
-                    navigation.navigate("SalesAdmin", {
-                        selectedDate: selectedDate,
+                onPress={() =>
+                    navigation.navigate(type === "saleOrder" ? "SalesAdmin" : "SaleInvoiceList", {
+                        selectedDate,
                         selectedBranch: selectedBranch || "",
-                        selectedSalesPersonId: details.salesPersonId,
-                    });
-                }}>
+                        selectedSalesPersonId: person.salesPersonId,
+                        ...(type !== "saleOrder" && { isAdmin: true }),
+                    })
+                }>
                 <View style={styles.cardHeader}>
+                    {/* Avatar */}
                     <View style={styles.avatarContainer}>
                         <LinearGradient
-                            colors={hasCancelled ? ["#F87171", "#EF4444"] : ["#34D399", "#10B981"]}
+                            colors={
+                                hasCancelled
+                                    ? ["#F87171", "#EF4444"]
+                                    : ["#34D399", "#10B981"]
+                            }
                             style={styles.avatar}>
                             <Text style={styles.avatarText}>
-                                {salesPerson.charAt(0).toUpperCase()}
+                                {person.name.charAt(0).toUpperCase()}
                             </Text>
                         </LinearGradient>
                     </View>
-                    
+
+                    {/* Name + badges */}
                     <View style={styles.cardTitleSection}>
-                        <Text style={styles.salesPersonName} numberOfLines={1}>
-                            {salesPerson}
+                        <Text style={styles.personName} numberOfLines={1}>
+                            {person.name} {person.liveSale ? "(Live Sales)" : ""}
                         </Text>
                         <View style={styles.badgeRow}>
                             <View style={[styles.badge, { backgroundColor: "#DBEAFE" }]}>
                                 <Text style={[styles.badgeText, { color: "#2563EB" }]}>
-                                    {details.count} orders
+                                    {person.count}{" "}
+                                    {isSaleOrder ? "orders" : "invoices"}
                                 </Text>
                             </View>
                             {hasCancelled && (
-                                <View style={[styles.badge, { backgroundColor: "#FEE2E2" }]}>
-                                    <Text style={[styles.badgeText, { color: "#DC2626" }]}>
-                                        {details.cancelledCount} cancelled
+                                <View
+                                    style={[
+                                        styles.badge,
+                                        { backgroundColor: "#FEE2E2" },
+                                    ]}>
+                                    <Text
+                                        style={[
+                                            styles.badgeText,
+                                            { color: "#DC2626" },
+                                        ]}>
+                                        {person.cancelledCount} cancelled
                                     </Text>
                                 </View>
                             )}
                         </View>
                     </View>
-                    
+
                     <View style={styles.arrowContainer}>
-                        <Feather name="chevron-right" size={20} color={customColors.grey400} />
+                        <Feather
+                            name="chevron-right"
+                            size={20}
+                            color={customColors.grey400}
+                        />
                     </View>
                 </View>
-                
+
                 <View style={styles.cardDivider} />
-                
+
+                {/* Stats row */}
                 <View style={styles.cardStats}>
                     <View style={styles.statBlock}>
                         <View style={styles.statIconWrapper}>
-                            <MaterialIcons name="receipt-long" size={16} color="#10B981" />
+                            <MaterialIcons
+                                name="receipt-long"
+                                size={16}
+                                color="#10B981"
+                            />
                         </View>
                         <View>
-                            <Text style={styles.statBlockLabel}>Active Sales</Text>
-                            <Text style={styles.statBlockValue}>{details.activeCount}</Text>
+                            <Text style={styles.statBlockLabel}>
+                                Active {isSaleOrder ? "Sales" : "Invoices"}
+                            </Text>
+                            <Text style={styles.statBlockValue}>
+                                {person.activeCount}
+                            </Text>
                         </View>
                     </View>
-                    
+
                     <View style={styles.statBlock}>
-                        <View style={[styles.statIconWrapper, { backgroundColor: "#FEF3C7" }]}>
-                            <MaterialIcons name="currency-rupee" size={16} color="#D97706" />
+                        <View
+                            style={[
+                                styles.statIconWrapper,
+                                { backgroundColor: "#FEF3C7" },
+                            ]}>
+                            <MaterialIcons
+                                name="currency-rupee"
+                                size={16}
+                                color="#D97706"
+                            />
                         </View>
                         <View>
                             <Text style={styles.statBlockLabel}>Total Value</Text>
-                            <Text style={[styles.statBlockValue, { color: "#D97706" }]}>
-                                ₹{details.totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                            <Text
+                                style={[
+                                    styles.statBlockValue,
+                                    { color: "#D97706" },
+                                ]}>
+                                ₹
+                                {person.totalValue.toLocaleString("en-IN", {
+                                    maximumFractionDigits: 0,
+                                })}
                             </Text>
                         </View>
                     </View>
@@ -167,33 +318,23 @@ const StatisticsScreen = ({ route, navigation }) => {
         );
     };
 
-    const renderContent = () => {
-        if (!userCount || Object.keys(userCount).length === 0) {
-            return (
-                <View style={styles.noDataContainer}>
-                    <MaterialCommunityIcons name="chart-box-outline" size={64} color={customColors.grey300} />
-                    <Text style={styles.noDataTitle}>No Sales Data</Text>
-                    <Text style={styles.noDataText}>No sales records found for this date</Text>
-                </View>
-            );
-        }
-
+    // ─── Loading ──────────────────────────────────────────────────────────────
+    if (isLoading) {
         return (
-            <>
-                {renderSummaryCard()}
-                
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Sales by Person</Text>
-                    <Text style={styles.sectionSubtitle}>{summaryStats.salesPersonCount} active</Text>
+            <SafeAreaView style={styles.container}>
+                <AppHeader
+                    navigation={navigation}
+                    title={`${title} Statistics`}
+                    showBackButton={true}
+                />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={customColors.primary} />
                 </View>
-                
-                {Object.entries(userCount).map(([salesPerson, details], index) => 
-                    renderSalesPersonCard(salesPerson, details, index)
-                )}
-            </>
+            </SafeAreaView>
         );
-    };
+    }
 
+    // ─── Main ─────────────────────────────────────────────────────────────────
     return (
         <SafeAreaView style={styles.container}>
             <AppHeader
@@ -203,26 +344,53 @@ const StatisticsScreen = ({ route, navigation }) => {
                 showRightIcon={true}
                 rightIconLibrary="FeatherIcon"
                 rightIconName="arrow-up-right"
-                onRightPress={() => navigation.navigate("SalesAdmin", {
-                    selectedDate: selectedDate,
-                    selectedBranch: selectedBranch || "",
-                })}
+                onRightPress={() =>
+                    navigation.navigate(type === "saleOrder" ? "SalesAdmin" : "SaleInvoiceList", {
+                        selectedDate,
+                        selectedBranch: selectedBranch || "",
+                        ...(type !== "saleOrder" && { isAdmin: true }),
+                    })
+                }
             />
 
-            <ScrollView
-                style={styles.content}
-                contentContainerStyle={styles.scrollViewContent}
+            <FlatList
+                data={groupedData}
+                keyExtractor={(item) =>
+                    String(item.salesPersonId) +
+                    item.name +
+                    (item.liveSale ? "-live" : "")
+                }
+                renderItem={renderPersonCard}
+                ListHeaderComponent={
+                    <>
+                        {renderSummaryCard()}
+                        {groupedData.length > 0 && renderSectionHeader()}
+                    </>
+                }
+                contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
                         colors={[customColors.primary]}
+                        tintColor={customColors.primary}
                     />
                 }
-                >
-                {renderContent()}
-            </ScrollView>
+                ListEmptyComponent={
+                    <View style={styles.noDataContainer}>
+                        <MaterialCommunityIcons
+                            name="chart-box-outline"
+                            size={64}
+                            color={customColors.grey300}
+                        />
+                        <Text style={styles.noDataTitle}>No Sales Data</Text>
+                        <Text style={styles.noDataText}>
+                            No {isSaleOrder ? "orders" : "invoices"} found for this date
+                        </Text>
+                    </View>
+                }
+            />
         </SafeAreaView>
     );
 };
@@ -232,34 +400,38 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: customColors.primaryDark,
     },
-    content: {
+    loadingContainer: {
         flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
         backgroundColor: customColors.background,
     },
-    scrollViewContent: {
-        padding: 16,
-        paddingBottom: 32,
+    listContent: {
+        flexGrow: 1,
+        padding: spacing.md,
+        paddingBottom: spacing.xl,
+        backgroundColor: customColors.background,
     },
-    
-    // Summary Card
+
+    // ── Summary Card
     summaryCard: {
         borderRadius: 16,
-        padding: 20,
-        marginBottom: 20,
+        padding: spacing.lg,
+        marginBottom: spacing.lg,
     },
     summaryHeader: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 20,
+        marginBottom: spacing.lg,
+        gap: spacing.sm,
     },
     summaryIconWrapper: {
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        backgroundColor: "rgba(255,255,255,0.2)",
         alignItems: "center",
         justifyContent: "center",
-        marginRight: 12,
     },
     summaryTitle: {
         ...typography.h6(),
@@ -283,20 +455,20 @@ const styles = StyleSheet.create({
     },
     summaryStatLabel: {
         ...typography.caption(),
-        color: "rgba(255, 255, 255, 0.8)",
+        color: "rgba(255,255,255,0.8)",
     },
     summaryDivider: {
         width: 1,
         height: 40,
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        backgroundColor: "rgba(255,255,255,0.2)",
     },
-    
-    // Section Header
+
+    // ── Section header
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: spacing.sm,
     },
     sectionTitle: {
         ...typography.body1(),
@@ -307,25 +479,21 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey500,
     },
-    
-    // Sales Person Card
-    salesPersonCard: {
+
+    // ── Person Card
+    personCard: {
         backgroundColor: customColors.white,
         borderRadius: 14,
-        padding: 16,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+        ...shadows.small,
     },
     cardHeader: {
         flexDirection: "row",
         alignItems: "center",
     },
     avatarContainer: {
-        marginRight: 12,
+        marginRight: spacing.sm,
     },
     avatar: {
         width: 44,
@@ -342,7 +510,7 @@ const styles = StyleSheet.create({
     cardTitleSection: {
         flex: 1,
     },
-    salesPersonName: {
+    personName: {
         ...typography.body1(),
         fontWeight: "600",
         color: customColors.grey900,
@@ -373,7 +541,7 @@ const styles = StyleSheet.create({
     cardDivider: {
         height: 1,
         backgroundColor: customColors.grey100,
-        marginVertical: 14,
+        marginVertical: spacing.sm,
     },
     cardStats: {
         flexDirection: "row",
@@ -391,7 +559,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#D1FAE5",
         alignItems: "center",
         justifyContent: "center",
-        marginRight: 8,
+        marginRight: spacing.sm,
     },
     statBlockLabel: {
         ...typography.caption(),
@@ -403,10 +571,9 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#059669",
     },
-    
-    // No Data
+
+    // ── Empty
     noDataContainer: {
-        flex: 1,
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 60,
@@ -425,3 +592,4 @@ const styles = StyleSheet.create({
 });
 
 export default StatisticsScreen;
+

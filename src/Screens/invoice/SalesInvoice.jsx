@@ -967,7 +967,16 @@ const SalesInvoice = ({ route }) => {
                     text: "Okay",
                     onPress: () => {
                         setIsSummaryModalVisible(false);
-                        navigation.goBack();
+                        navigation.reset({
+                            index: 0,
+                            routes: [{
+                                name: "HomeScreen",
+                                state: {
+                                    index: 0,
+                                    routes: [{ name: "HomeScreen"}] 
+                                }
+                            }],
+                        });
                     },
                 },
             ]);

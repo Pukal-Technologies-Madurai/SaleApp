@@ -24,6 +24,7 @@ import {
     borderRadius,
     iconSizes,
 } from "../../Config/helper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const DeliveryReturn = ({ route }) => {
     const { selectedDate: passedDate, selectedBranch } = route.params || {};
@@ -44,6 +45,7 @@ const DeliveryReturn = ({ route }) => {
     const [productSummary, setProductSummary] = useState([]);
     const [selectedSalesPerson, setSelectedSalesPerson] = useState("");
     const [salesPersonList, setSalesPersonList] = useState([]);
+    const [userId, setUserId] = useState(null);
 
     // ── Single effect: fires on mount (with the correct initial date)
     //    and again whenever the user changes dates via the filter modal ────────
@@ -53,9 +55,21 @@ const DeliveryReturn = ({ route }) => {
         loadCreditNotes(from, to);
     }, [selectedFromDate, selectedToDate]);
 
-    const loadCreditNotes = async (from, to) => {
+    useEffect(() => {
+        const getUserInfo = async () => {
+            try {
+                const userId = await AsyncStorage.getItem("UserId");
+                setUserId(userId);
+            } catch (error) {
+                console.error("Error getting user info:", error);
+            }
+        };
+        getUserInfo();
+    }, []);
+
+    const loadCreditNotes = async (from, to, userId) => {
         try {
-            const data = await fetchCreditNoteList(from, to);
+            const data = await fetchCreditNoteList(from, to, userId);
             setCreditNoteData(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("loadCreditNotes error:", err);

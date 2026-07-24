@@ -21,6 +21,7 @@ import { fetchBranches } from "../Api/employee";
 import { customColors, typography, spacing, shadows } from "../Config/helper";
 import BranchFilterModal from "../Components/BranchFilterModal";
 import DatePickerButton from "../Components/DatePickerButton";
+import { fetchDashboardData } from "../Api/auth";
 
 const Dashboard = () => {
     const navigation = useNavigation();
@@ -98,8 +99,33 @@ const Dashboard = () => {
         loadUserDetails();
     }, []);
 
+    const { data: dashboardDataFetch = [], isLoading: isDashboardLoading, refetch: refetchDashboardData } = useQuery({
+        queryKey: ["dashboardData", selectedDate, selectedBranches],
+        queryFn: async () => {
+
+            const getBranchIdParam = () => {
+                if (selectedBranches.length === 0) {
+                    return "";
+                } else if (selectedBranches.length === 1) {
+                    return selectedBranches[0];
+                } else {
+                    return selectedBranches.join(", ");
+                }
+            };
+
+            const branchIdParam = getBranchIdParam();
+
+            const result = await fetchDashboardData(selectedDate, branchIdParam);
+            return result;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+        retry: 2,
+    })
+
     // Optimized API functions with better error handling
     const apiService = {
+
         fetchAttendanceInfo: async (from, to, userTypeID, branchId) => {
             const url = `${API.attendanceHistory()}From=${from}&To=${to}&UserTypeID=${userTypeID}&Branch_Id=${branchId}`;
             const response = await fetch(url);
@@ -141,37 +167,6 @@ const Dashboard = () => {
             return data.success ? uniqueEntries : [];
         },
 
-        fetchSaleOrder: async (from, to, company, branchId, userId = "") => {
-            const url = `${API.saleOrder()}?Fromdate=${from}&Todate=${to}&Company_Id=${company}&Branch_Id=${branchId}&Created_by=${userId}&Sales_Person_Id=${userId}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.success ? data.data : [];
-        },
-
-        fetchInvoiceData: async (from, to, branchId) => {
-            const url = `${API.getSaleInvoice()}${from}&Todate=${to}&Branch_Id=${branchId}&VoucherType=0`;
-            // console.log("Fetching invoice data with URL:", url);
-            const response = await fetch(url);
-            const data = await response.json();
-            if (!data.success) return [];
-            const filteredData = data.data.filter(invoice => invoice.Voucher_Type === "0" || invoice.Voucher_Type === "13");
-            return filteredData;
-        },
-
-        fetchReceiptData: async (from, to, branchId) => {
-            const url = `${API.getReceipt()}${from}&Todate=${to}&Branch_Id=${branchId}`;
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.success && data.data) {
-                return data.data.filter(receipt => receipt.status !== 0).reduce(
-                    (sum, receipt) => sum + (receipt.credit_amount || 0),
-                    0,
-                );
-            }
-            return 0;
-        },
-
         fetchDeliveryData: async (today, branchId) => {
             const url = `${API.todayDelivery()}Fromdate=${today}&Todate=${today}&Branch_Id=${branchId}`;
             const response = await fetch(url);
@@ -186,12 +181,6 @@ const Dashboard = () => {
             return data.success ? data.data : [];
         },
 
-        fetchCreditNoteList: async (today) => {
-            const url = `${API.getCreditNoteList()}${today}&Todate=${today}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.success ? data.data : [];
-        },
         fetchExpenseData: async (from, to) => {
             const url = `${API.getExpenseList()}${from}&Todate=${to}`;
             const response = await fetch(url);
@@ -235,28 +224,12 @@ const Dashboard = () => {
                 // Fetch all data in parallel
                 const [
                     visitData,
-                    saleData,
-                    invoiceData,
                     attendanceData,
                     deliveryData,
                     tripSheetData,
-                    receiptData,
-                    deliveryReturnData,
                     expenseData,
                 ] = await Promise.allSettled([
                     apiService.fetchVisitersLog(selectedDate, "", branchIdParam),
-                    apiService.fetchSaleOrder(
-                        selectedDate,
-                        selectedDate,
-                        userDetails.companyId,
-                        branchIdParam,
-                        "",
-                    ),
-                    apiService.fetchInvoiceData(
-                        selectedDate,
-                        selectedDate,
-                        branchIdParam,
-                    ),
                     apiService.fetchAttendanceInfo(
                         selectedDate,
                         selectedDate,
@@ -265,29 +238,17 @@ const Dashboard = () => {
                     ),
                     apiService.fetchDeliveryData(selectedDate, branchIdParam),
                     apiService.fetchTripSheet(selectedDate, selectedDate, branchIdParam),
-                    apiService.fetchReceiptData(selectedDate, selectedDate, branchIdParam),
-                    apiService.fetchCreditNoteList(selectedDate),
                     apiService.fetchExpenseData(selectedDate, selectedDate),
                 ]);
 
                 // Extract data from settled promises
                 const extractData = result =>
                     result.status === "fulfilled" ? result.value : [];
-                const extractValue = result =>
-                    result.status === "fulfilled" ? result.value : 0;
 
                 const finalVisitData = extractData(visitData);
-                const finalSaleData = extractData(saleData);
-                const finalInvoiceData = extractData(invoiceData);
                 const finalAttendanceData = extractData(attendanceData);
                 const finalDeliveryData = extractData(deliveryData);
                 const finalTripSheetData = extractData(tripSheetData);
-                const finalReceiptData = extractValue(receiptData);
-                const finalCreditNoteData = extractData(deliveryReturnData);
-                const totalCreditNoteAmount = finalCreditNoteData.reduce(
-                    (sum, cn) => sum + parseFloat(cn.Total_Invoice_value || 0),
-                    0,
-                );
                 const finalExpenseData = extractData(expenseData);
                 const totalExpenseAmount = finalExpenseData.reduce(
                     (sum, expense) =>
@@ -295,78 +256,11 @@ const Dashboard = () => {
                     0,
                 );
 
-                // Process sale data
-                const saleCount = finalSaleData.reduce((entry, item) => {
-                    // const salesPerson = item.Sales_Person_Name === ""
-                    //     ? `${item.Created_BY_Name} (PoS)`
-                    //     : item.Sales_Person_Name;
-                    const salesPerson = item.Created_BY_Name;
-                    const salesPersonId = item.Created_by;
-                    const isCancelled = item.Cancel_status === "0";
-                    
-                    if (entry[salesPerson]) {
-                        entry[salesPerson].count++;
-                        entry[salesPerson].totalValue += item.Total_Invoice_value;
-                        if (isCancelled) {
-                            entry[salesPerson].cancelledCount++;
-                        } else {
-                            entry[salesPerson].activeCount++;
-                        }
-                    } else {
-                        entry[salesPerson] = {
-                            salesPersonId: salesPersonId,
-                            count: 1,
-                            totalValue: item.Total_Invoice_value,
-                            cancelledCount: isCancelled ? 1 : 0,
-                            activeCount: isCancelled ? 0 : 1,
-                        };
-                    }
-                    return entry;
-                }, {});
-
-                const totalSaleOrderAmount = finalSaleData.reduce(
-                    (sum, item) => sum + item.Total_Invoice_value,
-                    0
-                );
-
-                // console.log("Processed sale count by salesperson:", saleCount);
-
-                const totalInvoiceAmount = finalInvoiceData.reduce(
-                    (sum, invoice) => sum + invoice.Total_Invoice_value,
-                    0,
-                );
-
-                // console.log("Total Invoice Amount:", totalInvoiceAmount);
-
-                const totalProductsSold = finalSaleData.reduce(
-                    (count, order) => {
-                        return (
-                            count +
-                            order.Products_List.reduce(
-                                (productCount, product) => {
-                                    return productCount + product.Total_Qty;
-                                },
-                                0,
-                            )
-                        );
-                    },
-                    0,
-                );
-
                 return {
                     visitData: finalVisitData,
-                    saleData: finalSaleData,
                     attendanceData: finalAttendanceData,
                     deliveryData: finalDeliveryData,
                     tripSheetData: finalTripSheetData,
-                    invoiceData: finalInvoiceData,
-                    newReceiptData: finalReceiptData,
-                    creditNoteData: finalCreditNoteData,
-                    totalCreditNoteAmount,
-                    totalSaleOrderAmount,
-                    saleCount,
-                    totalInvoiceAmount,
-                    totalProductsSold,
                     expenseData: finalExpenseData,
                     totalExpenseAmount,
                 };
@@ -477,7 +371,14 @@ const Dashboard = () => {
 
     // Memoized stats data with 3D gradient colors
     const statsData = useMemo(
-        () => [
+        () => {
+            const getVoucher = (name) =>
+                (dashboardDataFetch || []).find(v => v.voucherName === name) || { voucherCount: 0, voucherTotal: 0 };
+            const saleOrderVoucher = getVoucher("Sale Order");
+            const salesInvoiceVoucher = getVoucher("Sales Invoice");
+            const receiptVoucher = getVoucher("Receipt");
+            const creditNoteVoucher = getVoucher("Credit Note");
+            return [
             {
                 icon: "human-greeting-variant",
                 iconLibrary: "MaterialCommunityIcons",
@@ -499,13 +400,13 @@ const Dashboard = () => {
                     day: "2-digit",
                     month: "2-digit",
                 })} Sales`}`,
-                value: `${allDashboardData.saleData?.length || 0} | ₹${((allDashboardData.totalSaleOrderAmount / 1000).toFixed(1) || 0).toLocaleString("en-IN")}k`,
+                value: `${saleOrderVoucher.voucherCount} | ₹${((saleOrderVoucher.voucherTotal / 1000).toFixed(1)).toLocaleString("en-IN")}k`,
                 gradientColors: ["#60A5FA", "#3B82F6", "#2563EB"],
                 shadowColor: "#3B82F6",
                 onPress: () =>
                     navigation.navigate("Statistics", {
                         title: "Sales",
-                        userCount: allDashboardData.saleCount,
+                        type: "saleOrder",
                         selectedDate: selectedDate,
                         selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                     }),
@@ -514,21 +415,22 @@ const Dashboard = () => {
                 icon: "receipt-long",
                 iconLibrary: "MaterialIcons",
                 label: "Invoice Summary",
-                value: `₹${(allDashboardData.totalInvoiceAmount || 0).toLocaleString("en-IN")}`,
+                value: `${salesInvoiceVoucher.voucherCount} | ₹${((salesInvoiceVoucher.voucherTotal / 1000).toFixed(1)).toLocaleString("en-IN")}k`,
                 gradientColors: ["#FB923C", "#F97316", "#EA580C"],
                 shadowColor: "#F97316",
                 onPress: () =>
-                    navigation.navigate("SaleInvoiceList", {
+                    navigation.navigate("Statistics", {
+                        title: "Invoice",
+                        type: "invoice",
                         selectedDate: selectedDate,
                         selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
-                        isAdmin: true,
                     }),
             },
             {
                 icon: "receipt",
                 iconLibrary: "MaterialIcons",
                 label: "Receipts",
-                value: `₹${(allDashboardData.newReceiptData || 0).toLocaleString("en-IN")}`,
+                value: `${receiptVoucher.voucherCount} | ₹${((receiptVoucher.voucherTotal / 1000).toFixed(1) || 0).toLocaleString("en-IN")}k`,
                 gradientColors: ["#4ADE80", "#22C55E", "#16A34A"],
                 shadowColor: "#22C55E",
                 onPress: () =>
@@ -574,12 +476,13 @@ const Dashboard = () => {
                 icon: "keyboard-return",
                 iconLibrary: "MaterialIcons",
                 label: "Credit Notes",
-                value: `₹${(allDashboardData.totalCreditNoteAmount || 0).toLocaleString("en-IN")}`,
+                value: `${creditNoteVoucher.voucherCount} | ₹${((creditNoteVoucher.voucherTotal / 1000).toFixed(1) || 0).toLocaleString("en-IN")}k`,
                 gradientColors: ["#FB7185", "#F43F5E", "#E11D48"],
                 shadowColor: "#F43F5E",
                 onPress: () => navigation.navigate("DeliveryReturn", {
                     selectedDate: selectedDate,
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
+                    showAll: true,
                 }),
             },
             {
@@ -635,8 +538,9 @@ const Dashboard = () => {
             //     backgroundColor: "#F5F3FF",
             //     onPress: () => navigation.navigate("AdminItemSaleReturn"),
             // },
-        ],
-        [allDashboardData, navigation],
+            ];
+        },
+        [allDashboardData, navigation, dashboardDataFetch],
     );
 
     // Memoized 3D icon renderer with gradient background

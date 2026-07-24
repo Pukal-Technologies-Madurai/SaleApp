@@ -24,7 +24,7 @@ import AppHeader from "../../Components/AppHeader";
 import assetImages from "../../Config/Image";
 import LocationIndicator from "../../Components/LocationIndicator";
 import { API } from "../../Config/Endpoint";
-import { updateRetailerLocation } from "../../Api/retailers";
+import { updateRetailerLocation, setVerifiedLocation } from "../../Api/retailers";
 import {
     customColors,
     typography,
@@ -39,7 +39,7 @@ import {
 const CustomersDetails = ({ route }) => {
     const { item } = route.params;
     const navigation = useNavigation();
-    console.log("Customer Details Item:", item);
+    // console.log("Customer Details Item:", item);
 
     const [userId, setUserId] = useState("");
     const [companyName, setCompanyName] = useState("");
@@ -54,6 +54,9 @@ const CustomersDetails = ({ route }) => {
     const [orderByInput, setOrderByInput] = useState(item?.Order_By ? String(item.Order_By) : "");
     const [currentOrderBy, setCurrentOrderBy] = useState(item?.Order_By ? String(item.Order_By) : "");
     const [showOrderByEditor, setShowOrderByEditor] = useState(false);
+    const [verifiedLocationId, setVerifiedLocationId] = useState(
+        item?.VERIFIED_LOCATION?.Id ?? null,
+    );
 
     useEffect(() => {
         AsyncStorage.getItem("UserId").then(id => {
@@ -68,7 +71,6 @@ const CustomersDetails = ({ route }) => {
         mutationFn: updateRetailerLocation,
         onSuccess: data => {
             ToastAndroid.show(data.message, ToastAndroid.LONG);
-            // Alert.alert("Geolocation Data is Updated");
         },
         onError: error => {
             ToastAndroid.show(
@@ -78,8 +80,35 @@ const CustomersDetails = ({ route }) => {
         },
     });
 
+    const verifyMutation = useMutation({
+        mutationFn: setVerifiedLocation,
+        onSuccess: (data, variables) => {
+            setVerifiedLocationId(variables.locationId);
+            ToastAndroid.show(
+                data.message || "Verified location updated",
+                ToastAndroid.LONG,
+            );
+        },
+        onError: error => {
+            ToastAndroid.show(
+                error.message || "Failed to set verified location",
+                ToastAndroid.LONG,
+            );
+        },
+    });
+
     const handleRetailerUpdate = location => {
         mutation.mutate({ userId, location, item });
+        navigation.reset({
+            index: 0,
+            routes: [{
+                name: "HomeScreen",
+                state: {
+                    index: 0,
+                    routes: [{ name: "HomeScreen"}] 
+                }
+            }],
+        });
     };
 
     // Calculate distance between two coordinates in meters
@@ -524,53 +553,73 @@ const CustomersDetails = ({ route }) => {
                                 </View>
                             )}
 
-                            {/* Last Updated Location */}
+                            {/* All Recorded Locations */}
                             {(item.AllLocations && item.AllLocations.length > 0) && (
-                                <View style={styles.locationSection}>
-                                    <View style={styles.locationHeader}>
-                                        <Icon name="clockcircleo" size={iconSizes.sm} color={customColors.warning} />
-                                        <Text style={styles.locationTitle}>Last Updated</Text>
-                                        {location && (
-                                            <Text style={styles.distanceText}>
-                                                {formatDistance(calculateDistance(
-                                                    location.latitude,
-                                                    location.longitude,
-                                                    parseFloat(item.AllLocations[0].latitude),
-                                                    parseFloat(item.AllLocations[0].longitude)
-                                                ))}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    <Text style={styles.coordinates}>
-                                        {parseFloat(item.AllLocations[0].latitude).toFixed(6)}, {parseFloat(item.AllLocations[0].longitude).toFixed(6)}
-                                    </Text>
-                                    <Text style={styles.locationStatus}>📱 {item.AllLocations[0].EntryByGet0}</Text>
-                                </View>
+                                <>
+                                    <Text style={styles.sectionSubTitle}>All Locations</Text>
+                                    {item.AllLocations.map(loc => {
+                                        const isVerified = loc.Id === verifiedLocationId;
+                                        return (
+                                            <View
+                                                key={loc.Id}
+                                                style={[
+                                                    styles.locationSection,
+                                                    isVerified && styles.verifiedLocationSection,
+                                                ]}>
+                                                <View style={styles.locationHeader}>
+                                                    <Icon
+                                                        name={isVerified ? "checkcircle" : "clockcircleo"}
+                                                        size={iconSizes.sm}
+                                                        color={isVerified ? customColors.success : customColors.warning}
+                                                    />
+                                                    <Text style={styles.locationTitle} numberOfLines={1}>
+                                                        {loc.EntryByGet || "Unknown"}
+                                                    </Text>
+                                                    {location && (
+                                                        <Text style={styles.distanceText}>
+                                                            {formatDistance(calculateDistance(
+                                                                location.latitude,
+                                                                location.longitude,
+                                                                parseFloat(loc.latitude),
+                                                                parseFloat(loc.longitude)
+                                                            ))}
+                                                        </Text>
+                                                    )}
+                                                </View>
+                                                <Text style={styles.coordinates}>
+                                                    {parseFloat(loc.latitude).toFixed(6)}, {parseFloat(loc.longitude).toFixed(6)}
+                                                </Text>
+                                                <View style={styles.locationFooter}>
+                                                    <Text style={styles.locationStatus}>
+                                                        🕐 {new Date(loc.EntryAt).toLocaleString()}
+                                                    </Text>
+                                                    {isVerified ? (
+                                                        <View style={styles.verifiedBadge}>
+                                                            <MaterialIcon name="verified" size={iconSizes.xs} color={customColors.success} />
+                                                            <Text style={styles.verifiedBadgeText}>Verified</Text>
+                                                        </View>
+                                                    ) : (
+                                                        <TouchableOpacity
+                                                            style={[
+                                                                styles.setVerifiedBtn,
+                                                                verifyMutation.isPending && styles.disabledButton,
+                                                            ]}
+                                                            disabled={verifyMutation.isPending}
+                                                            onPress={() => verifyMutation.mutate({ locationId: loc.Id })}
+                                                            activeOpacity={0.7}>
+                                                            <MaterialIcon name="check-circle" size={iconSizes.xs} color={customColors.white} />
+                                                            <Text style={styles.setVerifiedBtnText}>
+                                                                {verifyMutation.isPending ? "..." : "Set Verified"}
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
+                                </>
                             )}
 
-                            {/* Admin Verified Location */}
-                            {(item.VERIFIED_LOCATION?.latitude && item.VERIFIED_LOCATION?.longitude) && (
-                                <View style={styles.locationSection}>
-                                    <View style={styles.locationHeader}>
-                                        <Icon name="checkcircleo" size={iconSizes.sm} color={customColors.success} />
-                                        <Text style={styles.locationTitle}>Verified Location</Text>
-                                        {location && (
-                                            <Text style={styles.distanceText}>
-                                                {formatDistance(calculateDistance(
-                                                    location.latitude,
-                                                    location.longitude,
-                                                    parseFloat(item.VERIFIED_LOCATION.latitude),
-                                                    parseFloat(item.VERIFIED_LOCATION.longitude)
-                                                ))}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    <Text style={styles.coordinates}>
-                                        {parseFloat(item.VERIFIED_LOCATION.latitude).toFixed(6)}, {parseFloat(item.VERIFIED_LOCATION.longitude).toFixed(6)}
-                                    </Text>
-                                    <Text style={styles.locationStatus}>✅ Admin Verified</Text>
-                                </View>
-                            )}
                         </ScrollView>
 
                         <View style={styles.modalButtons}>
@@ -1002,13 +1051,13 @@ const styles = StyleSheet.create({
     },
     distanceText: {
         ...typography.caption(),
-        color: customColors.success,
-        backgroundColor: customColors.successLight,
+        color: customColors.grey600,
+        fontWeight: "700",
+        backgroundColor: customColors.grey100,
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xxs,
         borderRadius: borderRadius.round,
         overflow: 'hidden',
-        fontWeight: "600",
     },
     coordinates: {
         ...typography.body2(),
@@ -1021,6 +1070,53 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey500,
         fontStyle: 'italic',
+    },
+    sectionSubTitle: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    verifiedLocationSection: {
+        borderLeftColor: customColors.success,
+        backgroundColor: customColors.success + '08',
+    },
+    locationFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing.xs,
+    },
+    setVerifiedBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xxs,
+        backgroundColor: customColors.primary,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
+    },
+    setVerifiedBtnText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: '600',
+    },
+    verifiedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xxs,
+        backgroundColor: customColors.success + '20',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        borderRadius: borderRadius.round,
+    },
+    verifiedBadgeText: {
+        ...typography.caption(),
+        color: customColors.success,
+        fontWeight: '700',
     },
     noLocationText: {
         ...typography.body2(),
@@ -1148,6 +1244,7 @@ const styles = StyleSheet.create({
         color: customColors.grey700,
     },
     updateButtonText: {
+        textAlign: "center",
         ...typography.button(),
         color: customColors.white,
     },

@@ -29,9 +29,9 @@ export const fetchPendingSalesList = async (fromDate, toDate, branchId) => {
     }
 };
 
-export const fetchCreditNoteList = async (fromDate, toDate) => {
+export const fetchCreditNoteList = async (fromDate, toDate, userId) => {
     try {
-        const url = `${API.getCreditNoteList()}${fromDate}&Todate=${toDate}`;
+        const url = `${API.getCreditNoteList()}${fromDate}&Todate=${toDate}&&Created_by=${userId}`;
         const response = await fetch(url);
         const data = await response.json();
 

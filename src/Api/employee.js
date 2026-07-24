@@ -93,6 +93,17 @@ export const fetchBranches = async () => {
     return data.data;
 };
 
+export const fetchBranchDropDown = async () => {
+    const url = `${API.getBranchDropDownData()}`;
+    const response = await fetch(url);
+
+    const data = await response.json();
+    if (!data.success) {
+        throw new Error(data.message || "Failed to fetch users");
+    }
+    return data.data;
+};
+
 export const fetchSalePerson = async companyId => {
     const response = await fetch(`${API.salesPerson()}${companyId}`);
     const data = await response.json();

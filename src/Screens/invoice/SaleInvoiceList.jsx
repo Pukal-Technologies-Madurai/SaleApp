@@ -9,7 +9,7 @@ import {
     RefreshControl,
     Alert,
 } from "react-native";
-import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
@@ -37,7 +37,7 @@ import { FlashList } from "@shopify/flash-list";
 const SaleInvoiceList = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { isAdmin = false, selectedDate: passedDate, selectedBranch } = route.params || {};
+    const { isAdmin = false, selectedDate: passedDate, selectedBranch, selectedSalesPersonId } = route.params || {};
 
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
     const [selectedToDate, setSelectedToDate] = useState(new Date());
@@ -54,6 +54,9 @@ const SaleInvoiceList = () => {
 
     const [selectedBrand, setSelectedBrand] = useState("All");
     const [brandList, setBrandList] = useState([]);
+
+    // Auto-select salesperson from route param (set only once when data first loads)
+    const hasAutoSelected = useRef(false);
 
     // Sales person filter state (for admin users)
     const [salesPersonData, setSalesPersonData] = useState([]);
@@ -123,30 +126,31 @@ const SaleInvoiceList = () => {
     });
 
     // Extract sales person dropdown data from invoice data (for admin users)
-    // Use Sales_Person_Name when Created_BY_Name is "admin"
-    // If Sales_Person_Name and Delivery_Person_Name are "unknown", use Created_BY_Name with "- Live" suffix
     useEffect(() => {
         if (isAdmin && saleInvoiceData.length > 0) {
             const salesPersonMap = new Map();
             saleInvoiceData.forEach(invoice => {
-                const isCreatedByAdmin = invoice.Created_BY_Name?.toLowerCase() === "admin";
-                const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
-                const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
+                const isLiveSales =
+                    invoice.Voucher_Type === "13" &&
+                    invoice.VoucherTypeGet === "LIVE_SALES_INVOICE";
+                const isCreatedByAdmin =
+                    invoice.Created_BY_Name?.toLowerCase() === "admin";
+                const hasSalesPerson =
+                    invoice.Sales_Person_Name &&
+                    invoice.Sales_Person_Name !== "unknown";
 
-                let displayName;
-                let key;
-
-                // If both Sales_Person_Name and Delivery_Person_Name are "unknown", use Created_BY_Name
-                if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
+                let displayName, key;
+                if (isLiveSales) {
+                    // Live sales invoice — show salesperson with Live label
                     displayName = `${invoice.Created_BY_Name} - Live`;
                     key = invoice.Created_by;
-                } else if (isCreatedByAdmin) {
-                    // Use Sales_Person_Name if Created_BY_Name is "admin"
-                    displayName = invoice.Sales_Person_Name || invoice.Created_BY_Name;
+                } else if (isCreatedByAdmin && hasSalesPerson) {
+                    // Admin-created invoice with a real salesperson
+                    displayName = invoice.Sales_Person_Name;
                     key = invoice.Sales_Person_Name;
                 } else {
-                    // Otherwise use Created_BY_Name with (Live) suffix
-                    displayName = `${invoice.Created_BY_Name} - Live`;
+                    // Admin credit bill or any other type
+                    displayName = invoice.Created_BY_Name;
                     key = invoice.Created_by;
                 }
 
@@ -170,38 +174,37 @@ const SaleInvoiceList = () => {
                 const newStr = JSON.stringify(dropdownData);
                 return prevStr !== newStr ? dropdownData : prev;
             });
+
+            // Auto-select salesperson if navigated from Statistics screen
+            if (!hasAutoSelected.current && selectedSalesPersonId) {
+                const match = dropdownData.find(
+                    d => String(d.value) === String(selectedSalesPersonId),
+                );
+                if (match) {
+                    setSelectedSalesPerson(match);
+                    hasAutoSelected.current = true;
+                }
+            }
         }
     }, [isAdmin, saleInvoiceData.length]);
 
-    // Get data filtered by sales person (for brand list and report)
-    // Filter by Sales_Person_Name when Created_BY_Name is "admin"
-    // If Sales_Person_Name and Delivery_Person_Name are "unknown", match against Created_by
-    // Also exclude admin credit bill invoices (Created_BY_Name === "admin" AND VoucherTypeGet === "ONLINE_Credit Bill")
+    // Get data filtered by sales person
     const salesPersonFilteredData = useMemo(() => {
-        // First, filter out admin credit bill invoices
-        const filteredData = saleInvoiceData.filter(invoice => {
-            const isAdminCreditBill =
-                invoice.Created_BY_Name?.toLowerCase() === "admin" &&
-                invoice.VoucherTypeGet === "ONLINE_Credit Bill";
-            return !isAdminCreditBill;
-        });
-
         if (!isAdmin || selectedSalesPerson?.value === "all") {
-            return filteredData;
+            return saleInvoiceData;
         }
-        return filteredData.filter(invoice => {
-            const isSalesPersonUnknown = invoice.Sales_Person_Name === "unknown" || !invoice.Sales_Person_Name;
-            const isDeliveryPersonUnknown = invoice.Delivery_Person_Name === "unknown" || !invoice.Delivery_Person_Name;
+        return saleInvoiceData.filter(invoice => {
+            const isCreatedByAdmin =
+                invoice.Created_BY_Name?.toLowerCase() === "admin";
+            const hasSalesPerson =
+                invoice.Sales_Person_Name &&
+                invoice.Sales_Person_Name !== "unknown";
 
-            // If both are "unknown", match against Created_by
-            if (isSalesPersonUnknown && isDeliveryPersonUnknown) {
-                return invoice.Created_by === selectedSalesPerson?.value;
-            }
-            // If Created_BY_Name is "admin", match against Sales_Person_Name
-            if (invoice.Created_BY_Name?.toLowerCase() === "admin") {
+            if (isCreatedByAdmin && hasSalesPerson) {
+                // Admin-created invoice with real salesperson
                 return invoice.Sales_Person_Name === selectedSalesPerson?.value;
             }
-            // Otherwise match against Created_by
+            // Live sales or admin credit bill — match by Created_by
             return invoice.Created_by === selectedSalesPerson?.value;
         });
     }, [saleInvoiceData, isAdmin, selectedSalesPerson?.value]);

@@ -56,3 +56,11 @@ export const fetchUserAuth = async ({ webApi, userAuth }) => {
     if (!json.success) throw new Error(json.message);
     return json.user;
 };
+
+export const fetchDashboardData = async (reqDate, branchId) => {
+    const res = await fetch(`${API.dashboardFrontendData()}${reqDate}&branch=${branchId}`);
+
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message);
+    return json.data;
+};

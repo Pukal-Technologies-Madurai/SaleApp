@@ -6,12 +6,16 @@ import {
     TouchableOpacity,
     ScrollView,
     LayoutAnimation,
+    Modal,
+    Pressable,
+    ActivityIndicator,
 } from "react-native";
-import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import MaterialIcon from "react-native-vector-icons/MaterialIcons";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AppHeader from "../../Components/AppHeader";
 import { API } from "../../Config/Endpoint";
 import {
@@ -51,12 +55,41 @@ const SalesAdmin = ({ route }) => {
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [modalVisible, setModalVisible] = useState(false);
+    const [statusFilterModalVisible, setStatusFilterModalVisible] =
+        useState(false);
+    const [timeFilterModalVisible, setTimeFilterModalVisible] = useState(false);
+    const [conversionFilter, setConversionFilter] = useState("all");
+    const [timeFromInput, setTimeFromInput] = useState("");
+    const [timeToInput, setTimeToInput] = useState("");
+    const [timeFromPeriod, setTimeFromPeriod] = useState("AM");
+    const [timeToPeriod, setTimeToPeriod] = useState("PM");
+    const [timeFilterError, setTimeFilterError] = useState("");
+    const [timeFilter, setTimeFilter] = useState({
+        fromMinutes: null,
+        toMinutes: null,
+        fromLabel: "",
+        toLabel: "",
+    });
+    const [isFilterRefreshing, setIsFilterRefreshing] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
+
+    // Resolve correct label from salesPersonData once it loads
+    const hasAutoSelected = useRef(false);
+    useEffect(() => {
+        if (!hasAutoSelected.current && selectedSalesPersonId && salesPersonData.length > 1) {
+            const match = salesPersonData.find(
+                d => String(d.value) === String(selectedSalesPersonId),
+            );
+            if (match) {
+                setSelectedSalesPerson(match);
+                hasAutoSelected.current = true;
+            }
+        }
+    }, [salesPersonData, selectedSalesPersonId]);
 
     useEffect(() => {
         (async () => {
             try {
-                const userId = await AsyncStorage.getItem("UserId");
                 const Company_Id = await AsyncStorage.getItem("Company_Id");
 
                 // Set initial dates to today
@@ -76,20 +109,13 @@ const SalesAdmin = ({ route }) => {
                     label: selectedSalesPersonId ? "Selected" : "All",
                     value: salesPersonIdToUse,
                 });
-
-                fetchSaleOrder(
-                    formattedDate,
-                    formattedDate,
-                    Company_Id,
-                    salesPersonIdToUse,
-                );
             } catch (err) {
                 console.log("Error in useEffect:", err);
             }
         })();
     }, [passedDate, selectedSalesPersonId]);
 
-    // Add new useEffect for date changes
+    // Fetch whenever active filters change.
     useEffect(() => {
         if (companyId && selectedSalesPerson) {
             const fromDate = selectedFromDate.toISOString().split("T")[0];
@@ -101,7 +127,13 @@ const SalesAdmin = ({ route }) => {
                 selectedSalesPerson.value,
             );
         }
-    }, [selectedFromDate, selectedToDate, selectedSalesPerson]);
+    }, [
+        companyId,
+        selectedFromDate,
+        selectedToDate,
+        selectedSalesPerson,
+        selectedBranch,
+    ]);
 
     const fetchSaleOrder = async (from, to, company, userId = "") => {
         try {
@@ -209,9 +241,11 @@ const SalesAdmin = ({ route }) => {
     // Apply filter - validate and set actual dates
     const handleApplyFilter = useCallback(() => {
         // Ensure fromDate <= toDate
-        const validFromDate = modalFromDate > modalToDate ? modalToDate : modalFromDate;
-        const validToDate = modalToDate < modalFromDate ? modalFromDate : modalToDate;
-        
+        const validFromDate =
+            modalFromDate > modalToDate ? modalToDate : modalFromDate;
+        const validToDate =
+            modalToDate < modalFromDate ? modalFromDate : modalToDate;
+
         setSelectedFromDate(validFromDate);
         setSelectedToDate(validToDate);
         setModalVisible(false);
@@ -233,17 +267,173 @@ const SalesAdmin = ({ route }) => {
 
     const handleSalesPersonChange = item => {
         setSelectedSalesPerson(item);
-
-        const formattedFromDate = selectedFromDate.toISOString().split("T")[0];
-        const formattedToDate = selectedToDate.toISOString().split("T")[0];
-
-        fetchSaleOrder(
-            formattedFromDate,
-            formattedToDate,
-            companyId,
-            item.value,
-        );
     };
+
+    const handleBrandChange = useCallback(
+        brand => {
+            if (brand === selectedBrand) return;
+            setIsFilterRefreshing(true);
+            setSelectedBrand(brand);
+        },
+        [selectedBrand],
+    );
+
+    const handleConversionFilterChange = useCallback(
+        filterKey => {
+            if (filterKey === conversionFilter) {
+                setStatusFilterModalVisible(false);
+                return;
+            }
+
+            setIsFilterRefreshing(true);
+            setConversionFilter(filterKey);
+            setStatusFilterModalVisible(false);
+        },
+        [conversionFilter],
+    );
+
+    const getOrderDeliveryState = useCallback(order => {
+        const convertedInvoices = Array.isArray(order?.ConvertedInvoice)
+            ? order.ConvertedInvoice
+            : [];
+        const hasConvertedInvoice = convertedInvoices.length > 0;
+        const isDelivered = convertedInvoices.some(
+            inv =>
+                String(inv?.deliveryStatusGet || "")
+                    .trim()
+                    .toLowerCase() === "delivered",
+        );
+
+        return {
+            hasConvertedInvoice,
+            isDelivered,
+            isNotDelivered: !isDelivered,
+        };
+    }, []);
+
+    const parseFlexibleTimeToMinutes = useCallback((value, fallbackPeriod) => {
+        if (!value) return null;
+        const normalized = value.trim().toUpperCase();
+        const match = normalized.match(
+            /^(1[0-2]|0?[1-9])[\.:]([0-5][0-9])(?:\s?(AM|PM))?$/,
+        );
+        if (!match) return null;
+
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const period = (match[3] || fallbackPeriod || "AM").toUpperCase();
+
+        if (period === "AM" && hours === 12) hours = 0;
+        if (period === "PM" && hours !== 12) hours += 12;
+
+        return hours * 60 + minutes;
+    }, []);
+
+    const normalizeDisplayTime = useCallback(value => {
+        const normalized = value.trim();
+        const match = normalized.match(/^(1[0-2]|0?[1-9])[\.:]([0-5][0-9])$/);
+        if (!match) return normalized;
+        const hour = String(parseInt(match[1], 10));
+        const minute = match[2];
+        return `${hour}.${minute}`;
+    }, []);
+
+    const parseStoredTimeLabel = useCallback(label => {
+        if (!label) return null;
+        const match = label.trim().match(
+            /^(1[0-2]|0?[1-9])[\.:]([0-5][0-9])\s?(AM|PM)$/i,
+        );
+        if (!match) return null;
+
+        return {
+            time: `${parseInt(match[1], 10)}.${match[2]}`,
+            period: match[3].toUpperCase(),
+        };
+    }, []);
+
+    const handleOpenTimeFilter = useCallback(() => {
+        const parsedFrom = parseStoredTimeLabel(timeFilter.fromLabel);
+        const parsedTo = parseStoredTimeLabel(timeFilter.toLabel);
+
+        setTimeFromInput(parsedFrom?.time || "");
+        setTimeToInput(parsedTo?.time || "");
+        setTimeFromPeriod(parsedFrom?.period || "AM");
+        setTimeToPeriod(parsedTo?.period || "PM");
+        setTimeFilterError("");
+        setTimeFilterModalVisible(true);
+    }, [timeFilter.fromLabel, timeFilter.toLabel, parseStoredTimeLabel]);
+
+    const handleApplyTimeFilter = useCallback(() => {
+        const fromRaw = timeFromInput.trim().toUpperCase();
+        const toRaw = timeToInput.trim().toUpperCase();
+
+        // Empty inputs clear time filter.
+        if (!fromRaw && !toRaw) {
+            setTimeFilter({
+                fromMinutes: null,
+                toMinutes: null,
+                fromLabel: "",
+                toLabel: "",
+            });
+            setTimeFromPeriod("AM");
+            setTimeToPeriod("PM");
+            setTimeFilterError("");
+            setTimeFilterModalVisible(false);
+            setIsFilterRefreshing(true);
+            return;
+        }
+
+        if (!fromRaw || !toRaw) {
+            setTimeFilterError(
+                "Enter both From Time and To Time in hh:mm AM/PM",
+            );
+            return;
+        }
+
+        const fromMinutes = parseFlexibleTimeToMinutes(fromRaw, timeFromPeriod);
+        const toMinutes = parseFlexibleTimeToMinutes(toRaw, timeToPeriod);
+
+        if (fromMinutes === null || toMinutes === null) {
+            setTimeFilterError("Use format like 9.30 or 9:30 (AM/PM optional)");
+            return;
+        }
+
+        const normalizedFrom = normalizeDisplayTime(fromRaw);
+        const normalizedTo = normalizeDisplayTime(toRaw);
+
+        setTimeFilter({
+            fromMinutes,
+            toMinutes,
+            fromLabel: `${normalizedFrom} ${timeFromPeriod.toLowerCase()}`,
+            toLabel: `${normalizedTo} ${timeToPeriod.toLowerCase()}`,
+        });
+        setTimeFilterError("");
+        setTimeFilterModalVisible(false);
+        setIsFilterRefreshing(true);
+    }, [
+        timeFromInput,
+        timeToInput,
+        timeFromPeriod,
+        timeToPeriod,
+        parseFlexibleTimeToMinutes,
+        normalizeDisplayTime,
+    ]);
+
+    const handleClearTimeFilter = useCallback(() => {
+        setTimeFromInput("");
+        setTimeToInput("");
+        setTimeFromPeriod("AM");
+        setTimeToPeriod("PM");
+        setTimeFilterError("");
+        setTimeFilter({
+            fromMinutes: null,
+            toMinutes: null,
+            fromLabel: "",
+            toLabel: "",
+        });
+        setTimeFilterModalVisible(false);
+        setIsFilterRefreshing(true);
+    }, []);
 
     // Toggle accordion expansion
     const toggleExpanded = useCallback(itemId => {
@@ -251,45 +441,100 @@ const SalesAdmin = ({ route }) => {
         setExpandedId(prev => (prev === itemId ? null : itemId));
     }, []);
 
-    const handleProductSummaryPress = useCallback(() => {
-        navigation.navigate("SalesReport", {
-            logData,
-            productSummary,
-            selectedDate: selectedFromDate,
-            isNotAdmin: false,
-        });
-    }, [navigation, logData, productSummary, selectedFromDate]);
-
-    // Memoized filtered data by brand
+    // Memoized filtered data by brand, sorted by Created_on ascending
     const filteredLogData = useMemo(() => {
+        let data;
         if (selectedBrand === "All") {
-            return logData;
-        }
-
-        return logData
-            .map(order => {
-                const filteredProducts = order.Products_List.filter(
-                    product => product.BrandGet?.trim() === selectedBrand,
-                );
-
-                if (filteredProducts.length > 0) {
-                    const brandTotal = filteredProducts.reduce(
-                        (sum, product) =>
-                            sum + (product.Amount || product.Final_Amo || 0),
-                        0,
+            data = [...logData];
+        } else {
+            data = logData
+                .map(order => {
+                    const filteredProducts = order.Products_List.filter(
+                        product => product.BrandGet?.trim() === selectedBrand,
                     );
 
-                    return {
-                        ...order,
-                        Products_List: filteredProducts,
-                        Total_Invoice_value: brandTotal,
-                        Original_Total: order.Total_Invoice_value,
-                    };
+                    if (filteredProducts.length > 0) {
+                        const brandTotal = filteredProducts.reduce(
+                            (sum, product) =>
+                                sum +
+                                (product.Amount || product.Final_Amo || 0),
+                            0,
+                        );
+
+                        return {
+                            ...order,
+                            Products_List: filteredProducts,
+                            Total_Invoice_value: brandTotal,
+                            Original_Total: order.Total_Invoice_value,
+                        };
+                    }
+                    return null;
+                })
+                .filter(order => order !== null);
+        }
+
+        if (conversionFilter === "converted") {
+            data = data.filter(
+                order => getOrderDeliveryState(order).hasConvertedInvoice,
+            );
+        } else if (conversionFilter === "pending") {
+            data = data.filter(
+                order => !getOrderDeliveryState(order).hasConvertedInvoice,
+            );
+        } else if (conversionFilter === "delivered") {
+            data = data.filter(
+                order => getOrderDeliveryState(order).isDelivered,
+            );
+        } else if (conversionFilter === "not_delivered") {
+            data = data.filter(
+                order => getOrderDeliveryState(order).isNotDelivered,
+            );
+        }
+
+        if (timeFilter.fromMinutes !== null && timeFilter.toMinutes !== null) {
+            data = data.filter(order => {
+                if (!order.Created_on) return false;
+                const createdDate = new Date(order.Created_on);
+                if (isNaN(createdDate.getTime())) return false;
+
+                const orderMinutes =
+                    createdDate.getHours() * 60 + createdDate.getMinutes();
+
+                // Support normal and midnight-crossing ranges.
+                if (timeFilter.fromMinutes <= timeFilter.toMinutes) {
+                    return (
+                        orderMinutes >= timeFilter.fromMinutes &&
+                        orderMinutes <= timeFilter.toMinutes
+                    );
                 }
-                return null;
-            })
-            .filter(order => order !== null);
-    }, [logData, selectedBrand]);
+
+                return (
+                    orderMinutes >= timeFilter.fromMinutes ||
+                    orderMinutes <= timeFilter.toMinutes
+                );
+            });
+        }
+
+        // Sort by Created_on ascending
+        return data.sort((a, b) => {
+            const timeA = a.Created_on
+                ? new Date(a.Created_on).getTime()
+                : null;
+            const timeB = b.Created_on
+                ? new Date(b.Created_on).getTime()
+                : null;
+            if (timeA === null && timeB === null) return 0;
+            if (timeA === null) return 1;
+            if (timeB === null) return -1;
+            return timeA - timeB;
+        });
+    }, [
+        logData,
+        selectedBrand,
+        conversionFilter,
+        timeFilter,
+        getOrderDeliveryState,
+    ]);
 
     // Memoized stats
     const { filteredTotalSales, filteredTotalAmount } = useMemo(() => {
@@ -312,20 +557,99 @@ const SalesAdmin = ({ route }) => {
         );
     }, [filteredLogData, searchQuery]);
 
+    const filteredProductSummary = useMemo(() => {
+        const summary = {};
+
+        filteredOrderData.forEach(order => {
+            (order.Products_List || []).forEach(product => {
+                const productName = product.Product_Name || "Unknown Product";
+                if (!summary[productName]) {
+                    summary[productName] = {
+                        productName,
+                        totalQty: 0,
+                        totalAmount: 0,
+                        timesSold: 0,
+                    };
+                }
+
+                summary[productName].totalQty +=
+                    product.Total_Qty || product.Bill_Qty || 0;
+                summary[productName].totalAmount +=
+                    product.Amount || product.Final_Amo || 0;
+                summary[productName].timesSold += 1;
+            });
+        });
+
+        return Object.values(summary);
+    }, [filteredOrderData]);
+
+    useEffect(() => {
+        if (!isFilterRefreshing) return;
+
+        const timer = setTimeout(() => {
+            setIsFilterRefreshing(false);
+        }, 280);
+
+        return () => clearTimeout(timer);
+    }, [isFilterRefreshing, filteredOrderData]);
+
+    const handleProductSummaryPress = useCallback(() => {
+        navigation.navigate("SalesReport", {
+            logData: filteredOrderData,
+            productSummary: filteredProductSummary,
+            selectedDate: selectedFromDate,
+            isNotAdmin: false,
+        });
+    }, [
+        navigation,
+        filteredOrderData,
+        filteredProductSummary,
+        selectedFromDate,
+    ]);
+
     const handleCloseModal = useCallback(() => {
         setModalVisible(false);
+    }, []);
+
+    // Format time from ISO string to readable format
+    const formatTime = useCallback(dateString => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return null;
+        let hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `${hours}:${minutes} ${ampm}`;
     }, []);
 
     // Memoized FlatList item renderer
     const renderItem = useCallback(
         ({ item }) => {
             const isExpanded = expandedId === item.So_Id;
+            const isEdited = item.Trans_Type === "UPDATE";
+            const displayTime =
+                isEdited
+                    ? formatTime(item.Alterd_on)
+                    : formatTime(item.Created_on);
+            const isConverted =
+                Array.isArray(item.ConvertedInvoice) &&
+                item.ConvertedInvoice.length > 0;
+            const isDelivered = Array.isArray(item.ConvertedInvoice) &&
+                item.ConvertedInvoice.some(
+                    inv =>
+                        String(inv?.deliveryStatusGet || "")
+                            .trim()
+                            .toLowerCase() === "delivered",
+                );
 
             return (
                 <View
                     style={[
                         styles.itemContainer,
                         isExpanded && styles.expandedItem,
+                        isConverted && styles.convertedItem,
                     ]}
                 >
                     <TouchableOpacity
@@ -336,6 +660,10 @@ const SalesAdmin = ({ route }) => {
                             style={[
                                 styles.accordionHeader,
                                 isExpanded && styles.headerExpanded,
+                                isConverted
+                                    ? styles.convertedHeader
+                                    : styles.pendingHeader,
+                                isDelivered && styles.deliveredHeader,
                             ]}
                         >
                             <View style={styles.headerLeft}>
@@ -345,13 +673,38 @@ const SalesAdmin = ({ route }) => {
                                 >
                                     {item.Retailer_Name}
                                 </Text>
-                                <Text style={styles.orderDate}>
-                                    {item.So_Date
-                                        ? new Date(
-                                              item.So_Date,
-                                          ).toLocaleDateString("en-GB")
-                                        : "N/A"}
-                                </Text>
+                                <View style={styles.orderDateRow}>
+                                    <Text style={styles.orderDate}>
+                                        {item.So_Date
+                                            ? new Date(
+                                                  item.So_Date,
+                                              ).toLocaleDateString("en-GB")
+                                            : "N/A"}
+                                    </Text>
+                                    {displayTime && (
+                                        <View style={styles.createdTimeBadge}>
+                                            <Icon
+                                                name="clock-outline"
+                                                size={10}
+                                                color={customColors.white}
+                                            />
+                                            <Text
+                                                style={styles.createdTimeText}
+                                            >
+                                                {displayTime}
+                                                {isEdited ? " Edited" : ""}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View
+                                        style={styles.statusBadge}
+                                    >
+                                        <Text style={styles.statusBadgeText}>
+                                            {isConverted && isDelivered
+                                                && "Delivered"}
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
                             <View style={styles.headerRight}>
                                 <Text style={styles.orderAmount}>
@@ -419,7 +772,7 @@ const SalesAdmin = ({ route }) => {
                 </View>
             );
         },
-        [expandedId, toggleExpanded],
+        [expandedId, toggleExpanded, formatTime],
     );
 
     const keyExtractor = useCallback(item => item.So_Id.toString(), []);
@@ -488,7 +841,7 @@ const SalesAdmin = ({ route }) => {
                                                 ? customColors.primary
                                                 : customColors.grey200,
                                     }}
-                                    onPress={() => setSelectedBrand(brand)}
+                                    onPress={() => handleBrandChange(brand)}
                                 >
                                     <Text
                                         style={{
@@ -498,7 +851,7 @@ const SalesAdmin = ({ route }) => {
                                                     : customColors.grey900,
                                             fontFamily:
                                                 customFonts.poppinsRegular,
-                                                
+
                                             fontWeight: "600",
                                             textTransform: "capitalize",
                                         }}
@@ -525,6 +878,30 @@ const SalesAdmin = ({ route }) => {
                     </View>
 
                     <View style={styles.statsContainer}>
+                        <TouchableOpacity
+                            style={styles.statusFilterButton}
+                            onPress={() => setStatusFilterModalVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <MaterialIcon
+                                name="tune"
+                                size={14}
+                                color={customColors.grey600}
+                            />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.timeFilterButton}
+                            onPress={handleOpenTimeFilter}
+                            activeOpacity={0.7}
+                        >
+                            <FeatherIcon
+                                name="clock"
+                                size={14}
+                                color={customColors.grey600}
+                            />
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={styles.reportButton}
                             onPress={handleProductSummaryPress}
@@ -562,6 +939,25 @@ const SalesAdmin = ({ route }) => {
                                 </Text>
                             </View>
                         </View>
+
+                        <Text style={styles.activeFilterText}>
+                            Status:{" "}
+                            {conversionFilter === "all"
+                                ? "All"
+                                : conversionFilter === "converted"
+                                  ? "Converted"
+                                  : conversionFilter === "pending"
+                                    ? "Pending"
+                                    : conversionFilter === "delivered"
+                                      ? "Delivered"
+                                      : "Not Delivered"}
+                        </Text>
+                        {timeFilter.fromLabel && timeFilter.toLabel ? (
+                            <Text style={styles.activeFilterText}>
+                                Time: {timeFilter.fromLabel} -{" "}
+                                {timeFilter.toLabel}
+                            </Text>
+                        ) : null}
                     </View>
 
                     {showSearch && (
@@ -603,6 +999,248 @@ const SalesAdmin = ({ route }) => {
                         </View>
                     }
                 />
+
+                <Modal
+                    visible={statusFilterModalVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setStatusFilterModalVisible(false)}
+                >
+                    <Pressable
+                        style={styles.statusModalBackdrop}
+                        onPress={() => setStatusFilterModalVisible(false)}
+                    >
+                        <Pressable
+                            style={styles.statusModalCard}
+                            onPress={e => e.stopPropagation()}
+                        >
+                            <Text style={styles.statusModalTitle}>
+                                Order Status Filter
+                            </Text>
+
+                            {[
+                                { key: "all", label: "All" },
+                                { key: "converted", label: "Converted" },
+                                { key: "pending", label: "Pending" },
+                                { key: "delivered", label: "Delivered" },
+                                {
+                                    key: "not_delivered",
+                                    label: "Not Delivered",
+                                },
+                            ].map(option => {
+                                const isActive =
+                                    conversionFilter === option.key;
+
+                                return (
+                                    <TouchableOpacity
+                                        key={option.key}
+                                        style={[
+                                            styles.statusOption,
+                                            isActive &&
+                                                styles.statusOptionActive,
+                                        ]}
+                                        onPress={() =>
+                                            handleConversionFilterChange(
+                                                option.key,
+                                            )
+                                        }
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.statusOptionText,
+                                                isActive &&
+                                                    styles.statusOptionTextActive,
+                                            ]}
+                                        >
+                                            {option.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </Pressable>
+                    </Pressable>
+                </Modal>
+
+                <Modal
+                    visible={timeFilterModalVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setTimeFilterModalVisible(false)}
+                >
+                    <Pressable
+                        style={styles.statusModalBackdrop}
+                        onPress={() => setTimeFilterModalVisible(false)}
+                    >
+                        <Pressable
+                            style={styles.statusModalCard}
+                            onPress={e => e.stopPropagation()}
+                        >
+                            <Text style={styles.statusModalTitle}>
+                                Created Time Filter
+                            </Text>
+
+                            <Text style={styles.timeInputLabel}>
+                                From Time (12-hour)
+                            </Text>
+                            <View style={styles.timeInputRow}>
+                                <TextInput
+                                    style={styles.timeInput}
+                                    placeholder="9.30"
+                                    placeholderTextColor={customColors.grey400}
+                                    value={timeFromInput}
+                                    onChangeText={text =>
+                                        setTimeFromInput(text.toUpperCase())
+                                    }
+                                    autoCapitalize="characters"
+                                />
+                                <View style={styles.periodSwitch}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.periodBtn,
+                                            timeFromPeriod === "AM" &&
+                                                styles.periodBtnActive,
+                                        ]}
+                                        onPress={() => setTimeFromPeriod("AM")}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.periodBtnText,
+                                                timeFromPeriod === "AM" &&
+                                                    styles.periodBtnTextActive,
+                                            ]}
+                                        >
+                                            AM
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.periodBtn,
+                                            timeFromPeriod === "PM" &&
+                                                styles.periodBtnActive,
+                                        ]}
+                                        onPress={() => setTimeFromPeriod("PM")}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.periodBtnText,
+                                                timeFromPeriod === "PM" &&
+                                                    styles.periodBtnTextActive,
+                                            ]}
+                                        >
+                                            PM
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <Text style={styles.timeInputLabel}>
+                                To Time (12-hour)
+                            </Text>
+                            <View style={styles.timeInputRow}>
+                                <TextInput
+                                    style={styles.timeInput}
+                                    placeholder="3.30"
+                                    placeholderTextColor={customColors.grey400}
+                                    value={timeToInput}
+                                    onChangeText={text =>
+                                        setTimeToInput(text.toUpperCase())
+                                    }
+                                    autoCapitalize="characters"
+                                />
+                                <View style={styles.periodSwitch}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.periodBtn,
+                                            timeToPeriod === "AM" &&
+                                                styles.periodBtnActive,
+                                        ]}
+                                        onPress={() => setTimeToPeriod("AM")}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.periodBtnText,
+                                                timeToPeriod === "AM" &&
+                                                    styles.periodBtnTextActive,
+                                            ]}
+                                        >
+                                            AM
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.periodBtn,
+                                            timeToPeriod === "PM" &&
+                                                styles.periodBtnActive,
+                                        ]}
+                                        onPress={() => setTimeToPeriod("PM")}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.periodBtnText,
+                                                timeToPeriod === "PM" &&
+                                                    styles.periodBtnTextActive,
+                                            ]}
+                                        >
+                                            PM
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {timeFilterError ? (
+                                <Text style={styles.timeErrorText}>
+                                    {timeFilterError}
+                                </Text>
+                            ) : null}
+
+                            <View style={styles.timeFilterActions}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.timeActionBtn,
+                                        styles.timeActionClear,
+                                    ]}
+                                    onPress={handleClearTimeFilter}
+                                    activeOpacity={0.75}
+                                >
+                                    <Text style={styles.timeActionClearText}>
+                                        Clear
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.timeActionBtn,
+                                        styles.timeActionApply,
+                                    ]}
+                                    onPress={handleApplyTimeFilter}
+                                    activeOpacity={0.75}
+                                >
+                                    <Text style={styles.timeActionApplyText}>
+                                        Apply
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
+
+                {isFilterRefreshing && (
+                    <View style={styles.refreshOverlay} pointerEvents="none">
+                        <View style={styles.refreshBadge}>
+                            <ActivityIndicator
+                                size="small"
+                                color={customColors.primary}
+                            />
+                            <Text style={styles.refreshText}>
+                                Refreshing...
+                            </Text>
+                        </View>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -648,6 +1286,30 @@ const styles = StyleSheet.create({
         alignItems: "center",
         zIndex: 1,
     },
+    statusFilterButton: {
+        position: "absolute",
+        top: spacing.sm,
+        left: spacing.sm,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
+    },
+    timeFilterButton: {
+        position: "absolute",
+        top: spacing.sm,
+        left: spacing.sm + 30,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: customColors.grey50,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
+    },
     statsRow: {
         flexDirection: "row",
         justifyContent: "space-around",
@@ -669,6 +1331,12 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         textAlign: "center",
     },
+    activeFilterText: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        textAlign: "center",
+        marginTop: spacing.sm,
+    },
     accordationScrollContainer: {
         marginTop: spacing.sm,
         paddingHorizontal: spacing.sm,
@@ -677,11 +1345,19 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        backgroundColor: customColors.primary,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
         borderRadius: 8,
         marginBottom: 2,
+    },
+    convertedHeader: {
+        backgroundColor: "#af7d4c",
+    },
+    deliveredHeader: {
+        backgroundColor: customColors.success,
+    },
+    pendingHeader: {
+        backgroundColor: customColors.primary,
     },
     headerLeft: {
         flex: 1,
@@ -697,6 +1373,38 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.white,
         opacity: 0.9,
+    },
+    orderDateRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        flexWrap: "wrap",
+    },
+    createdTimeBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 4,
+        gap: 3,
+    },
+    createdTimeText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "800",
+        textTransform: "none",
+        letterSpacing: 0.3,
+    },
+    statusBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    statusBadgeText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "400",
     },
     headerRight: {
         alignItems: "flex-end",
@@ -849,6 +1557,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: customColors.grey100,
     },
+    convertedItem: {
+        borderColor: customColors.success + "50",
+    },
     expandedItem: {
         ...shadows.medium,
         borderColor: customColors.primary + "30",
@@ -867,6 +1578,150 @@ const styles = StyleSheet.create({
         ...typography.body1(),
         color: customColors.grey400,
         marginTop: spacing.md,
+    },
+    statusModalBackdrop: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.3)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: spacing.lg,
+    },
+    statusModalCard: {
+        width: "100%",
+        maxWidth: 320,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.md,
+        ...shadows.medium,
+    },
+    statusModalTitle: {
+        ...typography.subtitle1(),
+        color: customColors.grey900,
+        marginBottom: spacing.md,
+        textAlign: "center",
+        fontWeight: "700",
+    },
+    statusOption: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        marginBottom: spacing.sm,
+    },
+    statusOptionActive: {
+        backgroundColor: customColors.primaryFaded,
+        borderColor: customColors.primary,
+    },
+    statusOptionText: {
+        ...typography.body2(),
+        color: customColors.grey800,
+        textAlign: "center",
+        fontWeight: "600",
+    },
+    statusOptionTextActive: {
+        color: customColors.primary,
+    },
+    timeInputLabel: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        marginBottom: spacing.xs,
+        marginTop: spacing.xs,
+        fontWeight: "600",
+    },
+    timeInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        borderRadius: 8,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        color: customColors.grey900,
+        fontFamily: customFonts.poppinsRegular,
+    },
+    timeInputRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    periodSwitch: {
+        flexDirection: "row",
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        borderRadius: 8,
+        overflow: "hidden",
+    },
+    periodBtn: {
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        backgroundColor: customColors.grey50,
+    },
+    periodBtnActive: {
+        backgroundColor: customColors.primary,
+    },
+    periodBtnText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    periodBtnTextActive: {
+        color: customColors.white,
+    },
+    timeErrorText: {
+        ...typography.caption(),
+        color: customColors.error,
+        marginBottom: spacing.sm,
+        textAlign: "center",
+    },
+    timeFilterActions: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    timeActionBtn: {
+        flex: 1,
+        borderRadius: 8,
+        paddingVertical: spacing.sm,
+        alignItems: "center",
+    },
+    timeActionClear: {
+        backgroundColor: customColors.grey100,
+    },
+    timeActionApply: {
+        backgroundColor: customColors.primary,
+    },
+    timeActionClearText: {
+        ...typography.body2(),
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    timeActionApplyText: {
+        ...typography.body2(),
+        color: customColors.white,
+        fontWeight: "600",
+    },
+    refreshOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: "flex-start",
+        alignItems: "center",
+        paddingTop: spacing.sm,
+    },
+    refreshBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        backgroundColor: customColors.white,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 999,
+        ...shadows.small,
+    },
+    refreshText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        fontWeight: "600",
     },
 });
 

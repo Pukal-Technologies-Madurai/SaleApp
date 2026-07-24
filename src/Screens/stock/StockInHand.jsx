@@ -34,7 +34,7 @@ import {
 } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../../Components/AppHeader";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import FilterModal from "../../Components/FilterModal";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -804,7 +804,8 @@ const StockCard = ({ item, index, onPress }) => {
 
 const StockInHand = () => {
     const navigation = useNavigation();
-    const [isActiveGoDown, setIsActiveGoDown] = useState(false);
+    const [isActiveGoDown, setIsActiveGoDown] = useState("");
+    const [isGodownChecked, setIsGodownChecked] = useState(false);
     const [modalFromDate, setModalFromDate] = useState(new Date());
     const [modalToDate, setModalToDate] = useState(new Date());
     const [selectedFromDate, setSelectedFromDate] = useState(new Date());
@@ -852,26 +853,64 @@ const StockInHand = () => {
         setExpenseModalVisible(false);
     }, []);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const godownId = await AsyncStorage.getItem("activeGodown");
-                if (godownId) setIsActiveGoDown(godownId);
-            } catch (err) {
-                console.log("Error fetching data:", err);
-            }
-        })();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            let isMounted = true;
+
+            const loadActiveGodown = async () => {
+                try {
+                    const godownId = await AsyncStorage.getItem("activeGodown");
+                    const hasValidGodown = !!godownId && godownId !== "0";
+
+                    if (!isMounted) return;
+
+                    setIsActiveGoDown(hasValidGodown ? godownId : "");
+                    setIsGodownChecked(true);
+
+                    if (!hasValidGodown) {
+                        navigation.navigate("MasterGodown", {
+                            fromStockInHand: true,
+                        });
+                    }
+                } catch (err) {
+                    if (isMounted) {
+                        setIsActiveGoDown("");
+                        setIsGodownChecked(true);
+                        navigation.navigate("MasterGodown", {
+                            fromStockInHand: true,
+                        });
+                    }
+                    console.log("Error fetching data:", err);
+                }
+            };
+
+            loadActiveGodown();
+
+            return () => {
+                isMounted = false;
+            };
+        }, [navigation]),
+    );
 
     // ── Stock in hand query ───────────────────────────────────────────────────
     const { data: godownStockData = [], isLoading } = useQuery({
-        queryKey: ["godownStockInHand", selectedFromDate, selectedToDate],
+        queryKey: [
+            "godownStockInHand",
+            selectedFromDate,
+            selectedToDate,
+            isActiveGoDown,
+        ],
         queryFn: () =>
             fetchGoDownStackInHand({
                 from: selectedFromDate.toISOString().split("T")[0],
                 to: selectedToDate.toISOString().split("T")[0],
+                goDownId: isActiveGoDown,
             }),
-        enabled: !!selectedFromDate && !!selectedToDate,
+        enabled:
+            !!selectedFromDate &&
+            !!selectedToDate &&
+            isGodownChecked &&
+            !!isActiveGoDown,
         select: data => {
             if (!isActiveGoDown) return data;
             return data.filter(
