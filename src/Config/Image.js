@@ -18,7 +18,8 @@ const assetImages = {
     creditNote: require("../../assets/images/return-items.png"),
 
     receipts: require("../../assets/images/receipts.png"),
-    expenses: require("../../assets/images/expenses.png")
+    expenses: require("../../assets/images/expenses.png"),
+    analysis: require("../../assets/images/monthly-analysis.png")
 };
 
 export default assetImages;

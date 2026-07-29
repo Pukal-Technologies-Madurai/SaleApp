@@ -255,6 +255,13 @@ const HomeScreen = () => {
             navigate: "ExpenseList",
             gradientStart: "#EC4899",
             gradientEnd: "#F472B6",
+        },
+        {
+            title: "Monthly analysis",
+            image: assetImages.analysis,
+            navigate: "MonthlyAnalysis",
+            gradientStart: "#3B82F6",
+            gradientEnd: "#60A5FA",
         }
     ];
 

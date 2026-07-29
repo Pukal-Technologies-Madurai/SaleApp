@@ -98,7 +98,7 @@ export const API = {
     saleInvoice: () => `${baseURL}api/sales/salesInvoice`,
 
     salesPerson: () =>
-        `${baseURL}api/masters/users/salesPerson/dropDown?Company_id=`,
+        `${baseURL}api/masters/users/salesPerson/dropDown`,
     closingStockAreaBased: () =>
         `${baseURL}api/masters/retailers/closingStock/areaBased?Company_id=`,
 

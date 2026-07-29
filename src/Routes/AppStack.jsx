@@ -53,6 +53,7 @@ import RetailerVisit from "../Screens/retailers/RetailerVisit";
 import RetailerVisitLog from "../Screens/retailers/RetailerVisitLog";
 import RoutePath from "../Screens/retailers/RoutePath";
 import TodayLog from "../Screens/retailers/TodayLog";
+import MonthlyAnalysis from "../Screens/analysis/MonthlyAnalysis";
 
 import EditSaleOrder from "../Screens/sales/EditSaleOrder";
 import OrderPreview from "../Screens/sales/OrderPreview";
@@ -143,6 +144,7 @@ const AppStack = () => {
             <Stack.Screen name="RetailerLog" component={RetailerVisitLog} />
             <Stack.Screen name="RoutePath" component={RoutePath} />
             <Stack.Screen name="TodayLog" component={TodayLog} />
+            <Stack.Screen name="MonthlyAnalysis" component={MonthlyAnalysis} />
 
             <Stack.Screen name="EditOrder" component={EditSaleOrder} />
             <Stack.Screen name="OrderPreview" component={OrderPreview} />

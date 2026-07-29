@@ -45,6 +45,7 @@ const PendingDeliveryAdmin = ({ route }) => {
     });
 
     const [activeTab, setActiveTab] = React.useState("delivery");
+    const [showCancelled, setShowCancelled] = React.useState(false);
 
     const { data: pendingDelivery = [], isLoading: isLoadingPendingDelivery } = useQuery({
         queryKey: ["pendingDeliveryList", selectedFromDate, selectedToDate, selectedBranch || ""],
@@ -76,13 +77,19 @@ const PendingDeliveryAdmin = ({ route }) => {
                     ),
                 enabled: !!selectedFromDate && !!selectedToDate,
                 select: data => {
-                    // Filter and sort by So_Date ascending (01 to 31)
+                    // Keep cancelled orders (Cancel_status === 0) in the base list — the
+                    // "Show Cancelled" checkbox decides whether they're displayed.
+                    // Sorted by So_Date ascending (01 to 31)
                     return data
-                        .filter(item => item.isConverted !== 2 && Number(item.Cancel_status) !== 0)
+                        .filter(item => item.isConverted !== 2)
                         .sort((a, b) => new Date(a.So_Date) - new Date(b.So_Date));
                 },
             });
 
+    // Cancel_status === 0 (or "0") means the order was cancelled.
+    const visiblePendingSales = pendingSales.filter(
+        item => showCancelled || Number(item.Cancel_status) !== 0,
+    );
 
     // Delivery_Status: 1 = New/Pending (sorted by Do_Date ascending: 01 to 31)
     const pendingDeliveries = pendingDelivery
@@ -121,146 +128,37 @@ const PendingDeliveryAdmin = ({ route }) => {
         return `₹${parseFloat(amount).toFixed(2)}`;
     };
 
+    const sumValue = list =>
+        list.reduce((sum, item) => sum + parseFloat(item.Total_Invoice_value || 0), 0);
+
+    const summaryTiles = [
+        { icon: "shopping-cart", iconSet: "material", color: customColors.primary, value: visiblePendingSales.length, label: "Sales" },
+        { icon: "inr", iconSet: "fa", color: customColors.primary, value: formatCurrency(sumValue(visiblePendingSales)), label: "S.Value" },
+        { icon: "local-shipping", iconSet: "material", color: customColors.warning, value: pendingDeliveries.length, label: "Delivery" },
+        { icon: "inr", iconSet: "fa", color: customColors.success, value: formatCurrency(sumValue(pendingDeliveries)), label: "D.Value" },
+        { icon: "assignment-return", iconSet: "material", color: customColors.error, value: returnedDeliveries.length, label: "Return" },
+        { icon: "inr", iconSet: "fa", color: customColors.error, value: formatCurrency(sumValue(returnedDeliveries)), label: "R.Value" },
+    ];
+
     const SummaryCard = () => (
-        <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-                <View style={styles.summaryItem}>
-                    <View style={styles.summaryIconBox}>
-                        <Icon
-                            name="shopping-cart"
-                            size={18}
-                            color={customColors.primary}
-                        />
+        <View style={styles.summaryGrid}>
+            {summaryTiles.map((tile, index) => (
+                <View key={index} style={styles.summaryTile}>
+                    <View style={[styles.summaryIconBox, { backgroundColor: `${tile.color}1A` }]}>
+                        {tile.iconSet === "fa" ? (
+                            <FontAwesomeIcon name={tile.icon} size={14} color={tile.color} />
+                        ) : (
+                            <Icon name={tile.icon} size={14} color={tile.color} />
+                        )}
                     </View>
-                    <View style={styles.summaryText}>
-                        <Text style={styles.summaryValue}>
-                            {pendingSales.length}
+                    <View>
+                        <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
+                            {tile.value}
                         </Text>
-                        <Text style={styles.summaryLabel}>Sales</Text>
+                        <Text style={styles.summaryLabel}>{tile.label}</Text>
                     </View>
                 </View>
-
-                <View style={styles.summaryVerticalDivider} />
-
-                <View style={styles.summaryItem}>
-                    <View style={styles.summaryIconBox}>
-                        <FontAwesomeIcon
-                            name="inr"
-                            size={18}
-                            color={customColors.primary}
-                        />
-                    </View>
-                    <View style={styles.summaryText}>
-                        <Text style={styles.summaryValue}>
-                            {formatCurrency(
-                                pendingSales.reduce(
-                                    (sum, item) =>
-                                        sum +
-                                        parseFloat(
-                                            item.Total_Invoice_value || 0,
-                                        ),
-                                    0,
-                                ),
-                            )}
-                        </Text>
-                        <Text style={styles.summaryLabel}>S.Value</Text>
-                    </View>
-                </View>
-            </View>
-
-            <View style={styles.summaryHorizontalDivider} />
-
-            <View style={styles.summaryRow}>
-                <View style={styles.summaryItem}>
-                    <View style={styles.summaryIconBox}>
-                        <Icon
-                            name="local-shipping"
-                            size={18}
-                            color={customColors.warning}
-                        />
-                    </View>
-                    <View style={styles.summaryText}>
-                        <Text style={styles.summaryValue}>
-                            {pendingDeliveries.length}
-                        </Text>
-                        <Text style={styles.summaryLabel}>Delivery</Text>
-                    </View>
-                </View>
-
-                <View style={styles.summaryVerticalDivider} />
-
-                <View style={styles.summaryItem}>
-                    <View style={styles.summaryIconBox}>
-                        <FontAwesomeIcon
-                            name="inr"
-                            size={18}
-                            color={customColors.success}
-                        />
-                    </View>
-                    <View style={styles.summaryText}>
-                        <Text style={styles.summaryValue}>
-                            {formatCurrency(
-                                pendingDeliveries.reduce(
-                                    (sum, item) =>
-                                        sum +
-                                        parseFloat(
-                                            item.Total_Invoice_value || 0,
-                                        ),
-                                    0,
-                                ),
-                            )}
-                        </Text>
-                        <Text style={styles.summaryLabel}>D.Value</Text>
-                    </View>
-                </View>
-            </View>
-
-            <View style={styles.summaryHorizontalDivider} />
-
-            <View style={styles.summaryRow}>
-                <View style={styles.summaryItem}>
-                    <View style={styles.summaryIconBox}>
-                        <Icon
-                            name="assignment-return"
-                            size={18}
-                            color={customColors.error}
-                        />
-                    </View>
-                    <View style={styles.summaryText}>
-                        <Text style={styles.summaryValue}>
-                            {returnedDeliveries.length}
-                        </Text>
-                        <Text style={styles.summaryLabel}>Return</Text>
-                    </View>
-                </View>
-
-                <View style={styles.summaryVerticalDivider} />
-
-                <View style={styles.summaryItem}>
-                    <View style={styles.summaryIconBox}>
-                        <FontAwesomeIcon
-                            name="inr"
-                            size={18}
-                            color={customColors.error}
-                        />
-                    </View>
-                    <View style={styles.summaryText}>
-                        <Text style={styles.summaryValue}>
-                            {formatCurrency(
-                                returnedDeliveries.reduce(
-                                    (sum, item) =>
-                                        sum +
-                                        parseFloat(
-                                            item.Total_Invoice_value || 0,
-                                        ),
-                                    0,
-                                ),
-                            )}
-                        </Text>
-                        <Text style={styles.summaryLabel}>R.Value</Text>
-                    </View>
-                </View>
-            </View>
+            ))}
         </View>
     );
 
@@ -286,7 +184,7 @@ const PendingDeliveryAdmin = ({ route }) => {
                         styles.tabText,
                         activeTab === "sales" && styles.activeTabText,
                     ]}>
-                    Sales ({pendingSales.length})
+                    Sales ({visiblePendingSales.length})
                 </Text>
             </TouchableOpacity>
 
@@ -340,79 +238,83 @@ const PendingDeliveryAdmin = ({ route }) => {
         </View>
     );
 
-    const SalesItem = ({ item }) => (
+    const SalesItem = ({ item }) => {
+        const isCancelled = Number(item.Cancel_status) === 0;
+
+        return (
+            <View
+                style={[
+                    styles.deliveryCard,
+                    isCancelled && styles.deliveryCardCancelled,
+                ]}>
+                <View style={styles.cardHeader}>
+                    <Text style={styles.retailerName} numberOfLines={1}>
+                        {item.Retailer_Name}
+                    </Text>
+                    <Text style={styles.invoiceValue}>
+                        {formatCurrency(item.Total_Invoice_value)}
+                    </Text>
+                </View>
+
+                <View style={styles.subHeaderRow}>
+                    <Text style={styles.subHeaderCol} numberOfLines={1}>{item.So_Inv_No}</Text>
+                    <Text style={[styles.subHeaderCol, styles.subHeaderColRight]} numberOfLines={1}>
+                        {item.Sales_Person_Name}
+                    </Text>
+                </View>
+
+                <View style={styles.cardContent}>
+                    <View style={styles.infoRow}>
+                        <Icon
+                            name="date-range"
+                            size={16}
+                            color={customColors.grey900}
+                            style={styles.icon}
+                        />
+                        <Text style={styles.value}>{formatDate(item.So_Date)}</Text>
+                    </View>
+
+                    {item.Narration && (
+                        <View style={styles.infoRow}>
+                            <Icon
+                                name="note"
+                                size={16}
+                                color={customColors.grey900}
+                                style={styles.icon}
+                            />
+                            <Text style={styles.value} numberOfLines={1}>
+                                {item.Narration}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                <View
+                    style={[
+                        styles.statusBadge,
+                        { backgroundColor: isCancelled ? customColors.error : customColors.primary },
+                    ]}>
+                    <Text style={styles.statusText}>{isCancelled ? "Cancelled" : "Pending"}</Text>
+                </View>
+            </View>
+        );
+    };
+
+    const DeliveryItem = ({ item }) => (
         <View style={styles.deliveryCard}>
             <View style={styles.cardHeader}>
-                <Text style={styles.invoiceNumber}>{item.So_Inv_No}</Text>
+                <Text style={styles.retailerName} numberOfLines={2}>
+                    {item.Retailer_Name}
+                </Text>
                 <Text style={styles.invoiceValue}>
                     {formatCurrency(item.Total_Invoice_value)}
                 </Text>
             </View>
 
-            <View style={styles.cardContent}>
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="date-range"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>{formatDate(item.So_Date)}</Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="store"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value} numberOfLines={2}>
-                        {item.Retailer_Name}
-                    </Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="person"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value}>{item.Sales_Person_Name}</Text>
-                </View>
-
-                {item.Narration && (
-                    <View style={styles.infoRow}>
-                        <Icon
-                            name="note"
-                            size={16}
-                            color={customColors.grey900}
-                            style={styles.icon}
-                        />
-                        <Text style={styles.value} numberOfLines={1}>
-                            {item.Narration}
-                        </Text>
-                    </View>
-                )}
-            </View>
-
-            <View
-                style={[
-                    styles.statusBadge,
-                    { backgroundColor: customColors.primary },
-                ]}>
-                <Text style={styles.statusText}>Pending</Text>
-            </View>
-        </View>
-    );
-
-    const DeliveryItem = ({ item }) => (
-        <View style={styles.deliveryCard}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.invoiceNumber}>{item.Do_Inv_No}</Text>
-                <Text style={styles.invoiceValue}>
-                    {formatCurrency(item.Total_Invoice_value)}
+            <View style={styles.subHeaderRow}>
+                <Text style={styles.subHeaderCol} numberOfLines={1}>{item.Do_Inv_No}</Text>
+                <Text style={[styles.subHeaderCol, styles.subHeaderColRight]} numberOfLines={1}>
+                    {item.Sales_Person_Name}
                 </Text>
             </View>
 
@@ -425,18 +327,6 @@ const PendingDeliveryAdmin = ({ route }) => {
                         style={styles.icon}
                     />
                     <Text style={styles.value}>{formatDate(item.Do_Date)}</Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="store"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value} numberOfLines={1}>
-                        {item.Retailer_Name}
-                    </Text>
                 </View>
 
                 <View style={styles.infoRow}>
@@ -479,9 +369,18 @@ const PendingDeliveryAdmin = ({ route }) => {
     const ReturnedItem = ({ item }) => (
         <View style={styles.deliveryCard}>
             <View style={styles.cardHeader}>
-                <Text style={styles.invoiceNumber}>{item.Do_Inv_No}</Text>
+                <Text style={styles.retailerName} numberOfLines={2}>
+                    {item.Retailer_Name}
+                </Text>
                 <Text style={styles.invoiceValue}>
                     {formatCurrency(item.Total_Invoice_value)}
+                </Text>
+            </View>
+
+            <View style={styles.subHeaderRow}>
+                <Text style={styles.subHeaderCol} numberOfLines={1}>{item.Do_Inv_No}</Text>
+                <Text style={[styles.subHeaderCol, styles.subHeaderColRight]} numberOfLines={1}>
+                    {item.Sales_Person_Name}
                 </Text>
             </View>
 
@@ -494,18 +393,6 @@ const PendingDeliveryAdmin = ({ route }) => {
                         style={styles.icon}
                     />
                     <Text style={styles.value}>{formatDate(item.Do_Date)}</Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                    <Icon
-                        name="store"
-                        size={16}
-                        color={customColors.grey900}
-                        style={styles.icon}
-                    />
-                    <Text style={styles.value} numberOfLines={2}>
-                        {item.Retailer_Name}
-                    </Text>
                 </View>
 
                 <View style={styles.infoRow}>
@@ -547,24 +434,6 @@ const PendingDeliveryAdmin = ({ route }) => {
                         </Text>
                     </View>
                 )}
-
-                {item.Products_List && item.Products_List.length > 0 && (
-                    <View style={styles.productsInfo}>
-                        <Text style={styles.productsHeader}>
-                            Items Returned ({item.Products_List.length})
-                        </Text>
-                        {item.Products_List.slice(0, 2).map((product, index) => (
-                            <Text key={index} style={styles.productItem}>
-                                • {product.Product_Name} (Qty: {product.Total_Qty || product.Bill_Qty})
-                            </Text>
-                        ))}
-                        {item.Products_List.length > 2 && (
-                            <Text style={styles.moreProducts}>
-                                +{item.Products_List.length - 2} more items
-                            </Text>
-                        )}
-                    </View>
-                )}
             </View>
 
             <View
@@ -583,7 +452,7 @@ const PendingDeliveryAdmin = ({ route }) => {
         let data, renderItem, keyExtractor;
 
         if (activeTab === "sales") {
-            data = pendingSales;
+            data = visiblePendingSales;
             renderItem = SalesItem;
             keyExtractor = item => item.So_Id?.toString();
         } else if (activeTab === "delivery") {
@@ -635,7 +504,7 @@ const PendingDeliveryAdmin = ({ route }) => {
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <AppHeader
-                title="Pending Summary"
+                title="Overall Pending"
                 navigation={navigation}
                 showRightIcon={true}
                 rightIconLibrary="MaterialIcon"
@@ -660,6 +529,25 @@ const PendingDeliveryAdmin = ({ route }) => {
             <View style={styles.contentContainer}>
                 <SummaryCard />
                 <TabView />
+
+                {activeTab === "sales" && (
+                    <TouchableOpacity
+                        style={styles.cancelToggleRow}
+                        onPress={() => setShowCancelled(prev => !prev)}
+                        activeOpacity={0.7}>
+                        <View
+                            style={[
+                                styles.checkbox,
+                                showCancelled && styles.checkboxChecked,
+                            ]}>
+                            {showCancelled && (
+                                <Icon name="check" size={14} color={customColors.white} />
+                            )}
+                        </View>
+                        <Text style={styles.cancelToggleText}>Show Cancelled Orders</Text>
+                    </TouchableOpacity>
+                )}
+
                 {renderContent()}
             </View>
         </SafeAreaView>
@@ -677,64 +565,47 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: customColors.white,
     },
-    summaryCard: {
-        backgroundColor: customColors.white,
+    summaryGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
         marginHorizontal: 16,
-        marginTop: 12,
-        marginBottom: 8,
-        padding: 12,
+        marginTop: 8,
+        marginBottom: 4,
+        gap: 6,
+    },
+    summaryTile: {
+        width: "48%",
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: customColors.white,
         borderRadius: 8,
-        elevation: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        elevation: 1,
         shadowColor: customColors.black,
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 3,
-    },
-    summaryRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-    },
-    summaryItem: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 8,
+        shadowOpacity: 0.06,
+        shadowRadius: 2,
     },
     summaryIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 6,
-        backgroundColor: "#f8f9fa",
+        width: 28,
+        height: 28,
+        borderRadius: 7,
         justifyContent: "center",
         alignItems: "center",
         marginRight: 8,
     },
-    summaryText: {
-        alignItems: "flex-start",
-    },
     summaryValue: {
-        ...typography.body1(),
+        ...typography.body2(),
         fontWeight: "bold",
         color: customColors.primaryDark,
-        lineHeight: 18,
+        lineHeight: 16,
     },
     summaryLabel: {
         ...typography.caption(),
         color: customColors.grey900,
-        marginTop: 2,
-    },
-    summaryVerticalDivider: {
-        width: 1,
-        height: 32,
-        backgroundColor: "#e0e0e0",
-        marginHorizontal: 8,
-    },
-    summaryHorizontalDivider: {
-        height: 1,
-        backgroundColor: "#e0e0e0",
-        marginVertical: 8,
+        lineHeight: 14,
     },
     tabContainer: {
         flexDirection: "row",
@@ -776,6 +647,31 @@ const styles = StyleSheet.create({
         color: customColors.grey600,
         textAlign: "center",
     },
+    cancelToggleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginHorizontal: 16,
+        marginBottom: 8,
+        gap: 8,
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: customColors.grey400,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    checkboxChecked: {
+        backgroundColor: customColors.error,
+        borderColor: customColors.error,
+    },
+    cancelToggleText: {
+        ...typography.body2(),
+        color: customColors.grey800,
+        fontWeight: "600",
+    },
     listContainer: {
         paddingHorizontal: 16,
         paddingBottom: 16,
@@ -792,23 +688,43 @@ const styles = StyleSheet.create({
         borderLeftWidth: 4,
         borderLeftColor: customColors.primary,
     },
+    deliveryCardCancelled: {
+        borderLeftColor: customColors.error,
+        opacity: 0.7,
+    },
     cardHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 12,
-        paddingBottom: 8,
+        paddingHorizontal: 12,
+        paddingTop: 10,
+        paddingBottom: 4,
     },
-    invoiceNumber: {
+    retailerName: {
         ...typography.body2(),
         fontWeight: "bold",
         color: customColors.primaryDark,
         flex: 1,
+        marginRight: 8,
     },
     invoiceValue: {
         ...typography.body2(),
         fontWeight: "bold",
         color: customColors.success,
+    },
+    subHeaderRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingHorizontal: 12,
+        paddingBottom: 6,
+    },
+    subHeaderCol: {
+        ...typography.caption(),
+        color: customColors.grey700,
+        flex: 1,
+    },
+    subHeaderColRight: {
+        textAlign: "right",
     },
     cardContent: {
         paddingHorizontal: 12,
@@ -830,40 +746,16 @@ const styles = StyleSheet.create({
     },
     statusBadge: {
         position: "absolute",
-        top: 32,
+        top: 54,
         right: 8,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 8,
     },
     statusText: {
-        color: customColors.white,
         ...typography.overline(),
+        color: customColors.white,
         fontWeight: "bold",
-    },
-    productsInfo: {
-        marginTop: 8,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: customColors.grey200,
-    },
-    productsHeader: {
-        ...typography.caption(),
-        fontWeight: "600",
-        color: customColors.primaryDark,
-        marginBottom: 4,
-    },
-    productItem: {
-        ...typography.caption(),
-        color: customColors.grey700,
-        marginBottom: 2,
-        marginLeft: 8,
-    },
-    moreProducts: {
-        ...typography.caption(),
-        color: customColors.primary,
-        fontStyle: "italic",
-        marginLeft: 8,
     },
     emptyContainer: {
         flex: 1,

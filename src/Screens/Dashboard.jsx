@@ -383,7 +383,11 @@ const Dashboard = () => {
                 icon: "human-greeting-variant",
                 iconLibrary: "MaterialCommunityIcons",
                 label: "Attendance",
-                value: `${totalSalesPersons} (${totalVisits})`,
+                value: `${totalSalesPersons} ${
+                    totalSalesPersons === 1 ? "Person" : "People"
+                } | ${totalVisits} ${
+                    totalVisits === 1 ? "\nVisit" : "\nVisits"
+                }`,
                 gradientColors: ["#34D399", "#10B981", "#059669"],
                 shadowColor: "#10B981",
                 onPress: () => {
@@ -512,7 +516,7 @@ const Dashboard = () => {
                 icon: "pending-actions",
                 iconLibrary: "MaterialIcons",
                 label: "Pending",
-                value: "Monthly",
+                value: "Overall",
                 gradientColors: ["#F472B6", "#EC4899", "#DB2777"],
                 shadowColor: "#EC4899",
                 onPress: () => navigation.navigate("PendingDeliveryAdmin", {
@@ -520,23 +524,23 @@ const Dashboard = () => {
                     selectedBranch: selectedBranches.length === 1 ? selectedBranches[0] : "",
                 }),
             },
+            {
+                icon: "bar-chart",
+                iconLibrary: "MaterialIcons",
+                label: "Analysis",
+                value: "Monthly",
+                gradientColors: ["#A855F7", "#9333EA", "#7E22CE"],
+                shadowColor: "#9333EA",
+                onPress: () => navigation.navigate("MonthlyAnalysis"),
+            }
             // {
-            //     icon: "warehouse",
-            //     iconLibrary: "MaterialCommunityIcons",
-            //     label: "Stock",
-            //     value: "Retailer's ",
+            //     icon: "pie-chart",
+            //     iconLibrary: "MaterialIcons",
+            //     label: "Analysis",
+            //     value: "Monthly",
             //     color: "#F87171",
             //     backgroundColor: "#EDE9FE",
-            //     onPress: () => navigation.navigate("RetailerStock"),
-            // },
-            // {
-            //     icon: "keyboard-return",
-            //     iconLibrary: "MaterialCommunityIcons",
-            //     label: "Sale Return",
-            //     value: "",
-            //     color: "#A855F7",
-            //     backgroundColor: "#F5F3FF",
-            //     onPress: () => navigation.navigate("AdminItemSaleReturn"),
+            //     onPress: () => navigation.navigate("MonthlyAnalysis"),
             // },
             ];
         },
@@ -700,8 +704,11 @@ const Dashboard = () => {
                                 )}
                                 <View style={styles.statContent}>
                                     <Text
-                                        style={styles.statValue}
-                                        numberOfLines={1}
+                                        style={[
+                                            styles.statValue,
+                                            stat.label === "Attendance" && { lineHeight: 22 },
+                                        ]}
+                                        numberOfLines={stat.label === "Attendance" ? 2 : 1}
                                         adjustsFontSizeToFit>
                                         {stat.value}
                                     </Text>

@@ -197,9 +197,9 @@ const SalesAdmin = ({ route }) => {
         setProductSummary(Object.values(summary));
     };
 
-    const fetchSalesPerson = async companyId => {
+    const fetchSalesPerson = async () => {
         try {
-            const url = `${API.salesPerson()}${companyId}`;
+            const url = `${API.salesPerson()}`;
             const response = await fetch(url);
             const data = await response.json();
 

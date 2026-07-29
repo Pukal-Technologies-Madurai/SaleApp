@@ -6,10 +6,14 @@ import {
     FlatList,
     TouchableOpacity,
     ScrollView,
+    Linking,
+    ToastAndroid,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import FeatherIcon from "react-native-vector-icons/Feather";
 import { customColors, typography, spacing, shadows, borderRadius, iconSizes } from "../../Config/helper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { API } from "../../Config/Endpoint";
 
 const TAB_RETAILER = "retailer";
 const TAB_PRODUCT = "product";
@@ -271,6 +275,25 @@ const TripDetails = ({ route, navigation }) => {
                         </Text>
                         <Text style={styles.retailerSoNo}>SO: {item.id}</Text>
                     </View>
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (item.hasLocation) {
+                                Linking.openURL(`${API.google_map}${item.lat},${item.lng}`).catch(() =>
+                                    ToastAndroid.show("Unable to open maps", ToastAndroid.SHORT),
+                                );
+                            } else {
+                                ToastAndroid.show("Location not available", ToastAndroid.SHORT);
+                            }
+                        }}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        <FeatherIcon
+                            name="navigation"
+                            size={iconSizes.md}
+                            color={item.hasLocation ? customColors.primary : customColors.grey400}
+                        />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Details Grid */}

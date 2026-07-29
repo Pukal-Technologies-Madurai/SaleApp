@@ -71,11 +71,11 @@ const Sales = ({ route }) => {
     const [selectedBrand, setSelectedBrand] = useState(null);
     const [userTypeID, setUserTypeID] = useState("");
 
-    const [proGroupData, setProGroupData] = useState([]);
     const [selectedGroup, setSelectedGroup] = useState(null);
+    const [searchSelectedProductId, setSearchSelectedProductId] =
+        useState(null);
     const [selectedUOMs, setSelectedUOMs] = useState({});
 
-    const [filteredProducts, setFilteredProducts] = useState([]);
     const [orderQuantities, setOrderQuantities] = useState({});
     const [editedPrices, setEditedPrices] = useState({});
     const [priceInputValues, setPriceInputValues] = useState({});
@@ -91,11 +91,14 @@ const Sales = ({ route }) => {
     const [isInvoiceCopyEditing, setIsInvoiceCopyEditing] = useState(false);
     const [editingRateItemId, setEditingRateItemId] = useState(null);
     const [editingRateValue, setEditingRateValue] = useState("");
+    const [editingQtyItemId, setEditingQtyItemId] = useState(null);
+    const [editingQtyValue, setEditingQtyValue] = useState("");
     const [isProductSearchVisible, setIsProductSearchVisible] = useState(false);
     const [productSearchText, setProductSearchText] = useState("");
     const [isNarrationModalVisible, setIsNarrationModalVisible] =
         useState(false);
     const [pendingBillType, setPendingBillType] = useState("");
+    const [isAdminFilterVisible, setIsAdminFilterVisible] = useState(false);
 
     // Add animation for refresh button
     const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -332,115 +335,87 @@ const Sales = ({ route }) => {
         queryFn: () => fetchUOM(),
     });
 
-    const handleBrandChange = item => {
-        setSelectedBrand(item.value);
-        setSelectedGroup(null); // Reset product group when brand changes
-        setFilteredProducts([]); // Clear products when brand changes
-
-        // Update product groups for selected brand
-        const filteredByBrand = productData.filter(
-            product => product.Brand_Name === item.value,
-        );
-
-        // Extract unique product groups for the selected brand
-        const groups = Array.from(
-            new Set(filteredByBrand.map(item => item.Pro_Group)),
+    // Product groups available within the selected brand, for the
+    // horizontal chip scroller
+    const proGroupData = useMemo(() => {
+        if (!selectedBrand) return [];
+        return Array.from(
+            new Set(
+                productData
+                    .filter(product => product.Brand_Name === selectedBrand)
+                    .map(product => product.Pro_Group),
+            ),
         )
-            .filter(group => group) // Remove empty or null values
-            .sort() // Sort alphabetically
-            .map(group => ({
-                label: group,
-                value: group,
-            }));
+            .filter(group => group)
+            .sort();
+    }, [productData, selectedBrand]);
 
-        setProGroupData(groups);
-    };
+    // Products shown below: when a product was picked from search, only
+    // that single item is shown. Otherwise, all items for the selected
+    // brand, optionally narrowed further by the selected Pro_Group chip
+    const filteredProducts = useMemo(() => {
+        if (searchSelectedProductId) {
+            return productData.filter(
+                product => product.Product_Id === searchSelectedProductId,
+            );
+        }
 
-    // Handle product group selection
-    const handleGroupChange = item => {
-        setSelectedGroup(item.value);
+        if (!selectedBrand) return [];
 
-        // Filter products only when both brand and group are selected
         let filtered = productData.filter(
-            product =>
-                product.Brand_Name === selectedBrand &&
-                product.Pro_Group === item.value,
+            product => product.Brand_Name === selectedBrand,
         );
 
-        // Filter out out-of-stock products unless showOutOfStock is true
+        if (selectedGroup) {
+            filtered = filtered.filter(
+                product => product.Pro_Group === selectedGroup,
+            );
+        }
+
         if (!showOutOfStock) {
             filtered = filtered.filter(product => product.CL_Qty > 0);
         }
 
-        setFilteredProducts(filtered);
+        return filtered;
+    }, [
+        productData,
+        selectedBrand,
+        selectedGroup,
+        showOutOfStock,
+        searchSelectedProductId,
+    ]);
+
+    const handleBrandChange = item => {
+        setSelectedBrand(item.value);
+        setSelectedGroup(null); // Reset group chip when brand changes
+        setSearchSelectedProductId(null); // Back to browsing the full brand
+    };
+
+    const handleGroupChipSelect = group => {
+        setSelectedGroup(group);
+        setSearchSelectedProductId(null); // Back to browsing the full group
     };
 
     // Handle out of stock toggle
     const handleOutOfStockToggle = () => {
-        setShowOutOfStock(!showOutOfStock);
-
-        // Re-apply filtering if brand and group are selected
-        if (selectedBrand && selectedGroup) {
-            let filtered = productData.filter(
-                product =>
-                    product.Brand_Name === selectedBrand &&
-                    product.Pro_Group === selectedGroup,
-            );
-
-            // Filter out out-of-stock products unless showOutOfStock will be true
-            if (showOutOfStock) {
-                // This will be the opposite after toggle
-                filtered = filtered.filter(product => product.CL_Qty > 0);
-            }
-
-            setFilteredProducts(filtered);
-        }
+        setShowOutOfStock(prev => !prev);
     };
 
-    const handleProductSearchSelect = useCallback(
-        product => {
-            if (!product?.Brand_Name || !product?.Pro_Group) {
-                Alert.alert(
-                    "Unable to Filter",
-                    "Selected product has missing brand/group mapping.",
-                );
-                return;
-            }
-
-            setSelectedBrand(product.Brand_Name);
-            setSelectedGroup(product.Pro_Group);
-
-            const groups = Array.from(
-                new Set(
-                    productData
-                        .filter(item => item.Brand_Name === product.Brand_Name)
-                        .map(item => item.Pro_Group),
-                ),
-            )
-                .filter(group => group)
-                .sort()
-                .map(group => ({
-                    label: group,
-                    value: group,
-                }));
-            setProGroupData(groups);
-
-            let filtered = productData.filter(
-                item =>
-                    item.Brand_Name === product.Brand_Name &&
-                    item.Pro_Group === product.Pro_Group,
+    const handleProductSearchSelect = useCallback(product => {
+        if (!product?.Product_Id) {
+            Alert.alert(
+                "Unable to Filter",
+                "Selected product has missing details.",
             );
+            return;
+        }
 
-            if (!showOutOfStock) {
-                filtered = filtered.filter(item => item.CL_Qty > 0);
-            }
-
-            setFilteredProducts(filtered);
-            setIsProductSearchVisible(false);
-            setProductSearchText("");
-        },
-        [productData, showOutOfStock],
-    );
+        setSelectedBrand(product.Brand_Name || null);
+        setSelectedGroup(product.Pro_Group || null);
+        setSearchSelectedProductId(product.Product_Id);
+        setIsProductSearchVisible(false);
+        setProductSearchText("");
+    }, []);
 
     const handleInvoiceCopyCountChange = useCallback(value => {
         const rawValue = typeof value === "number" ? String(value) : value;
@@ -978,13 +953,17 @@ const Sales = ({ route }) => {
             />
 
             <View style={styles.contentContainer}>
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.filterSection}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Search, invoice copies & bill type - one combined bar */}
+                    <View style={styles.topBar}>
                         <TouchableOpacity
                             style={[
-                                styles.quickSearchBar,
+                                styles.searchIconButton,
                                 !isActiveGoDown &&
-                                styles.quickSearchBarDisabled,
+                                styles.searchIconButtonDisabled,
                             ]}
                             onPress={() => setIsProductSearchVisible(true)}
                             disabled={!isActiveGoDown}
@@ -996,23 +975,143 @@ const Sales = ({ route }) => {
                                 color={
                                     !isActiveGoDown
                                         ? customColors.grey400
-                                        : customColors.grey500
+                                        : customColors.primary
                                 }
                             />
-                            <Text
-                                style={[
-                                    styles.quickSearchBarText,
-                                    !isActiveGoDown && styles.disabledText,
-                                ]}
+                        </TouchableOpacity>
+
+                        {!isInvoiceCopyEditing ? (
+                            <TouchableOpacity
+                                style={styles.invoiceCopyChip}
+                                onPress={() => setIsInvoiceCopyEditing(true)}
+                                activeOpacity={0.7}
                             >
-                                Search product, brand or group
+                                <FeatherIcon
+                                    name="copy"
+                                    size={iconSizes.xs}
+                                    color={customColors.grey700}
+                                />
+                                <Text style={styles.invoiceCopyChipText}>
+                                    {initialValue.invoiceCopyCount || 1}
+                                </Text>
+                                <FeatherIcon
+                                    name="edit-2"
+                                    size={iconSizes.xs}
+                                    color={customColors.grey700}
+                                />
+                            </TouchableOpacity>
+                        ) : (
+                            <View style={styles.invoiceCopyControl}>
+                                <TouchableOpacity
+                                    style={styles.copyAdjustButton}
+                                    onPress={() =>
+                                        updateInvoiceCopyCountByStep(-1)
+                                    }
+                                    activeOpacity={0.7}
+                                >
+                                    <FeatherIcon
+                                        name="minus"
+                                        size={iconSizes.sm}
+                                        color={customColors.grey800}
+                                    />
+                                </TouchableOpacity>
+
+                                <TextInput
+                                    style={styles.invoiceCopyInput}
+                                    keyboardType="number-pad"
+                                    value={String(
+                                        initialValue.invoiceCopyCount || "",
+                                    )}
+                                    onChangeText={
+                                        handleInvoiceCopyCountChange
+                                    }
+                                    maxLength={2}
+                                    placeholder="1"
+                                    placeholderTextColor={
+                                        customColors.grey500
+                                    }
+                                    textAlign="center"
+                                    autoFocus
+                                />
+
+                                <TouchableOpacity
+                                    style={styles.copyAdjustButton}
+                                    onPress={() =>
+                                        updateInvoiceCopyCountByStep(1)
+                                    }
+                                    activeOpacity={0.7}
+                                >
+                                    <FeatherIcon
+                                        name="plus"
+                                        size={iconSizes.sm}
+                                        color={customColors.grey800}
+                                    />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.invoiceDoneButton}
+                                    onPress={() =>
+                                        setIsInvoiceCopyEditing(false)
+                                    }
+                                    activeOpacity={0.7}
+                                >
+                                    <FeatherIcon
+                                        name="check"
+                                        size={iconSizes.sm}
+                                        color={customColors.white}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.narrationButton}
+                            onPress={() => {
+                                setPendingBillType(
+                                    initialValue.Narration || "",
+                                );
+                                setIsNarrationModalVisible(true);
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <FeatherIcon
+                                name="file-text"
+                                size={iconSizes.sm}
+                                color={customColors.primary}
+                            />
+                            <Text style={styles.narrationButtonText}>
+                                {initialValue.Narration || "Bill Type"}
                             </Text>
                         </TouchableOpacity>
 
-                        <Text style={styles.orDividerText}>
-                            or browse by brand
-                        </Text>
+                        {isAdmin && (
+                            <TouchableOpacity
+                                style={[
+                                    styles.adminFilterButton,
+                                    isAdminFilterVisible &&
+                                    styles.adminFilterButtonActive,
+                                ]}
+                                onPress={() =>
+                                    setIsAdminFilterVisible(prev => !prev)
+                                }
+                                activeOpacity={0.7}
+                            >
+                                <FeatherIcon
+                                    name="sliders"
+                                    size={iconSizes.sm}
+                                    color={
+                                        isAdminFilterVisible
+                                            ? customColors.white
+                                            : customColors.primary
+                                    }
+                                />
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
+                    {/* Brand picker - the single source of truth for
+                        which products are shown below */}
+                    <View style={styles.filterSection}>
                         <View style={styles.filterRow}>
                             <View style={styles.filterItem}>
                                 <EnhancedDropdown
@@ -1022,21 +1121,6 @@ const Sales = ({ route }) => {
                                     placeholder="Select Brand"
                                     value={selectedBrand}
                                     onChange={handleBrandChange}
-                                    containerStyle={styles.compactDropdown}
-                                />
-                            </View>
-                            <View style={styles.filterItem}>
-                                <EnhancedDropdown
-                                    data={proGroupData}
-                                    labelField="label"
-                                    valueField="value"
-                                    placeholder={
-                                        selectedBrand
-                                            ? "Select Group"
-                                            : "Brand First"
-                                    }
-                                    value={selectedGroup}
-                                    onChange={handleGroupChange}
                                     containerStyle={styles.compactDropdown}
                                 />
                             </View>
@@ -1089,163 +1173,68 @@ const Sales = ({ route }) => {
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.invoiceCopyRow}>
-                            <Text style={styles.invoiceCopyLabel}>
-                                Invoice Copies
-                            </Text>
-                            <View style={styles.invoiceCopyActionsRow}>
-                                {!isInvoiceCopyEditing ? (
-                                    <View
-                                        style={{
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            gap: 12,
-                                        }}
+                        {/* Pro_Group chips for the selected brand */}
+                        {selectedBrand && proGroupData.length > 0 && (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.groupChipScroll}
+                                contentContainerStyle={
+                                    styles.groupChipScrollContent
+                                }
+                            >
+                                <TouchableOpacity
+                                    style={[
+                                        styles.groupChip,
+                                        !selectedGroup &&
+                                        styles.groupChipActive,
+                                    ]}
+                                    onPress={() =>
+                                        handleGroupChipSelect(null)
+                                    }
+                                    activeOpacity={0.7}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.groupChipText,
+                                            !selectedGroup &&
+                                            styles.groupChipTextActive,
+                                        ]}
                                     >
-                                        <TouchableOpacity
-                                            style={styles.invoiceCopyChip}
-                                            onPress={() =>
-                                                setIsInvoiceCopyEditing(true)
-                                            }
-                                            activeOpacity={0.7}
+                                        All
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {proGroupData.map(group => (
+                                    <TouchableOpacity
+                                        key={group}
+                                        style={[
+                                            styles.groupChip,
+                                            selectedGroup === group &&
+                                            styles.groupChipActive,
+                                        ]}
+                                        onPress={() =>
+                                            handleGroupChipSelect(group)
+                                        }
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.groupChipText,
+                                                selectedGroup === group &&
+                                                styles.groupChipTextActive,
+                                            ]}
                                         >
-                                            <Text
-                                                style={
-                                                    styles.invoiceCopyChipText
-                                                }
-                                            >
-                                                {initialValue.invoiceCopyCount ||
-                                                    1}
-                                            </Text>
-                                            <FeatherIcon
-                                                name="edit-2"
-                                                size={iconSizes.xs}
-                                                color={customColors.grey700}
-                                            />
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.narrationButton}
-                                            onPress={() => {
-                                                setPendingBillType(
-                                                    initialValue.Narration ||
-                                                    "",
-                                                );
-                                                setIsNarrationModalVisible(
-                                                    true,
-                                                );
-                                            }}
-                                            activeOpacity={0.8}
-                                        >
-                                            <FeatherIcon
-                                                name="file-text"
-                                                size={iconSizes.sm}
-                                                color={customColors.primary}
-                                            />
-                                            <Text
-                                                style={
-                                                    styles.narrationButtonText
-                                                }
-                                            >
-                                                {initialValue.Narration ||
-                                                    "Bill Type"}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ) : (
-                                    <View style={styles.invoiceCopyEditorRow}>
-                                        <View style={styles.filterGroupInput}>
-                                            <View
-                                                style={
-                                                    styles.invoiceCopyControl
-                                                }
-                                            >
-                                                <TouchableOpacity
-                                                    style={
-                                                        styles.copyAdjustButton
-                                                    }
-                                                    onPress={() =>
-                                                        updateInvoiceCopyCountByStep(
-                                                            -1,
-                                                        )
-                                                    }
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <FeatherIcon
-                                                        name="minus"
-                                                        size={iconSizes.sm}
-                                                        color={
-                                                            customColors.grey800
-                                                        }
-                                                    />
-                                                </TouchableOpacity>
-
-                                                <TextInput
-                                                    style={
-                                                        styles.invoiceCopyInput
-                                                    }
-                                                    keyboardType="number-pad"
-                                                    value={String(
-                                                        initialValue.invoiceCopyCount ||
-                                                        "",
-                                                    )}
-                                                    onChangeText={
-                                                        handleInvoiceCopyCountChange
-                                                    }
-                                                    maxLength={2}
-                                                    placeholder="1"
-                                                    placeholderTextColor={
-                                                        customColors.grey500
-                                                    }
-                                                    textAlign="center"
-                                                    autoFocus
-                                                />
-
-                                                <TouchableOpacity
-                                                    style={
-                                                        styles.copyAdjustButton
-                                                    }
-                                                    onPress={() =>
-                                                        updateInvoiceCopyCountByStep(
-                                                            1,
-                                                        )
-                                                    }
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <FeatherIcon
-                                                        name="plus"
-                                                        size={iconSizes.sm}
-                                                        color={
-                                                            customColors.grey800
-                                                        }
-                                                    />
-                                                </TouchableOpacity>
-                                            </View>
-
-                                            <TouchableOpacity
-                                                style={styles.invoiceDoneButton}
-                                                onPress={() =>
-                                                    setIsInvoiceCopyEditing(
-                                                        false,
-                                                    )
-                                                }
-                                                activeOpacity={0.7}
-                                            >
-                                                <FeatherIcon
-                                                    name="check"
-                                                    size={iconSizes.sm}
-                                                    color={customColors.white}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
+                                            {group}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        )}
                     </View>
 
                     {/* Admin-only: GST Tax Type & Branch Selection */}
-                    {isAdmin && (
+                    {isAdmin && isAdminFilterVisible && (
                         <View style={styles.adminOptionsSection}>
                             {/* GST Inclusive / Exclusive Toggle */}
                             <View style={styles.adminOptionRow}>
@@ -1306,7 +1295,7 @@ const Sales = ({ route }) => {
                         </View>
                     )}
 
-                    {selectedBrand && selectedGroup && (
+                    {(selectedBrand || searchSelectedProductId) && (
                         <View style={styles.productsContainer}>
                             <View style={styles.sectionHeader}>
                                 <View style={styles.sectionHeaderLeft}>
@@ -1321,36 +1310,65 @@ const Sales = ({ route }) => {
                                     </Text>
                                 </View>
 
-                                {/* Out of stock toggle */}
-                                <TouchableOpacity
-                                    style={styles.outOfStockToggle}
-                                    onPress={handleOutOfStockToggle}
-                                    activeOpacity={0.7}
-                                >
-                                    <FeatherIcon
-                                        name={
-                                            showOutOfStock ? "eye" : "eye-off"
-                                        }
-                                        size={iconSizes.sm}
-                                        color={
-                                            showOutOfStock
-                                                ? customColors.primary
-                                                : customColors.grey500
-                                        }
-                                    />
-                                    <Text
-                                        style={[
-                                            styles.outOfStockToggleText,
-                                            {
-                                                color: showOutOfStock
-                                                    ? customColors.primary
-                                                    : customColors.grey500,
-                                            },
-                                        ]}
+                                <View style={styles.sectionHeaderRight}>
+                                    {searchSelectedProductId && (
+                                        <TouchableOpacity
+                                            style={styles.showAllButton}
+                                            onPress={() =>
+                                                setSearchSelectedProductId(
+                                                    null,
+                                                )
+                                            }
+                                            activeOpacity={0.7}
+                                        >
+                                            <FeatherIcon
+                                                name="list"
+                                                size={iconSizes.sm}
+                                                color={customColors.primary}
+                                            />
+                                            <Text
+                                                style={
+                                                    styles.showAllButtonText
+                                                }
+                                            >
+                                                Show All
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {/* Out of stock toggle */}
+                                    <TouchableOpacity
+                                        style={styles.outOfStockToggle}
+                                        onPress={handleOutOfStockToggle}
+                                        activeOpacity={0.7}
                                     >
-                                        Out of Stock
-                                    </Text>
-                                </TouchableOpacity>
+                                        <FeatherIcon
+                                            name={
+                                                showOutOfStock
+                                                    ? "eye"
+                                                    : "eye-off"
+                                            }
+                                            size={iconSizes.sm}
+                                            color={
+                                                showOutOfStock
+                                                    ? customColors.primary
+                                                    : customColors.grey500
+                                            }
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.outOfStockToggleText,
+                                                {
+                                                    color: showOutOfStock
+                                                        ? customColors.primary
+                                                        : customColors.grey500,
+                                                },
+                                            ]}
+                                        >
+                                            Nil Stock
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
 
                             {filteredProducts.map(product => {
@@ -1489,7 +1507,7 @@ const Sales = ({ route }) => {
                                                     itemTextStyle={
                                                         styles.uomItemTextStyle
                                                     }
-                                                    disable={isOutOfStock}
+                                                    disable={isOrderBlocked}
                                                 />
                                             </View>
 
@@ -1500,7 +1518,7 @@ const Sales = ({ route }) => {
                                                 <View
                                                     style={[
                                                         styles.priceContainer,
-                                                        isOutOfStock &&
+                                                        isOrderBlocked &&
                                                         styles.disabledInput,
                                                     ]}
                                                 >
@@ -1556,9 +1574,9 @@ const Sales = ({ route }) => {
                                                         }
                                                         placeholder="0.00"
                                                         selectTextOnFocus={true}
-                                                        editable={!isOutOfStock}
+                                                        editable={!isOrderBlocked}
                                                         pointerEvents={
-                                                            isOutOfStock
+                                                            isOrderBlocked
                                                                 ? "none"
                                                                 : "auto"
                                                         }
@@ -1858,6 +1876,8 @@ const Sales = ({ route }) => {
                                     const isZeroRate = item.Item_Rate === 0;
                                     const isEditingThisRate =
                                         editingRateItemId === item.Item_Id;
+                                    const isEditingThisQty =
+                                        editingQtyItemId === item.Item_Id;
 
                                     return (
                                         <View
@@ -1880,13 +1900,141 @@ const Sales = ({ route }) => {
                                                 >
                                                     {product?.Product_Name}
                                                 </Text>
-                                                <Text
-                                                    style={
-                                                        styles.summaryItemQty
-                                                    }
-                                                >
-                                                    {item.Bill_Qty} {uom?.Units}
-                                                </Text>
+                                                {isEditingThisQty ? (
+                                                    <View
+                                                        style={
+                                                            styles.inlineRateEditor
+                                                        }
+                                                    >
+                                                        <TextInput
+                                                            style={
+                                                                styles.inlineRateInput
+                                                            }
+                                                            keyboardType="decimal-pad"
+                                                            value={
+                                                                editingQtyValue
+                                                            }
+                                                            onChangeText={
+                                                                setEditingQtyValue
+                                                            }
+                                                            placeholder="0"
+                                                            placeholderTextColor={
+                                                                customColors.grey400
+                                                            }
+                                                            autoFocus
+                                                            selectTextOnFocus
+                                                        />
+                                                        <Text
+                                                            style={
+                                                                styles.inlineQtyUnit
+                                                            }
+                                                        >
+                                                            {uom?.Units}
+                                                        </Text>
+                                                        <TouchableOpacity
+                                                            style={
+                                                                styles.inlineRateConfirmBtn
+                                                            }
+                                                            onPress={() => {
+                                                                if (
+                                                                    product &&
+                                                                    editingQtyValue !==
+                                                                    "" &&
+                                                                    !isNaN(
+                                                                        parseFloat(
+                                                                            editingQtyValue,
+                                                                        ),
+                                                                    ) &&
+                                                                    parseFloat(
+                                                                        editingQtyValue,
+                                                                    ) >= 0
+                                                                ) {
+                                                                    handleQuantityChange(
+                                                                        item.Item_Id,
+                                                                        editingQtyValue,
+                                                                        item.Item_Rate,
+                                                                        product,
+                                                                    );
+                                                                }
+                                                                setEditingQtyItemId(
+                                                                    null,
+                                                                );
+                                                                setEditingQtyValue(
+                                                                    "",
+                                                                );
+                                                            }}
+                                                        >
+                                                            <FeatherIcon
+                                                                name="check"
+                                                                size={
+                                                                    iconSizes.sm
+                                                                }
+                                                                color={
+                                                                    customColors.white
+                                                                }
+                                                            />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={
+                                                                styles.inlineRateCancelBtn
+                                                            }
+                                                            onPress={() => {
+                                                                setEditingQtyItemId(
+                                                                    null,
+                                                                );
+                                                                setEditingQtyValue(
+                                                                    "",
+                                                                );
+                                                            }}
+                                                        >
+                                                            <FeatherIcon
+                                                                name="x"
+                                                                size={
+                                                                    iconSizes.sm
+                                                                }
+                                                                color={
+                                                                    customColors.grey700
+                                                                }
+                                                            />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                ) : (
+                                                    <TouchableOpacity
+                                                        style={
+                                                            styles.summaryItemQtyRow
+                                                        }
+                                                        onPress={() => {
+                                                            setEditingQtyItemId(
+                                                                item.Item_Id,
+                                                            );
+                                                            setEditingQtyValue(
+                                                                String(
+                                                                    item.Bill_Qty,
+                                                                ),
+                                                            );
+                                                        }}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <Text
+                                                            style={
+                                                                styles.summaryItemQty
+                                                            }
+                                                        >
+                                                            {item.Bill_Qty}{" "}
+                                                            {uom?.Units}
+                                                        </Text>
+                                                        <FeatherIcon
+                                                            name="edit-2"
+                                                            size={iconSizes.xs}
+                                                            color={
+                                                                customColors.grey500
+                                                            }
+                                                            style={{
+                                                                marginLeft: 4,
+                                                            }}
+                                                        />
+                                                    </TouchableOpacity>
+                                                )}
 
                                                 {isEditingThisRate ? (
                                                     <View
@@ -2137,6 +2285,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         padding: spacing.md,
+        paddingBottom: spacing.xxl * 5,
     },
     filterSection: {
         marginBottom: spacing.md,
@@ -2202,19 +2351,28 @@ const styles = StyleSheet.create({
     compactDropdown: {
         marginBottom: 0,
     },
-    invoiceCopyRow: {
-        marginTop: spacing.md,
-        alignItems: "flex-start",
-        gap: spacing.xs,
+    topBar: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.lg,
+        padding: spacing.sm,
+        ...shadows.small,
     },
-    invoiceCopyActionsRow: {
-        width: "100%",
-        alignItems: "flex-start",
+    searchIconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.grey50,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
     },
-    invoiceCopyLabel: {
-        ...typography.body2(),
-        color: customColors.grey800,
-        fontWeight: "600",
+    searchIconButtonDisabled: {
+        backgroundColor: customColors.grey100,
     },
     invoiceCopyChip: {
         flexDirection: "row",
@@ -2231,18 +2389,6 @@ const styles = StyleSheet.create({
         ...typography.subtitle2(),
         color: customColors.grey900,
         fontWeight: "700",
-    },
-    invoiceCopyEditorRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.xs,
-        flexWrap: "wrap",
-    },
-    filterGroupInput: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.xs,
-        flexWrap: "wrap",
     },
     invoiceCopyControl: {
         flexDirection: "row",
@@ -2289,34 +2435,35 @@ const styles = StyleSheet.create({
         ...shadows.small,
         position: "relative",
     },
-    quickSearchBar: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-        backgroundColor: customColors.grey50,
-        borderRadius: borderRadius.lg,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
-        borderWidth: 1.5,
-        borderColor: customColors.grey200,
-        minHeight: 52,
-    },
-    quickSearchBarDisabled: {
-        backgroundColor: customColors.grey100,
-    },
     disabledText: {
         color: customColors.grey400,
     },
-    quickSearchBarText: {
-        ...typography.body1(),
-        color: customColors.grey500,
+    groupChipScroll: {
+        marginTop: spacing.md,
     },
-    orDividerText: {
+    groupChipScrollContent: {
+        gap: spacing.sm,
+        paddingRight: spacing.md,
+    },
+    groupChip: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: 16,
+        backgroundColor: customColors.grey100,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+    },
+    groupChipActive: {
+        backgroundColor: customColors.primary,
+        borderColor: customColors.primary,
+    },
+    groupChipText: {
         ...typography.caption(),
-        color: customColors.grey500,
-        textAlign: "center",
-        marginTop: spacing.sm,
-        marginBottom: spacing.xs,
+        color: customColors.grey700,
+        fontWeight: "600",
+    },
+    groupChipTextActive: {
+        color: customColors.white,
     },
     narrationButton: {
         height: 36,
@@ -2333,6 +2480,21 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey800,
         fontWeight: "600",
+    },
+    adminFilterButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: customColors.white,
+        borderWidth: 1,
+        borderColor: customColors.grey300,
+        marginLeft: "auto",
+    },
+    adminFilterButtonActive: {
+        backgroundColor: customColors.primary,
+        borderColor: customColors.primary,
     },
     refreshLoadingOverlay: {
         position: "absolute",
@@ -2414,6 +2576,25 @@ const styles = StyleSheet.create({
         ...typography.h5(),
         color: customColors.grey900,
         marginLeft: spacing.sm,
+        fontWeight: "600",
+    },
+    sectionHeaderRight: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    showAllButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: 16,
+        backgroundColor: customColors.primary + "15",
+        gap: spacing.xs,
+    },
+    showAllButtonText: {
+        ...typography.caption(),
+        color: customColors.primary,
         fontWeight: "600",
     },
     outOfStockToggle: {
@@ -2721,6 +2902,11 @@ const styles = StyleSheet.create({
     summaryItemQty: {
         ...typography.caption(),
         color: customColors.grey700,
+    },
+    summaryItemQtyRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        flexWrap: "wrap",
         marginBottom: 2,
     },
     summaryItemWarning: {
@@ -2731,6 +2917,12 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         flexWrap: "wrap",
+    },
+    inlineQtyUnit: {
+        ...typography.caption(),
+        color: customColors.grey600,
+        marginLeft: spacing.xs,
+        marginRight: spacing.xs,
     },
     summaryItemRate: {
         ...typography.caption(),

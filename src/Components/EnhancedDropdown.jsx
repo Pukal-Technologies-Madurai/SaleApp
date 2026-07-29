@@ -91,10 +91,6 @@ const EnhancedDropdown = ({
                 useNativeDriver: true,
             }),
         ]).start();
-
-        setTimeout(() => {
-            searchInputRef.current?.focus();
-        }, Platform.OS === "android" ? 180 : 60);
     };
 
     const closeModal = () => {

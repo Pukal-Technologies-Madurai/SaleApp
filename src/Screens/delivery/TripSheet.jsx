@@ -9,6 +9,8 @@ import {
     TextInput,
     Modal,
     ScrollView,
+    Linking,
+    ToastAndroid,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -508,6 +510,12 @@ const TripSheet = () => {
                                 ? routeValues[product.Retailer_Id] || ""
                                 : product.Route || "";
 
+                            const firstLine = product.Products_List?.[0];
+                            const lat = Number(firstLine?.Latitude);
+                            const lng = Number(firstLine?.Longitude);
+                            const hasLocation =
+                                Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+
                             return (
                                 <View key={product.Do_Id} style={styles.orderCard}>
                                     <TouchableOpacity
@@ -559,6 +567,25 @@ const TripSheet = () => {
                                                     icon={paymentInfo.icon}
                                                     iconLibrary={paymentInfo.iconLibrary}
                                                 />
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        if (hasLocation) {
+                                                            Linking.openURL(`${API.google_map}${lat},${lng}`).catch(() =>
+                                                                ToastAndroid.show("Unable to open maps", ToastAndroid.SHORT),
+                                                            );
+                                                        } else {
+                                                            ToastAndroid.show("Location not available", ToastAndroid.SHORT);
+                                                        }
+                                                    }}
+                                                    activeOpacity={0.7}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                >
+                                                    <FeatherIcon
+                                                        name="navigation"
+                                                        size={iconSizes.md}
+                                                        color={hasLocation ? customColors.primary : customColors.grey400}
+                                                    />
+                                                </TouchableOpacity>
                                             </View>
                                         </View>
                                         <View style={styles.orderRight}>

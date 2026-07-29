@@ -166,6 +166,13 @@ const TripReport = ({ route }) => {
             const handleCardPress = () => {
                 const retailers = trip.Product_Array?.map(product => {
                     const tripDetail = tripDetailsMap.get(product.Do_Id);
+                    
+                    const firstLine = product.Products_List?.[0];
+                    const lat = Number(firstLine?.Latitude);
+                    const lng = Number(firstLine?.Longitude);
+                    const hasLocation =
+                        Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+
                     return {
                         name: product.Retailer_Name,
                         retailerName: product.Products_List?.[0]?.Retailer_Name || product.Retailer_Name,
@@ -182,6 +189,10 @@ const TripReport = ({ route }) => {
                         paymentMode: tripDetail?.Payment_Mode || 0,
                         paymentRefNo: tripDetail?.Payment_Ref_No || "",
                         products: product.Products_List,
+                        firstLine,
+                        lat,
+                        lng,
+                        hasLocation,
                     };
                 });
 
