@@ -8,14 +8,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchUserCompanies } from "../../Api/auth";
 import { useQuery } from "@tanstack/react-query";
 import { API, setBaseUrl } from "../../Config/Endpoint";
-import CheckBox from "@react-native-community/checkbox";
 import CryptoJS from "react-native-crypto-js";
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import CustomCheckbox from "../../Components/CustomCheckbox";
 
 const SwitchCompany = () => {
     const navigation = useNavigation();
 
+    const [isSelected, setIsSelected] = React.useState(false);
     const [selectedCompany, setSelectedCompany] = React.useState(null);
     const [isSwitching, setIsSwitching] = React.useState(false);
     const [userName, setUserName] = React.useState("");
@@ -349,15 +350,20 @@ const SwitchCompany = () => {
                                                         color={customColors.primary}
                                                     />
                                                 ) : (
-                                                    <CheckBox
-                                                        value={isCurrentCompany || isSelected}
-                                                        onValueChange={() => !isSwitching && handleCompanySelection(company)}
-                                                        disabled={isSwitching}
-                                                        tintColors={{
-                                                            true: customColors.primary,
-                                                            false: customColors.grey400,
-                                                        }}
-                                                        style={styles.checkbox}
+                                                    // <CheckBox
+                                                    //     value={isCurrentCompany || isSelected}
+                                                    //     onValueChange={() => !isSwitching && handleCompanySelection(company)}
+                                                    //     disabled={isSwitching}
+                                                    //     tintColors={{
+                                                    //         true: customColors.primary,
+                                                    //         false: customColors.grey400,
+                                                    //     }}
+                                                    //     style={styles.checkbox}
+                                                    // />
+                                                    <CustomCheckbox
+                                                        value={isSelected}
+                                                        onValueChange={setIsSelected}
+                                                        label="Select company"
                                                     />
                                                 )}
                                             </View>

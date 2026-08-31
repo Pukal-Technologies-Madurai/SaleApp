@@ -14,6 +14,7 @@ import {
     Camera,
     useCameraDevice,
     useCameraPermission,
+    usePhotoOutput,
 } from "react-native-vision-camera";
 import { useNavigation } from "@react-navigation/native";
 import FeatherIcon from "react-native-vector-icons/Feather";
@@ -36,6 +37,10 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     const device = useCameraDevice("back");
     const camera = useRef(null);
     const { hasPermission, requestPermission } = useCameraPermission();
+    const photoOutput = usePhotoOutput({
+        quality: 0.9,
+        qualityPrioritization: "balanced",
+    });
 
     const [photoPath, setPhotoPath] = useState(null);
     const [isCapturing, setIsCapturing] = useState(false);
@@ -91,28 +96,24 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
     };
 
     const takePhoto = async () => {
-        if (!camera.current) {
-            setError("Camera not initialized");
-            return;
-        }
-
         setIsCapturing(true);
         setError(null);
 
         try {
-            const photo = await camera.current.takePhoto({
-                qualityPrioritization: "balanced",
-                enableAutoRedEyeReduction: true,
-                enableAutoStabilization: true,
-                flash: "off",
-                enableShutterSound: true,
-            });
+            const photoFile = await photoOutput.capturePhotoToFile(
+                {
+                    flashMode: "off",
+                    enableRedEyeReduction: true,
+                    enableShutterSound: true,
+                },
+                {},
+            );
 
-            let finalPhotoPath = photo.path;
+            let finalPhotoPath = photoFile.filePath;
 
             // Compress image if enabled
             if (enableCompression) {
-                finalPhotoPath = await compressImage(photo.path);
+                finalPhotoPath = await compressImage(photoFile.filePath);
             }
 
             setPhotoPath(finalPhotoPath);
@@ -172,9 +173,9 @@ const OpenCamera = ({ onPhotoCapture, enableCompression = false, onClose }) => {
             {/* Camera View */}
             <Camera
                 ref={camera}
-                photo={true}
                 style={StyleSheet.absoluteFill}
                 device={device}
+                outputs={[photoOutput]}
                 isActive={!photoPath}
             />
 
