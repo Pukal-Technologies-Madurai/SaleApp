@@ -127,6 +127,80 @@ export const createReceipt = async receiptData => {
     }
 };
 
+export const editReceipt = async receiptData => {
+    const url = API.createReceipt();
+
+    try {
+        const response = await fetch(url, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(receiptData),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            const errors = data.errors || data.data?.errors;
+            const errorDetail = errors ? ` (${JSON.stringify(errors)})` : "";
+            console.error("API Error - full response:", JSON.stringify(data));
+            throw new Error(
+                `${data.message || `HTTP Error: ${response.status}`}${errorDetail}`,
+            );
+        }
+
+        return data.data;
+    } catch (error) {
+        console.error("editReceipt Error:", error);
+        throw error;
+    }
+};
+
+export const updateAgainstRef = async payload => {
+    const url = API.receiptMasterAgainstRef();
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error("API Error - full response:", JSON.stringify(data));
+            throw new Error(
+                data.message || `HTTP Error: ${response.status}`,
+            );
+        }
+
+        return data.data;
+    } catch (error) {
+        console.error("updateAgainstRef Error:", error);
+        throw error;
+    }
+};
+
+export const fetchAgainstRef = async (receiptId) => {
+    const url = `${API.receiptAgainstRef()}${receiptId}`;
+    // console.log(url);
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+};
+
 export const fetchUserInvolvedReceipts = async (
     userID,
     selectedFromDate,

@@ -47,6 +47,13 @@ const TripDetails = ({ route, navigation }) => {
         });
     };
 
+    // Valid delivery time as a comparable number, or null if not delivered yet
+    const getDeliveryTimeValue = deliveryTime => {
+        if (!deliveryTime) return null;
+        const time = new Date(deliveryTime).getTime();
+        return isNaN(time) ? null : time;
+    };
+
     // Determine payment category from Payment_Mode, Payment_Ref_No, Payment_Status
     const getPaymentCategory = (retailer) => {
         const refNo = (retailer.paymentRefNo || "").toUpperCase();
@@ -138,6 +145,21 @@ const TripDetails = ({ route, navigation }) => {
             }
         });
     }, [retailers, filterType]);
+
+    // Sort by delivery time, earliest (AM) to latest (PM); retailers not yet
+    // delivered (deliveryTime still null) sink to the bottom
+    const sortedRetailers = useMemo(() => {
+        return [...filteredRetailers].sort((a, b) => {
+            const timeA = getDeliveryTimeValue(a.deliveryTime);
+            const timeB = getDeliveryTimeValue(b.deliveryTime);
+
+            if (timeA === null && timeB === null) return 0;
+            if (timeA === null) return 1;
+            if (timeB === null) return -1;
+
+            return timeA - timeB;
+        });
+    }, [filteredRetailers]);
 
     // Build brand-wise consolidated product data
     const brandConsolidatedData = useMemo(() => {
@@ -603,7 +625,7 @@ const TripDetails = ({ route, navigation }) => {
                     {/* Tab Content */}
                     {activeTab === TAB_RETAILER ? (
                         <FlatList
-                            data={filteredRetailers}
+                            data={sortedRetailers}
                             renderItem={renderRetailerItem}
                             keyExtractor={item => `${item.id}-${item.doId || item.name}`}
                             contentContainerStyle={styles.listContainer}

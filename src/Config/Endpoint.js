@@ -105,6 +105,8 @@ export const API = {
     customerWhoHasBills: () => `${baseURL}api/receipt/getCustomerWhoHasBills`,
 
     createReceipt: () => `${baseURL}api/receipt/receiptMaster`,
+    receiptAgainstRef: () => `${baseURL}api/receipt/receiptMaster/againstRef?receipt_id=`,
+    receiptMasterAgainstRef: () => `${baseURL}api/receipt/receiptMaster/againstRef`,
     makePayment: () => `${baseURL}api/payment/paymentMaster`,
     userInvoltedReceipts: () =>
         `${baseURL}api/receipt/receiptMaster?createdBy=`,
@@ -135,6 +137,8 @@ export const API = {
 
     godownWiseStackInHand: () => `${baseURL}/api/reports/storageStock/godownWiseMobile?`,
     godownExpenseReport: () => `${baseURL}api/reports/godownexpenseReport?`,
+
+    reportApi: () => `https://reports.erpsmt.in/api/`,
 
     // Doubtful APIs
     salesLive: () => `${baseURL}api/sales/salesInvoice/liveSales`,

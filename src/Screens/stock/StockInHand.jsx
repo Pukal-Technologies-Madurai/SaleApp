@@ -9,6 +9,7 @@ import {
     Modal,
     ScrollView,
     Pressable,
+    Switch,
 } from "react-native";
 import React, {
     Fragment,
@@ -654,8 +655,8 @@ const StockCard = ({ item, index, onPress }) => {
 
     const balQty = item.Bal_Qty ?? 0;
     const actBalQty = item.Act_Bal_Qty ?? 0;
-    const salQty = item.Sal_Qty ?? 0;
-    const purQty = item.Pur_Qty ?? 0;
+    const outQty = item.OUT_Qty ?? 0;
+    const inQty = item.IN_Act_Qty ?? 0;
     const obBalQty = item.OB_Bal_Qty ?? 0;
 
     const stockColor =
@@ -755,14 +756,14 @@ const StockCard = ({ item, index, onPress }) => {
                         color={customColors.primaryDark}
                     />
                     <StockStat
-                        label={"Purchase\nQty"}
-                        value={purQty}
-                        color={customColors.info}
+                        label={"In\nQty"}
+                        value={inQty}
+                        color={customColors.success}
                     />
                     <StockStat
-                        label={"Sales\nQty"}
-                        value={salQty}
-                        color={customColors.warning}
+                        label={"Out\nQty"}
+                        value={outQty}
+                        color={customColors.error}
                     />
                     <StockStat
                         label={"Balance\nQty"}
@@ -804,6 +805,7 @@ const StockCard = ({ item, index, onPress }) => {
 
 const StockInHand = () => {
     const navigation = useNavigation();
+    const [companyId, setCompanyId] = useState();
     const [isActiveGoDown, setIsActiveGoDown] = useState("");
     const [isGodownChecked, setIsGodownChecked] = useState(false);
     const [modalFromDate, setModalFromDate] = useState(new Date());
@@ -812,6 +814,7 @@ const StockInHand = () => {
     const [selectedToDate, setSelectedToDate] = useState(new Date());
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedBrand, setSelectedBrand] = useState("All");
+    const [showOutOfStock, setShowOutOfStock] = useState(true);
 
     // Selected product for the expense detail modal
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -860,12 +863,14 @@ const StockInHand = () => {
             const loadActiveGodown = async () => {
                 try {
                     const godownId = await AsyncStorage.getItem("activeGodown");
+                    const companyId = await AsyncStorage.getItem("Company_Id");
                     const hasValidGodown = !!godownId && godownId !== "0";
 
                     if (!isMounted) return;
 
                     setIsActiveGoDown(hasValidGodown ? godownId : "");
                     setIsGodownChecked(true);
+                    setCompanyId(companyId)
 
                     if (!hasValidGodown) {
                         navigation.navigate("MasterGodown", {
@@ -905,6 +910,7 @@ const StockInHand = () => {
                 from: selectedFromDate.toISOString().split("T")[0],
                 to: selectedToDate.toISOString().split("T")[0],
                 goDownId: isActiveGoDown,
+                companyId: companyId,
             }),
         enabled:
             !!selectedFromDate &&
@@ -955,8 +961,11 @@ const StockInHand = () => {
         if (selectedBrand !== "All") {
             data = data.filter(i => (i.Brand || "Others") === selectedBrand);
         }
+        if (!showOutOfStock) {
+            data = data.filter(i => Number(i.Bal_Qty ?? 0) > 0);
+        }
         return data;
-    }, [godownStockData, selectedBrand]);
+    }, [godownStockData, selectedBrand, showOutOfStock]);
 
     const renderItem = useCallback(
         ({ item, index }) => (
@@ -1013,6 +1022,20 @@ const StockInHand = () => {
                     {filteredData.length}{" "}
                     {filteredData.length === 1 ? "item" : "items"}
                 </Text>
+                <View style={styles.stockToggle}>
+                    <Text style={styles.stockToggleText}>Out of stock</Text>
+                    <Switch
+                        value={showOutOfStock}
+                        onValueChange={setShowOutOfStock}
+                        accessibilityLabel="Show out of stock items"
+                        trackColor={{
+                            false: customColors.grey300,
+                            true: customColors.primaryLight,
+                        }}
+                        thumbColor={customColors.white}
+                        ios_backgroundColor={customColors.grey300}
+                    />
+                </View>
             </View>
         </Fragment>
     );
@@ -1149,6 +1172,16 @@ const styles = StyleSheet.create({
         fontFamily: customFonts.poppinsRegular,
         fontSize: responsiveFontSize(12),
         color: customColors.grey500,
+    },
+    stockToggle: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    stockToggleText: {
+        fontFamily: customFonts.poppinsRegular,
+        fontSize: responsiveFontSize(11),
+        color: customColors.grey500,
+        marginRight: spacing.xs,
     },
 
     // Stock Card

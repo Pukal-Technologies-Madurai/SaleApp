@@ -54,10 +54,13 @@ const LocationIndicator = ({
         outputRange: ["0deg", "360deg"],
     });
 
+    // Returns "fine", "coarse", or null -- callers use this to skip a
+    // doomed high-accuracy GPS attempt when the user only granted
+    // approximate location (the default choice since Android 12).
     const requestLocationPermission = async () => {
         try {
             if (Platform.OS === "android") {
-                const granted = await PermissionsAndroid.request(
+                const fineGranted = await PermissionsAndroid.request(
                     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
                     {
                         title: "Location Access Required",
@@ -66,12 +69,18 @@ const LocationIndicator = ({
                         buttonPositive: "OK",
                     },
                 );
-                return granted === PermissionsAndroid.RESULTS.GRANTED;
+                if (fineGranted === PermissionsAndroid.RESULTS.GRANTED) {
+                    return "fine";
+                }
+                const coarseGranted = await PermissionsAndroid.check(
+                    PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+                );
+                return coarseGranted ? "coarse" : null;
             }
-            return true;
+            return "fine";
         } catch (err) {
             console.error("Location Permission Error:", err);
-            return false;
+            return null;
         }
     };
 
@@ -80,8 +89,8 @@ const LocationIndicator = ({
         setError(null);
 
         try {
-            const hasPermission = await requestLocationPermission();
-            if (!hasPermission) {
+            const permissionLevel = await requestLocationPermission();
+            if (!permissionLevel) {
                 setError("Location permission denied");
                 Alert.alert(
                     "Location Access Denied",
@@ -104,29 +113,44 @@ const LocationIndicator = ({
                 locationProvider: "auto",
             });
 
-            // First try with high accuracy
-            try {
-                const position = await getPositionWithOptions({
+            const attempts = [
+                // Only worth trying a GPS-accurate fix when fine permission
+                // was actually granted -- with coarse-only permission this
+                // is guaranteed to fail and just burns the timeout window.
+                permissionLevel === "fine" && {
                     enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0,
+                    timeout: 15000,
+                    maximumAge: 10000,
                     distanceFilter: 10,
-                });
-                handleSuccessfulLocation(position);
-            } catch (highAccuracyError) {
-                // If high accuracy fails, try with lower accuracy
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 15000,
+                    maximumAge: 60000,
+                    distanceFilter: 50,
+                },
+                // Last resort: accept whatever fix the device already has
+                // cached, however old, rather than leaving the user stuck
+                // with no location at all (common indoors / weak signal).
+                {
+                    enableHighAccuracy: false,
+                    timeout: 20000,
+                    maximumAge: Infinity,
+                    distanceFilter: 100,
+                },
+            ].filter(Boolean);
+
+            let lastError;
+            for (const options of attempts) {
                 try {
-                    const position = await getPositionWithOptions({
-                        enableHighAccuracy: false,
-                        timeout: 10000,
-                        maximumAge: 30000,
-                        distanceFilter: 50,
-                    });
+                    const position = await getPositionWithOptions(options);
                     handleSuccessfulLocation(position);
-                } catch (lowAccuracyError) {
-                    throw lowAccuracyError;
+                    return;
+                } catch (attemptError) {
+                    lastError = attemptError;
                 }
             }
+            throw lastError;
         } catch (error) {
             console.error("Location Error:", error);
             setError(getErrorMessage(error.code));
@@ -211,7 +235,7 @@ const LocationIndicator = ({
                     ]}>
                     <FeatherIcon
                         name={error ? "alert-circle" : "map-pin"}
-                        size={iconSizes.md}
+                        size={iconSizes.sm}
                         color={statusColor}
                     />
                 </View>
@@ -268,7 +292,7 @@ const LocationIndicator = ({
                     }}>
                     <FeatherIcon
                         name="refresh-cw"
-                        size={iconSizes.md}
+                        size={iconSizes.sm}
                         color={statusColor}
                     />
                 </Animated.View>
@@ -284,9 +308,10 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: customColors.white,
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
-        marginBottom: spacing.md,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.sm,
         borderWidth: 1,
         borderColor: customColors.grey200,
         ...shadows.small,
@@ -296,12 +321,12 @@ const styles = StyleSheet.create({
         backgroundColor: customColors.accent2 + "05",
     },
     iconContainer: {
-        marginRight: spacing.md,
+        marginRight: spacing.sm,
     },
     iconBackground: {
-        width: 40,
-        height: 40,
-        borderRadius: borderRadius.lg,
+        width: 28,
+        height: 28,
+        borderRadius: borderRadius.md,
         justifyContent: "center",
         alignItems: "center",
     },
@@ -312,7 +337,6 @@ const styles = StyleSheet.create({
         ...typography.caption(),
         color: customColors.grey500,
         fontWeight: "500",
-        marginBottom: spacing.xxs,
         textTransform: "uppercase",
         letterSpacing: 0.5,
     },
@@ -350,11 +374,11 @@ const styles = StyleSheet.create({
         color: customColors.accent2,
     },
     refreshButton: {
-        width: 40,
-        height: 40,
-        borderRadius: borderRadius.lg,
+        width: 28,
+        height: 28,
+        borderRadius: borderRadius.md,
         justifyContent: "center",
         alignItems: "center",
-        marginLeft: spacing.sm,
+        marginLeft: spacing.xs,
     },
 });

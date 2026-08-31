@@ -13,6 +13,52 @@ import { customColors, shadows, typography, spacing, borderRadius, iconSizes } f
 
 Mapbox.setAccessToken('');
 
+const RADIUS_CONFIG = [
+    { km: 2, color: '#2196F3' },
+    { km: 5, color: '#4CAF50' },
+    { km: 10, color: '#FF9800' },
+    { km: 15, color: '#F44336' },
+    { km: 20, color: '#9C27B0' },
+];
+
+const RADIUS_VALUES = [...RADIUS_CONFIG].map(r => r.km).sort((a, b) => a - b);
+const OFFICE_LOCATION = {
+    name: 'PT Nagar (Main Office)',
+    coordinates: [78.1273733, 9.954987],
+};
+
+// Haversine formula for accurate GPS distances in km
+const haversineKm = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// Generates a GeoJSON polygon approximating a geodesic circle
+const generateCirclePolygon = (centerLng, centerLat, radiusKm, steps = 64) => {
+    const R = 6371;
+    const coords = [];
+    for (let i = 0; i <= steps; i++) {
+        const bearing = (i / steps) * 2 * Math.PI;
+        const d = radiusKm / R;
+        const lat1 = centerLat * Math.PI / 180;
+        const lon1 = centerLng * Math.PI / 180;
+        const lat2 = Math.asin(
+            Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing)
+        );
+        const lon2 = lon1 + Math.atan2(
+            Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
+            Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+        );
+        coords.push([lon2 * 180 / Math.PI, lat2 * 180 / Math.PI]);
+    }
+    return coords;
+};
+
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const VisitLogDetail = ({ route }) => {
@@ -21,7 +67,10 @@ const VisitLogDetail = ({ route }) => {
     const [companyId, setCompanyId] = React.useState(null);
     const [mapModalVisible, setMapModalVisible] = useState(false);
     const [selectedVisit, setSelectedVisit] = useState(null);
+    const [selectedSegment, setSelectedSegment] = useState(null);
     const modalCameraRef = useRef(null);
+    const [showRadiusCircles, setShowRadiusCircles] = useState(false);
+    const [activeRadii, setActiveRadii] = useState([2]);
 
     const existRetailers = visitData.filter(item => item.IsExistingRetailer === 1).length;
     const newRetailers = visitData.filter(item => item.IsExistingRetailer === 0).length;
@@ -77,6 +126,20 @@ const VisitLogDetail = ({ route }) => {
             .sort((a, b) => new Date(a.EntryAt) - new Date(b.EntryAt));
     }, [visitData]);
 
+    // Distance (km) from the previous stop to each visit, keyed by visit Id
+    const segmentDistancesMap = useMemo(() => {
+        const map = {};
+        for (let i = 1; i < sortedVisitsWithCoords.length; i++) {
+            const a = sortedVisitsWithCoords[i - 1];
+            const b = sortedVisitsWithCoords[i];
+            map[b.Id] = haversineKm(
+                parseFloat(a.Latitude), parseFloat(a.Longitude),
+                parseFloat(b.Latitude), parseFloat(b.Longitude),
+            ).toFixed(2);
+        }
+        return map;
+    }, [sortedVisitsWithCoords]);
+
     // GeoJSON for visit markers (numbered by time order)
     const visitMarkersGeoJson = useMemo(() => ({
         type: 'FeatureCollection',
@@ -94,9 +157,10 @@ const VisitLogDetail = ({ route }) => {
                 address: v.Location_Address || '',
                 narration: v.Narration || '',
                 visitId: v.Id,
+                segmentDistance: segmentDistancesMap[v.Id] ?? null,
             },
         })),
-    }), [sortedVisitsWithCoords]);
+    }), [sortedVisitsWithCoords, segmentDistancesMap]);
 
     // GeoJSON polyline connecting visits in chronological order
     const routeLineGeoJson = useMemo(() => {
@@ -113,10 +177,41 @@ const VisitLogDetail = ({ route }) => {
         };
     }, [sortedVisitsWithCoords]);
 
+    const routeSegmentsGeoJson = useMemo(() => ({
+        type: 'FeatureCollection',
+        features: sortedVisitsWithCoords.slice(0, -1).map((fromVisit, index) => {
+            const toVisit = sortedVisitsWithCoords[index + 1];
+            const segmentDistance = haversineKm(
+                parseFloat(fromVisit.Latitude), parseFloat(fromVisit.Longitude),
+                parseFloat(toVisit.Latitude), parseFloat(toVisit.Longitude),
+            ).toFixed(2);
+
+            return {
+                type: 'Feature',
+                id: `segment-${fromVisit.Id}-${toVisit.Id}`,
+                geometry: {
+                    type: 'LineString',
+                    coordinates: [
+                        [parseFloat(fromVisit.Longitude), parseFloat(fromVisit.Latitude)],
+                        [parseFloat(toVisit.Longitude), parseFloat(toVisit.Latitude)],
+                    ],
+                },
+                properties: {
+                    segmentIndex: index + 1,
+                    fromName: fromVisit.Reatailer_Name || 'Visit',
+                    toName: toVisit.Reatailer_Name || 'Visit',
+                    fromTime: formatTime(fromVisit.EntryAt),
+                    toTime: formatTime(toVisit.EntryAt),
+                    segmentDistance,
+                },
+            };
+        }),
+    }), [sortedVisitsWithCoords]);
+
     // Map center and bounds
     const mapCenter = useMemo(() => {
         if (sortedVisitsWithCoords.length === 0) {
-            return [78.1198, 9.9252]; // Madurai default
+            return OFFICE_LOCATION.coordinates;
         }
         const totalLat = sortedVisitsWithCoords.reduce((s, v) => s + parseFloat(v.Latitude), 0);
         const totalLng = sortedVisitsWithCoords.reduce((s, v) => s + parseFloat(v.Longitude), 0);
@@ -125,6 +220,24 @@ const VisitLogDetail = ({ route }) => {
             totalLat / sortedVisitsWithCoords.length,
         ];
     }, [sortedVisitsWithCoords]);
+
+    const radiusCenter = OFFICE_LOCATION.coordinates;
+
+    const officeLocationGeoJson = useMemo(() => ({
+        type: 'FeatureCollection',
+        features: [
+            {
+                type: 'Feature',
+                geometry: {
+                    type: 'Point',
+                    coordinates: OFFICE_LOCATION.coordinates,
+                },
+                properties: {
+                    name: OFFICE_LOCATION.name,
+                },
+            },
+        ],
+    }), []);
 
     // Bounds for fitting all markers
     const mapBounds = useMemo(() => {
@@ -138,12 +251,94 @@ const VisitLogDetail = ({ route }) => {
         };
     }, [sortedVisitsWithCoords]);
 
+    const totalRouteDistance = useMemo(() => {
+        if (sortedVisitsWithCoords.length < 2) return 0;
+        let total = 0;
+        for (let i = 0; i < sortedVisitsWithCoords.length - 1; i++) {
+            const a = sortedVisitsWithCoords[i];
+            const b = sortedVisitsWithCoords[i + 1];
+            total += haversineKm(
+                parseFloat(a.Latitude), parseFloat(a.Longitude),
+                parseFloat(b.Latitude), parseFloat(b.Longitude),
+            );
+        }
+        return total.toFixed(2);
+    }, [sortedVisitsWithCoords]);
+
+    const activeRadiiSorted = useMemo(() => [...activeRadii].sort((a, b) => a - b), [activeRadii]);
+
+    const selectedVisitRadius = useMemo(() => {
+        const distanceKm = parseFloat(selectedVisit?.segmentDistance);
+        if (!Number.isFinite(distanceKm)) return null;
+        return activeRadiiSorted.find(km => distanceKm <= km) ?? null;
+    }, [selectedVisit, activeRadiiSorted]);
+
+    const selectedSegmentRadius = useMemo(() => {
+        const distanceKm = parseFloat(selectedSegment?.segmentDistance);
+        if (!Number.isFinite(distanceKm)) return null;
+        return activeRadiiSorted.find(km => distanceKm <= km) ?? null;
+    }, [selectedSegment, activeRadiiSorted]);
+
+    const focusedRadius = selectedSegmentRadius ?? selectedVisitRadius;
+
+    const radiusCirclesGeoJson = useMemo(() => ({
+        type: 'FeatureCollection',
+        features: activeRadii.map(km => {
+            const cfg = RADIUS_CONFIG.find(r => r.km === km) || { color: '#2196F3' };
+            return {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [generateCirclePolygon(radiusCenter[0], radiusCenter[1], km)],
+                },
+                properties: { km, color: cfg.color },
+            };
+        }),
+    }), [radiusCenter, activeRadii]);
+
+    const radiusLabelsGeoJson = useMemo(() => ({
+        type: 'FeatureCollection',
+        features: activeRadii.map(km => {
+            const cfg = RADIUS_CONFIG.find(r => r.km === km) || { color: '#2196F3' };
+            return {
+                type: 'Feature',
+                // Label placed at the north edge of each circle
+                geometry: { type: 'Point', coordinates: [radiusCenter[0], radiusCenter[1] + km / 111] },
+                properties: { label: `${km} km`, color: cfg.color },
+            };
+        }),
+    }), [radiusCenter, activeRadii]);
+
+    const ensureRadiusForDistance = useCallback((distanceValue) => {
+        const distanceKm = parseFloat(distanceValue);
+        if (!Number.isFinite(distanceKm)) return;
+
+        const matchingRadius = RADIUS_VALUES.find(km => distanceKm <= km);
+        if (!matchingRadius) return;
+
+        setActiveRadii(prev => {
+            if (prev.includes(matchingRadius)) return prev;
+            return [...prev, matchingRadius].sort((a, b) => a - b);
+        });
+    }, []);
+
+    const handleRouteSegmentPress = useCallback((event) => {
+        const feature = event.features?.[0];
+        if (feature?.properties) {
+            setSelectedSegment(feature.properties);
+            setSelectedVisit(null);
+            ensureRadiusForDistance(feature.properties.segmentDistance);
+        }
+    }, [ensureRadiusForDistance]);
+
     const handleVisitMarkerPress = useCallback((event) => {
         const feature = event.features?.[0];
         if (feature) {
             setSelectedVisit(feature.properties);
+            setSelectedSegment(null);
+            ensureRadiusForDistance(feature.properties.segmentDistance);
         }
-    }, []);
+    }, [ensureRadiusForDistance]);
 
     const handleFitBounds = useCallback(() => {
         if (modalCameraRef.current && mapBounds) {
@@ -278,6 +473,24 @@ const VisitLogDetail = ({ route }) => {
                 </Mapbox.ShapeSource>
             )}
 
+            {/* Tappable route segments */}
+            {routeSegmentsGeoJson.features.length > 0 && (
+                <Mapbox.ShapeSource
+                    id={isModal ? "routeSegmentsModal" : "routeSegments"}
+                    shape={routeSegmentsGeoJson}
+                    onPress={isModal ? handleRouteSegmentPress : undefined}
+                >
+                    <Mapbox.LineLayer
+                        id={isModal ? "routeSegmentsLayerModal" : "routeSegmentsLayer"}
+                        style={{
+                            lineColor: customColors.primaryDark,
+                            lineWidth: 5,
+                            lineOpacity: 0.01,
+                        }}
+                    />
+                </Mapbox.ShapeSource>
+            )}
+
             {/* Visit markers */}
             <Mapbox.ShapeSource
                 id={isModal ? "visitMarkersModal" : "visitMarkers"}
@@ -307,6 +520,71 @@ const VisitLogDetail = ({ route }) => {
                     }}
                 />
             </Mapbox.ShapeSource>
+
+            {/* Office location marker */}
+            <Mapbox.ShapeSource
+                id={isModal ? "officeMarkerModal" : "officeMarker"}
+                shape={officeLocationGeoJson}
+            >
+                <Mapbox.CircleLayer
+                    id={isModal ? "officeMarkerCircleModal" : "officeMarkerCircle"}
+                    style={{
+                        circleColor: customColors.error,
+                        circleRadius: isModal ? 10 : 8,
+                        circleStrokeWidth: 3,
+                        circleStrokeColor: customColors.white,
+                        circleOpacity: 0.95,
+                    }}
+                />
+                <Mapbox.SymbolLayer
+                    id={isModal ? "officeMarkerLabelModal" : "officeMarkerLabel"}
+                    style={{
+                        textField: ['get', 'name'],
+                        textSize: isModal ? 13 : 11,
+                        textColor: customColors.error,
+                        textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+                        textOffset: [0, 1.6],
+                        textHaloColor: customColors.white,
+                        textHaloWidth: 1.5,
+                        textAllowOverlap: true,
+                    }}
+                />
+            </Mapbox.ShapeSource>
+
+            {/* Radius circles with distance labels (modal only) */}
+            {isModal && showRadiusCircles && activeRadii.length > 0 && (
+                <>
+                    <Mapbox.ShapeSource id="radiusCirclesSource" shape={radiusCirclesGeoJson}>
+                        <Mapbox.FillLayer
+                            id="radiusCirclesFill"
+                            style={{ fillColor: ['get', 'color'], fillOpacity: 0.08 }}
+                        />
+                        <Mapbox.LineLayer
+                            id="radiusCirclesLine"
+                            style={{
+                                lineColor: ['get', 'color'],
+                                lineWidth: 1.5,
+                                lineOpacity: 0.8,
+                                lineDasharray: [4, 2],
+                            }}
+                        />
+                    </Mapbox.ShapeSource>
+                    <Mapbox.ShapeSource id="radiusLabelsSource" shape={radiusLabelsGeoJson}>
+                        <Mapbox.SymbolLayer
+                            id="radiusLabels"
+                            style={{
+                                textField: ['get', 'label'],
+                                textSize: 11,
+                                textColor: ['get', 'color'],
+                                textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+                                textHaloColor: customColors.white,
+                                textHaloWidth: 1.5,
+                                textAllowOverlap: true,
+                            }}
+                        />
+                    </Mapbox.ShapeSource>
+                </>
+            )}
         </>
     );
 
@@ -324,6 +602,11 @@ const VisitLogDetail = ({ route }) => {
                     <View style={styles.mapPreviewTitleRow}>
                         <MaterialIcon name="route" size={18} color={customColors.primary} />
                         <Text style={styles.mapPreviewTitle}>Visit Route</Text>
+                        {parseFloat(totalRouteDistance) > 0 && (
+                            <View style={styles.routeDistanceBadge}>
+                                <Text style={styles.routeDistanceText}>{totalRouteDistance} km</Text>
+                            </View>
+                        )}
                     </View>
                     <View style={styles.mapExpandHint}>
                         <Text style={styles.mapExpandText}>Tap to expand</Text>
@@ -379,6 +662,7 @@ const VisitLogDetail = ({ route }) => {
             onRequestClose={() => {
                 setMapModalVisible(false);
                 setSelectedVisit(null);
+                setSelectedSegment(null);
             }}
         >
             <SafeAreaView style={styles.modalContainer} edges={["top", "bottom"]}>
@@ -389,6 +673,7 @@ const VisitLogDetail = ({ route }) => {
                         onPress={() => {
                             setMapModalVisible(false);
                             setSelectedVisit(null);
+                            setSelectedSegment(null);
                         }}
                     >
                         <FeatherIcon name="arrow-left" size={22} color={customColors.grey900} />
@@ -396,7 +681,7 @@ const VisitLogDetail = ({ route }) => {
                     <View style={styles.modalHeaderContent}>
                         <Text style={styles.modalTitle}>Visit Route</Text>
                         <Text style={styles.modalSubtitle}>
-                            {person?.User_Name} • {sortedVisitsWithCoords.length} visits
+                            {person?.User_Name} • {sortedVisitsWithCoords.length} visits{parseFloat(totalRouteDistance) > 0 ? ` • ${totalRouteDistance} km` : ''}
                         </Text>
                     </View>
                 </View>
@@ -433,6 +718,41 @@ const VisitLogDetail = ({ route }) => {
                     <TouchableOpacity style={styles.fitBoundsButton} onPress={handleFitBounds}>
                         <MaterialIcon name="fit-screen" size={iconSizes.md} color={customColors.primary} />
                     </TouchableOpacity>
+
+                    {/* Radius circles toggle */}
+                    <TouchableOpacity
+                        style={[styles.radiusToggleButton, showRadiusCircles && styles.mapControlActive]}
+                        onPress={() => setShowRadiusCircles(v => !v)}
+                    >
+                        <MaterialIcon name="radio-button-checked" size={iconSizes.md} color={showRadiusCircles ? customColors.white : customColors.primary} />
+                    </TouchableOpacity>
+
+                    {/* Radius distance selector */}
+                    {showRadiusCircles && (
+                        <View style={styles.radiusPanel}>
+                            {RADIUS_CONFIG.map(({ km, color }) => {
+                                const isActive = activeRadii.includes(km);
+                                return (
+                                    <TouchableOpacity
+                                        key={km}
+                                        style={[
+                                            styles.radiusChip,
+                                            { borderColor: color },
+                                            isActive && { backgroundColor: color },
+                                            focusedRadius === km && styles.radiusChipFocused,
+                                        ]}
+                                        onPress={() => setActiveRadii(prev =>
+                                            isActive ? prev.filter(r => r !== km) : [...prev, km].sort((a, b) => a - b)
+                                        )}
+                                    >
+                                        <Text style={[styles.radiusChipText, isActive && { color: customColors.white }]}>
+                                            {km} km
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
                 </View>
 
                 {/* Selected visit card */}
@@ -472,6 +792,55 @@ const VisitLogDetail = ({ route }) => {
                                 </Text>
                             </View>
                         ) : null}
+                        {selectedVisit.segmentDistance && parseFloat(selectedVisit.segmentDistance) > 0 && (
+                            <View style={styles.modalVisitDetailRow}>
+                                <MaterialIcon name="directions" size={12} color={customColors.grey400} />
+                                <Text style={styles.modalVisitDetailText}>
+                                    {selectedVisit.segmentDistance} km from previous stop
+                                </Text>
+                            </View>
+                        )}
+                        {selectedVisit.segmentDistance && parseFloat(selectedVisit.segmentDistance) > 0 && (
+                            <View style={styles.modalVisitDetailRow}>
+                                <MaterialIcon name="radio-button-checked" size={12} color={customColors.grey400} />
+                                <Text style={styles.modalVisitDetailText}>
+                                    {selectedVisitRadius ? `Falls under ${selectedVisitRadius} km radius` : "Outside selected radius bands"}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* Selected route segment card */}
+                {selectedSegment && (
+                    <View style={styles.modalSegmentCard}>
+                        <View style={styles.modalSegmentHeader}>
+                            <View style={styles.modalSegmentBadge}>
+                                <Text style={styles.modalSegmentBadgeText}>{selectedSegment.segmentIndex}</Text>
+                            </View>
+                            <Text style={styles.modalSegmentDistanceText}>
+                                {selectedSegment.segmentDistance} km
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.modalDismissBtn}
+                                onPress={() => setSelectedSegment(null)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <FeatherIcon name="x" size={16} color={customColors.grey500} />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalSegmentShopText} numberOfLines={1}>
+                            {selectedSegment.fromName}
+                        </Text>
+                        <Text style={styles.modalSegmentArrowText}>
+                            {selectedSegment.fromTime} to {selectedSegment.toTime}
+                        </Text>
+                        <Text style={styles.modalSegmentShopText} numberOfLines={1}>
+                            {selectedSegment.toName}
+                        </Text>
+                        <Text style={styles.modalSegmentArrowText}>
+                            {selectedSegmentRadius ? `Falls under ${selectedSegmentRadius} km radius` : "Outside selected radius bands"}
+                        </Text>
                     </View>
                 )}
 
@@ -490,6 +859,7 @@ const VisitLogDetail = ({ route }) => {
                                     selectedVisit?.visitId === v.Id && styles.timelineItemActive,
                                 ]}
                                 onPress={() => {
+                                    const visitSegmentDistance = segmentDistancesMap[v.Id] ?? null;
                                     setSelectedVisit({
                                         visitIndex: i + 1,
                                         name: v.Reatailer_Name || 'Unknown',
@@ -497,7 +867,10 @@ const VisitLogDetail = ({ route }) => {
                                         address: v.Location_Address || '',
                                         narration: v.Narration || '',
                                         visitId: v.Id,
+                                        segmentDistance: visitSegmentDistance,
                                     });
+                                    setSelectedSegment(null);
+                                    ensureRadiusForDistance(visitSegmentDistance);
                                     if (modalCameraRef.current) {
                                         modalCameraRef.current.setCamera({
                                             centerCoordinate: [parseFloat(v.Longitude), parseFloat(v.Latitude)],
@@ -767,6 +1140,18 @@ const styles = StyleSheet.create({
         color: customColors.grey900,
         fontWeight: "700",
     },
+    routeDistanceBadge: {
+        backgroundColor: customColors.primaryFaded,
+        borderRadius: borderRadius.round,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        marginLeft: spacing.xs,
+    },
+    routeDistanceText: {
+        ...typography.caption(),
+        color: customColors.primary,
+        fontWeight: "700",
+    },
     mapExpandHint: {
         flexDirection: "row",
         alignItems: "center",
@@ -961,6 +1346,52 @@ const styles = StyleSheet.create({
         borderColor: customColors.grey200,
         ...shadows.small,
     },
+    modalSegmentCard: {
+        marginHorizontal: spacing.sm,
+        marginTop: spacing.sm,
+        padding: spacing.md,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: customColors.grey200,
+        ...shadows.small,
+    },
+    modalSegmentHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: spacing.xs,
+    },
+    modalSegmentBadge: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: customColors.primaryDark,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modalSegmentBadgeText: {
+        ...typography.caption(),
+        color: customColors.white,
+        fontWeight: "700",
+        fontSize: 10,
+    },
+    modalSegmentDistanceText: {
+        ...typography.subtitle2(),
+        color: customColors.primary,
+        fontWeight: "700",
+        marginLeft: spacing.sm,
+        flex: 1,
+    },
+    modalSegmentShopText: {
+        ...typography.caption(),
+        color: customColors.grey900,
+        fontWeight: "700",
+    },
+    modalSegmentArrowText: {
+        ...typography.caption(),
+        color: customColors.grey500,
+        marginVertical: 2,
+    },
     modalVisitHeader: {
         flexDirection: "row",
         alignItems: "center",
@@ -1071,5 +1502,49 @@ const styles = StyleSheet.create({
         fontSize: 9,
         maxWidth: 70,
         textAlign: "center",
+    },
+    // Map control overlay styles
+    mapControlActive: {
+        backgroundColor: customColors.primaryDark,
+    },
+    radiusToggleButton: {
+        position: "absolute",
+        top: spacing.md + 48,
+        right: spacing.md,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: customColors.white,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.medium,
+    },
+    radiusPanel: {
+        position: "absolute",
+        top: spacing.md,
+        right: spacing.md + 48,
+        backgroundColor: customColors.white,
+        borderRadius: 12,
+        padding: spacing.xs,
+        gap: spacing.xs,
+        ...shadows.medium,
+    },
+    radiusChip: {
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.round,
+        borderWidth: 1.5,
+        alignItems: "center",
+        minWidth: 54,
+    },
+    radiusChipFocused: {
+        transform: [{ scale: 1.08 }],
+        borderWidth: 2.5,
+    },
+    radiusChipText: {
+        ...typography.caption(),
+        fontWeight: "700",
+        fontSize: 11,
+        color: customColors.grey700,
     },
 });

@@ -163,6 +163,19 @@ const TripReport = ({ route }) => {
                 return null;
             }, [trip.Product_Array]);
 
+            // Get the first salesperson name from the product lines' Delivery_Staff
+            const salesPersonName = useMemo(() => {
+                for (const product of trip.Product_Array || []) {
+                    for (const line of product.Products_List || []) {
+                        const staff = line.Delivery_Staff?.[0];
+                        if (staff?.Emp_Name) {
+                            return staff.Emp_Name;
+                        }
+                    }
+                }
+                return null;
+            }, [trip.Product_Array]);
+
             const handleCardPress = () => {
                 const retailers = trip.Product_Array?.map(product => {
                     const tripDetail = tripDetailsMap.get(product.Do_Id);
@@ -250,6 +263,12 @@ const TripReport = ({ route }) => {
                                     <Text style={styles.metaText}>Route {routeValue}</Text>
                                 </View>
                             ) : null}
+                            {salesPersonName ? (
+                                <View style={styles.metaItem}>
+                                    <Icon name="badge" size={iconSizes.xs} color={customColors.grey500} />
+                                    <Text style={styles.metaText}>{salesPersonName}</Text>
+                                </View>
+                            ) : null}
                         </View>
 
                         {/* Delivery Person Row */}
@@ -267,35 +286,38 @@ const TripReport = ({ route }) => {
                             </Text>
                         </View>
 
-                        {/* Consolidated Stats Grid */}
+                        {/* Consolidated Stats */}
                         <View style={styles.statsGrid}>
                             {/* Delivery Stats */}
                             <View style={styles.statsSection}>
                                 <Text style={styles.statsSectionTitle}>Delivery</Text>
-                                <View style={styles.statsChips}>
-                                    <View style={[styles.statChip, { backgroundColor: customColors.successFaded }]}>
-                                        <Text style={[styles.statChipValue, { color: customColors.successDark }]}>
+                                <View style={styles.statsList}>
+                                    <View style={styles.statRow}>
+                                        <View style={styles.statRowLabel}>
+                                            <View style={[styles.statDot, { backgroundColor: customColors.success }]} />
+                                            <Text style={styles.statRowLabelText}>Done</Text>
+                                        </View>
+                                        <Text style={[styles.statRowValue, { color: customColors.successDark }]}>
                                             {deliveryStats.delivered}
                                         </Text>
-                                        <Text style={[styles.statChipLabel, { color: customColors.successDark }]}>
-                                            Done
-                                        </Text>
                                     </View>
-                                    <View style={[styles.statChip, { backgroundColor: customColors.warningFaded }]}>
-                                        <Text style={[styles.statChipValue, { color: customColors.warningDark }]}>
+                                    <View style={styles.statRow}>
+                                        <View style={styles.statRowLabel}>
+                                            <View style={[styles.statDot, { backgroundColor: customColors.warning }]} />
+                                            <Text style={styles.statRowLabelText}>Pending</Text>
+                                        </View>
+                                        <Text style={[styles.statRowValue, { color: customColors.warningDark }]}>
                                             {deliveryStats.pending}
-                                        </Text>
-                                        <Text style={[styles.statChipLabel, { color: customColors.warningDark }]}>
-                                            Pending
                                         </Text>
                                     </View>
                                     {deliveryStats.returns > 0 && (
-                                        <View style={[styles.statChip, { backgroundColor: customColors.errorFaded }]}>
-                                            <Text style={[styles.statChipValue, { color: customColors.errorDark }]}>
+                                        <View style={styles.statRow}>
+                                            <View style={styles.statRowLabel}>
+                                                <View style={[styles.statDot, { backgroundColor: customColors.error }]} />
+                                                <Text style={styles.statRowLabelText}>Return</Text>
+                                            </View>
+                                            <Text style={[styles.statRowValue, { color: customColors.errorDark }]}>
                                                 {deliveryStats.returns}
-                                            </Text>
-                                            <Text style={[styles.statChipLabel, { color: customColors.errorDark }]}>
-                                                Return
                                             </Text>
                                         </View>
                                     )}
@@ -305,54 +327,59 @@ const TripReport = ({ route }) => {
                             {/* Payment Stats */}
                             <View style={styles.statsSection}>
                                 <Text style={styles.statsSectionTitle}>Payment</Text>
-                                <View style={styles.statsChips}>
+                                <View style={styles.statsList}>
                                     {paymentStats.cash > 0 && (
-                                        <View style={[styles.statChip, { backgroundColor: customColors.successFaded }]}>
-                                            <Text style={[styles.statChipValue, { color: customColors.successDark }]}>
+                                        <View style={styles.statRow}>
+                                            <View style={styles.statRowLabel}>
+                                                <View style={[styles.statDot, { backgroundColor: customColors.success }]} />
+                                                <Text style={styles.statRowLabelText}>Cash</Text>
+                                            </View>
+                                            <Text style={[styles.statRowValue, { color: customColors.successDark }]}>
                                                 {paymentStats.cash}
-                                            </Text>
-                                            <Text style={[styles.statChipLabel, { color: customColors.successDark }]}>
-                                                Cash
                                             </Text>
                                         </View>
                                     )}
                                     {paymentStats.online > 0 && (
-                                        <View style={[styles.statChip, { backgroundColor: customColors.infoFaded }]}>
-                                            <Text style={[styles.statChipValue, { color: customColors.infoDark }]}>
+                                        <View style={styles.statRow}>
+                                            <View style={styles.statRowLabel}>
+                                                <View style={[styles.statDot, { backgroundColor: customColors.infoDark }]} />
+                                                <Text style={styles.statRowLabelText}>Online</Text>
+                                            </View>
+                                            <Text style={[styles.statRowValue, { color: customColors.infoDark }]}>
                                                 {paymentStats.online}
-                                            </Text>
-                                            <Text style={[styles.statChipLabel, { color: customColors.infoDark }]}>
-                                                Online
                                             </Text>
                                         </View>
                                     )}
                                     {paymentStats.credit > 0 && (
-                                        <View style={[styles.statChip, { backgroundColor: customColors.warningFaded }]}>
-                                            <Text style={[styles.statChipValue, { color: customColors.warningDark }]}>
+                                        <View style={styles.statRow}>
+                                            <View style={styles.statRowLabel}>
+                                                <View style={[styles.statDot, { backgroundColor: customColors.warning }]} />
+                                                <Text style={styles.statRowLabelText}>Credit</Text>
+                                            </View>
+                                            <Text style={[styles.statRowValue, { color: customColors.warningDark }]}>
                                                 {paymentStats.credit}
-                                            </Text>
-                                            <Text style={[styles.statChipLabel, { color: customColors.warningDark }]}>
-                                                Credit
                                             </Text>
                                         </View>
                                     )}
                                     {paymentStats.partial > 0 && (
-                                        <View style={[styles.statChip, { backgroundColor: customColors.secondaryFaded }]}>
-                                            <Text style={[styles.statChipValue, { color: customColors.secondaryDark }]}>
+                                        <View style={styles.statRow}>
+                                            <View style={styles.statRowLabel}>
+                                                <View style={[styles.statDot, { backgroundColor: customColors.secondaryDark }]} />
+                                                <Text style={styles.statRowLabelText}>Partial</Text>
+                                            </View>
+                                            <Text style={[styles.statRowValue, { color: customColors.secondaryDark }]}>
                                                 {paymentStats.partial}
-                                            </Text>
-                                            <Text style={[styles.statChipLabel, { color: customColors.secondaryDark }]}>
-                                                Partial
                                             </Text>
                                         </View>
                                     )}
                                     {paymentStats.pending > 0 && (
-                                        <View style={[styles.statChip, { backgroundColor: customColors.grey100 }]}>
-                                            <Text style={[styles.statChipValue, { color: customColors.grey600 }]}>
+                                        <View style={styles.statRow}>
+                                            <View style={styles.statRowLabel}>
+                                                <View style={[styles.statDot, { backgroundColor: customColors.grey400 }]} />
+                                                <Text style={styles.statRowLabelText}>Pending</Text>
+                                            </View>
+                                            <Text style={[styles.statRowValue, { color: customColors.grey600 }]}>
                                                 {paymentStats.pending}
-                                            </Text>
-                                            <Text style={[styles.statChipLabel, { color: customColors.grey600 }]}>
-                                                Pending
                                             </Text>
                                         </View>
                                     )}
@@ -536,12 +563,12 @@ const styles = StyleSheet.create({
         color: customColors.grey500,
     },
     statsGrid: {
-        flexDirection: "row",
-        gap: spacing.md,
+        flexDirection: "column",
+        gap: spacing.sm,
         marginBottom: spacing.sm,
     },
     statsSection: {
-        flex: 1,
+        width: "100%",
     },
     statsSectionTitle: {
         ...typography.caption(),
@@ -549,24 +576,35 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xxs,
         fontWeight: "600",
     },
-    statsChips: {
-        flexDirection: "row",
+    statsList: {
         gap: spacing.xxs,
     },
-    statChip: {
-        flex: 1,
+    statRow: {
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "space-between",
         paddingVertical: spacing.xxs,
-        paddingHorizontal: spacing.xxs,
+        paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.sm,
+        backgroundColor: customColors.grey50,
     },
-    statChipValue: {
+    statRowLabel: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    statDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    statRowLabelText: {
+        ...typography.caption(),
+        color: customColors.grey700,
+    },
+    statRowValue: {
         ...typography.subtitle2(),
         fontWeight: "700",
-    },
-    statChipLabel: {
-        ...typography.caption(),
-        fontSize: 10,
     },
     totalSection: {
         flexDirection: "row",

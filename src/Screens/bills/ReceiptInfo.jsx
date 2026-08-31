@@ -113,6 +113,9 @@ const ReceiptInfo = () => {
         });
     };
 
+    // Current date for edit button visibility
+    const currentDate = React.useMemo(() => new Date().toISOString().split("T")[0], []);
+
     const renderReceiptCard = receipt => {
         const isCompleted = receipt.status === 1;
         return (
@@ -154,7 +157,7 @@ const ReceiptInfo = () => {
                     {receipt.remarks && (
                         <View style={styles.detailItem}>
                             <FeatherIcon name="message-square" size={iconSizes.sm} color={customColors.grey500} />
-                            <Text style={styles.detailText} numberOfLines={1}>
+                            <Text style={styles.detailText} numberOfLines={3}>
                                 {receipt.remarks}
                             </Text>
                         </View>
@@ -169,11 +172,27 @@ const ReceiptInfo = () => {
                             {formatTime(receipt.created_on)}
                         </Text>
                     </View>
-                    <StatusBadge
-                        label={isCompleted ? "Completed" : "Cancelled"}
-                        color={isCompleted ? customColors.success : customColors.error}
-                        icon={isCompleted ? "check-circle" : "x-circle"}
-                    />
+                    <View style={styles.receiptFooterRight}>
+                        <StatusBadge
+                            label={isCompleted ? "Completed" : "Cancelled"}
+                            color={isCompleted ? customColors.success : customColors.error}
+                            icon={isCompleted ? "check-circle" : "x-circle"}
+                        />
+                        {receipt.receipt_date.split("T")[0] === currentDate && (
+                            <TouchableOpacity
+                                style={styles.editButton}
+                                onPress={() =>
+                                    navigation.navigate("CreateReceipts", {
+                                        editMode: true,
+                                        receiptData: receipt,
+                                    })
+                                }
+                                activeOpacity={0.7}
+                            >
+                                <FeatherIcon name="edit-2" size={iconSizes.sm} color={customColors.primary} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
             </View>
         );
@@ -742,6 +761,19 @@ const styles = StyleSheet.create({
     timestamp: {
         ...typography.caption(),
         color: customColors.grey500,
+    },
+    receiptFooterRight: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    editButton: {
+        width: 28,
+        height: 28,
+        borderRadius: borderRadius.md,
+        backgroundColor: customColors.primaryFaded,
+        justifyContent: "center",
+        alignItems: "center",
     },
     // Status Badge
     statusBadge: {

@@ -7,9 +7,13 @@ import {
     TextInput,
     Alert,
     ToastAndroid,
+    Modal,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import FeatherIcon from "react-native-vector-icons/Feather";
 import FontAwesomeIcon from "react-native-vector-icons/FontAwesome";
 import AppHeader from "../../Components/AppHeader";
@@ -25,8 +29,11 @@ import {
 import {
     fetchDefaultAccountMaster,
     createReceipt,
+    editReceipt,
     fetchCustomerWhoHasBills,
     fetchRetailerAccountPendingReference,
+    fetchAgainstRef,
+    updateAgainstRef,
 } from "../../Api/receipt";
 import DatePickerButton from "../../Components/DatePickerButton";
 import { API } from "../../Config/Endpoint";
@@ -35,8 +42,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import LocationIndicator from "../../Components/LocationIndicator";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// Sanitizes free-typed decimal input instead of rejecting keystrokes outright.
+// Silently no-op'ing on an invalid keystroke leaves the controlled value out of
+// sync with what the native TextInput already displays, which forces Android to
+// snap the text back mid-keystroke and can dismiss the keyboard.
+const sanitizeDecimalInput = value => {
+    const digitsAndDots = value.replace(/[^0-9.]/g, "");
+    const [whole, ...rest] = digitsAndDots.split(".");
+    return rest.length > 0 ? `${whole}.${rest.join("")}` : whole;
+};
+
 const CreateReceipts = () => {
     const navigation = useNavigation();
+    const route = useRoute();
+    const { editMode = false, receiptData = null } = route.params || {};
 
     const [filteredRetailers, setFilteredRetailers] = useState([]);
     const [selectedRetailer, setSelectedRetailer] = useState(null);
@@ -46,6 +65,13 @@ const CreateReceipts = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showReceiptView, setShowReceiptView] = useState(false);
     const [receiptAmounts, setReceiptAmounts] = useState({});
+    const [showCollectPaymentModal, setShowCollectPaymentModal] = useState(false);
+    const [collectPaymentAmount, setCollectPaymentAmount] = useState("");
+    const [editAmount, setEditAmount] = useState("");
+    const [hasPrefilledEdit, setHasPrefilledEdit] = useState(false);
+    const [isUpdatingReceipt, setIsUpdatingReceipt] = useState(false);
+    const [referenceAmounts, setReferenceAmounts] = useState({});
+    const [removedReferences, setRemovedReferences] = useState([]);
     const [location, setLocation] = useState({
         latitude: null,
         longitude: null,
@@ -98,11 +124,90 @@ const CreateReceipts = () => {
         },
     });
 
+    const {
+        data: editReferenceAgainstBill = [],
+        isLoading: isLoadingAgainstBill,
+    } = useQuery({
+        queryKey: ["AgainstBill", receiptData?.receipt_id],
+        queryFn: () => fetchAgainstRef(receiptData.receipt_id),
+        // Only fetch bill references when this receipt actually has some referenced amount
+        enabled:
+            editMode &&
+            !!receiptData?.receipt_id &&
+            !!receiptData?.TotalReferencedAmount,
+        select: data => {
+            if (!data || !Array.isArray(data)) return [];
+
+            return data.map((item, index) => ({
+                ...item,
+                key: `against_bill_${item.auto_id}_${index}`,
+            }));
+        },
+    });
+
     useEffect(() => {
         if (retailersData && retailersData.length > 0) {
             setFilteredRetailers(retailersData);
         }
     }, [retailersData]);
+
+    // Prefill retailer, payment type and amount when opened in edit mode
+    useEffect(() => {
+        if (
+            !editMode ||
+            !receiptData ||
+            hasPrefilledEdit ||
+            paymentOption.length === 0
+        ) {
+            return;
+        }
+
+        const matchedRetailer = retailersData.find(
+            item => String(item.value) === String(receiptData.credit_ledger),
+        );
+
+        const retailerToSet = matchedRetailer || {
+            Retailer_id: `edit_${receiptData.receipt_id}`,
+            value: receiptData.credit_ledger,
+            label: receiptData.credit_ledger_name,
+            key: `retailer_edit_${receiptData.receipt_id}`,
+        };
+
+        setSelectedRetailer(retailerToSet);
+        setFilteredRetailers(prev => {
+            const exists = prev.some(
+                item => item.Retailer_id === retailerToSet.Retailer_id,
+            );
+            return exists ? prev : [retailerToSet, ...prev];
+        });
+
+        const matchedPaymentType = paymentOption.find(
+            item => item.Acc_Id === receiptData.debit_ledger,
+        );
+        if (matchedPaymentType) {
+            setSelectedAmountType(matchedPaymentType);
+        }
+
+        setEditAmount(String(receiptData.credit_amount));
+        setSelectedDate(new Date(receiptData.receipt_date));
+        setHasPrefilledEdit(true);
+    }, [editMode, receiptData, retailersData, paymentOption, hasPrefilledEdit]);
+
+    // Prefill editable payment amount for each referenced bill
+    useEffect(() => {
+        if (
+            editReferenceAgainstBill.length > 0 &&
+            Object.keys(referenceAmounts).length === 0
+        ) {
+            const initialAmounts = {};
+            editReferenceAgainstBill.forEach(bill => {
+                initialAmounts[bill.auto_id] = String(
+                    bill.Credit_Amo ?? bill.bill_amount ?? 0,
+                );
+            });
+            setReferenceAmounts(initialAmounts);
+        }
+    }, [editReferenceAgainstBill]);
 
     // Remove the old manual fetch logic and use the useQuery instead
     const {
@@ -290,6 +395,28 @@ const CreateReceipts = () => {
         setShowReceiptView(false);
     };
 
+    const getLedgerDetails = () => {
+        let transaction_type = "";
+
+        if (selectedAmountType?.Account_Name === "Cash Note Off") {
+            transaction_type = "Cash";
+        } else if (
+            selectedAmountType?.Account_Name === "Canara Bank (795956)"
+        ) {
+            transaction_type = "UPI";
+        }
+
+        let credit_ledger_Id = selectedRetailer.value;
+        let credit_ledger_name = selectedRetailer.label;
+
+        if (selectedRetailer.value === "0" || selectedRetailer.value === 0) {
+            credit_ledger_Id = 14;
+            credit_ledger_name = `${selectedRetailer.label} - (Sundry Creditors)`;
+        }
+
+        return { transaction_type, credit_ledger_Id, credit_ledger_name };
+    };
+
     const handleViewSubmit = async () => {
         // Validation checks
         if (!selectedAmountType) {
@@ -313,26 +440,15 @@ const CreateReceipts = () => {
             return;
         }
 
-        let transaction_type = "";
-
-        if (selectedAmountType?.Account_Name === "Cash Note Off") {
-            transaction_type = "Cash";
-        } else if (
-            selectedAmountType?.Account_Name === "Canara Bank (795956)"
-        ) {
-            transaction_type = "UPI";
-        }
-
-        let credit_ledger_Id = selectedRetailer.value;
-        let credit_ledger_name = selectedRetailer.label;
-
-        if (selectedRetailer.value === "0" || selectedRetailer.value === 0) {
-            credit_ledger_Id = 14;
-            credit_ledger_name = `${selectedRetailer.label} - (Sundry Creditors)`;
-        }
+        const { transaction_type, credit_ledger_Id, credit_ledger_name } =
+            getLedgerDetails();
 
         try {
             const userId = await AsyncStorage.getItem("UserId");
+            const costCenterId = await AsyncStorage.getItem("costCenterId");
+            const costCenterName = await AsyncStorage.getItem("costCenterName");
+            const costCategoryId = await AsyncStorage.getItem("costCategoryId");
+            const costCategoryName = await AsyncStorage.getItem("costCategoryName");
             const visitEntrySuccess = await handleSubmitforVisitLog();
             if (!visitEntrySuccess) return;
 
@@ -364,6 +480,12 @@ const CreateReceipts = () => {
                         Credit_Amo: receiptAmount,
                     };
                 }),
+                staffDetails: [{
+                    Emp_Id: parseInt(costCenterId, 10),
+                    Emp_Name: costCenterName,
+                    Emp_Type_Id: parseInt(costCategoryId, 10),
+                    Emp_Type_Name: costCategoryName,
+                }]
             };
 
             // console.log("Receipt created successfully:", resBody);
@@ -392,6 +514,319 @@ const CreateReceipts = () => {
         } catch (error) {
             console.error("Error creating receipt:", error);
             Alert.alert("Failed to create receipt. Please try again.");
+        }
+    };
+
+    const handleOpenCollectPaymentModal = () => {
+        if (!selectedAmountType) {
+            Alert.alert(
+                "Please select a payment type before collecting payment.",
+            );
+            return;
+        }
+
+        if (!selectedRetailer) {
+            Alert.alert(
+                "Please select a retailer before collecting payment.",
+            );
+            return;
+        }
+
+        setCollectPaymentAmount("");
+        setShowCollectPaymentModal(true);
+    };
+
+    const handleCloseCollectPaymentModal = () => {
+        setShowCollectPaymentModal(false);
+        setCollectPaymentAmount("");
+    };
+
+    const handleCollectAmountChange = amount => {
+        setCollectPaymentAmount(sanitizeDecimalInput(amount));
+    };
+
+    const handleSubmitCollectPayment = async () => {
+        const amount = parseFloat(collectPaymentAmount);
+
+        if (!collectPaymentAmount || isNaN(amount) || amount <= 0) {
+            Alert.alert("Please enter a valid payment amount.");
+            return;
+        }
+
+        const { transaction_type, credit_ledger_Id, credit_ledger_name } =
+            getLedgerDetails();
+
+        try {
+            const userId = await AsyncStorage.getItem("UserId");
+            const costCenterId = await AsyncStorage.getItem("costCenterId");
+            const costCenterName = await AsyncStorage.getItem("costCenterName");
+            const costCategoryId = await AsyncStorage.getItem("costCategoryId");
+            const costCategoryName = await AsyncStorage.getItem("costCategoryName");
+            const visitEntrySuccess = await handleSubmitforVisitLog();
+            if (!visitEntrySuccess) return;
+
+            const resBody = {
+                receipt_voucher_type_id: 10,
+                receipt_bill_type: 1,
+                remarks: "Receipt created from mobile app",
+                status: 1,
+                credit_ledger: credit_ledger_Id,
+                credit_ledger_name: credit_ledger_name,
+                debit_ledger: selectedAmountType?.Acc_Id,
+                debit_ledger_name: selectedAmountType?.Account_Name,
+                credit_amount: amount,
+                created_by: userId,
+                transaction_type: transaction_type,
+                receipt_date: selectedDate.toISOString(),
+                staffDetails: [{
+                    receipt_id: "",
+                    Emp_Id: parseInt(costCenterId, 10),
+                    Emp_Name: costCenterName,
+                    Emp_Type_Id: parseInt(costCategoryId, 10),
+                    Emp_Type_Name: costCategoryName,
+                }]
+            };
+
+
+            const result = await createReceipt(resBody);
+
+            Alert.alert(
+                "Success",
+                result.message || "Payment collected successfully!",
+            );
+            setShowCollectPaymentModal(false);
+            setCollectPaymentAmount("");
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}]
+                    }
+                }],
+            });
+        } catch (error) {
+            console.error("Error collecting payment:", error);
+            Alert.alert("Failed to collect payment. Please try again.");
+        }
+    };
+
+    const handleEditAmountChange = amount => {
+        setEditAmount(sanitizeDecimalInput(amount));
+    };
+
+    const handleReferenceAmountChange = (autoId, amount) => {
+        setReferenceAmounts(prev => ({
+            ...prev,
+            [autoId]: sanitizeDecimalInput(amount),
+        }));
+    };
+
+    const handleRemoveReference = autoId => {
+        setRemovedReferences(prev => [...prev, autoId]);
+    };
+
+    const handleRestoreReferences = () => {
+        setRemovedReferences([]);
+    };
+
+    const getActiveReferences = () =>
+        editReferenceAgainstBill.filter(
+            bill => !removedReferences.includes(bill.auto_id),
+        );
+
+    const getTotalReferenceAmount = () =>
+        getActiveReferences().reduce((total, bill) => {
+            const amount = parseFloat(referenceAmounts[bill.auto_id]);
+            return total + (isNaN(amount) ? 0 : amount);
+        }, 0);
+
+    const handleUpdateReceipt = async () => {
+        if (isUpdatingReceipt) return;
+
+        if (!selectedAmountType) {
+            Alert.alert("Please select a payment type.");
+            return;
+        }
+
+        if (!selectedRetailer) {
+            Alert.alert("Please select a retailer.");
+            return;
+        }
+
+        const amount = parseFloat(editAmount);
+        if (!editAmount || isNaN(amount) || amount <= 0) {
+            Alert.alert("Please enter a valid amount.");
+            return;
+        }
+
+        const activeReferences = getActiveReferences();
+        const invalidReference = activeReferences.find(bill => {
+            const refAmount = parseFloat(referenceAmounts[bill.auto_id]);
+            return isNaN(refAmount) || refAmount <= 0;
+        });
+        if (invalidReference) {
+            Alert.alert(
+                `Please enter a valid payment amount for invoice #${invalidReference.bill_name}.`,
+            );
+            return;
+        }
+
+        const { transaction_type, credit_ledger_Id, credit_ledger_name } =
+            getLedgerDetails();
+
+        const buildBillsDetails = () =>
+            activeReferences.map(bill => ({
+                bill_id: bill.bill_id,
+                bill_name: bill.bill_name,
+                bill_amount: bill.bill_amount,
+                JournalBillType: bill.JournalBillType,
+                Credit_Amo: parseFloat(referenceAmounts[bill.auto_id]),
+            }));
+
+        const buildAlterReason = () => {
+            const changes = [];
+
+            const originalAmount = Number(receiptData.credit_amount);
+            if (!isNaN(originalAmount) && originalAmount !== amount) {
+                changes.push(
+                    `amount changed from ₹${originalAmount.toFixed(2)} to ₹${amount.toFixed(2)}`,
+                );
+            }
+
+            const originalPaymentType = receiptData.debit_ledger_name;
+            const newPaymentType = selectedAmountType?.Account_Name;
+            if (
+                originalPaymentType &&
+                newPaymentType &&
+                originalPaymentType !== newPaymentType
+            ) {
+                changes.push(
+                    `payment type changed from "${originalPaymentType}" to "${newPaymentType}"`,
+                );
+            }
+
+            const originalRetailerName = receiptData.credit_ledger_name;
+            if (
+                originalRetailerName &&
+                credit_ledger_name &&
+                originalRetailerName !== credit_ledger_name
+            ) {
+                changes.push(
+                    `retailer changed from "${originalRetailerName}" to "${credit_ledger_name}"`,
+                );
+            }
+
+            const originalDate = receiptData.receipt_date
+                ? new Date(receiptData.receipt_date).toLocaleDateString("en-GB")
+                : null;
+            const newDate = selectedDate.toLocaleDateString("en-GB");
+            if (originalDate && originalDate !== newDate) {
+                changes.push(
+                    `receipt date changed from ${originalDate} to ${newDate}`,
+                );
+            }
+
+            const changedReferences = activeReferences.filter(bill => {
+                const original = Number(
+                    bill.Credit_Amo ?? bill.bill_amount ?? 0,
+                );
+                const updated = parseFloat(referenceAmounts[bill.auto_id]);
+                return !isNaN(updated) && original !== updated;
+            });
+            if (changedReferences.length > 0) {
+                changes.push(
+                    `bill reference amount updated for ${changedReferences
+                        .map(bill => bill.bill_name)
+                        .join(", ")}`,
+                );
+            }
+
+            if (removedReferences.length > 0) {
+                const removedNames = editReferenceAgainstBill
+                    .filter(bill => removedReferences.includes(bill.auto_id))
+                    .map(bill => bill.bill_name);
+                changes.push(
+                    `bill reference removed: ${removedNames.join(", ")}`,
+                );
+            }
+
+            return changes.length > 0
+                ? `Receipt updated from app: ${changes.join(", ")}`
+                : "Receipt updated from app (no field changes)";
+        };
+
+        setIsUpdatingReceipt(true);
+
+        try {
+            const userId = await AsyncStorage.getItem("UserId");
+            const costCenterId = await AsyncStorage.getItem("costCenterId");
+            const costCategoryId = await AsyncStorage.getItem("costCategoryId");
+
+            const resBody = {
+                receipt_id: receiptData.receipt_id,
+                remarks: buildAlterReason(),
+                status: 1,
+                credit_ledger: credit_ledger_Id,
+                credit_ledger_name: credit_ledger_name,
+                debit_ledger: selectedAmountType?.Acc_Id,
+                debit_ledger_name: selectedAmountType?.Account_Name,
+                credit_amount: amount,
+                debit_amount: amount,
+                altered_by: userId,
+                Alter_Reason: buildAlterReason(),
+                is_new_ref: 0,
+                transaction_type: transaction_type,
+                receipt_date: selectedDate.toISOString(),
+                staffDetails: [
+                    {
+                        Emp_Id: parseInt(costCenterId, 10),
+                        Emp_Type_Id: parseInt(costCategoryId, 10),
+                    },
+                ],
+            };
+
+            // console.log("Updating receipt with data:", resBody)
+
+            const result = await editReceipt(resBody);
+
+            // Bill reference amounts live in a separate table and are only
+            // updated via this endpoint, which fully replaces the receipt's
+            // bill reference rows from the given BillsDetails.
+            if (editReferenceAgainstBill.length > 0) {
+                await updateAgainstRef({
+                    receipt_id: receiptData.receipt_id,
+                    receipt_no: receiptData.receipt_invoice_no,
+                    receipt_date: selectedDate.toISOString(),
+                    receipt_bill_type: receiptData.receipt_bill_type,
+                    DR_CR_Acc_Id: credit_ledger_Id,
+                    BillsDetails: buildBillsDetails(),
+                });
+            }
+
+            Alert.alert(
+                "Success",
+                result.message || "Receipt updated successfully!",
+            );
+            navigation.reset({
+                index: 0,
+                routes: [{
+                    name: "HomeScreen",
+                    state: {
+                        index: 0,
+                        routes: [{ name: "HomeScreen"}] 
+                    }
+                }],
+            });
+        } catch (error) {
+            console.error("Error updating receipt:", error);
+            Alert.alert(
+                "Failed to update receipt",
+                error.message || "Please try again.",
+            );
+        } finally {
+            setIsUpdatingReceipt(false);
         }
     };
 
@@ -445,6 +880,252 @@ const CreateReceipts = () => {
         );
     };
 
+    const renderEditReceiptView = () => (
+        <View style={styles.content}>
+            <View style={styles.receiptDateContainer}>
+                <DatePickerButton
+                    label="Receipt Date"
+                    date={selectedDate instanceof Date ? selectedDate : new Date()}
+                    onDateChange={handleDateChange}
+                    containerStyle={styles.receiptDatePicker}
+                />
+            </View>
+
+            <ScrollView
+                style={styles.receiptContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+                <EnhancedDropdown
+                    data={filteredRetailers}
+                    labelField="label"
+                    valueField="Retailer_id"
+                    placeholder="Select Retailer"
+                    value={selectedRetailer?.Retailer_id}
+                    onChange={handleRetailerSelect}
+                    containerStyle={styles.dropdownContainer}
+                    searchPlaceholder="Search retailers..."
+                    itemContainerStyle={styles.dropdownItem}
+                    renderItem={(item, index) => (
+                        <View
+                            key={`retailer_edit_item_${item.Retailer_id}_${index}`}
+                            style={styles.dropdownItemContent}>
+                            <Text style={styles.dropdownItemText} numberOfLines={2}>
+                                {item.label}
+                            </Text>
+                        </View>
+                    )}
+                />
+
+                <EnhancedDropdown
+                    data={paymentOption}
+                    labelField="Account_Name"
+                    valueField="Acc_Id"
+                    placeholder="Select Payment Type"
+                    value={selectedAmountType?.Acc_Id}
+                    onChange={handleAmountTypeSelect}
+                    containerStyle={styles.dropdownContainer}
+                    searchPlaceholder="Search payment types..."
+                    renderItem={(item, index) => (
+                        <View
+                            key={`payment_edit_item_${item.Acc_Id}_${index}`}
+                            style={styles.dropdownItemContent}>
+                            <Text style={styles.dropdownItemText} numberOfLines={2}>
+                                {item.Account_Name}
+                            </Text>
+                        </View>
+                    )}
+                />
+
+                {isLoadingAgainstBill && (
+                    <View style={styles.loadingState}>
+                        <Text style={styles.loadingText}>
+                            Loading referenced bills...
+                        </Text>
+                    </View>
+                )}
+
+                {editReferenceAgainstBill.length > 0 && (
+                    <View style={styles.againstBillSection}>
+                        <Text style={styles.receiptAmountLabel}>
+                            Against Reference
+                        </Text>
+                        {getActiveReferences().map(bill => (
+                            <View key={bill.key} style={styles.receiptBillCard}>
+                                <View style={styles.receiptBillHeader}>
+                                    <View style={styles.receiptBillIconWrap}>
+                                        <FeatherIcon
+                                            name="file-text"
+                                            size={iconSizes.md}
+                                            color={customColors.primary}
+                                        />
+                                    </View>
+                                    <View style={styles.receiptBillInfo}>
+                                        <Text style={styles.receiptBillNumber}>
+                                            Invoice #{bill.bill_name}
+                                        </Text>
+                                        <View style={styles.receiptBillMeta}>
+                                            <FeatherIcon
+                                                name="calendar"
+                                                size={iconSizes.xs}
+                                                color={customColors.grey500}
+                                            />
+                                            <Text style={styles.receiptBillDate}>
+                                                {new Date(
+                                                    bill.referenceBillDate,
+                                                ).toLocaleDateString("en-GB")}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.billTotalRow}>
+                                            <FontAwesomeIcon
+                                                name="inr"
+                                                size={iconSizes.xs}
+                                                color={customColors.grey600}
+                                            />
+                                            <Text style={styles.billTotalAmount}>
+                                                Invoice Value:{" "}
+                                                {Number(
+                                                    bill.bill_amount ?? 0,
+                                                ).toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={styles.removeReferenceButton}
+                                        onPress={() =>
+                                            handleRemoveReference(bill.auto_id)
+                                        }
+                                        activeOpacity={0.7}
+                                    >
+                                        <FeatherIcon
+                                            name="trash-2"
+                                            size={iconSizes.sm}
+                                            color={customColors.error}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.receiptAmountContainer}>
+                                    <Text style={styles.receiptAmountLabel}>
+                                        Payment Amount
+                                    </Text>
+                                    <View style={styles.receiptInputWrapper}>
+                                        <FontAwesomeIcon
+                                            name="inr"
+                                            size={iconSizes.sm}
+                                            color={customColors.grey500}
+                                        />
+                                        <TextInput
+                                            style={styles.receiptAmountInput}
+                                            value={
+                                                referenceAmounts[
+                                                    bill.auto_id
+                                                ] ?? ""
+                                            }
+                                            onChangeText={amount =>
+                                                handleReferenceAmountChange(
+                                                    bill.auto_id,
+                                                    amount,
+                                                )
+                                            }
+                                            placeholder="0.00"
+                                            placeholderTextColor={
+                                                customColors.grey400
+                                            }
+                                            keyboardType="decimal-pad"
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+                        ))}
+
+                        {getActiveReferences().length > 0 && (
+                            <View style={styles.referenceSummaryContainer}>
+                                <Text style={styles.referenceSummaryLabel}>
+                                    Total Payment Amount
+                                </Text>
+                                <Text style={styles.referenceSummaryValue}>
+                                    ₹{getTotalReferenceAmount().toFixed(2)}
+                                </Text>
+                            </View>
+                        )}
+
+                        {removedReferences.length > 0 && (
+                            <TouchableOpacity
+                                style={styles.undoRemoveButton}
+                                onPress={handleRestoreReferences}
+                                activeOpacity={0.7}
+                            >
+                                <FeatherIcon
+                                    name="rotate-ccw"
+                                    size={iconSizes.sm}
+                                    color={customColors.primary}
+                                />
+                                <Text style={styles.undoRemoveText}>
+                                    Restore removed reference(s) (
+                                    {removedReferences.length})
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+
+                <View style={styles.receiptAmountContainer}>
+                    <Text style={styles.receiptAmountLabel}>Amount</Text>
+                    <View style={styles.receiptInputWrapper}>
+                        <FontAwesomeIcon name="inr" size={iconSizes.sm} color={customColors.grey500} />
+                        <TextInput
+                            style={styles.receiptAmountInput}
+                            value={editAmount}
+                            onChangeText={handleEditAmountChange}
+                            placeholder="0.00"
+                            placeholderTextColor={customColors.grey400}
+                            keyboardType="decimal-pad"
+                        />
+                    </View>
+                </View>
+                <View style={styles.bottomSpacer} />
+            </ScrollView>
+
+            <View style={styles.receiptFooter}>
+                <TouchableOpacity
+                    style={[
+                        styles.receiptCancelButton,
+                        isUpdatingReceipt && styles.disabledButton,
+                    ]}
+                    onPress={() => navigation.goBack()}
+                    activeOpacity={0.7}
+                    disabled={isUpdatingReceipt}
+                >
+                    <FeatherIcon name="arrow-left" size={iconSizes.md} color={customColors.grey700} />
+                    <Text style={styles.receiptCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[
+                        styles.receiptSubmitButton,
+                        isUpdatingReceipt && styles.disabledButton,
+                    ]}
+                    onPress={handleUpdateReceipt}
+                    activeOpacity={0.7}
+                    disabled={isUpdatingReceipt}
+                >
+                    {isUpdatingReceipt ? (
+                        <ActivityIndicator
+                            size="small"
+                            color={customColors.white}
+                        />
+                    ) : (
+                        <View style={styles.receiptSubmitContent}>
+                            <FeatherIcon name="check-circle" size={iconSizes.md} color={customColors.white} />
+                            <Text style={styles.receiptSubmitText}>Update Receipt</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+
     const renderBillSelectionView = () => (
         <View style={styles.content}>
             <EnhancedDropdown
@@ -491,6 +1172,23 @@ const CreateReceipts = () => {
                     )}
                 />
             </View>
+
+            {selectedRetailer?.Retailer_id && (
+                <TouchableOpacity
+                    style={styles.addPaymentButton}
+                    onPress={handleOpenCollectPaymentModal}
+                    activeOpacity={0.7}
+                >
+                    <FeatherIcon
+                        name="plus-circle"
+                        size={iconSizes.md}
+                        color={customColors.primary}
+                    />
+                    <Text style={styles.addPaymentButtonText}>
+                        Collect Payment (No Bill Reference)
+                    </Text>
+                </TouchableOpacity>
+            )}
 
             {selectedRetailer?.Retailer_id && pendingBills.length > 0 && (
                 <>
@@ -674,7 +1372,10 @@ const CreateReceipts = () => {
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-            <AppHeader title="Create Receipts" navigation={navigation} />
+            <AppHeader
+                title={editMode ? "Edit Receipt" : "Create Receipts"}
+                navigation={navigation}
+            />
             <LocationIndicator
                 onLocationUpdate={locationData => setLocation(locationData)}
                 autoFetch={true}
@@ -682,11 +1383,97 @@ const CreateReceipts = () => {
                 showComponent={false}
             />
 
-            <View style={styles.contentContainer}>
-                {showReceiptView
-                    ? renderReceiptCreationView()
-                    : renderBillSelectionView()}
-            </View>
+            <KeyboardAvoidingView
+                style={styles.contentContainer}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+                {editMode
+                    ? renderEditReceiptView()
+                    : showReceiptView
+                        ? renderReceiptCreationView()
+                        : renderBillSelectionView()}
+            </KeyboardAvoidingView>
+
+            <Modal
+                visible={showCollectPaymentModal}
+                transparent
+                animationType="fade"
+                onRequestClose={handleCloseCollectPaymentModal}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                Collect Payment
+                            </Text>
+                            <TouchableOpacity
+                                onPress={handleCloseCollectPaymentModal}
+                                activeOpacity={0.7}
+                            >
+                                <FeatherIcon
+                                    name="x"
+                                    size={iconSizes.md}
+                                    color={customColors.grey600}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.modalSubtitle}>
+                            Record an amount collected without a bill
+                            reference.
+                        </Text>
+
+                        <View style={styles.receiptInputWrapper}>
+                            <FontAwesomeIcon
+                                name="inr"
+                                size={iconSizes.sm}
+                                color={customColors.grey500}
+                            />
+                            <TextInput
+                                style={[
+                                    styles.receiptAmountInput,
+                                    styles.collectPaymentAmountInput,
+                                ]}
+                                value={collectPaymentAmount}
+                                onChangeText={handleCollectAmountChange}
+                                placeholder="0.00"
+                                placeholderTextColor={customColors.grey400}
+                                keyboardType="decimal-pad"
+                                autoFocus
+                            />
+                        </View>
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={styles.receiptCancelButton}
+                                onPress={handleCloseCollectPaymentModal}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.receiptCancelText}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.receiptSubmitButton}
+                                onPress={handleSubmitCollectPayment}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.receiptSubmitContent}>
+                                    <FeatherIcon
+                                        name="check-circle"
+                                        size={iconSizes.md}
+                                        color={customColors.white}
+                                    />
+                                    <Text style={styles.receiptSubmitText}>
+                                        Submit
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -733,6 +1520,106 @@ const styles = StyleSheet.create({
     dropdownItemText: {
         ...typography.body2(),
         color: customColors.grey900,
+    },
+    // Add Payment Button
+    addPaymentButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        borderWidth: 1,
+        borderColor: customColors.primary,
+        borderStyle: "dashed",
+        borderRadius: borderRadius.lg,
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    addPaymentButtonText: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "600",
+    },
+    // Collect Payment Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: customColors.overlay,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: spacing.lg,
+    },
+    modalCard: {
+        width: "100%",
+        maxWidth: 400,
+        backgroundColor: customColors.white,
+        borderRadius: borderRadius.xl,
+        padding: spacing.lg,
+        ...shadows.small,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: spacing.xs,
+    },
+    modalTitle: {
+        ...typography.h6(),
+        color: customColors.grey900,
+        fontWeight: "700",
+    },
+    modalSubtitle: {
+        ...typography.body2(),
+        color: customColors.grey500,
+        marginBottom: spacing.md,
+    },
+    modalActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginTop: spacing.lg,
+    },
+    // Against Bill References (edit view)
+    againstBillSection: {
+        marginBottom: spacing.md,
+    },
+    removeReferenceButton: {
+        width: 32,
+        height: 32,
+        borderRadius: borderRadius.md,
+        backgroundColor: customColors.errorFaded,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    referenceSummaryContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: customColors.primaryFaded,
+        borderRadius: borderRadius.lg,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        marginTop: spacing.xxs,
+    },
+    referenceSummaryLabel: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "600",
+    },
+    referenceSummaryValue: {
+        ...typography.body1(),
+        color: customColors.primary,
+        fontWeight: "700",
+    },
+    undoRemoveButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        paddingVertical: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    undoRemoveText: {
+        ...typography.body2(),
+        color: customColors.primary,
+        fontWeight: "600",
     },
     // Bills Header
     billsHeader: {
@@ -1029,12 +1916,20 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm,
         fontWeight: "600",
     },
+    // Collect Payment modal's amount input fills its wrapper so the whole
+    // box is tappable to open the keyboard, not just the text's own width.
+    collectPaymentAmountInput: {
+        flex: 1,
+    },
     // Receipt Footer
     receiptFooter: {
         flexDirection: "row",
         paddingVertical: spacing.md,
         gap: spacing.sm,
         backgroundColor: customColors.grey50,
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
     receiptCancelButton: {
         flex: 1,
